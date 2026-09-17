@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from deeper_dive.storage.database import Database, LATEST_SCHEMA_VERSION
+from deeper_dive.storage.database import LATEST_SCHEMA_VERSION, Database
 
 
 def test_fresh_database_initializes_and_reopens_idempotently(tmp_path: Path) -> None:

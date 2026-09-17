@@ -1,6 +1,6 @@
 """Persistence and workspace infrastructure."""
 
-from deeper_dive.storage.database import Database, LATEST_SCHEMA_VERSION, Migration
+from deeper_dive.storage.database import LATEST_SCHEMA_VERSION, Database, Migration
 from deeper_dive.storage.workspace import (
     ProjectWorkspace,
     WorkspaceManager,
