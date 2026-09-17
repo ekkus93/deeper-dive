@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "deeper-dive"
+version = "0.1.0"
+description = "A terminal-first NotebookLM-style deep-dive application."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+deeper-dive = "deeper_dive.cli:main"
+
+[dependency-groups]
+dev = []
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/deeper_dive"]
