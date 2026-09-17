@@ -171,11 +171,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-013 — Persist hosts and episodes
 
-- [ ] Persist HostProfile.
-- [ ] Persist host relationships.
-- [ ] Persist Episode configuration.
-- [ ] Persist ordered episode host membership.
-- [ ] Persist EpisodePlan/SegmentPlan schema placeholders sufficient for later migration-free evolution where practical.
+- [x] Persist HostProfile.
+- [x] Persist host relationships.
+- [x] Persist Episode configuration.
+- [x] Persist ordered episode host membership.
+- [x] Persist EpisodePlan/SegmentPlan schema placeholders sufficient for later migration-free evolution where practical.
 
 **Acceptance criteria**
 
