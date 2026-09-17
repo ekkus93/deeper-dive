@@ -22,7 +22,10 @@ class Migration:
 
 
 _MIGRATIONS = (
-    Migration(version=1, statements=("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)",)),
+    Migration(
+        version=1,
+        statements=("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)",),
+    ),
     Migration(
         version=2,
         statements=(

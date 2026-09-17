@@ -1,7 +1,12 @@
 from pathlib import Path
 
 from deeper_dive.storage.database import Database
-from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord, SourceChunkRecord, SourceRecord
+from deeper_dive.storage.repositories import (
+    CorpusRepository,
+    ProjectRecord,
+    SourceChunkRecord,
+    SourceRecord,
+)
 
 
 def project() -> ProjectRecord:
@@ -32,11 +37,26 @@ def test_crud_and_origin_round_trip(tmp_path: Path) -> None:
     assert repo.list_projects() == [project()]
     assert repo.list_sources("p1")[0].origin == "user"
 
-    updated = ProjectRecord("p1", "Renamed", project().created_at, "2026-01-02T00:00:00Z", "notes")
+    updated = ProjectRecord(
+        "p1",
+        "Renamed",
+        project().created_at,
+        "2026-01-02T00:00:00Z",
+        "notes",
+    )
     repo.update_project(updated)
     assert repo.get_project("p1") == updated
 
-    updated_source = SourceRecord("s1", "p1", "user", "text", "Updated", source().imported_at, included=False, status="parsed")
+    updated_source = SourceRecord(
+        "s1",
+        "p1",
+        "user",
+        "text",
+        "Updated",
+        source().imported_at,
+        included=False,
+        status="parsed",
+    )
     repo.update_source(updated_source)
     assert repo.get_source("s1") == updated_source
     repo.delete_source("s1")
