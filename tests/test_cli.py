@@ -24,7 +24,8 @@ def test_cli_version(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_cli_project_create_list_info_json(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     assert (
         main(["--data-dir", str(tmp_path), "--json", "project", "create", "Demo"])
@@ -54,7 +55,8 @@ def test_cli_project_create_list_info_json(
 
 
 def test_cli_missing_project_uses_stderr_and_nonzero(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     missing = "00000000-0000-0000-0000-000000000001"
     assert main(["--data-dir", str(tmp_path), "project", "info", missing]) == 2
