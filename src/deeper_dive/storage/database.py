@@ -10,7 +10,7 @@ from pathlib import Path
 
 from deeper_dive.domain.errors import StorageError
 
-LATEST_SCHEMA_VERSION = 2
+LATEST_SCHEMA_VERSION = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +49,75 @@ _MIGRATIONS = (
             )""",
             "CREATE INDEX source_project_idx ON sources(project_id)",
             "CREATE INDEX chunk_source_idx ON source_chunks(source_id)",
+        ),
+    ),
+    Migration(
+        version=3,
+        statements=(
+            """CREATE TABLE hosts (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                display_name TEXT NOT NULL,
+                preset_origin TEXT,
+                role TEXT NOT NULL DEFAULT '',
+                expertise TEXT NOT NULL DEFAULT '',
+                instructions TEXT NOT NULL DEFAULT '',
+                behavior_json TEXT NOT NULL DEFAULT '{}',
+                evidence_priorities_json TEXT NOT NULL DEFAULT '[]',
+                tts_provider TEXT,
+                tts_voice TEXT
+            )""",
+            """CREATE TABLE host_relationships (
+                project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                from_host_id TEXT NOT NULL REFERENCES hosts(id) ON DELETE CASCADE,
+                to_host_id TEXT NOT NULL REFERENCES hosts(id) ON DELETE CASCADE,
+                relationship_json TEXT NOT NULL DEFAULT '{}',
+                PRIMARY KEY(from_host_id, to_host_id),
+                CHECK(from_host_id <> to_host_id)
+            )""",
+            """CREATE TABLE episodes (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                title TEXT NOT NULL,
+                focus TEXT NOT NULL DEFAULT '',
+                audience TEXT NOT NULL DEFAULT '',
+                technical_depth TEXT NOT NULL DEFAULT '',
+                target_duration_seconds INTEGER NOT NULL DEFAULT 0,
+                style TEXT NOT NULL DEFAULT '',
+                state TEXT NOT NULL DEFAULT 'draft',
+                config_json TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL,
+                modified_at TEXT NOT NULL
+            )""",
+            """CREATE TABLE episode_hosts (
+                episode_id TEXT NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
+                host_id TEXT NOT NULL REFERENCES hosts(id) ON DELETE RESTRICT,
+                ordinal INTEGER NOT NULL,
+                PRIMARY KEY(episode_id, host_id),
+                UNIQUE(episode_id, ordinal)
+            )""",
+            """CREATE TABLE episode_plans (
+                id TEXT PRIMARY KEY,
+                episode_id TEXT NOT NULL UNIQUE REFERENCES episodes(id) ON DELETE CASCADE,
+                status TEXT NOT NULL DEFAULT 'draft',
+                plan_json TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL,
+                modified_at TEXT NOT NULL
+            )""",
+            """CREATE TABLE segment_plans (
+                id TEXT PRIMARY KEY,
+                episode_plan_id TEXT NOT NULL REFERENCES episode_plans(id) ON DELETE CASCADE,
+                ordinal INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                purpose TEXT NOT NULL DEFAULT '',
+                target_duration_seconds INTEGER NOT NULL DEFAULT 0,
+                segment_json TEXT NOT NULL DEFAULT '{}',
+                UNIQUE(episode_plan_id, ordinal)
+            )""",
+            "CREATE INDEX host_project_idx ON hosts(project_id)",
+            "CREATE INDEX episode_project_idx ON episodes(project_id)",
+            "CREATE INDEX episode_host_host_idx ON episode_hosts(host_id)",
+            "CREATE INDEX segment_plan_parent_idx ON segment_plans(episode_plan_id)",
         ),
     ),
 )
