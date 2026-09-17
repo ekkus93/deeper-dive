@@ -51,7 +51,13 @@ class CorpusRepository:
         with self.database.transaction() as db:
             db.execute(
                 "INSERT INTO projects(id,name,created_at,modified_at,instructions) VALUES (?,?,?,?,?)",
-                (project.id, project.name, project.created_at, project.modified_at, project.instructions),
+                (
+                    project.id,
+                    project.name,
+                    project.created_at,
+                    project.modified_at,
+                    project.instructions,
+                ),
             )
 
     def get_project(self, project_id: str) -> ProjectRecord | None:
@@ -78,10 +84,21 @@ class CorpusRepository:
     def create_source(self, source: SourceRecord) -> None:
         with self.database.transaction() as db:
             db.execute(
-                """INSERT INTO sources(id,project_id,origin,source_type,title,locator,content_hash,included,status,imported_at)
-                VALUES (?,?,?,?,?,?,?,?,?,?)""",
-                (source.id, source.project_id, source.origin, source.source_type, source.title, source.locator,
-                 source.content_hash, int(source.included), source.status, source.imported_at),
+                """INSERT INTO sources(
+                    id,project_id,origin,source_type,title,locator,content_hash,included,status,imported_at
+                ) VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    source.id,
+                    source.project_id,
+                    source.origin,
+                    source.source_type,
+                    source.title,
+                    source.locator,
+                    source.content_hash,
+                    int(source.included),
+                    source.status,
+                    source.imported_at,
+                ),
             )
 
     def get_source(self, source_id: str) -> SourceRecord | None:
@@ -95,8 +112,11 @@ class CorpusRepository:
 
     def list_sources(self, project_id: str) -> list[SourceRecord]:
         with self.database.connection() as db:
-            rows = db.execute("SELECT * FROM sources WHERE project_id=? ORDER BY imported_at,id", (project_id,)).fetchall()
-        result = []
+            rows = db.execute(
+                "SELECT * FROM sources WHERE project_id=? ORDER BY imported_at,id",
+                (project_id,),
+            ).fetchall()
+        result: list[SourceRecord] = []
         for row in rows:
             data = dict(row)
             data["included"] = bool(data["included"])
@@ -107,7 +127,14 @@ class CorpusRepository:
         with self.database.transaction() as db:
             db.execute(
                 "UPDATE sources SET title=?,locator=?,content_hash=?,included=?,status=? WHERE id=?",
-                (source.title, source.locator, source.content_hash, int(source.included), source.status, source.id),
+                (
+                    source.title,
+                    source.locator,
+                    source.content_hash,
+                    int(source.included),
+                    source.status,
+                    source.id,
+                ),
             )
 
     def delete_source(self, source_id: str) -> None:
@@ -118,10 +145,20 @@ class CorpusRepository:
         with self.database.transaction() as db:
             db.execute(
                 "INSERT INTO source_chunks(id,source_id,ordinal,text,content_hash,location) VALUES (?,?,?,?,?,?)",
-                (chunk.id, chunk.source_id, chunk.ordinal, chunk.text, chunk.content_hash, chunk.location),
+                (
+                    chunk.id,
+                    chunk.source_id,
+                    chunk.ordinal,
+                    chunk.text,
+                    chunk.content_hash,
+                    chunk.location,
+                ),
             )
 
     def list_chunks(self, source_id: str) -> list[SourceChunkRecord]:
         with self.database.connection() as db:
-            rows = db.execute("SELECT * FROM source_chunks WHERE source_id=? ORDER BY ordinal", (source_id,)).fetchall()
+            rows = db.execute(
+                "SELECT * FROM source_chunks WHERE source_id=? ORDER BY ordinal",
+                (source_id,),
+            ).fetchall()
         return [SourceChunkRecord(**dict(row)) for row in rows]
