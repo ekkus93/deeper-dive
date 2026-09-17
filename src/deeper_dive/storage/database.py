@@ -10,7 +10,7 @@ from pathlib import Path
 
 from deeper_dive.domain.errors import StorageError
 
-LATEST_SCHEMA_VERSION = 1
+LATEST_SCHEMA_VERSION = 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,12 +24,31 @@ class Migration:
 _MIGRATIONS = (
     Migration(
         version=1,
+        statements=("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)",),
+    ),
+    Migration(
+        version=2,
         statements=(
-            """
-            CREATE TABLE IF NOT EXISTS schema_version (
-                version INTEGER NOT NULL
-            )
-            """,
+            """CREATE TABLE projects (
+                id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TEXT NOT NULL,
+                modified_at TEXT NOT NULL, instructions TEXT NOT NULL DEFAULT ''
+            )""",
+            """CREATE TABLE sources (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                origin TEXT NOT NULL CHECK(origin IN ('user','supplemental','generated_reference')),
+                source_type TEXT NOT NULL, title TEXT NOT NULL, locator TEXT,
+                content_hash TEXT, included INTEGER NOT NULL DEFAULT 1 CHECK(included IN (0,1)),
+                status TEXT NOT NULL DEFAULT 'pending', imported_at TEXT NOT NULL
+            )""",
+            """CREATE TABLE source_chunks (
+                id TEXT PRIMARY KEY,
+                source_id TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+                ordinal INTEGER NOT NULL, text TEXT NOT NULL, content_hash TEXT NOT NULL,
+                location TEXT, UNIQUE(source_id, ordinal)
+            )""",
+            "CREATE INDEX source_project_idx ON sources(project_id)",
+            "CREATE INDEX chunk_source_idx ON source_chunks(source_id)",
         ),
     ),
 )
@@ -45,8 +64,6 @@ class Database:
         self.busy_timeout_ms = busy_timeout_ms
 
     def connect(self) -> sqlite3.Connection:
-        """Open one configured connection with foreign keys enabled."""
-
         self.path.parent.mkdir(parents=True, exist_ok=True)
         connection = sqlite3.connect(self.path, timeout=self.busy_timeout_ms / 1000)
         connection.row_factory = sqlite3.Row
@@ -57,8 +74,6 @@ class Database:
 
     @contextmanager
     def connection(self) -> Iterator[sqlite3.Connection]:
-        """Yield a configured connection and always close it."""
-
         connection = self.connect()
         try:
             yield connection
@@ -67,8 +82,6 @@ class Database:
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
-        """Commit successful work and roll back any exception."""
-
         with self.connection() as connection:
             try:
                 connection.execute("BEGIN")
@@ -80,14 +93,12 @@ class Database:
                 connection.commit()
 
     def initialize(self) -> int:
-        """Initialize or migrate the database to the latest schema."""
-
         with self.transaction() as connection:
             current = self._current_version(connection)
             if current > LATEST_SCHEMA_VERSION:
                 raise StorageError(
-                    f"database schema {current} is newer than supported "
-                    f"schema {LATEST_SCHEMA_VERSION}"
+                    f"database schema {current} is newer than supported schema "
+                    f"{LATEST_SCHEMA_VERSION}"
                 )
             for migration in _MIGRATIONS:
                 if migration.version <= current:
