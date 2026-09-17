@@ -10,7 +10,7 @@ from pathlib import Path
 
 from deeper_dive.domain.errors import StorageError
 
-LATEST_SCHEMA_VERSION = 3
+LATEST_SCHEMA_VERSION = 4
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,6 +118,32 @@ _MIGRATIONS = (
             "CREATE INDEX episode_project_idx ON episodes(project_id)",
             "CREATE INDEX episode_host_host_idx ON episode_hosts(host_id)",
             "CREATE INDEX segment_plan_parent_idx ON segment_plans(episode_plan_id)",
+        ),
+    ),
+    Migration(
+        version=4,
+        statements=(
+            """CREATE TABLE generation_runs (
+                id TEXT PRIMARY KEY,
+                episode_id TEXT NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
+                stage TEXT NOT NULL,
+                state TEXT NOT NULL,
+                retry_count INTEGER NOT NULL DEFAULT 0 CHECK(retry_count >= 0),
+                failure_code TEXT,
+                failure_message TEXT,
+                pause_requested INTEGER NOT NULL DEFAULT 0 CHECK(pause_requested IN (0,1)),
+                cancel_requested INTEGER NOT NULL DEFAULT 0 CHECK(cancel_requested IN (0,1)),
+                created_at TEXT NOT NULL,
+                modified_at TEXT NOT NULL
+            )""",
+            """CREATE TABLE generation_run_units (
+                run_id TEXT NOT NULL REFERENCES generation_runs(id) ON DELETE CASCADE,
+                stage TEXT NOT NULL,
+                unit_id TEXT NOT NULL,
+                completed_at TEXT NOT NULL,
+                PRIMARY KEY(run_id, stage, unit_id)
+            )""",
+            "CREATE INDEX generation_run_episode_idx ON generation_runs(episode_id)",
         ),
     ),
 )
