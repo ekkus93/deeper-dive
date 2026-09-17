@@ -184,11 +184,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-014 — Generation-run/checkpoint persistence
 
-- [ ] Persist GenerationRun.
-- [ ] Persist stage state.
-- [ ] Persist completed work-unit identifiers.
-- [ ] Persist sanitized failure diagnostics and retry counters.
-- [ ] Add pause/cancel flags/state.
+- [x] Persist GenerationRun.
+- [x] Persist stage state.
+- [x] Persist completed work-unit identifiers.
+- [x] Persist sanitized failure diagnostics and retry counters.
+- [x] Add pause/cancel flags/state.
 
 **Acceptance criteria**
 
@@ -201,10 +201,10 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-020 — Application service boundary
 
-- [ ] Create application/service layer used by all clients.
-- [ ] Define commands/use cases for projects, sources, hosts, episodes, providers, and runs.
-- [ ] Define event/progress interface suitable for TUI and CLI.
-- [ ] Ensure UI modules have no direct provider calls.
+- [x] Create application/service layer used by all clients.
+- [x] Define commands/use cases for projects, sources, hosts, episodes, providers, and runs.
+- [x] Define event/progress interface suitable for TUI and CLI.
+- [x] Ensure UI modules have no direct provider calls.
 
 **Acceptance criteria**
 
