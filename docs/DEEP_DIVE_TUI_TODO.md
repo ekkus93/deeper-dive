@@ -130,11 +130,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-010 — Data-directory and workspace management
 
-- [ ] Implement platform-appropriate default data directory.
-- [ ] Support explicit data-directory override.
-- [ ] Create project workspace layout from the spec.
-- [ ] Sanitize generated path components.
-- [ ] Prevent path traversal outside project workspace.
+- [x] Implement platform-appropriate default data directory.
+- [x] Support explicit data-directory override.
+- [x] Create project workspace layout from the spec.
+- [x] Sanitize generated path components.
+- [x] Prevent path traversal outside project workspace.
 
 **Acceptance criteria**
 
