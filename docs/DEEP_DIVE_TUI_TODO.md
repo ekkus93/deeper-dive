@@ -143,11 +143,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-011 — SQLite database foundation
 
-- [ ] Add SQLite connection/session abstraction.
-- [ ] Enable safe transaction handling.
-- [ ] Choose and implement migration strategy.
-- [ ] Add initial schema version table.
-- [ ] Configure foreign keys and appropriate journal/busy behavior.
+- [x] Add SQLite connection/session abstraction.
+- [x] Enable safe transaction handling.
+- [x] Choose and implement migration strategy.
+- [x] Add initial schema version table.
+- [x] Configure foreign keys and appropriate journal/busy behavior.
 
 **Acceptance criteria**
 
@@ -157,11 +157,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-012 — Persist core project/source models
 
-- [ ] Persist Project metadata.
-- [ ] Persist Source metadata/origin/status.
-- [ ] Persist SourceChunk metadata.
-- [ ] Add repository/data-access layer; business logic must not embed ad hoc SQL throughout the codebase.
-- [ ] Add create/read/update/list/delete operations required by later milestones.
+- [x] Persist Project metadata.
+- [x] Persist Source metadata/origin/status.
+- [x] Persist SourceChunk metadata.
+- [x] Add repository/data-access layer; business logic must not embed ad hoc SQL throughout the codebase.
+- [x] Add create/read/update/list/delete operations required by later milestones.
 
 **Acceptance criteria**
 
