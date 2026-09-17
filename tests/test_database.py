@@ -61,11 +61,9 @@ def test_older_fixture_database_migrates_safely(tmp_path: Path) -> None:
     assert database.initialize() == LATEST_SCHEMA_VERSION
 
     with database.connection() as connection:
-        assert (
-            connection.execute("SELECT value FROM legacy_payload").fetchone()[0]
-            == "preserved"
-        )
-        assert (
-            connection.execute("SELECT version FROM schema_version").fetchone()[0]
-            == LATEST_SCHEMA_VERSION
-        )
+        legacy_row = connection.execute("SELECT value FROM legacy_payload").fetchone()
+        version_row = connection.execute("SELECT version FROM schema_version").fetchone()
+        assert legacy_row is not None
+        assert version_row is not None
+        assert legacy_row[0] == "preserved"
+        assert version_row[0] == LATEST_SCHEMA_VERSION
