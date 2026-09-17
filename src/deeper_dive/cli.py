@@ -61,9 +61,9 @@ def _output(value: object, json_output: bool) -> int:
         print(json.dumps(value, sort_keys=True))
     elif isinstance(value, list):
         for item in value:
-            print(f"{item['id']}\t{item['name']}")  # type: ignore[index]
+            print(f"{item['id']}\t{item['name']}")
     else:
-        item = value  # type: ignore[assignment]
+        item = value
         print(f"{item['id']}\t{item['name']}")  # type: ignore[index]
     return 0
 
