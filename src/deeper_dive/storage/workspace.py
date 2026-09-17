@@ -52,7 +52,9 @@ def default_data_dir(
     return root / "deeper-dive"
 
 
-def sanitize_component(value: str, *, fallback: str = "item", max_length: int = 80) -> str:
+def sanitize_component(
+    value: str, *, fallback: str = "item", max_length: int = 80
+) -> str:
     """Convert display text to a safe single path component.
 
     Stable persisted objects should still use generated IDs. This helper is for
