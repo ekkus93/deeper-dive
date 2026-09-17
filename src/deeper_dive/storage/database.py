@@ -34,14 +34,16 @@ _MIGRATIONS = (
                 modified_at TEXT NOT NULL, instructions TEXT NOT NULL DEFAULT ''
             )""",
             """CREATE TABLE sources (
-                id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
                 origin TEXT NOT NULL CHECK(origin IN ('user','supplemental','generated_reference')),
                 source_type TEXT NOT NULL, title TEXT NOT NULL, locator TEXT,
                 content_hash TEXT, included INTEGER NOT NULL DEFAULT 1 CHECK(included IN (0,1)),
                 status TEXT NOT NULL DEFAULT 'pending', imported_at TEXT NOT NULL
             )""",
             """CREATE TABLE source_chunks (
-                id TEXT PRIMARY KEY, source_id TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+                id TEXT PRIMARY KEY,
+                source_id TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
                 ordinal INTEGER NOT NULL, text TEXT NOT NULL, content_hash TEXT NOT NULL,
                 location TEXT, UNIQUE(source_id, ordinal)
             )""",
