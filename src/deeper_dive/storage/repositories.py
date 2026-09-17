@@ -129,7 +129,10 @@ class CorpusRepository:
     def update_source(self, source: SourceRecord) -> None:
         with self.database.transaction() as db:
             db.execute(
-                "UPDATE sources SET title=?,locator=?,content_hash=?,included=?,status=? WHERE id=?",
+                (
+                    "UPDATE sources SET title=?,locator=?,content_hash=?,included=?,status=? "
+                    "WHERE id=?"
+                ),
                 (
                     source.title,
                     source.locator,
