@@ -14,7 +14,32 @@ dependencies = []
 deeper-dive = "deeper_dive.cli:main"
 
 [dependency-groups]
-dev = []
+dev = [
+  "mypy>=1.18,<2",
+  "pytest>=8.4,<9",
+  "ruff>=0.13,<0.14",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/deeper_dive"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["deeper_dive"]
+mypy_path = "src"
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers"
+testpaths = ["tests"]

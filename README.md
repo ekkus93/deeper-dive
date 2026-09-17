@@ -22,6 +22,16 @@ uv run deeper-dive --version
 
 Importing `deeper_dive` is intentionally side-effect free: it does not contact providers, access the network, or download models.
 
+## Quality checks
+
+Run the complete local quality gate with:
+
+```bash
+./scripts/check.sh
+```
+
+That command checks formatting, Ruff lint, strict mypy typing, and pytest. Each stage exits nonzero on failure.
+
 ## Development status
 
 The project is under active implementation. See `docs/DEEP_DIVE_TUI_SPEC.md` for the design authority and `docs/DEEP_DIVE_TUI_TODO.md` for qualification status.

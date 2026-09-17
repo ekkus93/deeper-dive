@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  bootstrap-smoke:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,9 +20,23 @@ jobs:
           enable-cache: true
       - name: Set up Python
         run: uv python install 3.12
+      - name: Generate candidate lock for bootstrap qualification
+        run: |
+          uv lock
+          printf '%s\n' '---BEGIN UV LOCK---'
+          cat uv.lock
+          printf '%s\n' '---END UV LOCK---'
       - name: Sync locked environment
         run: uv sync --frozen
-      - name: CLI help smoke
-        run: uv run deeper-dive --help
-      - name: Import smoke
-        run: uv run python -c "import deeper_dive; print(deeper_dive.__version__)"
+      - name: Ruff format
+        run: uv run ruff format --check .
+      - name: Ruff lint
+        run: uv run ruff check .
+      - name: Static typing
+        run: uv run mypy
+      - name: Tests
+        run: uv run pytest
+      - name: CLI/import smoke
+        run: |
+          uv run deeper-dive --help
+          uv run python -c "import deeper_dive; print(deeper_dive.__version__)"
