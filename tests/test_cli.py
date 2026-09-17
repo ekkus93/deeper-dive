@@ -26,7 +26,9 @@ def test_cli_version(capsys: pytest.CaptureFixture[str]) -> None:
 def test_cli_project_create_list_info_json(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert main(["--data-dir", str(tmp_path), "--json", "project", "create", "Demo"]) == 0
+    assert (
+        main(["--data-dir", str(tmp_path), "--json", "project", "create", "Demo"]) == 0
+    )
     created = json.loads(capsys.readouterr().out)
     assert created["name"] == "Demo"
 
@@ -34,9 +36,12 @@ def test_cli_project_create_list_info_json(
     listed = json.loads(capsys.readouterr().out)
     assert [item["id"] for item in listed] == [created["id"]]
 
-    assert main(
-        ["--data-dir", str(tmp_path), "--json", "project", "info", created["id"]]
-    ) == 0
+    assert (
+        main(
+            ["--data-dir", str(tmp_path), "--json", "project", "info", created["id"]]
+        )
+        == 0
+    )
     assert json.loads(capsys.readouterr().out) == created
 
 
