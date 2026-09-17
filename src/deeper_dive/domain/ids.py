@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import NewType, TypeVar
+from collections.abc import Callable
 from uuid import UUID, uuid4
 
 ProjectId = NewType("ProjectId", str)
@@ -13,14 +13,12 @@ EpisodeId = NewType("EpisodeId", str)
 TurnId = NewType("TurnId", str)
 RunId = NewType("RunId", str)
 
-IdT = TypeVar("IdT", ProjectId, SourceId, ChunkId, HostId, EpisodeId, TurnId, RunId)
 
-
-def _new_id(constructor: type[IdT]) -> IdT:
+def _new_id[T](constructor: Callable[[str], T]) -> T:
     return constructor(str(uuid4()))
 
 
-def _parse_id(value: str, constructor: type[IdT]) -> IdT:
+def _parse_id[T](value: str, constructor: Callable[[str], T]) -> T:
     parsed = UUID(value)
     canonical = str(parsed)
     if value != canonical:
