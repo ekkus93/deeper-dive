@@ -11,7 +11,7 @@ def test_cli_help_exits_successfully(capsys: pytest.CaptureFixture[str]) -> None
         main(["--help"])
 
     assert exc_info.value.code == 0
-    assert "Deeper Dive" in capsys.readouterr().out
+    assert "evidence-grounded deep dives" in capsys.readouterr().out
 
 
 def test_cli_version(capsys: pytest.CaptureFixture[str]) -> None:
