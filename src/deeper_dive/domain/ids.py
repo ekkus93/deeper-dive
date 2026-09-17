@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import NewType
 from uuid import UUID, uuid4
 
 ProjectId = NewType("ProjectId", str)
