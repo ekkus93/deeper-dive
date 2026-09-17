@@ -38,7 +38,11 @@ def default_data_dir(
     home_dir = Path.home() if home is None else home
 
     if platform_name == "win32":
-        root = Path(env["LOCALAPPDATA"]) if env.get("LOCALAPPDATA") else home_dir / "AppData" / "Local"
+        root = (
+            Path(env["LOCALAPPDATA"])
+            if env.get("LOCALAPPDATA")
+            else home_dir / "AppData" / "Local"
+        )
         return root / "deeper-dive"
     if platform_name == "darwin":
         return home_dir / "Library" / "Application Support" / "deeper-dive"
@@ -130,7 +134,9 @@ class WorkspaceManager:
             output=root / "output",
         )
 
-    def resolve_project_path(self, project_id: ProjectId | str, relative_path: Path | str) -> Path:
+    def resolve_project_path(
+        self, project_id: ProjectId | str, relative_path: Path | str
+    ) -> Path:
         """Resolve a project-relative path while rejecting traversal/absolute paths."""
 
         relative = Path(relative_path)

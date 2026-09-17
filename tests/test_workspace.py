@@ -6,25 +6,37 @@ import pytest
 
 from deeper_dive.domain.errors import UserError
 from deeper_dive.domain.ids import new_project_id
-from deeper_dive.storage.workspace import WorkspaceManager, default_data_dir, sanitize_component
+from deeper_dive.storage.workspace import (
+    WorkspaceManager,
+    default_data_dir,
+    sanitize_component,
+)
 
 
 def test_default_data_dir_uses_xdg_on_linux(tmp_path: Path) -> None:
     xdg = tmp_path / "xdg"
-    assert default_data_dir(environ={"XDG_DATA_HOME": str(xdg)}, platform="linux", home=tmp_path) == xdg / "deeper-dive"
+    assert default_data_dir(
+        environ={"XDG_DATA_HOME": str(xdg)}, platform="linux", home=tmp_path
+    ) == (xdg / "deeper-dive")
 
 
 def test_default_data_dir_linux_fallback(tmp_path: Path) -> None:
-    assert default_data_dir(environ={}, platform="linux", home=tmp_path) == tmp_path / ".local" / "share" / "deeper-dive"
+    assert default_data_dir(environ={}, platform="linux", home=tmp_path) == (
+        tmp_path / ".local" / "share" / "deeper-dive"
+    )
 
 
 def test_default_data_dir_macos(tmp_path: Path) -> None:
-    assert default_data_dir(environ={}, platform="darwin", home=tmp_path) == tmp_path / "Library" / "Application Support" / "deeper-dive"
+    assert default_data_dir(environ={}, platform="darwin", home=tmp_path) == (
+        tmp_path / "Library" / "Application Support" / "deeper-dive"
+    )
 
 
 def test_default_data_dir_windows_uses_localappdata(tmp_path: Path) -> None:
     local = tmp_path / "LocalAppData"
-    assert default_data_dir(environ={"LOCALAPPDATA": str(local)}, platform="win32", home=tmp_path) == local / "deeper-dive"
+    assert default_data_dir(
+        environ={"LOCALAPPDATA": str(local)}, platform="win32", home=tmp_path
+    ) == (local / "deeper-dive")
 
 
 def test_sanitize_component_removes_path_syntax_and_normalizes_whitespace() -> None:
