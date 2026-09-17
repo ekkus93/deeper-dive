@@ -40,10 +40,9 @@ def test_transaction_commits_success_and_rolls_back_failure(tmp_path: Path) -> N
         connection.execute("CREATE TABLE values_table (value TEXT NOT NULL)")
         connection.execute("INSERT INTO values_table(value) VALUES ('kept')")
 
-    with pytest.raises(RuntimeError, match="abort"):
-        with database.transaction() as connection:
-            connection.execute("INSERT INTO values_table(value) VALUES ('rolled-back')")
-            raise RuntimeError("abort")
+    with pytest.raises(RuntimeError, match="abort"), database.transaction() as connection:
+        connection.execute("INSERT INTO values_table(value) VALUES ('rolled-back')")
+        raise RuntimeError("abort")
 
     with database.connection() as connection:
         values = [row[0] for row in connection.execute("SELECT value FROM values_table")]
