@@ -97,7 +97,8 @@ class Database:
             current = self._current_version(connection)
             if current > LATEST_SCHEMA_VERSION:
                 raise StorageError(
-                    f"database schema {current} is newer than supported schema {LATEST_SCHEMA_VERSION}"
+                    f"database schema {current} is newer than supported schema "
+                    f"{LATEST_SCHEMA_VERSION}"
                 )
             for migration in _MIGRATIONS:
                 if migration.version <= current:

@@ -50,7 +50,10 @@ class CorpusRepository:
     def create_project(self, project: ProjectRecord) -> None:
         with self.database.transaction() as db:
             db.execute(
-                "INSERT INTO projects(id,name,created_at,modified_at,instructions) VALUES (?,?,?,?,?)",
+                (
+                    "INSERT INTO projects(id,name,created_at,modified_at,instructions) "
+                    "VALUES (?,?,?,?,?)"
+                ),
                 (
                     project.id,
                     project.name,
@@ -144,7 +147,8 @@ class CorpusRepository:
     def create_chunk(self, chunk: SourceChunkRecord) -> None:
         with self.database.transaction() as db:
             db.execute(
-                "INSERT INTO source_chunks(id,source_id,ordinal,text,content_hash,location) VALUES (?,?,?,?,?,?)",
+                "INSERT INTO source_chunks(id,source_id,ordinal,text,content_hash,location) "
+                "VALUES (?,?,?,?,?,?)",
                 (
                     chunk.id,
                     chunk.source_id,
