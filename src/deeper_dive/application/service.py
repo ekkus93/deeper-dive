@@ -6,7 +6,7 @@ from dataclasses import replace
 
 from deeper_dive.application.events import ProgressEvent, ProgressSink
 from deeper_dive.domain.clock import Clock, SystemClock, format_timestamp
-from deeper_dive.domain.ids import new_project_id
+from deeper_dive.domain.ids import new_project_id, parse_project_id
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord, SourceRecord
@@ -41,6 +41,25 @@ class DeeperDiveService:
         workspace = self._workspace(project_id)
         return self._corpus(workspace).get_project(project_id)
 
+    def list_projects(self) -> list[ProjectRecord]:
+        if not self.workspaces.projects_dir.exists():
+            return []
+        projects: list[ProjectRecord] = []
+        for root in sorted(self.workspaces.projects_dir.iterdir()):
+            if not root.is_dir():
+                continue
+            try:
+                project_id = str(parse_project_id(root.name))
+            except ValueError:
+                continue
+            database = root / "project.db"
+            if not database.is_file():
+                continue
+            project = CorpusRepository(Database(database)).get_project(project_id)
+            if project is not None:
+                projects.append(project)
+        return sorted(projects, key=lambda project: (project.created_at, project.id))
+
     def rename_project(self, project_id: str, name: str) -> ProjectRecord:
         workspace = self._workspace(project_id)
         repository = self._corpus(workspace)
@@ -62,9 +81,10 @@ class DeeperDiveService:
         return GenerationRunRepository(Database(self._workspace(project_id).database))
 
     def _workspace(self, project_id: str) -> ProjectWorkspace:
-        root = self.workspaces.project_root(project_id)
+        parsed = parse_project_id(project_id)
+        root = self.workspaces.project_root(parsed)
         return ProjectWorkspace(
-            project_id=project_id,  # type: ignore[arg-type]
+            project_id=parsed,
             root=root,
             database=root / "project.db",
             sources=root / "sources",
