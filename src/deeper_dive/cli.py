@@ -43,7 +43,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.project_command == "create":
             return _output(asdict(service.create_project(args.name)), args.json_output)
         if args.project_command == "list":
-            return _output([asdict(project) for project in service.list_projects()], args.json_output)
+            return _output(
+                [asdict(project) for project in service.list_projects()], args.json_output
+            )
         project = service.open_project(args.project_id)
         if project is None:
             print(f"project not found: {args.project_id}", file=sys.stderr)

@@ -7,7 +7,9 @@ from deeper_dive.cli import main
 
 
 def test_cli_project_create_list_info_json(tmp_path: Path, capsys: object) -> None:
-    assert main(["--data-dir", str(tmp_path), "--json", "project", "create", "Demo"]) == 0
+    assert (
+        main(["--data-dir", str(tmp_path), "--json", "project", "create", "Demo"]) == 0
+    )
     captured = capsys.readouterr()  # type: ignore[attr-defined]
     created = json.loads(captured.out)
     assert created["name"] == "Demo"
