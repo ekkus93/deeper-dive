@@ -57,10 +57,15 @@ _MIGRATIONS = (
             """CREATE TABLE hosts (
                 id TEXT PRIMARY KEY,
                 project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-                display_name TEXT NOT NULL, preset_origin TEXT, role TEXT NOT NULL DEFAULT '',
-                expertise TEXT NOT NULL DEFAULT '', instructions TEXT NOT NULL DEFAULT '',
-                behavior_json TEXT NOT NULL DEFAULT '{}', evidence_priorities_json TEXT NOT NULL DEFAULT '[]',
-                tts_provider TEXT, tts_voice TEXT
+                display_name TEXT NOT NULL,
+                preset_origin TEXT,
+                role TEXT NOT NULL DEFAULT '',
+                expertise TEXT NOT NULL DEFAULT '',
+                instructions TEXT NOT NULL DEFAULT '',
+                behavior_json TEXT NOT NULL DEFAULT '{}',
+                evidence_priorities_json TEXT NOT NULL DEFAULT '[]',
+                tts_provider TEXT,
+                tts_voice TEXT
             )""",
             """CREATE TABLE host_relationships (
                 project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -73,28 +78,40 @@ _MIGRATIONS = (
             """CREATE TABLE episodes (
                 id TEXT PRIMARY KEY,
                 project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-                title TEXT NOT NULL, focus TEXT NOT NULL DEFAULT '', audience TEXT NOT NULL DEFAULT '',
-                technical_depth TEXT NOT NULL DEFAULT '', target_duration_seconds INTEGER NOT NULL DEFAULT 0,
-                style TEXT NOT NULL DEFAULT '', state TEXT NOT NULL DEFAULT 'draft',
-                config_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL, modified_at TEXT NOT NULL
+                title TEXT NOT NULL,
+                focus TEXT NOT NULL DEFAULT '',
+                audience TEXT NOT NULL DEFAULT '',
+                technical_depth TEXT NOT NULL DEFAULT '',
+                target_duration_seconds INTEGER NOT NULL DEFAULT 0,
+                style TEXT NOT NULL DEFAULT '',
+                state TEXT NOT NULL DEFAULT 'draft',
+                config_json TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL,
+                modified_at TEXT NOT NULL
             )""",
             """CREATE TABLE episode_hosts (
                 episode_id TEXT NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
                 host_id TEXT NOT NULL REFERENCES hosts(id) ON DELETE RESTRICT,
                 ordinal INTEGER NOT NULL,
-                PRIMARY KEY(episode_id, host_id), UNIQUE(episode_id, ordinal)
+                PRIMARY KEY(episode_id, host_id),
+                UNIQUE(episode_id, ordinal)
             )""",
             """CREATE TABLE episode_plans (
                 id TEXT PRIMARY KEY,
                 episode_id TEXT NOT NULL UNIQUE REFERENCES episodes(id) ON DELETE CASCADE,
-                status TEXT NOT NULL DEFAULT 'draft', plan_json TEXT NOT NULL DEFAULT '{}',
-                created_at TEXT NOT NULL, modified_at TEXT NOT NULL
+                status TEXT NOT NULL DEFAULT 'draft',
+                plan_json TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL,
+                modified_at TEXT NOT NULL
             )""",
             """CREATE TABLE segment_plans (
                 id TEXT PRIMARY KEY,
                 episode_plan_id TEXT NOT NULL REFERENCES episode_plans(id) ON DELETE CASCADE,
-                ordinal INTEGER NOT NULL, title TEXT NOT NULL, purpose TEXT NOT NULL DEFAULT '',
-                target_duration_seconds INTEGER NOT NULL DEFAULT 0, segment_json TEXT NOT NULL DEFAULT '{}',
+                ordinal INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                purpose TEXT NOT NULL DEFAULT '',
+                target_duration_seconds INTEGER NOT NULL DEFAULT 0,
+                segment_json TEXT NOT NULL DEFAULT '{}',
                 UNIQUE(episode_plan_id, ordinal)
             )""",
             "CREATE INDEX host_project_idx ON hosts(project_id)",
