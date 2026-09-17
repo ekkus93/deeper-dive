@@ -27,7 +27,9 @@ def test_cli_project_create_list_info_json(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     assert (
-        main(["--data-dir", str(tmp_path), "--json", "project", "create", "Demo"])
+        main(
+            ["--data-dir", str(tmp_path), "--json", "project", "create", "Demo"]
+        )
         == 0
     )
     created = json.loads(capsys.readouterr().out)
