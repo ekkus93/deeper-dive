@@ -70,13 +70,13 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-001 — Bootstrap Python/uv project
 
-- [ ] Create `pyproject.toml` for Python 3.12+.
-- [ ] Establish `src/deeper_dive/` package layout.
-- [ ] Add `uv.lock`.
-- [ ] Add console entry point `deeper-dive`.
-- [ ] Add development dependency groups for test/lint/type tooling.
-- [ ] Add minimal README with install/run commands and project intent.
-- [ ] Add `.gitignore` covering Python, local project state, caches, audio artifacts, secrets, and model weights.
+- [x] Create `pyproject.toml` for Python 3.12+.
+- [x] Establish `src/deeper_dive/` package layout.
+- [x] Add `uv.lock`.
+- [x] Add console entry point `deeper-dive`.
+- [x] Add development dependency groups for test/lint/type tooling.
+- [x] Add minimal README with install/run commands and project intent.
+- [x] Add `.gitignore` covering Python, local project state, caches, audio artifacts, secrets, and model weights.
 
 **Acceptance criteria**
 
@@ -86,11 +86,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-002 — Establish code quality tooling
 
-- [ ] Configure Ruff formatting/linting.
-- [ ] Select and configure mypy or Pyright.
-- [ ] Configure pytest.
-- [ ] Add common developer commands/scripts.
-- [ ] Add pre-commit configuration if it improves local consistency without becoming required infrastructure.
+- [x] Configure Ruff formatting/linting.
+- [x] Select and configure mypy or Pyright.
+- [x] Configure pytest.
+- [x] Add common developer commands/scripts.
+- [x] Evaluate pre-commit configuration; intentionally omit it because `scripts/check.sh` plus CI provide the consistency gate without adding required local infrastructure.
 
 **Acceptance criteria**
 
@@ -99,12 +99,12 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-003 — Add baseline GitHub Actions CI
 
-- [ ] Add workflow for dependency lock validation.
-- [ ] Add Ruff check.
-- [ ] Add static type check.
-- [ ] Add pytest.
-- [ ] Add package build/import smoke test.
-- [ ] Cache dependencies appropriately without masking lock drift.
+- [x] Add workflow for dependency lock validation.
+- [x] Add Ruff check.
+- [x] Add static type check.
+- [x] Add pytest.
+- [x] Add package build/import smoke test.
+- [x] Cache dependencies appropriately without masking lock drift.
 
 **Acceptance criteria**
 
@@ -113,10 +113,10 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-004 — Core IDs, errors, and clock abstractions
 
-- [ ] Define stable ID helpers/types for Project, Source, Chunk, Host, Episode, Turn, Run, etc.
-- [ ] Define structured application exception hierarchy.
-- [ ] Introduce injectable clock/time helper where timestamps affect tests.
-- [ ] Define serialization rules for IDs and timestamps.
+- [x] Define stable ID helpers/types for Project, Source, Chunk, Host, Episode, Turn, Run, etc.
+- [x] Define structured application exception hierarchy.
+- [x] Introduce injectable clock/time helper where timestamps affect tests.
+- [x] Define serialization rules for IDs and timestamps.
 
 **Acceptance criteria**
 
