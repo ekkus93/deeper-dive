@@ -68,6 +68,7 @@ def sanitize_component(
     normalized = unicodedata.normalize("NFKC", value).strip()
     normalized = re.sub(r"\s+", "-", normalized)
     normalized = _COMPONENT_RE.sub("-", normalized)
+    normalized = re.sub(r"-+", "-", normalized)
     normalized = normalized.strip(" .-_")
     if normalized in {"", ".", ".."}:
         normalized = fallback
