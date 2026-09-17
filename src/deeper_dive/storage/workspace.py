@@ -38,11 +38,10 @@ def default_data_dir(
     home_dir = Path.home() if home is None else home
 
     if platform_name == "win32":
-        root = (
-            Path(env["LOCALAPPDATA"])
-            if env.get("LOCALAPPDATA")
-            else home_dir / "AppData" / "Local"
-        )
+        if env.get("LOCALAPPDATA"):
+            root = Path(env["LOCALAPPDATA"])
+        else:
+            root = home_dir / "AppData" / "Local"
         return root / "deeper-dive"
     if platform_name == "darwin":
         return home_dir / "Library" / "Application Support" / "deeper-dive"
@@ -53,7 +52,10 @@ def default_data_dir(
 
 
 def sanitize_component(
-    value: str, *, fallback: str = "item", max_length: int = 80
+    value: str,
+    *,
+    fallback: str = "item",
+    max_length: int = 80,
 ) -> str:
     """Convert display text to a safe single path component.
 
@@ -137,7 +139,9 @@ class WorkspaceManager:
         )
 
     def resolve_project_path(
-        self, project_id: ProjectId | str, relative_path: Path | str
+        self,
+        project_id: ProjectId | str,
+        relative_path: Path | str,
     ) -> Path:
         """Resolve a project-relative path while rejecting traversal/absolute paths."""
 
