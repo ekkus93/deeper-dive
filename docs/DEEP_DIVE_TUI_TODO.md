@@ -417,10 +417,10 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-045 — Claim/evidence domain persistence
 
-- [ ] Persist Claim.
-- [ ] Persist Evidence links.
-- [ ] Support supports/contradicts/contextualizes/uncertain relations.
-- [ ] Store retrieval/verification metadata without overwriting source provenance.
+- [x] Persist Claim.
+- [x] Persist Evidence links.
+- [x] Support supports/contradicts/contextualizes/uncertain relations.
+- [x] Store retrieval/verification metadata without overwriting source provenance.
 
 **Acceptance criteria**
 
