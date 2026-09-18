@@ -61,9 +61,7 @@ class FakeResearchController:
             replace(gap, status=status) if gap.id == gap_id else gap for gap in self._gaps
         )
 
-    def research(
-        self, project_id: str, gap_ids: tuple[str, ...]
-    ) -> tuple[CandidateOutcome, ...]:
+    def research(self, project_id: str, gap_ids: tuple[str, ...]) -> tuple[CandidateOutcome, ...]:
         if not gap_ids:
             return ()
         source = self.service.add_pasted_source(

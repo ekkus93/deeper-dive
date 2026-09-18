@@ -24,7 +24,9 @@ class ResearchController(Protocol):
     def analyze(self, project_id: str, focus: str) -> tuple[ResearchGap, ...]: ...
     def gaps(self, project_id: str) -> tuple[ResearchGap, ...]: ...
     def set_gap_status(self, project_id: str, gap_id: str, status: str) -> None: ...
-    def research(self, project_id: str, gap_ids: tuple[str, ...]) -> tuple[CandidateOutcome, ...]: ...
+    def research(
+        self, project_id: str, gap_ids: tuple[str, ...]
+    ) -> tuple[CandidateOutcome, ...]: ...
     def outcomes(self, project_id: str) -> tuple[CandidateOutcome, ...]: ...
 
 
@@ -140,7 +142,9 @@ class ResearchScreen(Screen[None]):
         project_id = self._project_id()
         if project_id is None:
             return
-        gap_ids = tuple(gap.id for gap in self._controller().gaps(project_id) if gap.status == "open")
+        gap_ids = tuple(
+            gap.id for gap in self._controller().gaps(project_id) if gap.status == "open"
+        )
         self.query_one("#research-progress", Static).update(
             f"Progress: researching {len(gap_ids)} open gaps"
         )
