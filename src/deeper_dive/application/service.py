@@ -8,7 +8,12 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from deeper_dive.application.events import ProgressEvent, ProgressSink
-from deeper_dive.batch_import import BatchImportPlan, canonicalize_url, plan_file_imports, plan_url_imports
+from deeper_dive.batch_import import (
+    BatchImportPlan,
+    canonicalize_url,
+    plan_file_imports,
+    plan_url_imports,
+)
 from deeper_dive.chunking import chunk_parse_result
 from deeper_dive.domain.clock import Clock, SystemClock, format_timestamp
 from deeper_dive.domain.ids import new_chunk_id, new_project_id, new_source_id, parse_project_id
