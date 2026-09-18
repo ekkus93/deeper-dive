@@ -89,9 +89,7 @@ class ClaimInspectorController:
                 str(by_id[chunk_id]["source_id"]),
                 str(by_id[chunk_id]["title"]),
                 str(by_id[chunk_id]["origin"]),
-                None
-                if by_id[chunk_id]["location"] is None
-                else str(by_id[chunk_id]["location"]),
+                None if by_id[chunk_id]["location"] is None else str(by_id[chunk_id]["location"]),
                 str(by_id[chunk_id]["text"]),
             )
             for chunk_id in ids
