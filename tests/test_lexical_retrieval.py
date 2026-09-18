@@ -20,12 +20,7 @@ def test_lexical_index_is_persistent_incremental_and_filters_excluded(tmp_path) 
     )
     corpus.create_chunk(
         SourceChunkRecord(
-            "c1",
-            "s1",
-            0,
-            "orchards grow apples and pears",
-            "h1",
-            "page 1",
+            "c1", "s1", 0, "orchards grow apples and pears", "h1", "page 1"
         )
     )
     corpus.create_chunk(
