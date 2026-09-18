@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import cast
 
 from textual.app import App, ComposeResult
@@ -10,7 +11,7 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
-from deeper_dive.application.service import DeeperDiveService, ProjectSummary
+from deeper_dive.application.service import DeeperDiveService, ProjectSummary, SourceImportSummary
 from deeper_dive.storage.repositories import SourceRecord
 from deeper_dive.storage.workspace import WorkspaceManager
 
@@ -196,10 +197,12 @@ class HomeProjectsScreen(NavigationMixin, Screen[None]):
 
 
 class SourcesScreen(NavigationMixin, Screen[None]):
-    """Sources workflow with grouped list, inspection, and basic actions."""
+    """Sources workflow with grouped list, inspection, and import actions."""
 
     BINDINGS = [
         Binding("ctrl+a", "add_paste", "Add pasted source"),
+        Binding("ctrl+f", "add_files", "Add files/directories"),
+        Binding("ctrl+u", "add_urls", "Add URLs"),
         Binding("ctrl+i", "toggle_included", "Include/exclude"),
         Binding("ctrl+d", "delete_selected", "Delete source"),
     ]
@@ -223,6 +226,10 @@ class SourcesScreen(NavigationMixin, Screen[None]):
             yield Input(placeholder="Pasted source title", id="source-title")
             yield Input(placeholder="Paste text source", id="source-text")
             yield Button("Add Paste", id="action-add-paste", name="add-paste")
+            yield Input(placeholder="File or directory paths, comma separated", id="source-paths")
+            yield Button("Add Files/Directory", id="action-add-files", name="add-files")
+            yield Input(placeholder="Explicit URLs, comma separated", id="source-urls")
+            yield Button("Add URLs", id="action-add-urls", name="add-urls")
             yield Button("Include/Exclude", id="action-toggle-source", name="toggle-source")
             yield Button("Delete Source", id="action-delete-source", name="delete-source")
             yield Static("", id="source-list")
@@ -238,6 +245,10 @@ class SourcesScreen(NavigationMixin, Screen[None]):
         action = event.button.name
         if action == "add-paste":
             self.action_add_paste()
+        elif action == "add-files":
+            self.action_add_files()
+        elif action == "add-urls":
+            self.action_add_urls()
         elif action == "toggle-source":
             self.action_toggle_included()
         elif action == "delete-source":
@@ -246,9 +257,8 @@ class SourcesScreen(NavigationMixin, Screen[None]):
             super().on_button_pressed(event)
 
     def action_add_paste(self) -> None:
-        project_id = self._app.current_project_id
+        project_id = self._project_id_or_status()
         if project_id is None:
-            self._set_status("Open a project before adding sources")
             return
         title_input = self.query_one("#source-title", Input)
         text_input = self.query_one("#source-text", Input)
@@ -262,6 +272,36 @@ class SourcesScreen(NavigationMixin, Screen[None]):
         title_input.value = ""
         text_input.value = ""
         self.refresh_sources(f"Added source: {source.title}")
+
+    def action_add_files(self) -> None:
+        project_id = self._project_id_or_status()
+        if project_id is None:
+            return
+        paths_input = self.query_one("#source-paths", Input)
+        paths = [Path(value.strip()) for value in paths_input.value.split(",") if value.strip()]
+        if not paths:
+            self._set_status("At least one file or directory path required")
+            return
+        summary = self._app.service.add_file_sources(project_id, paths)
+        paths_input.value = ""
+        if summary.imported:
+            self.selected_source_id = summary.imported[0].id
+        self.refresh_sources(self._summary_status(summary))
+
+    def action_add_urls(self) -> None:
+        project_id = self._project_id_or_status()
+        if project_id is None:
+            return
+        urls_input = self.query_one("#source-urls", Input)
+        urls = [value.strip() for value in urls_input.value.split(",") if value.strip()]
+        if not urls:
+            self._set_status("At least one HTTP/HTTPS URL required")
+            return
+        summary = self._app.service.add_url_sources(project_id, urls)
+        urls_input.value = ""
+        if summary.imported:
+            self.selected_source_id = summary.imported[0].id
+        self.refresh_sources(self._summary_status(summary))
 
     def action_toggle_included(self) -> None:
         source = self._selected_source()
@@ -301,9 +341,16 @@ class SourcesScreen(NavigationMixin, Screen[None]):
         self.query_one("#source-text-preview", Static).update(self._preview_text())
         self._set_status(status)
 
+    def _project_id_or_status(self) -> str | None:
+        project_id = self._app.current_project_id
+        if project_id is None:
+            self._set_status("Open a project before adding sources")
+            return None
+        return project_id
+
     def _source_list_text(self, sources: list[SourceRecord]) -> str:
         if not sources:
-            return "No sources yet. Paste text or add files when file import UI is connected."
+            return "No sources yet. Paste text, add files/directories, or add URLs."
         primary = [source for source in sources if source.origin == "user"]
         supplemental = [source for source in sources if source.origin == "supplemental"]
         return "\n".join(
@@ -360,6 +407,19 @@ class SourcesScreen(NavigationMixin, Screen[None]):
         first = chunks[0]
         preview = first.text[:240]
         return f"Parsed text ({first.location or 'unknown'}): {preview}"
+
+    def _summary_status(self, summary: SourceImportSummary) -> str:
+        imported = len(summary.imported)
+        skipped = len(summary.plan.candidates) - imported
+        duplicate_bits = [
+            f"{candidate.title}: {candidate.disposition.value}"
+            for candidate in summary.plan.candidates
+            if not candidate.should_import
+        ]
+        details = "; ".join(duplicate_bits)
+        if details:
+            return f"Imported {imported}; skipped {skipped}; {details}"
+        return f"Imported {imported}; skipped {skipped}"
 
     def _set_status(self, value: str) -> None:
         self.query_one("#screen-status", Static).update(f"Status: {value}")
