@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Protocol, cast
+from typing import Any, Protocol, cast
 
 from textual.app import ComposeResult
 from textual.containers import Horizontal, VerticalScroll
@@ -45,10 +45,6 @@ class ResearchScreen(Screen[None]):
     def __init__(self) -> None:
         super().__init__(id="screen-research")
         self.selected_gap_id: str | None = None
-
-    @property
-    def _app(self):
-        return self.app
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -174,7 +170,7 @@ class ResearchScreen(Screen[None]):
         self._status(status)
 
     def _controller(self) -> ResearchController:
-        return cast(ResearchController, self.app.research_controller)
+        return cast(ResearchController, cast(Any, self.app).research_controller)
 
     def _project_id(self, *, quiet: bool = False) -> str | None:
         project_id = cast(str | None, getattr(self.app, "current_project_id", None))
