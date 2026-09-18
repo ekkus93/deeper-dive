@@ -744,14 +744,14 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-093 — Episode plan TUI
 
-- [ ] Segment list.
-- [ ] Duration estimates.
-- [ ] Purpose/questions/evidence/lead hosts.
-- [ ] Edit selected segment.
-- [ ] Regenerate segment.
-- [ ] Regenerate plan.
-- [ ] Approve and generate.
-- [ ] Explicit auto-generate option.
+- [x] Segment list.
+- [x] Duration estimates.
+- [x] Purpose/questions/evidence/lead hosts.
+- [x] Edit selected segment.
+- [x] Regenerate segment.
+- [x] Regenerate plan.
+- [x] Approve and generate.
+- [x] Explicit auto-generate option.
 
 **Acceptance criteria**
 
