@@ -1,28 +1,10 @@
-name: DD-040 formatter
+name: DD-037 formatter disabled
 
 on:
-  push:
-    branches:
-      - ralph/dd-040-lexical-index
-
-permissions:
-  contents: write
+  workflow_dispatch:
 
 jobs:
-  format:
+  noop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ralph/dd-040-lexical-index
-      - uses: astral-sh/setup-uv@v6
-      - run: uv sync --frozen
-      - run: uv run ruff format tests/test_lexical_retrieval.py
-      - name: Commit formatting
-        run: |
-          if git diff --quiet; then exit 0; fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add tests/test_lexical_retrieval.py
-          git commit -m "style: apply exact Ruff formatting to DD-040 tests"
-          git push
+      - run: echo disabled
