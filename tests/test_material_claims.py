@@ -5,7 +5,11 @@ from pathlib import Path
 from deeper_dive.host_turn import HostTurn, HostTurnService
 from deeper_dive.material_claims import MaterialClaimService, SentenceClaimExtractor
 from deeper_dive.storage.database import Database
-from deeper_dive.storage.episode_repositories import EpisodeRecord, HostEpisodeRepository, HostProfileRecord
+from deeper_dive.storage.episode_repositories import (
+    EpisodeRecord,
+    HostEpisodeRepository,
+    HostProfileRecord,
+)
 from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord
 
 
