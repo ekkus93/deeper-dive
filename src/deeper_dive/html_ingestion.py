@@ -6,7 +6,6 @@ import hashlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from html.parser import HTMLParser
-from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
@@ -27,7 +26,27 @@ class _ReadableHtmlParser(HTMLParser):
     """Small deterministic HTML-to-text extractor that ignores non-content elements."""
 
     _ignored = {"script", "style", "noscript", "svg", "template"}
-    _block = {"article", "aside", "blockquote", "div", "footer", "h1", "h2", "h3", "h4", "h5", "h6", "header", "li", "main", "nav", "p", "section", "td", "th"}
+    _block = {
+        "article",
+        "aside",
+        "blockquote",
+        "div",
+        "footer",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "header",
+        "li",
+        "main",
+        "nav",
+        "p",
+        "section",
+        "td",
+        "th",
+    }
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
@@ -89,7 +108,7 @@ class HtmlUrlParser:
         request = Request(url, headers={"User-Agent": "DeeperDive/0.1"})
         retrieved_at = datetime.now(UTC).isoformat()
         try:
-            with urlopen(request, timeout=self.timeout_seconds) as response:  # noqa: S310 - explicit user URL
+            with urlopen(request, timeout=self.timeout_seconds) as response:  # noqa: S310
                 content_type = response.headers.get_content_type()
                 final_url = response.geturl()
                 data = response.read(self.max_bytes + 1)
@@ -114,13 +133,24 @@ class HtmlUrlParser:
                 text = data.decode("utf-8")
             except UnicodeDecodeError:
                 return self._error("invalid-utf8", "text URL response is not valid UTF-8")
+            blocks = (
+                (ParsedBlock(0, text, location=final_url, metadata={"kind": "text"}),)
+                if text
+                else ()
+            )
             return ParseResult(
                 self.parser_id,
                 self.parser_version,
-                (ParsedBlock(0, text, location=final_url, metadata={"kind": "text"}),) if text else (),
-                metadata={**metadata, "format": "text", "content_hash": hashlib.sha256(data).hexdigest()},
+                blocks,
+                metadata={
+                    **metadata,
+                    "format": "text",
+                    "content_hash": hashlib.sha256(data).hexdigest(),
+                },
             )
-        return self._error("unsupported-content-type", f"unsupported URL content type: {content_type}")
+        return self._error(
+            "unsupported-content-type", f"unsupported URL content type: {content_type}"
+        )
 
     def _parse_bytes(self, data: bytes, *, metadata: dict[str, str]) -> ParseResult:
         try:
@@ -132,8 +162,25 @@ class HtmlUrlParser:
         text = extractor.text()
         diagnostics = ()
         if not text:
-            diagnostics = (ParseDiagnostic(ParseSeverity.WARNING, "no-readable-text", "HTML contains no readable text"),)
-        blocks = (ParsedBlock(0, text, location=metadata.get("final_url"), metadata={"kind": "document"}),) if text else ()
+            diagnostics = (
+                ParseDiagnostic(
+                    ParseSeverity.WARNING,
+                    "no-readable-text",
+                    "HTML contains no readable text",
+                ),
+            )
+        blocks = (
+            (
+                ParsedBlock(
+                    0,
+                    text,
+                    location=metadata.get("final_url"),
+                    metadata={"kind": "document"},
+                ),
+            )
+            if text
+            else ()
+        )
         return ParseResult(
             self.parser_id,
             self.parser_version,

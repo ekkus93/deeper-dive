@@ -5,13 +5,20 @@ from io import BytesIO
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 
+import pytest
+
 import deeper_dive.html_ingestion as module
 from deeper_dive.html_ingestion import HtmlUrlParser
 from deeper_dive.parsing import ParseRequest
 
 
 class FakeResponse:
-    def __init__(self, body: bytes, content_type: str = "text/html", final_url: str = "https://example.test/final") -> None:
+    def __init__(
+        self,
+        body: bytes,
+        content_type: str = "text/html",
+        final_url: str = "https://example.test/final",
+    ) -> None:
         self._body = BytesIO(body)
         self._final_url = final_url
         self.headers = Message()
@@ -32,16 +39,21 @@ class FakeResponse:
 
 def test_local_html_extracts_readable_text(tmp_path: Path) -> None:
     path = tmp_path / "source.html"
-    path.write_text("<html><main><h1>Title</h1><p>Hello <b>world</b>.</p><script>ignore()</script></main></html>")
+    path.write_text(
+        "<html><main><h1>Title</h1><p>Hello <b>world</b>.</p>"
+        "<script>ignore()</script></main></html>"
+    )
     result = HtmlUrlParser().parse(ParseRequest(path=path))
     assert not result.has_errors
     assert result.blocks[0].text == "Title\nHello world ."
     assert result.metadata["source_origin"] == "user"
 
 
-def test_explicit_url_preserves_origin_redirect_and_timestamp(monkeypatch: object) -> None:
+def test_explicit_url_preserves_origin_redirect_and_timestamp(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     response = FakeResponse(b"<main><p>Useful article</p></main>")
-    monkeypatch.setattr(module, "urlopen", lambda request, timeout: response)  # type: ignore[attr-defined]
+    monkeypatch.setattr(module, "urlopen", lambda request, timeout: response)
     result = HtmlUrlParser().fetch_user_url("https://example.test/original")
     assert result.blocks[0].text == "Useful article"
     assert result.metadata["original_url"] == "https://example.test/original"
@@ -50,35 +62,39 @@ def test_explicit_url_preserves_origin_redirect_and_timestamp(monkeypatch: objec
     assert result.metadata["retrieved_at"]
 
 
-def test_non_html_text_response(monkeypatch: object) -> None:
-    monkeypatch.setattr(module, "urlopen", lambda request, timeout: FakeResponse(b"plain text", "text/plain"))  # type: ignore[attr-defined]
+def test_non_html_text_response(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        module,
+        "urlopen",
+        lambda request, timeout: FakeResponse(b"plain text", "text/plain"),
+    )
     result = HtmlUrlParser().fetch_user_url("https://example.test/plain")
     assert result.blocks[0].text == "plain text"
     assert result.metadata["format"] == "text"
 
 
-def test_oversized_response(monkeypatch: object) -> None:
-    monkeypatch.setattr(module, "urlopen", lambda request, timeout: FakeResponse(b"12345"))  # type: ignore[attr-defined]
+def test_oversized_response(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(module, "urlopen", lambda request, timeout: FakeResponse(b"12345"))
     result = HtmlUrlParser(max_bytes=4).fetch_user_url("https://example.test/large")
     assert result.has_errors
     assert result.diagnostics[0].code == "oversized-response"
 
 
-def test_timeout_or_network_error(monkeypatch: object) -> None:
+def test_timeout_or_network_error(monkeypatch: pytest.MonkeyPatch) -> None:
     def fail(request: object, timeout: float) -> FakeResponse:
         raise URLError("timed out")
 
-    monkeypatch.setattr(module, "urlopen", fail)  # type: ignore[attr-defined]
+    monkeypatch.setattr(module, "urlopen", fail)
     result = HtmlUrlParser().fetch_user_url("https://example.test/slow")
     assert result.has_errors
     assert result.diagnostics[0].code == "fetch-error"
 
 
-def test_http_error(monkeypatch: object) -> None:
+def test_http_error(monkeypatch: pytest.MonkeyPatch) -> None:
     def fail(request: object, timeout: float) -> FakeResponse:
         raise HTTPError("https://example.test/missing", 404, "missing", {}, None)
 
-    monkeypatch.setattr(module, "urlopen", fail)  # type: ignore[attr-defined]
+    monkeypatch.setattr(module, "urlopen", fail)
     result = HtmlUrlParser().fetch_user_url("https://example.test/missing")
     assert result.has_errors
     assert result.diagnostics[0].code == "http-error"
