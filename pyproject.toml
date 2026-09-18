@@ -20,6 +20,7 @@ deeper-dive-tui = "deeper_dive.tui:main"
 dev = [
   "mypy>=1.18,<2",
   "pytest>=8.4,<9",
+  "pytest-asyncio>=1.2,<2",
   "ruff>=0.13,<0.14",
 ]
 
@@ -46,3 +47,5 @@ mypy_path = "src"
 [tool.pytest.ini_options]
 addopts = "-ra --strict-config --strict-markers"
 testpaths = ["tests"]
+markers = ["asyncio: run test in an asyncio event loop"]
+asyncio_mode = "auto"
