@@ -13,7 +13,12 @@ def test_fake_search_is_deterministic_and_bounded() -> None:
         )
     )
     service = ResearchSearchService(provider)
-    query = SearchQuery("new evidence", "resolve recency gap", research_gap_id="gap-1", max_results=1)
+    query = SearchQuery(
+        "new evidence",
+        "resolve recency gap",
+        research_gap_id="gap-1",
+        max_results=1,
+    )
     assert service.search(query) == (SearchResult("https://example.test/a", "A", rank=1),)
     assert provider.queries == [query]
 
