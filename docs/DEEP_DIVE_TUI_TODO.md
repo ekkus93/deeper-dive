@@ -832,11 +832,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-105 — Duration and pacing controller
 
-- [ ] Estimate spoken duration from text/voice baseline.
-- [ ] Track actual generated word budget.
-- [ ] Adapt remaining segment budget.
-- [ ] Prevent runaway turn count with hard safety bounds.
-- [ ] Permit concise early completion when content is exhausted.
+- [x] Estimate spoken duration from text/voice baseline.
+- [x] Track actual generated word budget.
+- [x] Adapt remaining segment budget.
+- [x] Prevent runaway turn count with hard safety bounds.
+- [x] Permit concise early completion when content is exhausted.
 
 **Acceptance criteria**
 
