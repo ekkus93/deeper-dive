@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import importlib
 import os
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, cast
 
 REDACTED = "[REDACTED]"
 
@@ -19,6 +20,14 @@ class CredentialStore(Protocol):
     def set(self, reference: str, secret: str) -> None: ...
 
     def delete(self, reference: str) -> None: ...
+
+
+class KeyringModule(Protocol):
+    def get_password(self, service: str, username: str) -> str | None: ...
+
+    def set_password(self, service: str, username: str, password: str) -> None: ...
+
+    def delete_password(self, service: str, username: str) -> None: ...
 
 
 @dataclass(slots=True)
@@ -49,14 +58,14 @@ class KeyringCredentialStore:
         self.service_name = service_name
 
     @staticmethod
-    def _keyring():
+    def _keyring() -> KeyringModule:
         try:
-            import keyring
+            module = importlib.import_module("keyring")
         except ImportError as exc:
             raise RuntimeError(
                 "OS keyring support requires the optional 'keyring' package"
             ) from exc
-        return keyring
+        return cast(KeyringModule, module)
 
     def get(self, reference: str) -> str | None:
         return self._keyring().get_password(self.service_name, reference)
@@ -65,11 +74,11 @@ class KeyringCredentialStore:
         self._keyring().set_password(self.service_name, reference, secret)
 
     def delete(self, reference: str) -> None:
-        keyring = self._keyring()
         try:
-            keyring.delete_password(self.service_name, reference)
-        except keyring.errors.PasswordDeleteError:
-            return
+            self._keyring().delete_password(self.service_name, reference)
+        except Exception as exc:
+            if exc.__class__.__name__ != "PasswordDeleteError":
+                raise
 
 
 @dataclass(slots=True)
