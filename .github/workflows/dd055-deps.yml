@@ -1,0 +1,22 @@
+name: DD-055 dependency update
+on:
+  push:
+    branches: [ralph/dd-055-structured-validation]
+permissions:
+  contents: write
+jobs:
+  update:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ralph/dd-055-structured-validation
+      - uses: astral-sh/setup-uv@v6
+      - run: uv add 'pydantic>=2.11,<3'
+      - run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add pyproject.toml uv.lock
+          git commit -m 'build: add Pydantic for structured validation'
+          git push origin HEAD:ralph/dd-055-structured-validation
