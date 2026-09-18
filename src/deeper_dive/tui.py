@@ -117,7 +117,9 @@ class HomeScreen(Screen[None]):
         container.remove_children()
         summaries = self.service.project_summaries()
         if not summaries:
-            container.mount(Static("No projects yet. Create one to begin.", id="project-empty"))
+            container.mount(
+                Static("No projects yet. Create one to begin.", id="project-empty")
+            )
             self.selected_project_id = None
             return
         valid_ids = {summary.project.id for summary in summaries}
@@ -238,16 +240,30 @@ class DeeperDiveApp(App[None]):
         "providers": lambda: ShellScreen(
             "providers", "Providers", "Configure language-model and speech providers."
         ),
-        "settings": lambda: ShellScreen("settings", "Settings", "Application preferences."),
+        "settings": lambda: ShellScreen(
+            "settings", "Settings", "Application preferences."
+        ),
         "help": lambda: ShellScreen(
             "help", "Help", "Use the footer, keyboard shortcuts, or command palette to navigate."
         ),
-        "sources": lambda: ShellScreen("sources", "Sources", "Primary and supplemental sources."),
-        "research": lambda: ShellScreen("research", "Research", "Research gaps and web evidence."),
-        "hosts": lambda: ShellScreen("hosts", "Hosts", "Conversation host profiles."),
-        "episode": lambda: ShellScreen("episode", "Episode", "Episode configuration and plan."),
-        "generate": lambda: ShellScreen("generate", "Generate", "Preflight and generation status."),
-        "library": lambda: ShellScreen("library", "Library", "Generated episodes and exports."),
+        "sources": lambda: ShellScreen(
+            "sources", "Sources", "Primary and supplemental sources."
+        ),
+        "research": lambda: ShellScreen(
+            "research", "Research", "Research gaps and web evidence."
+        ),
+        "hosts": lambda: ShellScreen(
+            "hosts", "Hosts", "Conversation host profiles."
+        ),
+        "episode": lambda: ShellScreen(
+            "episode", "Episode", "Episode configuration and plan."
+        ),
+        "generate": lambda: ShellScreen(
+            "generate", "Generate", "Preflight and generation status."
+        ),
+        "library": lambda: ShellScreen(
+            "library", "Library", "Generated episodes and exports."
+        ),
     }
 
     def __init__(
