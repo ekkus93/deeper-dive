@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
 from typing import Protocol, cast
 
 from textual.app import ComposeResult
@@ -175,7 +174,7 @@ class ResearchScreen(Screen[None]):
         self._status(status)
 
     def _controller(self) -> ResearchController:
-        return cast(ResearchController, getattr(self.app, "research_controller"))
+        return cast(ResearchController, self.app.research_controller)
 
     def _project_id(self, *, quiet: bool = False) -> str | None:
         project_id = cast(str | None, getattr(self.app, "current_project_id", None))
