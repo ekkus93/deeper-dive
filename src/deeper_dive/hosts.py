@@ -110,7 +110,9 @@ def preset_names() -> tuple[str, ...]:
     return tuple(PRESET_DEFINITIONS)
 
 
-def create_host_from_preset(preset: str, project_id: str, *, host_id: str | None = None) -> HostProfile:
+def create_host_from_preset(
+    preset: str, project_id: str, *, host_id: str | None = None
+) -> HostProfile:
     """Return a fresh normal HostProfile; preset definitions are never returned by reference."""
 
     if preset not in PRESET_DEFINITIONS:
