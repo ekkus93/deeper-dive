@@ -729,14 +729,14 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-092 — Episode setup TUI
 
-- [ ] Title/focus editor.
-- [ ] Audience.
-- [ ] Technical depth.
-- [ ] Duration.
-- [ ] Style.
-- [ ] Host selection/order summary.
-- [ ] Research/citation behavior controls.
-- [ ] Build-plan action.
+- [x] Title/focus editor.
+- [x] Audience.
+- [x] Technical depth.
+- [x] Duration.
+- [x] Style.
+- [x] Host selection/order summary.
+- [x] Research/citation behavior controls.
+- [x] Build-plan action.
 
 **Acceptance criteria**
 
