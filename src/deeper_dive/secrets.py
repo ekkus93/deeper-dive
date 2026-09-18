@@ -53,7 +53,9 @@ class KeyringCredentialStore:
         try:
             import keyring
         except ImportError as exc:
-            raise RuntimeError("OS keyring support requires the optional 'keyring' package") from exc
+            raise RuntimeError(
+                "OS keyring support requires the optional 'keyring' package"
+            ) from exc
         return keyring
 
     def get(self, reference: str) -> str | None:
