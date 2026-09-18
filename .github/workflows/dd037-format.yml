@@ -1,18 +1,10 @@
-name: DD-071 lint fix
+name: DD-037 formatter disabled
 
 on:
-  push:
-    branches: [ralph/dd-071-research-gaps]
-
-permissions:
-  contents: write
+  workflow_dispatch:
 
 jobs:
-  fix:
+  noop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ralph/dd-071-research-gaps
-      - run: uv run ruff check --fix src/deeper_dive/research_gaps.py && uv run ruff format src/deeper_dive/research_gaps.py
-      - run: git config user.name github-actions && git config user.email actions@github.com && git add src/deeper_dive/research_gaps.py && git commit -m 'style: fix DD-071 lint' && git push
+      - run: echo disabled
