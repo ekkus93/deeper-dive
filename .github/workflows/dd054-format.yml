@@ -1,0 +1,25 @@
+name: DD-054 formatter
+on:
+  push:
+    branches: [ralph/dd-054-model-roles]
+permissions:
+  contents: write
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ralph/dd-054-model-roles
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - run: uv run ruff format src/deeper_dive/model_roles.py tests/test_model_roles.py
+      - run: |
+          if ! git diff --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add src/deeper_dive/model_roles.py tests/test_model_roles.py
+            git commit -m 'style: format DD-054 model roles'
+            git push origin HEAD:ralph/dd-054-model-roles
+          fi
