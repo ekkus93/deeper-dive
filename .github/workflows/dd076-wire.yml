@@ -1,33 +1,10 @@
-name: DD-076 wire Research screen
+name: DD-076 wiring helper disabled
+
 on:
-  push:
-    branches: [ralph/dd-076-research-tui]
-permissions:
-  contents: write
+  workflow_dispatch:
+
 jobs:
-  wire:
-    if: github.actor != 'github-actions[bot]'
+  noop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ralph/dd-076-research-tui
-      - name: Wire Research screen
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('src/deeper_dive/tui.py')
-          s=p.read_text()
-          s=s.replace('from deeper_dive.providers_screen import ProvidersScreen\n', 'from deeper_dive.providers_screen import ProvidersScreen\nfrom deeper_dive.research_controller import PersistentResearchController\nfrom deeper_dive.research_screen import ResearchController, ResearchScreen\n')
-          s=s.replace('"research": lambda: ShellScreen("research", "Research", "Research gaps and web evidence."),', '"research": lambda: ResearchScreen(),')
-          s=s.replace('provider_controller: ProviderController | None = None,\n    ) -> None:', 'provider_controller: ProviderController | None = None,\n        research_controller: ResearchController | None = None,\n    ) -> None:')
-          needle='''        self.provider_controller = provider_controller or ProviderController(\n            UserConfigStore(self.service.workspaces.data_dir / "config.json"),\n            LLMProviderRegistry(),\n            {},\n        )\n'''
-          repl=needle+'''        self.research_controller = research_controller or PersistentResearchController(\n            lambda project_id: self.service.workspaces.project_root(project_id) / "project.db"\n        )\n'''
-          s=s.replace(needle,repl)
-          p.write_text(s)
-          PY
-          git config user.name github-actions
-          git config user.email actions@github.com
-          git add src/deeper_dive/tui.py
-          git commit -m 'DD-076 wire Research screen into app'
-          git push
+      - run: echo disabled
