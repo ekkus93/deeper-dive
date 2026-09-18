@@ -32,19 +32,22 @@ class LexicalIndex:
                 )"""
             )
             db.execute(
-                """CREATE TRIGGER IF NOT EXISTS lexical_chunks_ai AFTER INSERT ON source_chunks BEGIN
+                """CREATE TRIGGER IF NOT EXISTS lexical_chunks_ai AFTER INSERT ON source_chunks
+                BEGIN
                     INSERT INTO lexical_chunks(rowid,chunk_id,source_id,text)
                     VALUES (new.rowid,new.id,new.source_id,new.text);
                 END"""
             )
             db.execute(
-                """CREATE TRIGGER IF NOT EXISTS lexical_chunks_ad AFTER DELETE ON source_chunks BEGIN
+                """CREATE TRIGGER IF NOT EXISTS lexical_chunks_ad AFTER DELETE ON source_chunks
+                BEGIN
                     INSERT INTO lexical_chunks(lexical_chunks,rowid,chunk_id,source_id,text)
                     VALUES ('delete',old.rowid,old.id,old.source_id,old.text);
                 END"""
             )
             db.execute(
-                """CREATE TRIGGER IF NOT EXISTS lexical_chunks_au AFTER UPDATE ON source_chunks BEGIN
+                """CREATE TRIGGER IF NOT EXISTS lexical_chunks_au AFTER UPDATE ON source_chunks
+                BEGIN
                     INSERT INTO lexical_chunks(lexical_chunks,rowid,chunk_id,source_id,text)
                     VALUES ('delete',old.rowid,old.id,old.source_id,old.text);
                     INSERT INTO lexical_chunks(rowid,chunk_id,source_id,text)
