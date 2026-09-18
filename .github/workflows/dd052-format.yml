@@ -1,23 +1,8 @@
-name: DD-052 formatter
+name: DD-052 formatter disabled
 on:
-  push:
-    branches: [ralph/dd-052-ollama-llm]
-permissions:
-  contents: write
+  workflow_dispatch:
 jobs:
-  format:
+  noop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ralph/dd-052-ollama-llm
-      - uses: astral-sh/setup-uv@v6
-      - run: uv sync --frozen
-      - run: uv run ruff format src/deeper_dive/ollama_llm.py tests/test_ollama_llm.py
-      - run: |
-          if git diff --quiet; then exit 0; fi
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add src/deeper_dive/ollama_llm.py tests/test_ollama_llm.py
-          git commit -m 'style: format DD-052 Ollama provider'
-          git push
+      - run: echo disabled
