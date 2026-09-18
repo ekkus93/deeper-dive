@@ -12,6 +12,10 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
 from deeper_dive.application.service import DeeperDiveService, ProjectSummary, SourceImportSummary
+from deeper_dive.llm import LLMProviderRegistry
+from deeper_dive.provider_tui import ProviderController
+from deeper_dive.providers_screen import ProvidersScreen
+from deeper_dive.user_config import UserConfigStore
 from deeper_dive.storage.repositories import SourceRecord
 from deeper_dive.storage.workspace import WorkspaceManager
 
@@ -477,9 +481,7 @@ class DeeperDiveApp(App[None]):
         Binding("q", "quit", "Quit"),
     ]
     SCREENS = {
-        "providers": lambda: ShellScreen(
-            "providers", "Providers", "Configure language-model and speech providers."
-        ),
+        "providers": lambda: ProvidersScreen(),
         "settings": lambda: ShellScreen("settings", "Settings", "Application preferences."),
         "help": lambda: ShellScreen(
             "help", "Help", "Use the footer, keyboard shortcuts, or command palette to navigate."
@@ -492,9 +494,19 @@ class DeeperDiveApp(App[None]):
         "library": lambda: ShellScreen("library", "Library", "Generated episodes and exports."),
     }
 
-    def __init__(self, service: DeeperDiveService | None = None) -> None:
+    def __init__(
+        self,
+        service: DeeperDiveService | None = None,
+        *,
+        provider_controller: ProviderController | None = None,
+    ) -> None:
         super().__init__()
         self.service = service if service is not None else DeeperDiveService(WorkspaceManager())
+        self.provider_controller = provider_controller or ProviderController(
+            UserConfigStore(self.service.workspaces.data_dir / "config.json"),
+            LLMProviderRegistry(),
+            {},
+        )
         self.current_project_id: str | None = None
         self.current_project_name: str | None = None
 
