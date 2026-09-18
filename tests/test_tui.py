@@ -12,7 +12,13 @@ from deeper_dive.domain.ids import new_episode_id, new_run_id
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.storage.workspace import WorkspaceManager
-from deeper_dive.tui import GLOBAL_SCREENS, PROJECT_SCREENS, DeeperDiveApp, HomeProjectsScreen
+from deeper_dive.tui import (
+    GLOBAL_SCREENS,
+    PROJECT_SCREENS,
+    DeeperDiveApp,
+    HomeProjectsScreen,
+    SourcesScreen,
+)
 
 
 def test_shell_navigates_all_destinations(tmp_path: Path) -> None:
@@ -120,6 +126,41 @@ async def _home_projects_interrupted_run_state(tmp_path: Path) -> None:
         assert "pause requested" in _text(_home(app), "#project-list")
 
 
+def test_sources_tui_add_inspect_toggle_and_delete(tmp_path: Path) -> None:
+    asyncio.run(_sources_tui_workflow(tmp_path))
+
+
+async def _sources_tui_workflow(tmp_path: Path) -> None:
+    service = _service(tmp_path)
+    project = service.create_project("Sources")
+    app = DeeperDiveApp(service)
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.current_project_id = project.id
+        app.current_project_name = project.name
+        app.action_navigate("sources")
+        await pilot.pause()
+        sources = _sources(app)
+        sources.query_one("#source-title", Input).value = "Notes"
+        sources.query_one("#source-text", Input).value = "First line about evidence."
+        sources.action_add_paste()
+        await pilot.pause()
+
+        assert "Primary sources:" in _text(sources, "#source-list")
+        assert "Notes | included | parsed | pasted-text" in _text(sources, "#source-list")
+        assert "Origin: user" in _text(sources, "#source-details")
+        assert "Locator: paste://text" in _text(sources, "#source-details")
+        assert "Parsed text" in _text(sources, "#source-text-preview")
+        assert "First line about evidence." in _text(sources, "#source-text-preview")
+
+        sources.action_toggle_included()
+        await pilot.pause()
+        assert "Notes | excluded | parsed | pasted-text" in _text(sources, "#source-list")
+
+        sources.action_delete_selected()
+        await pilot.pause()
+        assert "No sources yet" in _text(sources, "#source-list")
+
+
 def _service(tmp_path: Path) -> DeeperDiveService:
     return DeeperDiveService(
         WorkspaceManager(tmp_path / "data"),
@@ -132,7 +173,12 @@ def _home(app: DeeperDiveApp) -> HomeProjectsScreen:
     return app.screen
 
 
-def _text(screen: HomeProjectsScreen, selector: str) -> str:
+def _sources(app: DeeperDiveApp) -> SourcesScreen:
+    assert isinstance(app.screen, SourcesScreen)
+    return app.screen
+
+
+def _text(screen: HomeProjectsScreen | SourcesScreen, selector: str) -> str:
     return str(screen.query_one(selector, Static).render())
 
 

@@ -1,0 +1,8 @@
+name: DD037 Format Helper Disabled
+on:
+  workflow_dispatch:
+jobs:
+  disabled:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "DD-037 formatting helper disabled"
