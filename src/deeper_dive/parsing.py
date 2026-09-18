@@ -1,12 +1,14 @@
-"""Normalized parser contracts and baseline text ingestion."""
+"""Normalized parser contracts and baseline source ingestion."""
 
 from __future__ import annotations
 
 import hashlib
+import zipfile
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 from typing import Protocol
+from xml.etree import ElementTree
 
 
 class ParseSeverity(StrEnum):
@@ -148,7 +150,77 @@ class TextMarkdownParser:
             self.parser_id,
             self.parser_version,
             tuple(blocks),
-            metadata={"content_hash": content_hash, "format": "markdown" if markdown else "text"},
+            metadata={
+                "content_hash": content_hash,
+                "format": "markdown" if markdown else "text",
+            },
+        )
+
+    def _error(self, code: str, message: str) -> ParseResult:
+        return ParseResult(
+            self.parser_id,
+            self.parser_version,
+            (),
+            diagnostics=(ParseDiagnostic(ParseSeverity.ERROR, code, message),),
+        )
+
+
+class DocxParser:
+    """DOCX parser preserving paragraph order and heading context."""
+
+    parser_id = "docx"
+    parser_version = "1"
+    _word_ns = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+
+    def supports(self, request: ParseRequest) -> bool:
+        return request.path is not None and request.path.suffix.lower() == ".docx"
+
+    def parse(self, request: ParseRequest) -> ParseResult:
+        if not self.supports(request):
+            return self._error("unsupported-type", "unsupported DOCX source")
+        assert request.path is not None
+        try:
+            with zipfile.ZipFile(request.path) as archive:
+                document = archive.read("word/document.xml")
+        except (OSError, KeyError, zipfile.BadZipFile):
+            return self._error("malformed-docx", "DOCX is unreadable or missing its document body")
+        try:
+            root = ElementTree.fromstring(document)
+        except ElementTree.ParseError:
+            return self._error("malformed-docx", "DOCX document XML is malformed")
+
+        namespace = {"w": self._word_ns}
+        blocks: list[ParsedBlock] = []
+        current_heading: str | None = None
+        paragraphs = root.findall(".//w:body/w:p", namespace)
+        for paragraph_index, paragraph in enumerate(paragraphs, start=1):
+            text = "".join(
+                node.text or "" for node in paragraph.findall(".//w:t", namespace)
+            ).strip()
+            if not text:
+                continue
+            style_node = paragraph.find("./w:pPr/w:pStyle", namespace)
+            style = None if style_node is None else style_node.get(f"{{{self._word_ns}}}val")
+            is_heading = bool(style and style.lower().startswith("heading"))
+            if is_heading:
+                current_heading = text
+            blocks.append(
+                ParsedBlock(
+                    ordinal=len(blocks),
+                    text=text,
+                    location=f"paragraph:{paragraph_index}",
+                    heading=current_heading,
+                    metadata={
+                        "kind": "heading" if is_heading else "paragraph",
+                        "style": style or "",
+                    },
+                )
+            )
+        return ParseResult(
+            self.parser_id,
+            self.parser_version,
+            tuple(blocks),
+            metadata={"format": "docx"},
         )
 
     def _error(self, code: str, message: str) -> ParseResult:
