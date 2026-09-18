@@ -9,7 +9,7 @@ from typing import Protocol
 from urllib.parse import urljoin, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from deeper_dive.search import FetchRequest, FetchedDocument
+from deeper_dive.search import FetchedDocument, FetchRequest
 
 
 class ResearchFetchError(RuntimeError):
