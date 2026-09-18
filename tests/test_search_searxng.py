@@ -31,7 +31,10 @@ def test_searxng_normalizes_and_bounds_results(monkeypatch) -> None:
             {"url": "https://b.test", "title": "B", "content": "two", "engines": ["y"]},
         ]
     }
-    monkeypatch.setattr("deeper_dive.search_searxng.urlopen", lambda request, timeout: FakeResponse(payload))
+    monkeypatch.setattr(
+        "deeper_dive.search_searxng.urlopen",
+        lambda request, timeout: FakeResponse(payload),
+    )
     provider = SearxngSearchProvider("https://search.example", max_results=1)
     results = ResearchSearchService(provider).search(
         SearchQuery("topic", "fill gap", research_gap_id="gap-1", max_results=10)
