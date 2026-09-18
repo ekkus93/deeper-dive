@@ -12,7 +12,9 @@ from deeper_dive.storage.database import Database
 
 
 class TurnRepairProvider(Protocol):
-    def repair_turn(self, turn: HostTurn, feedback: str, evidence_ids: tuple[str, ...]) -> str: ...
+    def repair_turn(
+        self, turn: HostTurn, feedback: str, evidence_ids: tuple[str, ...]
+    ) -> str: ...
 
 
 class RepairRechecker(Protocol):
@@ -63,7 +65,9 @@ class TargetedRepairService:
             state = VerificationState(str(row["state"]))
             if state in self.REPAIR_STATES:
                 grouped.setdefault(str(row["turn_id"]), []).append(state)
-        return [RepairCandidate(turn_id, tuple(states)) for turn_id, states in grouped.items()]
+        return [
+            RepairCandidate(turn_id, tuple(states)) for turn_id, states in grouped.items()
+        ]
 
     def repair(self, turn_id: str) -> HostTurn:
         turn = self._turn(turn_id)
@@ -92,12 +96,18 @@ class TargetedRepairService:
 
     def _turn(self, turn_id: str) -> HostTurn:
         with self.database.connection() as db:
-            row = db.execute("SELECT * FROM conversation_turns WHERE id=?", (turn_id,)).fetchone()
+            row = db.execute(
+                "SELECT * FROM conversation_turns WHERE id=?", (turn_id,)
+            ).fetchone()
         if row is None:
             raise KeyError(turn_id)
         return HostTurn(
-            str(row["id"]), str(row["episode_id"]), int(row["segment_ordinal"]),
-            int(row["turn_ordinal"]), str(row["speaker_id"]), str(row["text"]),
+            str(row["id"]),
+            str(row["episode_id"]),
+            int(row["segment_ordinal"]),
+            int(row["turn_ordinal"]),
+            str(row["speaker_id"]),
+            str(row["text"]),
             tuple(json.loads(str(row["evidence_ids_json"]))),
         )
 
@@ -109,7 +119,11 @@ class TargetedRepairService:
                 JOIN claim_verifications cv ON cv.claim_id=mc.id WHERE mc.turn_id=?""",
                 (turn_id,),
             ).fetchall()
-        bad = [row for row in rows if VerificationState(str(row["state"])) in self.REPAIR_STATES]
+        bad = [
+            row
+            for row in rows
+            if VerificationState(str(row["state"])) in self.REPAIR_STATES
+        ]
         if not bad:
             raise ValueError("turn has no claims requiring repair")
         feedback = "\n".join(f"{row['state']}: {row['rationale']}" for row in bad)
