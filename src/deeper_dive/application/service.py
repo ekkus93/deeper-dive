@@ -2,15 +2,23 @@
 
 from __future__ import annotations
 
+import hashlib
 import shutil
 from dataclasses import dataclass, replace
 
 from deeper_dive.application.events import ProgressEvent, ProgressSink
+from deeper_dive.chunking import chunk_parse_result
 from deeper_dive.domain.clock import Clock, SystemClock, format_timestamp
-from deeper_dive.domain.ids import new_project_id, parse_project_id
+from deeper_dive.domain.ids import new_chunk_id, new_project_id, new_source_id, parse_project_id
+from deeper_dive.parsing import ParseRequest, TextMarkdownParser
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
-from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord, SourceRecord
+from deeper_dive.storage.repositories import (
+    CorpusRepository,
+    ProjectRecord,
+    SourceChunkRecord,
+    SourceRecord,
+)
 from deeper_dive.storage.run_repositories import GenerationRunRepository
 from deeper_dive.storage.workspace import ProjectWorkspace, WorkspaceManager
 
@@ -97,9 +105,89 @@ class DeeperDiveService:
         shutil.rmtree(workspace.root, ignore_errors=True)
         self._emit("project.delete", "completed", project_id)
 
+    def add_pasted_source(
+        self,
+        project_id: str,
+        title: str,
+        text: str,
+        *,
+        origin: str = "user",
+    ) -> SourceRecord:
+        """Persist pasted text and deterministic chunks through the service boundary."""
+
+        if origin not in {"user", "supplemental"}:
+            raise ValueError("source origin must be user or supplemental")
+        workspace = self._workspace(project_id)
+        repository = self._corpus(workspace)
+        project = repository.get_project(project_id)
+        if project is None:
+            raise KeyError(project_id)
+        parser = TextMarkdownParser()
+        result = parser.parse(ParseRequest(text=text, media_type="text/plain"))
+        content_hash = result.metadata.get("content_hash") or hashlib.sha256(
+            text.encode("utf-8")
+        ).hexdigest()
+        timestamp = format_timestamp(self.clock.now())
+        source = SourceRecord(
+            id=str(new_source_id()),
+            project_id=project_id,
+            origin=origin,
+            source_type="pasted-text",
+            title=title,
+            locator="paste://text",
+            content_hash=content_hash,
+            imported_at=timestamp,
+            status="error" if result.has_errors else "parsed",
+        )
+        repository.create_source(source)
+        for chunk in chunk_parse_result(source.id, origin, result):
+            repository.create_chunk(
+                SourceChunkRecord(
+                    id=str(new_chunk_id()),
+                    source_id=source.id,
+                    ordinal=chunk.ordinal,
+                    text=chunk.text,
+                    content_hash=chunk.content_hash,
+                    location=chunk.location,
+                )
+            )
+        self._emit("source.add", source.status, source.id)
+        return source
+
     def list_sources(self, project_id: str) -> list[SourceRecord]:
         workspace = self._workspace(project_id)
         return self._corpus(workspace).list_sources(project_id)
+
+    def get_source(self, project_id: str, source_id: str) -> SourceRecord | None:
+        workspace = self._workspace(project_id)
+        source = self._corpus(workspace).get_source(source_id)
+        if source is not None and source.project_id != project_id:
+            return None
+        return source
+
+    def set_source_included(self, project_id: str, source_id: str, included: bool) -> None:
+        workspace = self._workspace(project_id)
+        repository = self._corpus(workspace)
+        source = repository.get_source(source_id)
+        if source is None or source.project_id != project_id:
+            raise KeyError(source_id)
+        repository.update_source(replace(source, included=included))
+
+    def delete_source(self, project_id: str, source_id: str) -> None:
+        workspace = self._workspace(project_id)
+        repository = self._corpus(workspace)
+        source = repository.get_source(source_id)
+        if source is None or source.project_id != project_id:
+            raise KeyError(source_id)
+        repository.delete_source(source_id)
+
+    def list_source_chunks(self, project_id: str, source_id: str) -> list[SourceChunkRecord]:
+        workspace = self._workspace(project_id)
+        repository = self._corpus(workspace)
+        source = repository.get_source(source_id)
+        if source is None or source.project_id != project_id:
+            return []
+        return repository.list_chunks(source_id)
 
     def hosts(self, project_id: str) -> HostEpisodeRepository:
         return HostEpisodeRepository(Database(self._workspace(project_id).database))
