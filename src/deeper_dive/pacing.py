@@ -80,12 +80,15 @@ class DurationPacingController:
         remaining_words = max(0, target_words - state.generated_words)
         hard_stop = state.turn_count >= self.policy.max_turns_per_segment or remaining_words == 0
         early = (
-            content_exhausted
-            and state.turn_count >= self.policy.min_turns_before_early_completion
+            content_exhausted and state.turn_count >= self.policy.min_turns_before_early_completion
         )
         should_complete = hard_stop or early
         nominal_words = round(desired_turn_seconds * self.policy.words_per_minute / 60.0)
-        next_turn_words = 0 if should_complete else min(remaining_words, max(self.policy.minimum_turn_words, nominal_words))
+        next_turn_words = (
+            0
+            if should_complete
+            else min(remaining_words, max(self.policy.minimum_turn_words, nominal_words))
+        )
         return PacingDecision(
             estimated_spoken_seconds=estimated,
             remaining_seconds=remaining_seconds,
