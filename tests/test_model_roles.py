@@ -19,7 +19,9 @@ def test_episode_project_user_precedence() -> None:
     assert ModelRoleAssignments(user={role: user}).resolve(role) == user
     assert ModelRoleAssignments(user={role: user}, project={role: project}).resolve(role) == project
     assert (
-        ModelRoleAssignments(user={role: user}, project={role: project}, episode={role: episode}).resolve(role)
+        ModelRoleAssignments(
+            user={role: user}, project={role: project}, episode={role: episode}
+        ).resolve(role)
         == episode
     )
 

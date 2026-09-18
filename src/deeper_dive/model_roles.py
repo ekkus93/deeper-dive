@@ -83,7 +83,9 @@ def preflight_model_roles(
     for role in required_roles:
         assignment = assignments.resolve(role)
         if assignment is None:
-            blockers.append(ModelRoleBlocker(role, f"no provider/model assignment for {role.value}"))
+            blockers.append(
+                ModelRoleBlocker(role, f"no provider/model assignment for {role.value}")
+            )
             continue
         try:
             provider = registry.get(assignment.provider)
