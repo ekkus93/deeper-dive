@@ -1,0 +1,30 @@
+name: DD-052 DD-053 TODO reconcile
+on:
+  push:
+    branches: [ralph/reconcile-dd052-dd053]
+permissions:
+  contents: write
+jobs:
+  reconcile:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ralph/reconcile-dd052-dd053
+      - run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('docs/DEEP_DIVE_TUI_TODO.md')
+          s = p.read_text()
+          start = s.index('## DD-052 — Ollama provider')
+          end = s.index('## DD-054 — Model role assignments')
+          block = s[start:end]
+          block = block.replace('- [ ] ', '- [x] ')
+          p.write_text(s[:start] + block + s[end:])
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/DEEP_DIVE_TUI_TODO.md
+          git commit -m 'docs: reconcile DD-052 and DD-053 completion'
+          git push origin HEAD:ralph/reconcile-dd052-dd053
