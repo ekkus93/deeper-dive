@@ -15,6 +15,8 @@ from deeper_dive.application.service import DeeperDiveService, ProjectSummary, S
 from deeper_dive.llm import LLMProviderRegistry
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.providers_screen import ProvidersScreen
+from deeper_dive.research_controller import PersistentResearchController
+from deeper_dive.research_screen import ResearchController, ResearchScreen
 from deeper_dive.storage.repositories import SourceRecord
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.user_config import UserConfigStore
@@ -487,7 +489,7 @@ class DeeperDiveApp(App[None]):
             "help", "Help", "Use the footer, keyboard shortcuts, or command palette to navigate."
         ),
         "sources": lambda: SourcesScreen(),
-        "research": lambda: ShellScreen("research", "Research", "Research gaps and web evidence."),
+        "research": lambda: ResearchScreen(),
         "hosts": lambda: ShellScreen("hosts", "Hosts", "Conversation host profiles."),
         "episode": lambda: ShellScreen("episode", "Episode", "Episode configuration and plan."),
         "generate": lambda: ShellScreen("generate", "Generate", "Preflight and generation status."),
@@ -499,6 +501,7 @@ class DeeperDiveApp(App[None]):
         service: DeeperDiveService | None = None,
         *,
         provider_controller: ProviderController | None = None,
+        research_controller: ResearchController | None = None,
     ) -> None:
         super().__init__()
         self.service = service if service is not None else DeeperDiveService(WorkspaceManager())
@@ -506,6 +509,9 @@ class DeeperDiveApp(App[None]):
             UserConfigStore(self.service.workspaces.data_dir / "config.json"),
             LLMProviderRegistry(),
             {},
+        )
+        self.research_controller = research_controller or PersistentResearchController(
+            lambda project_id: self.service.workspaces.project_root(project_id) / "project.db"
         )
         self.current_project_id: str | None = None
         self.current_project_name: str | None = None
