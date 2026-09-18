@@ -1,21 +1,8 @@
-name: DD037 Format
+name: DD037 Format Helper Disabled
 on:
-  push:
-    branches: [ralph/dd-037-sources-tui]
-permissions:
-  contents: write
+  workflow_dispatch:
 jobs:
-  format:
-    if: github.actor != 'github-actions[bot]'
+  disabled:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-      - run: uv sync --frozen --all-extras --dev
-      - run: uv run ruff format src/deeper_dive/application/service.py src/deeper_dive/tui.py tests/test_tui.py
-      - run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/deeper_dive/application/service.py src/deeper_dive/tui.py tests/test_tui.py
-          git diff --cached --quiet || git commit -m "style: format DD-037 sources workflow"
-          git push
+      - run: echo "DD-037 formatting helper disabled"
