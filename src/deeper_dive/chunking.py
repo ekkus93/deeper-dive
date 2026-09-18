@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 
-from deeper_dive.parsing import ParseResult, ParsedBlock
+from deeper_dive.parsing import ParsedBlock, ParseResult
 
 
 @dataclass(frozen=True, slots=True)
