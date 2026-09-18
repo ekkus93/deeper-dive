@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 from collections.abc import Callable
 from typing import Any
@@ -122,12 +123,12 @@ class SentenceTransformerEmbeddingProvider:
         self._metadata = EmbeddingModel("sentence-transformers", model, dimensions)
         if encoder is None:
             try:
-                from sentence_transformers import SentenceTransformer
+                module = importlib.import_module("sentence_transformers")
             except ImportError as exc:
                 raise RuntimeError(
                     "local embeddings require the optional sentence-transformers package"
                 ) from exc
-            instance = SentenceTransformer(model)
+            instance = module.SentenceTransformer(model)
             encoder = instance.encode
         self._encoder = encoder
 
