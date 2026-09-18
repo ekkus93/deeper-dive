@@ -6,12 +6,9 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TypeVar
 
 from pydantic import BaseModel, ValidationError
 
-
-T = TypeVar("T", bound=BaseModel)
 Repair = Callable[[str, str, int], str]
 
 
@@ -38,7 +35,7 @@ class ValidationFailureStore:
             handle.write(json.dumps(record, sort_keys=True) + "\n")
 
 
-def validate_structured_output(
+def validate_structured_output[T: BaseModel](
     raw: str,
     model_type: type[T],
     *,
