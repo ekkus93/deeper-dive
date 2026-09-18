@@ -819,12 +819,12 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-104 — Host turn generation
 
-- [ ] Generate one bounded host turn from director decision.
-- [ ] Validate speaker identity.
-- [ ] Capture citations/evidence IDs.
-- [ ] Persist turn before advancing.
-- [ ] Update conversation state.
-- [ ] Checkpoint per turn.
+- [x] Generate one bounded host turn from director decision.
+- [x] Validate speaker identity.
+- [x] Capture citations/evidence IDs.
+- [x] Persist turn before advancing.
+- [x] Update conversation state.
+- [x] Checkpoint per turn.
 
 **Acceptance criteria**
 
