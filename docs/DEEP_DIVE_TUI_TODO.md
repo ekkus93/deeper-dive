@@ -485,11 +485,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-054 — Model role assignments
 
-- [ ] Add user-level defaults.
-- [ ] Add project-level assignments.
-- [ ] Add episode overrides.
-- [ ] Roles include corpus analysis, research planning, source analysis, episode planning, directing, host generation, verification.
-- [ ] Implement documented precedence.
+- [x] Add user-level defaults.
+- [x] Add project-level assignments.
+- [x] Add episode overrides.
+- [x] Roles include corpus analysis, research planning, source analysis, episode planning, directing, host generation, verification.
+- [x] Implement documented precedence.
 
 **Acceptance criteria**
 
