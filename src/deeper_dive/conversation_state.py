@@ -47,8 +47,7 @@ class ConversationStateRepository:
             unresolved_topics=tuple(self._list(row["unresolved_topics_json"])),
             recent_context_refs=tuple(self._list(row["recent_context_refs_json"])),
             participation={
-                str(key): int(value)
-                for key, value in self._dict(row["participation_json"]).items()
+                str(key): int(value) for key, value in self._dict(row["participation_json"]).items()
             },
         )
 

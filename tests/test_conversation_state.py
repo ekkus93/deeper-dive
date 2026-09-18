@@ -52,9 +52,7 @@ def test_conversation_state_partial_update_preserves_other_advisory_state(tmp_pa
             "INSERT INTO episodes(id,project_id,title,created_at,modified_at) VALUES ('e','p','E','t','t')"
         )
     repository = ConversationStateRepository(database)
-    repository.save(
-        ConversationState("e", running_summary="summary", participation={"host-a": 2})
-    )
+    repository.save(ConversationState("e", running_summary="summary", participation={"host-a": 2}))
     updated = repository.update("e", segment_ordinal=1, segment_turn=3)
     assert updated.running_summary == "summary"
     assert updated.participation == {"host-a": 2}
