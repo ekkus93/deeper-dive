@@ -382,9 +382,9 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-042 — Initial embedding backends
 
-- [ ] Add OpenAI embeddings adapter.
-- [ ] Add Ollama/local adapter if supported cleanly by selected Ollama API.
-- [ ] Add local sentence-transformer style backend or explicitly defer it by updating spec/TODO with rationale.
+- [x] Add OpenAI embeddings adapter.
+- [x] Add Ollama/local adapter if supported cleanly by selected Ollama API.
+- [x] Add local sentence-transformer style backend or explicitly defer it by updating spec/TODO with rationale.
 
 **Acceptance criteria**
 
