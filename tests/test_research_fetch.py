@@ -43,9 +43,7 @@ def test_rejects_non_public_addresses(address: str) -> None:
 
 
 def test_redirect_is_revalidated_and_private_target_rejected() -> None:
-    transport = FakeTransport(
-        [TransportResponse(302, {"location": "http://127.0.0.1/x"}, b"")]
-    )
+    transport = FakeTransport([TransportResponse(302, {"location": "http://127.0.0.1/x"}, b"")])
 
     def resolve(host: str, port: int, *, type: int):
         address = "93.184.216.34" if host == "example.test" else "127.0.0.1"
@@ -58,9 +56,7 @@ def test_redirect_is_revalidated_and_private_target_rejected() -> None:
 
 
 def test_oversized_body_is_rejected() -> None:
-    transport = FakeTransport(
-        [TransportResponse(200, {"content-type": "text/plain"}, b"12345")]
-    )
+    transport = FakeTransport([TransportResponse(200, {"content-type": "text/plain"}, b"12345")])
     fetcher = ResearchSafeFetcher(
         transport=transport,
         resolver=resolver_for("93.184.216.34"),
@@ -90,9 +86,7 @@ def test_invalid_scheme_and_content_type_are_rejected() -> None:
     with pytest.raises(ResearchFetchError, match="HTTP/HTTPS"):
         fetcher.fetch(FetchRequest("file:///etc/passwd"))
 
-    transport = FakeTransport(
-        [TransportResponse(200, {"content-type": "application/pdf"}, b"pdf")]
-    )
+    transport = FakeTransport([TransportResponse(200, {"content-type": "application/pdf"}, b"pdf")])
     fetcher = ResearchSafeFetcher(
         transport=transport,
         resolver=resolver_for("93.184.216.34"),
