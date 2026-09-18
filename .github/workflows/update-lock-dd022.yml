@@ -1,0 +1,25 @@
+name: Update DD-022 lock
+on:
+  push:
+    branches: [ralph/dd-022-textual-shell]
+permissions:
+  contents: write
+jobs:
+  lock:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ralph/dd-022-textual-shell
+      - uses: astral-sh/setup-uv@v6
+      - run: uv python install 3.12
+      - run: uv lock
+      - name: Commit lockfile
+        run: |
+          if git diff --quiet -- uv.lock; then exit 0; fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add uv.lock
+          git commit -m "DD-022 update uv lock"
+          git push origin HEAD:ralph/dd-022-textual-shell
