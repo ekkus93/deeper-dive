@@ -103,7 +103,11 @@ class HostRelationship:
             raise ValueError("host relationship stance must not be empty")
 
     def to_record(self) -> HostRelationshipRecord:
-        payload = {"affinity": self.affinity, "instructions": self.instructions, "stance": self.stance}
+        payload = {
+            "affinity": self.affinity,
+            "instructions": self.instructions,
+            "stance": self.stance,
+        }
         return HostRelationshipRecord(
             project_id=self.project_id,
             from_host_id=self.from_host_id,
