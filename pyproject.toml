@@ -8,10 +8,13 @@ version = "0.1.0"
 description = "A terminal-first NotebookLM-style deep-dive application."
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+  "textual>=6,<7",
+]
 
 [project.scripts]
 deeper-dive = "deeper_dive.cli:main"
+deeper-dive-tui = "deeper_dive.tui:main"
 
 [dependency-groups]
 dev = [
