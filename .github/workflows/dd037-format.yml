@@ -1,26 +1,10 @@
-name: DD-044 reconcile
+name: DD-037 formatter disabled
+
 on:
-  push:
-    branches: [ralph/dd-044-reconcile]
-permissions:
-  contents: write
+  workflow_dispatch:
+
 jobs:
-  reconcile:
+  noop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ralph/dd-044-reconcile
-      - run: |
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('docs/DEEP_DIVE_TUI_TODO.md'); s=p.read_text()
-          for item in ['Combine lexical and vector candidates.','Implement rank fusion.','Add reranker interface.','Implement baseline reranker/heuristic.','Return explicit retrieval metadata.']:
-            s=s.replace(f'- [ ] {item}',f'- [x] {item}',1)
-          p.write_text(s)
-          PY
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/DEEP_DIVE_TUI_TODO.md
-          git commit -m "docs: reconcile DD-044 completion"
-          git push
+      - run: echo disabled
