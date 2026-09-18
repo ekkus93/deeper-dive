@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from deeper_dive.tui import DeeperDiveApp, GLOBAL_SCREENS, PROJECT_SCREENS
+from deeper_dive.tui import GLOBAL_SCREENS, PROJECT_SCREENS, DeeperDiveApp
 
 
 @pytest.mark.asyncio
