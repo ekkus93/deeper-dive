@@ -895,11 +895,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-113 — Targeted repair
 
-- [ ] Identify turns requiring repair.
-- [ ] Regenerate turn using verification feedback/evidence.
-- [ ] Recheck affected claims.
-- [ ] Update downstream conversation summary if necessary.
-- [ ] Preserve unaffected turn IDs/content when possible.
+- [x] Identify turns requiring repair.
+- [x] Regenerate turn using verification feedback/evidence.
+- [x] Recheck affected claims.
+- [x] Update downstream conversation summary if necessary.
+- [x] Preserve unaffected turn IDs/content when possible.
 
 **Acceptance criteria**
 
