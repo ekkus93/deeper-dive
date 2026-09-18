@@ -1,24 +1,10 @@
-name: DD-076 lint fixer
+name: DD-076 helper disabled
+
 on:
-  push:
-    branches: [ralph/dd-076-research-tui]
-permissions:
-  contents: write
+  workflow_dispatch:
+
 jobs:
-  fix:
-    if: github.actor != 'github-actions[bot]'
+  noop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ralph/dd-076-research-tui
-      - uses: astral-sh/setup-uv@v6
-      - run: |
-          uv sync --frozen
-          uv run ruff check --fix src/deeper_dive/research_screen.py
-          uv run ruff format src/deeper_dive/research_screen.py
-          git config user.name github-actions
-          git config user.email actions@github.com
-          git add src/deeper_dive/research_screen.py
-          git commit -m 'style: lint DD-076 Research TUI'
-          git push
+      - run: echo disabled
