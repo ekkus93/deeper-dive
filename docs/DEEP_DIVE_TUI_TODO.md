@@ -775,13 +775,13 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-101 — Director decision schema
 
-- [ ] Define structured next-turn/director decision.
-- [ ] Include next speaker.
-- [ ] Include intent.
-- [ ] Include evidence IDs.
-- [ ] Include target duration/length.
-- [ ] Include handoff/interaction instruction.
-- [ ] Include segment transition/completion signal.
+- [x] Define structured next-turn/director decision.
+- [x] Include next speaker.
+- [x] Include intent.
+- [x] Include evidence IDs.
+- [x] Include target duration/length.
+- [x] Include handoff/interaction instruction.
+- [x] Include segment transition/completion signal.
 
 **Acceptance criteria**
 
