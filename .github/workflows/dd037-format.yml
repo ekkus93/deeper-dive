@@ -1,10 +1,18 @@
-name: DD-037 formatter disabled
+name: DD-070 TODO reconcile
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [ralph/reconcile-dd-070]
+
+permissions:
+  contents: write
 
 jobs:
-  noop:
+  reconcile:
     runs-on: ubuntu-latest
     steps:
-      - run: echo disabled
+      - uses: actions/checkout@v4
+        with:
+          ref: ralph/reconcile-dd-070
+      - run: sed -i '/## DD-070/,/## DD-071/ s/- \[ \]/- [x]/' docs/DEEP_DIVE_TUI_TODO.md
+      - run: git config user.name github-actions && git config user.email actions@github.com && git add docs/DEEP_DIVE_TUI_TODO.md && git commit -m 'docs: reconcile DD-070 completion' && git push
