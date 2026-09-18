@@ -29,10 +29,14 @@ def _nav() -> ComposeResult:
 class NavigationMixin:
     """Shared button navigation for shell screens."""
 
+    @property
+    def _navigation_app(self) -> DeeperDiveApp:
+        return cast(DeeperDiveApp, cast(Screen[None], self).app)
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         destination = event.button.name
         if destination:
-            cast(DeeperDiveApp, self.app).action_navigate(destination)
+            self._navigation_app.action_navigate(destination)
 
 
 class HomeProjectsScreen(NavigationMixin, Screen[None]):
