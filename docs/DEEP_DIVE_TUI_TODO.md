@@ -805,13 +805,13 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-103 — Host prompt/context assembly
 
-- [ ] Combine host profile.
-- [ ] Include director instruction.
-- [ ] Include recent dialogue.
-- [ ] Include compact conversation state.
-- [ ] Include only relevant evidence, with stable IDs.
-- [ ] Include relationship context when relevant.
-- [ ] Enforce citation/grounding instructions.
+- [x] Combine host profile.
+- [x] Include director instruction.
+- [x] Include recent dialogue.
+- [x] Include compact conversation state.
+- [x] Include only relevant evidence, with stable IDs.
+- [x] Include relationship context when relevant.
+- [x] Enforce citation/grounding instructions.
 
 **Acceptance criteria**
 
