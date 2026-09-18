@@ -432,12 +432,12 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-050 — LLM provider contract and registry
 
-- [ ] Implement normalized `LLMProvider` contract.
-- [ ] Define request/response/stream types.
-- [ ] Define capability metadata.
-- [ ] Define provider registry/configuration.
-- [ ] Implement health/model-discovery operations.
-- [ ] Add deterministic fake LLM provider.
+- [x] Implement normalized `LLMProvider` contract.
+- [x] Define request/response/stream types.
+- [x] Define capability metadata.
+- [x] Define provider registry/configuration.
+- [x] Implement health/model-discovery operations.
+- [x] Add deterministic fake LLM provider.
 
 **Acceptance criteria**
 
