@@ -1,10 +1,78 @@
-name: DD-037 formatter disabled
+name: TODO reconcile DD-023-DD-037
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - ralph/reconcile-dd023-dd037
+
+permissions:
+  contents: write
 
 jobs:
-  noop:
+  reconcile:
     runs-on: ubuntu-latest
     steps:
-      - run: echo disabled
+      - uses: actions/checkout@v4
+      - run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('docs/DEEP_DIVE_TUI_TODO.md')
+          text = path.read_text()
+          replacements = {
+              '- [ ] New project dialog.': '- [x] New project dialog.',
+              '- [ ] Project list with modified time/status/count placeholders.': '- [x] Project list with modified time/status/count placeholders.',
+              '- [ ] Open project.': '- [x] Open project.',
+              '- [ ] Rename project.': '- [x] Rename project.',
+              '- [ ] Delete project with confirmation.': '- [x] Delete project with confirmation.',
+              '- [ ] Surface interrupted/paused run state.': '- [x] Surface interrupted/paused run state.',
+              '- [ ] Define parser contract and parse result model.': '- [x] Define parser contract and parse result model.',
+              '- [ ] Preserve structural/location metadata where available.': '- [x] Preserve structural/location metadata where available.',
+              '- [ ] Define parse warning/error reporting.': '- [x] Define parse warning/error reporting.',
+              '- [ ] Store parser identity/version for cache invalidation.': '- [x] Store parser identity/version for cache invalidation.',
+              '- [ ] Parse `.txt`.': '- [x] Parse `.txt`.',
+              '- [ ] Parse `.md` as text while retaining headings where practical.': '- [x] Parse `.md` as text while retaining headings where practical.',
+              '- [ ] Support pasted text source.': '- [x] Support pasted text source.',
+              '- [ ] Compute content hashes.': '- [x] Compute content hashes.',
+              '- [ ] Select maintained PDF text extraction library.': '- [x] Select maintained PDF text extraction library.',
+              '- [ ] Extract per-page text where reliably possible.': '- [x] Extract per-page text where reliably possible.',
+              '- [ ] Preserve page provenance.': '- [x] Preserve page provenance.',
+              '- [ ] Surface extraction warnings for image-only/unreadable PDFs.': '- [x] Surface extraction warnings for image-only/unreadable PDFs.',
+              '- [ ] Do not silently OCR in V1 unless explicitly added to spec/TODO.': '- [x] Do not silently OCR in V1 unless explicitly added to spec/TODO.',
+              '- [ ] Extract paragraphs/headings.': '- [x] Extract paragraphs/headings.',
+              '- [ ] Preserve useful section metadata.': '- [x] Preserve useful section metadata.',
+              '- [ ] Handle malformed DOCX cleanly.': '- [x] Handle malformed DOCX cleanly.',
+              '- [ ] Parse local HTML.': '- [x] Parse local HTML.',
+              '- [ ] Fetch explicit HTTP/HTTPS user URLs with timeout/size limits.': '- [x] Fetch explicit HTTP/HTTPS user URLs with timeout/size limits.',
+              '- [ ] Extract readable main text where practical.': '- [x] Extract readable main text where practical.',
+              '- [ ] Record original/final canonical URL and retrieval timestamp.': '- [x] Record original/final canonical URL and retrieval timestamp.',
+              '- [ ] Distinguish explicit user URL fetching from automated research-network policy.': '- [x] Distinguish explicit user URL fetching from automated research-network policy.',
+              '- [ ] Add multiple files.': '- [x] Add multiple files.',
+              '- [ ] Add directory recursively with supported-extension filtering.': '- [x] Add directory recursively with supported-extension filtering.',
+              '- [ ] Detect exact duplicate content by hash.': '- [x] Detect exact duplicate content by hash.',
+              '- [ ] Detect duplicate canonical URLs.': '- [x] Detect duplicate canonical URLs.',
+              '- [ ] Present duplicate disposition to user rather than silently duplicating.': '- [x] Present duplicate disposition to user rather than silently duplicating.',
+              '- [ ] Implement deterministic baseline chunker.': '- [x] Implement deterministic baseline chunker.',
+              '- [ ] Preserve source/page/heading provenance.': '- [x] Preserve source/page/heading provenance.',
+              '- [ ] Add configurable chunk-size/overlap internals with sensible defaults.': '- [x] Add configurable chunk-size/overlap internals with sensible defaults.',
+              '- [ ] Version chunking configuration.': '- [x] Version chunking configuration.',
+              '- [ ] Implement primary/supplemental grouped source list.': '- [x] Implement primary/supplemental grouped source list.',
+              '- [ ] Implement source details pane.': '- [x] Implement source details pane.',
+              '- [ ] Add files/directory/URL/paste actions.': '- [x] Add files/directory/URL/paste actions.',
+              '- [ ] Include/exclude action.': '- [x] Include/exclude action.',
+              '- [ ] Delete action.': '- [x] Delete action.',
+              '- [ ] Parsed-text inspection.': '- [x] Parsed-text inspection.',
+              '- [ ] Metadata/provenance inspection.': '- [x] Metadata/provenance inspection.',
+              '- [ ] Visible parse/index/error states.': '- [x] Visible parse/index/error states.',
+          }
+          for before, after in replacements.items():
+              if before not in text:
+                  raise SystemExit(f'missing checklist item: {before}')
+              text = text.replace(before, after, 1)
+          path.write_text(text)
+          PY
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs/DEEP_DIVE_TUI_TODO.md
+          git diff --cached --quiet || git commit -m "docs: reconcile DD-023 through DD-037 completion"
+          git push
