@@ -113,6 +113,30 @@ class EpisodePlannerService:
         self._persist(plan)
         return plan
 
+    def edit_segment(self, episode_id: str, ordinal: int, segment: PlannedSegment) -> EpisodePlan:
+        """Persist a user-edited segment while retaining plan identity and safety bounds."""
+
+        current = self.load_plan(episode_id)
+        if ordinal < 0 or ordinal >= len(current.segments):
+            raise IndexError(ordinal)
+        config = self.configurations.load_configuration(episode_id)
+        validated = self._validate_segments(
+            {"segments": [self._segment_payload(segment)]}, config.host_ids, set()
+        )[0]
+        segments = list(current.segments)
+        segments[ordinal] = validated
+        segments = self._bound_duration(segments, config.target_duration_seconds)
+        plan = EpisodePlan(current.id, episode_id, tuple(segments))
+        self._persist(plan)
+        return plan
+
+    def approve_plan(self, episode_id: str) -> EpisodePlan:
+        """Mark the reviewed plan approved without starting dialogue or TTS."""
+
+        plan = self.load_plan(episode_id)
+        self._persist(plan, status="approved")
+        return plan
+
     def load_plan(self, episode_id: str) -> EpisodePlan:
         record = self.repository.get_plan(episode_id)
         if record is None:
@@ -123,12 +147,12 @@ class EpisodePlannerService:
         )
         return EpisodePlan(record.id, episode_id, segments)
 
-    def _persist(self, plan: EpisodePlan) -> None:
+    def _persist(self, plan: EpisodePlan, *, status: str = "draft") -> None:
         timestamp = format_timestamp(self.clock.now())
         record = EpisodePlanRecord(
             id=plan.id,
             episode_id=plan.episode_id,
-            status="draft",
+            status=status,
             plan_json=json.dumps({"target_duration_seconds": plan.target_duration_seconds}),
             created_at=timestamp,
             modified_at=timestamp,
