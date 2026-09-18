@@ -1,10 +1,23 @@
-name: DD-076 wiring helper disabled
-
+name: DD-076 formatter
 on:
-  workflow_dispatch:
-
+  push:
+    branches: [ralph/dd-076-research-tui]
+permissions:
+  contents: write
 jobs:
-  noop:
+  format:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
-      - run: echo disabled
+      - uses: actions/checkout@v4
+        with:
+          ref: ralph/dd-076-research-tui
+      - uses: astral-sh/setup-uv@v6
+      - run: |
+          uv sync --frozen
+          uv run ruff format src/deeper_dive/research_screen.py tests/test_research_tui.py
+          git config user.name github-actions
+          git config user.email actions@github.com
+          git add src/deeper_dive/research_screen.py tests/test_research_tui.py
+          git commit -m 'style: format DD-076 Research TUI'
+          git push
