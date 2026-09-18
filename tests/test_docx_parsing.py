@@ -20,10 +20,13 @@ def test_docx_round_trips_title_headings_and_body(tmp_path: Path) -> None:
     _write_docx(
         path,
         '''
-<w:p><w:pPr><w:pStyle w:val="Title"/></w:pPr><w:r><w:t>Document Title</w:t></w:r></w:p>
-<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Section One</w:t></w:r></w:p>
+<w:p><w:pPr><w:pStyle w:val="Title"/></w:pPr>
+<w:r><w:t>Document Title</w:t></w:r></w:p>
+<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr>
+<w:r><w:t>Section One</w:t></w:r></w:p>
 <w:p><w:r><w:t>Body text</w:t></w:r></w:p>
-<w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t>Details</w:t></w:r></w:p>
+<w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr>
+<w:r><w:t>Details</w:t></w:r></w:p>
 <w:p><w:r><w:t>More text</w:t></w:r></w:p>
 ''',
     )
