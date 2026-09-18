@@ -7,7 +7,6 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
-
 CURRENT_CONFIG_VERSION = 1
 
 
