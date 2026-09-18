@@ -359,10 +359,10 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-040 — Lexical index
 
-- [ ] Implement persistent lexical/BM25-style search over included chunks.
-- [ ] Incrementally update when sources change.
-- [ ] Return scored stable chunk IDs.
-- [ ] Filter excluded sources.
+- [x] Implement persistent lexical/BM25-style search over included chunks.
+- [x] Incrementally update when sources change.
+- [x] Return scored stable chunk IDs.
+- [x] Filter excluded sources.
 
 **Acceptance criteria**
 
@@ -371,10 +371,10 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-041 — Embedding provider abstraction
 
-- [ ] Define embedding provider contract.
-- [ ] Define embedding model metadata/capabilities.
-- [ ] Add deterministic fake embedding provider for tests.
-- [ ] Persist embedding model/config identity with vectors.
+- [x] Define embedding provider contract.
+- [x] Define embedding model metadata/capabilities.
+- [x] Add deterministic fake embedding provider for tests.
+- [x] Persist embedding model/config identity with vectors.
 
 **Acceptance criteria**
 
