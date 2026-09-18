@@ -43,19 +43,28 @@ class EpisodeSetupScreen(Screen[None]):
                 yield Button(key.title(), id=f"nav-{key}", name=key)
         with VerticalScroll(id="content"):
             yield Label("Episode Setup", id="screen-title")
-            yield Static("Configure an episode before planning dialogue or TTS.", id="screen-description")
+            yield Static(
+                "Configure an episode before planning dialogue or TTS.", id="screen-description"
+            )
             yield Input(placeholder="Title", id="episode-title")
             yield Input(placeholder="Focus / central question", id="episode-focus")
             yield Input(value="general", placeholder="Audience", id="episode-audience")
             yield Input(value="balanced", placeholder="Technical depth", id="episode-depth")
             yield Input(value="1800", placeholder="Duration in seconds", id="episode-duration")
             yield Input(value="discussion", placeholder="Style", id="episode-style")
-            yield Input(placeholder="Host IDs in order, comma separated; blank = all hosts", id="episode-hosts")
+            yield Input(
+                placeholder="Host IDs in order, comma separated; blank = all hosts",
+                id="episode-hosts",
+            )
             yield Static("Host selection: none", id="host-summary")
             yield Input(placeholder="Must-cover topics, comma separated", id="episode-must-cover")
             yield Input(placeholder="Avoid topics, comma separated", id="episode-avoid")
-            yield Input(value="project-default", placeholder="Research policy", id="episode-research-policy")
-            yield Input(value="grounded", placeholder="Citation behavior", id="episode-citation-behavior")
+            yield Input(
+                value="project-default", placeholder="Research policy", id="episode-research-policy"
+            )
+            yield Input(
+                value="grounded", placeholder="Citation behavior", id="episode-citation-behavior"
+            )
             yield Button("Build Plan", id="action-build-plan", name="build-plan")
             yield Static("Status: Ready", id="screen-status")
         yield Footer()
@@ -131,7 +140,9 @@ class EpisodeSetupScreen(Screen[None]):
             avoid_topics=self._csv("#episode-avoid"),
             research_overrides={
                 "policy": self.query_one("#episode-research-policy", Input).value.strip(),
-                "citation_behavior": self.query_one("#episode-citation-behavior", Input).value.strip(),
+                "citation_behavior": self.query_one(
+                    "#episode-citation-behavior", Input
+                ).value.strip(),
             },
         )
 
