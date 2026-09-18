@@ -16,7 +16,9 @@ def req(*, schema: dict[str, object] | None = None) -> LLMRequest:
 def test_native_generation_usage_and_structured_output() -> None:
     seen: dict[str, Any] = {}
 
-    def fake(method: str, url: str, payload: dict[str, Any] | None, timeout: float) -> dict[str, Any]:
+    def fake(
+        method: str, url: str, payload: dict[str, Any] | None, timeout: float
+    ) -> dict[str, Any]:
         assert url.endswith("/api/chat")
         assert payload is not None
         seen.update(payload)
@@ -38,7 +40,9 @@ def test_native_generation_usage_and_structured_output() -> None:
 
 
 def test_native_model_discovery_captures_context_metadata() -> None:
-    def fake(method: str, url: str, payload: dict[str, Any] | None, timeout: float) -> dict[str, Any]:
+    def fake(
+        method: str, url: str, payload: dict[str, Any] | None, timeout: float
+    ) -> dict[str, Any]:
         return {
             "models": [
                 {"name": "qwen:latest", "details": {"context_length": 32768}},
@@ -56,7 +60,9 @@ def test_native_model_discovery_captures_context_metadata() -> None:
 def test_health_uses_native_version_endpoint_and_recovers_failure() -> None:
     calls: list[str] = []
 
-    def healthy(method: str, url: str, payload: dict[str, Any] | None, timeout: float) -> dict[str, Any]:
+    def healthy(
+        method: str, url: str, payload: dict[str, Any] | None, timeout: float
+    ) -> dict[str, Any]:
         calls.append(url)
         return {"version": "1.0"}
 
@@ -64,7 +70,9 @@ def test_health_uses_native_version_endpoint_and_recovers_failure() -> None:
     assert provider.health().healthy is True
     assert calls == ["http://127.0.0.1:11434/api/version"]
 
-    def failed(method: str, url: str, payload: dict[str, Any] | None, timeout: float) -> dict[str, Any]:
+    def failed(
+        method: str, url: str, payload: dict[str, Any] | None, timeout: float
+    ) -> dict[str, Any]:
         raise OllamaLLMError("offline")
 
     assert OllamaLLMProvider(model="qwen", request_json=failed).health().healthy is False
@@ -86,7 +94,9 @@ def test_native_streaming() -> None:
 
 
 def test_malformed_generation_response_is_rejected() -> None:
-    def fake(method: str, url: str, payload: dict[str, Any] | None, timeout: float) -> dict[str, Any]:
+    def fake(
+        method: str, url: str, payload: dict[str, Any] | None, timeout: float
+    ) -> dict[str, Any]:
         return {"done": True}
 
     provider = OllamaLLMProvider(model="qwen", request_json=fake)
