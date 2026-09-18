@@ -1,0 +1,8 @@
+name: DD-054 formatter disabled
+on:
+  workflow_dispatch:
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo disabled
