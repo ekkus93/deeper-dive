@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 from deeper_dive.embeddings import FakeEmbeddingProvider
 from deeper_dive.storage.database import Database
-from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord, SourceChunkRecord, SourceRecord
+from deeper_dive.storage.repositories import (
+    CorpusRepository,
+    ProjectRecord,
+    SourceChunkRecord,
+    SourceRecord,
+)
 from deeper_dive.vector_index import VectorIndex
 
 
@@ -37,7 +44,7 @@ def test_vector_index_incremental_remove_rebuild_and_exclusion(tmp_path) -> None
     assert index.sync_project("p", provider) == 2
     source = corpus.get_source("s")
     assert source is not None
-    corpus.update_source(SourceRecord(**{**source.__dict__, "included": False}))
+    corpus.update_source(replace(source, included=False))
     assert index.search("p", "alpha", provider) == []
     corpus.delete_source("s")
     assert index.sync_project("p", provider) == 0
