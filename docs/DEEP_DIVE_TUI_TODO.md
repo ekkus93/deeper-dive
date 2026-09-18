@@ -907,12 +907,12 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-114 — Claim inspector TUI
 
-- [ ] Select claim from turn/transcript.
-- [ ] Display verification state.
-- [ ] Display supporting/contradicting evidence.
-- [ ] Display source origin/location.
-- [ ] Open parsed source passage.
-- [ ] Regenerate/repair action.
+- [x] Select claim from turn/transcript.
+- [x] Display verification state.
+- [x] Display supporting/contradicting evidence.
+- [x] Display source origin/location.
+- [x] Open parsed source passage.
+- [x] Regenerate/repair action.
 
 **Acceptance criteria**
 
