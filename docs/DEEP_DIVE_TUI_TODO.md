@@ -498,10 +498,10 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-055 — Structured-output validation/repair
 
-- [ ] Centralize Pydantic-based structured response validation.
-- [ ] Add bounded retry/repair strategy.
-- [ ] Persist sanitized validation failures for diagnosis.
-- [ ] Never commit partially invalid objects to durable final state.
+- [x] Centralize Pydantic-based structured response validation.
+- [x] Add bounded retry/repair strategy.
+- [x] Persist sanitized validation failures for diagnosis.
+- [x] Never commit partially invalid objects to durable final state.
 
 **Acceptance criteria**
 
