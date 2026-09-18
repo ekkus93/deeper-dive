@@ -1,10 +1,26 @@
-name: DD-037 formatter disabled
+name: DD-074 formatter
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - ralph/dd-074-safe-fetcher
+
+permissions:
+  contents: write
 
 jobs:
-  noop:
+  format:
     runs-on: ubuntu-latest
     steps:
-      - run: echo disabled
+      - uses: actions/checkout@v4
+        with:
+          ref: ralph/dd-074-safe-fetcher
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - run: uv run ruff format tests/test_research_fetch.py
+      - run: |
+          git config user.name github-actions
+          git config user.email actions@github.com
+          git add tests/test_research_fetch.py
+          git diff --cached --quiet || git commit -m 'style: apply Ruff to DD-074 tests'
+          git push
