@@ -12,6 +12,7 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
 from deeper_dive.application.service import DeeperDiveService, ProjectSummary, SourceImportSummary
+from deeper_dive.episode_setup_screen import EpisodeSetupScreen
 from deeper_dive.hosts_screen import HostsScreen
 from deeper_dive.llm import LLMProviderRegistry
 from deeper_dive.provider_tui import ProviderController
@@ -492,7 +493,7 @@ class DeeperDiveApp(App[None]):
         "sources": lambda: SourcesScreen(),
         "research": lambda: ResearchScreen(),
         "hosts": lambda: HostsScreen(),
-        "episode": lambda: ShellScreen("episode", "Episode", "Episode configuration and plan."),
+        "episode": lambda: EpisodeSetupScreen(),
         "generate": lambda: ShellScreen("generate", "Generate", "Preflight and generation status."),
         "library": lambda: ShellScreen("library", "Library", "Generated episodes and exports."),
     }
