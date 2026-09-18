@@ -7,13 +7,15 @@ on:
     branches: [master]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.8.22"
@@ -24,8 +26,16 @@ jobs:
         run: uv lock --check
       - name: Sync locked environment
         run: uv sync --frozen
-      - name: Ruff format
-        run: uv run ruff format --check .
+      - name: Ruff format and commit
+        run: |
+          uv run ruff format .
+          if ! git diff --quiet; then
+            git config user.name github-actions
+            git config user.email actions@github.com
+            git add .
+            git commit -m "style: format DD-091 episode planner"
+            git push
+          fi
       - name: Ruff lint
         run: uv run ruff check .
       - name: Static typing
