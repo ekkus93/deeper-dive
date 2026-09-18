@@ -41,7 +41,14 @@ def test_host_prompt_assembles_profile_director_state_dialogue_and_provenance() 
         PromptEvidence("chunk-2", "source-2", "Relevant result", "supplemental", "§ Results"),
     )
     relationships = (
-        HostRelationship("project-1", "host-a", "host-b", "skeptical peer", "Challenge gently", 0.7),
+        HostRelationship(
+            "project-1",
+            "host-a",
+            "host-b",
+            "skeptical peer",
+            "Challenge gently",
+            0.7,
+        ),
         HostRelationship("project-1", "host-b", "host-a", "explainer", "Clarify", 0.8),
     )
 
