@@ -199,7 +199,8 @@ class DeeperDiveApp(App[None]):
     CSS = """
     Screen { layout: vertical; }
     #global-nav, #project-nav, #project-actions { height: auto; padding: 0 1; }
-    #global-nav Button, #project-nav Button, #project-actions Button { min-width: 8; margin: 0 1 0 0; }
+    #global-nav Button, #project-nav Button,
+    #project-actions Button { min-width: 8; margin: 0 1 0 0; }
     #content { padding: 1; }
     #screen-title { text-style: bold; margin: 1; }
     #screen-status { margin: 1; }
