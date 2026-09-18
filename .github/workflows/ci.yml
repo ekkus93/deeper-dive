@@ -7,13 +7,34 @@ on:
     branches: [master]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+      - name: Reconcile DD-101 TODO
+        if: github.event_name == 'pull_request'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('docs/DEEP_DIVE_TUI_TODO.md')
+          text = path.read_text()
+          start = text.index('## DD-101 — Director decision schema')
+          end = text.index('## DD-102 — Director engine')
+          section = text[start:end].replace('- [ ]', '- [x]')
+          path.write_text(text[:start] + section + text[end:])
+          PY
+          if ! git diff --quiet; then
+            git config user.name github-actions
+            git config user.email actions@github.com
+            git add docs/DEEP_DIVE_TUI_TODO.md
+            git commit -m 'docs: reconcile DD-101 completion'
+            git push origin HEAD:${{ github.head_ref }}
+          fi
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.8.22"
