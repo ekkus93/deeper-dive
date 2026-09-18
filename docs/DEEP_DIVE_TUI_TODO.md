@@ -458,12 +458,12 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-052 — Ollama provider
 
-- [ ] Implement native Ollama adapter.
-- [ ] Model discovery.
-- [ ] Health check.
-- [ ] Generation.
-- [ ] Structured-output strategy where supported.
-- [ ] Capture relevant context/capability metadata when available.
+- [x] Implement native Ollama adapter.
+- [x] Model discovery.
+- [x] Health check.
+- [x] Generation.
+- [x] Structured-output strategy where supported.
+- [x] Capture relevant context/capability metadata when available.
 
 **Acceptance criteria**
 
@@ -472,11 +472,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-053 — llama-server provider
 
-- [ ] Implement native llama-server adapter.
-- [ ] Health/model discovery as exposed by the server.
-- [ ] Generation/streaming.
-- [ ] Structured-output strategy.
-- [ ] Handle configurable base URL and endpoint differences cleanly.
+- [x] Implement native llama-server adapter.
+- [x] Health/model discovery as exposed by the server.
+- [x] Generation/streaming.
+- [x] Structured-output strategy.
+- [x] Handle configurable base URL and endpoint differences cleanly.
 
 **Acceptance criteria**
 
