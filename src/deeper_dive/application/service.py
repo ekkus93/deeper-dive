@@ -124,9 +124,9 @@ class DeeperDiveService:
             raise KeyError(project_id)
         parser = TextMarkdownParser()
         result = parser.parse(ParseRequest(text=text, media_type="text/plain"))
-        content_hash = result.metadata.get("content_hash") or hashlib.sha256(
-            text.encode("utf-8")
-        ).hexdigest()
+        content_hash = (
+            result.metadata.get("content_hash") or hashlib.sha256(text.encode("utf-8")).hexdigest()
+        )
         timestamp = format_timestamp(self.clock.now())
         source = SourceRecord(
             id=str(new_source_id()),

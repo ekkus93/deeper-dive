@@ -217,7 +217,9 @@ class SourcesScreen(NavigationMixin, Screen[None]):
         yield from _nav()
         with VerticalScroll(id="content"):
             yield Label("Sources", id="screen-title")
-            yield Static("Primary and supplemental sources with provenance.", id="screen-description")
+            yield Static(
+                "Primary and supplemental sources with provenance.", id="screen-description"
+            )
             yield Input(placeholder="Pasted source title", id="source-title")
             yield Input(placeholder="Paste text source", id="source-text")
             yield Button("Add Paste", id="action-add-paste", name="add-paste")
