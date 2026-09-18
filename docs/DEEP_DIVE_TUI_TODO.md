@@ -404,11 +404,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-044 — Hybrid retrieval and fusion
 
-- [ ] Combine lexical and vector candidates.
-- [ ] Implement rank fusion.
-- [ ] Add reranker interface.
-- [ ] Implement baseline reranker/heuristic.
-- [ ] Return explicit retrieval metadata.
+- [x] Combine lexical and vector candidates.
+- [x] Implement rank fusion.
+- [x] Add reranker interface.
+- [x] Implement baseline reranker/heuristic.
+- [x] Return explicit retrieval metadata.
 
 **Acceptance criteria**
 
