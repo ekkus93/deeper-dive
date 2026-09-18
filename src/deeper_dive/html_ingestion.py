@@ -160,7 +160,7 @@ class HtmlUrlParser:
         extractor = _ReadableHtmlParser()
         extractor.feed(html)
         text = extractor.text()
-        diagnostics = ()
+        diagnostics: tuple[ParseDiagnostic, ...] = ()
         if not text:
             diagnostics = (
                 ParseDiagnostic(
