@@ -80,7 +80,8 @@ class HostTurnService:
     def list_turns(self, episode_id: str) -> list[HostTurn]:
         with self.database.connection() as db:
             rows = db.execute(
-                "SELECT * FROM conversation_turns WHERE episode_id=? ORDER BY segment_ordinal,turn_ordinal",
+                "SELECT * FROM conversation_turns WHERE episode_id=? "
+                "ORDER BY segment_ordinal,turn_ordinal",
                 (episode_id,),
             ).fetchall()
         return [self._from_row(row) for row in rows]
