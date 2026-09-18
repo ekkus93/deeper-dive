@@ -213,10 +213,10 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-021 — CLI skeleton
 
-- [ ] Implement `deeper-dive --help` and version output.
-- [ ] Add project create/list/open-info commands.
-- [ ] Add `--json` output pattern for automation-friendly commands.
-- [ ] Establish consistent exit codes and stderr/stdout behavior.
+- [x] Implement `deeper-dive --help` and version output.
+- [x] Add project create/list/open-info commands.
+- [x] Add `--json` output pattern for automation-friendly commands.
+- [x] Establish consistent exit codes and stderr/stdout behavior.
 
 **Acceptance criteria**
 
