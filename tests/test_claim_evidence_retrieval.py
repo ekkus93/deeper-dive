@@ -18,7 +18,9 @@ def test_supporting_and_counterevidence_coexist_with_origin_and_location(tmp_pat
     database.initialize()
     repo = CorpusRepository(database)
     repo.create_project(ProjectRecord("p", "P", "t", "t"))
-    repo.create_source(SourceRecord("s1", "p", "user", "text", "Primary", "t", "a", status="parsed"))
+    repo.create_source(
+        SourceRecord("s1", "p", "user", "text", "Primary", "t", "a", status="parsed")
+    )
     repo.create_source(
         SourceRecord("s2", "p", "supplemental", "text", "Web", "t", "b", status="parsed")
     )
