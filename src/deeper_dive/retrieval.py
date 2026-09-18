@@ -27,8 +27,7 @@ class LexicalIndex:
         with self.database.transaction() as db:
             db.execute(
                 """CREATE VIRTUAL TABLE IF NOT EXISTS lexical_chunks USING fts5(
-                    chunk_id UNINDEXED, source_id UNINDEXED, text,
-                    content='source_chunks', content_rowid='rowid'
+                    chunk_id UNINDEXED, source_id UNINDEXED, text
                 )"""
             )
             db.execute(
@@ -41,20 +40,24 @@ class LexicalIndex:
             db.execute(
                 """CREATE TRIGGER IF NOT EXISTS lexical_chunks_ad AFTER DELETE ON source_chunks
                 BEGIN
-                    INSERT INTO lexical_chunks(lexical_chunks,rowid,chunk_id,source_id,text)
-                    VALUES ('delete',old.rowid,old.id,old.source_id,old.text);
+                    DELETE FROM lexical_chunks WHERE rowid=old.rowid;
                 END"""
             )
             db.execute(
                 """CREATE TRIGGER IF NOT EXISTS lexical_chunks_au AFTER UPDATE ON source_chunks
                 BEGIN
-                    INSERT INTO lexical_chunks(lexical_chunks,rowid,chunk_id,source_id,text)
-                    VALUES ('delete',old.rowid,old.id,old.source_id,old.text);
+                    DELETE FROM lexical_chunks WHERE rowid=old.rowid;
                     INSERT INTO lexical_chunks(rowid,chunk_id,source_id,text)
                     VALUES (new.rowid,new.id,new.source_id,new.text);
                 END"""
             )
-            db.execute("INSERT INTO lexical_chunks(lexical_chunks) VALUES ('rebuild')")
+            db.execute(
+                """INSERT INTO lexical_chunks(rowid,chunk_id,source_id,text)
+                   SELECT sc.rowid,sc.id,sc.source_id,sc.text FROM source_chunks sc
+                   WHERE NOT EXISTS (
+                       SELECT 1 FROM lexical_chunks lc WHERE lc.rowid=sc.rowid
+                   )"""
+            )
 
     def search(self, project_id: str, query: str, *, limit: int = 10) -> list[LexicalHit]:
         """Return included project chunks ordered by BM25 relevance and stable chunk ID."""
