@@ -3,7 +3,12 @@ from __future__ import annotations
 from deeper_dive.embeddings import FakeEmbeddingProvider
 from deeper_dive.hybrid_retrieval import HybridRetriever
 from deeper_dive.storage.database import Database
-from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord, SourceChunkRecord, SourceRecord
+from deeper_dive.storage.repositories import (
+    CorpusRepository,
+    ProjectRecord,
+    SourceChunkRecord,
+    SourceRecord,
+)
 
 
 def _database(tmp_path) -> Database:
