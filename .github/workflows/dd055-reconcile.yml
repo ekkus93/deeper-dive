@@ -1,29 +1,8 @@
-name: DD-055 TODO reconcile
+name: DD-055 TODO reconcile disabled
 on:
-  push:
-    branches: [ralph/reconcile-dd055]
-permissions:
-  contents: write
+  workflow_dispatch:
 jobs:
-  reconcile:
-    if: github.actor != 'github-actions[bot]'
+  noop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ralph/reconcile-dd055
-      - run: |
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('docs/DEEP_DIVE_TUI_TODO.md')
-          s = p.read_text()
-          start = s.index('## DD-055 — Structured-output validation/repair')
-          end = s.index('# Milestone 7 — Provider configuration and secrets')
-          block = s[start:end].replace('- [ ] ', '- [x] ')
-          p.write_text(s[:start] + block + s[end:])
-          PY
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add docs/DEEP_DIVE_TUI_TODO.md
-          git commit -m 'docs: reconcile DD-055 completion'
-          git push origin HEAD:ralph/reconcile-dd055
+      - run: echo disabled
