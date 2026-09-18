@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
+import shutil
+from dataclasses import dataclass, replace
 
 from deeper_dive.application.events import ProgressEvent, ProgressSink
 from deeper_dive.domain.clock import Clock, SystemClock, format_timestamp
@@ -12,6 +13,18 @@ from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord, SourceRecord
 from deeper_dive.storage.run_repositories import GenerationRunRepository
 from deeper_dive.storage.workspace import ProjectWorkspace, WorkspaceManager
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectSummary:
+    """Project-list row for UI clients."""
+
+    id: str
+    name: str
+    modified_at: str
+    source_count: int
+    episode_count: int
+    run_status: str
 
 
 class DeeperDiveService:
@@ -60,6 +73,11 @@ class DeeperDiveService:
                 projects.append(project)
         return sorted(projects, key=lambda project: (project.created_at, project.id))
 
+    def list_project_summaries(self) -> list[ProjectSummary]:
+        """Return project rows with counts and resumability status for the Home screen."""
+
+        return [self._summarize_project(project) for project in self.list_projects()]
+
     def rename_project(self, project_id: str, name: str) -> ProjectRecord:
         workspace = self._workspace(project_id)
         repository = self._corpus(workspace)
@@ -68,7 +86,17 @@ class DeeperDiveService:
             raise KeyError(project_id)
         updated = replace(project, name=name, modified_at=format_timestamp(self.clock.now()))
         repository.update_project(updated)
+        self._emit("project.rename", "completed", project_id)
         return updated
+
+    def delete_project(self, project_id: str) -> None:
+        workspace = self._workspace(project_id)
+        repository = self._corpus(workspace)
+        if repository.get_project(project_id) is None:
+            raise KeyError(project_id)
+        repository.delete_project(project_id)
+        shutil.rmtree(workspace.root, ignore_errors=True)
+        self._emit("project.delete", "completed", project_id)
 
     def list_sources(self, project_id: str) -> list[SourceRecord]:
         workspace = self._workspace(project_id)
@@ -79,6 +107,45 @@ class DeeperDiveService:
 
     def runs(self, project_id: str) -> GenerationRunRepository:
         return GenerationRunRepository(Database(self._workspace(project_id).database))
+
+    def _summarize_project(self, project: ProjectRecord) -> ProjectSummary:
+        workspace = self._workspace(project.id)
+        database = Database(workspace.database)
+        with database.connection() as connection:
+            source_count = int(
+                connection.execute(
+                    "SELECT COUNT(*) FROM sources WHERE project_id=?", (project.id,)
+                ).fetchone()[0]
+            )
+            episode_count = int(
+                connection.execute(
+                    "SELECT COUNT(*) FROM episodes WHERE project_id=?", (project.id,)
+                ).fetchone()[0]
+            )
+            run = connection.execute(
+                """SELECT gr.state, gr.pause_requested, gr.cancel_requested
+                FROM generation_runs gr
+                JOIN episodes e ON e.id = gr.episode_id
+                WHERE e.project_id=? AND gr.state NOT IN ('completed','succeeded')
+                ORDER BY gr.modified_at DESC, gr.id DESC LIMIT 1""",
+                (project.id,),
+            ).fetchone()
+        status = "ready"
+        if run is not None:
+            if bool(run["cancel_requested"]):
+                status = "cancel requested"
+            elif bool(run["pause_requested"]):
+                status = "pause requested"
+            else:
+                status = str(run["state"])
+        return ProjectSummary(
+            id=project.id,
+            name=project.name,
+            modified_at=project.modified_at,
+            source_count=source_count,
+            episode_count=episode_count,
+            run_status=status,
+        )
 
     def _workspace(self, project_id: str) -> ProjectWorkspace:
         parsed = parse_project_id(project_id)
