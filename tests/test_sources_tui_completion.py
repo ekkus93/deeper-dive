@@ -66,7 +66,9 @@ async def _sources_url_import(tmp_path: Path) -> None:
             app.action_navigate("sources")
             await pilot.pause()
             sources = _sources(app)
-            sources.query_one("#source-urls", Input).value = (
+            sources.query_one(
+                "#source-urls", Input
+            ).value = (
                 "https://example.com/article?b=2&a=1,https://example.com:443/article?a=1&b=2#frag"
             )
             sources.action_add_urls()
