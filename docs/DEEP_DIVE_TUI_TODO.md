@@ -700,12 +700,12 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-090 — Episode configuration service
 
-- [ ] Create/edit episode.
-- [ ] Configure title/focus/audience/depth/duration/style.
-- [ ] Select ordered hosts.
-- [ ] Configure must-cover/avoid topics.
-- [ ] Apply source/research overrides.
-- [ ] Snapshot relevant project configuration for generation reproducibility.
+- [x] Create/edit episode.
+- [x] Configure title/focus/audience/depth/duration/style.
+- [x] Select ordered hosts.
+- [x] Configure must-cover/avoid topics.
+- [x] Apply source/research overrides.
+- [x] Snapshot relevant project configuration for generation reproducibility.
 
 **Acceptance criteria**
 
@@ -713,14 +713,14 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-091 — Structured episode planner
 
-- [ ] Retrieve relevant evidence for focus.
-- [ ] Generate structured EpisodePlan.
-- [ ] Generate ordered SegmentPlans.
-- [ ] Allocate duration/word budgets.
-- [ ] Assign suggested lead hosts/evidence.
-- [ ] Persist plan.
-- [ ] Support regeneration of whole plan.
-- [ ] Support targeted segment regeneration.
+- [x] Retrieve relevant evidence for focus.
+- [x] Generate structured EpisodePlan.
+- [x] Generate ordered SegmentPlans.
+- [x] Allocate duration/word budgets.
+- [x] Assign suggested lead hosts/evidence.
+- [x] Persist plan.
+- [x] Support regeneration of whole plan.
+- [x] Support targeted segment regeneration.
 
 **Acceptance criteria**
 
