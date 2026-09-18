@@ -1,10 +1,23 @@
-name: DD-080 helper disabled
-
+name: DD-081 formatter
 on:
-  workflow_dispatch:
-
+  push:
+    branches: [ralph/dd-081-host-behavior]
+permissions:
+  contents: write
 jobs:
-  noop:
+  format:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
-      - run: echo disabled
+      - uses: actions/checkout@v4
+        with:
+          ref: ralph/dd-081-host-behavior
+      - uses: astral-sh/setup-uv@v6
+      - run: |
+          uv sync --frozen
+          uv run ruff format src/deeper_dive/hosts.py tests/test_host_behavior.py
+          git config user.name github-actions
+          git config user.email actions@github.com
+          git add src/deeper_dive/hosts.py tests/test_host_behavior.py
+          git diff --cached --quiet || git commit -m 'style: format DD-081 host behavior'
+          git push
