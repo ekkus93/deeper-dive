@@ -57,7 +57,9 @@ PRESET_DEFINITIONS: dict[str, dict[str, Any]] = {
     "skeptic": {
         "display_name": "Skeptic",
         "role": "Skeptic",
-        "instructions": "Probe caveats, counterevidence, contradictions, and methodological limits.",
+        "instructions": (
+            "Probe caveats, counterevidence, contradictions, and methodological limits."
+        ),
         "behavior": {"skepticism": 0.95, "assertiveness": 0.65, "question_frequency": 0.75},
         "evidence_priorities": ["counterevidence", "methodology", "contradictions"],
     },
@@ -71,28 +73,36 @@ PRESET_DEFINITIONS: dict[str, dict[str, Any]] = {
     "domain_expert": {
         "display_name": "Domain Expert",
         "role": "Domain Expert",
-        "instructions": "Emphasize mechanisms, terminology, technical precision, and evidentiary limits.",
+        "instructions": (
+            "Emphasize mechanisms, terminology, technical precision, and evidentiary limits."
+        ),
         "behavior": {"technicality": 0.95, "verbosity": 0.65, "assertiveness": 0.6},
         "evidence_priorities": ["primary sources", "mechanisms", "technical precision"],
     },
     "practitioner": {
         "display_name": "Practitioner",
         "role": "Practitioner",
-        "instructions": "Translate evidence into practical implications, constraints, and tradeoffs.",
+        "instructions": (
+            "Translate evidence into practical implications, constraints, and tradeoffs."
+        ),
         "behavior": {"technicality": 0.6, "analogy_use": 0.45, "verbosity": 0.5},
         "evidence_priorities": ["practical implications", "real-world constraints"],
     },
     "historian": {
         "display_name": "Historian",
         "role": "Historian",
-        "instructions": "Establish chronology and documented intellectual or institutional context.",
+        "instructions": (
+            "Establish chronology and documented intellectual or institutional context."
+        ),
         "behavior": {"verbosity": 0.65, "technicality": 0.55, "curiosity": 0.65},
         "evidence_priorities": ["chronology", "primary historical evidence", "context"],
     },
     "moderator": {
         "display_name": "Moderator",
         "role": "Moderator",
-        "instructions": "Manage turn-taking, transitions, unresolved questions, and balanced participation.",
+        "instructions": (
+            "Manage turn-taking, transitions, unresolved questions, and balanced participation."
+        ),
         "behavior": {"assertiveness": 0.55, "question_frequency": 0.65, "verbosity": 0.35},
         "evidence_priorities": ["unresolved questions", "conversation coverage"],
     },

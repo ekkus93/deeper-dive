@@ -6,7 +6,6 @@ import pytest
 
 from deeper_dive.hosts import PRESET_DEFINITIONS, create_host_from_preset, preset_names
 
-
 EXPECTED = (
     "curious_explainer",
     "skeptic",
