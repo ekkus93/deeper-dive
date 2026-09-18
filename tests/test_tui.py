@@ -17,7 +17,7 @@ async def _navigate_all_destinations() -> None:
             await pilot.press(*_shortcut(destination))
             await pilot.pause()
             assert app.screen.id == f"screen-{destination}"
-            assert app.query_one("#screen-status").renderable == "Status: Ready"
+            assert app.screen.query_one("#screen-status").renderable == "Status: Ready"
 
 
 def test_shell_runs_at_minimum_terminal_size() -> None:
