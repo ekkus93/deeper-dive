@@ -54,7 +54,11 @@ class SentenceClaimExtractor:
         claims: list[ExtractedClaim] = []
         for match in re.finditer(r"[^.!?]+[.!?]?", text):
             sentence = match.group().strip()
-            if not sentence or self._filler.search(sentence) or not self._fact_signal.search(sentence):
+            if (
+                not sentence
+                or self._filler.search(sentence)
+                or not self._fact_signal.search(sentence)
+            ):
                 continue
             start = match.start() + len(match.group()) - len(match.group().lstrip())
             claims.append(ExtractedClaim(sentence, start, start + len(sentence)))
@@ -65,7 +69,11 @@ class MaterialClaimService:
     """Extract, validate, and durably persist material claims for one generated turn."""
 
     def __init__(
-        self, database: Database, extractor: ClaimExtractor | None = None, *, clock: Clock | None = None
+        self,
+        database: Database,
+        extractor: ClaimExtractor | None = None,
+        *,
+        clock: Clock | None = None,
     ) -> None:
         self.database = database
         self.database.initialize()
@@ -79,12 +87,18 @@ class MaterialClaimService:
         for item in extracted:
             if item.start < 0 or item.end <= item.start or item.end > len(turn.text):
                 raise ValueError("claim span is outside generated turn")
-            if turn.text[item.start:item.end] != item.text:
+            if turn.text[item.start : item.end] != item.text:
                 raise ValueError("claim text must exactly match its turn span")
             claims.append(
                 MaterialClaim(
-                    str(uuid4()), project_id, turn.episode_id, turn.id, item.text,
-                    item.start, item.end, format_timestamp(self.clock.now()),
+                    str(uuid4()),
+                    project_id,
+                    turn.episode_id,
+                    turn.id,
+                    item.text,
+                    item.start,
+                    item.end,
+                    format_timestamp(self.clock.now()),
                 )
             )
         with self.database.transaction() as db:
@@ -93,8 +107,16 @@ class MaterialClaimService:
                     """INSERT INTO material_claims(
                         id,project_id,episode_id,turn_id,text,span_start,span_end,created_at
                     ) VALUES (?,?,?,?,?,?,?,?)""",
-                    (claim.id, claim.project_id, claim.episode_id, claim.turn_id, claim.text,
-                     claim.span_start, claim.span_end, claim.created_at),
+                    (
+                        claim.id,
+                        claim.project_id,
+                        claim.episode_id,
+                        claim.turn_id,
+                        claim.text,
+                        claim.span_start,
+                        claim.span_end,
+                        claim.created_at,
+                    ),
                 )
         return claims
 
@@ -123,8 +145,12 @@ class MaterialClaimService:
     @staticmethod
     def _from_row(row: sqlite3.Row) -> MaterialClaim:
         return MaterialClaim(
-            id=str(row["id"]), project_id=str(row["project_id"]),
-            episode_id=str(row["episode_id"]), turn_id=str(row["turn_id"]),
-            text=str(row["text"]), span_start=int(row["span_start"]),
-            span_end=int(row["span_end"]), created_at=str(row["created_at"]),
+            id=str(row["id"]),
+            project_id=str(row["project_id"]),
+            episode_id=str(row["episode_id"]),
+            turn_id=str(row["turn_id"]),
+            text=str(row["text"]),
+            span_start=int(row["span_start"]),
+            span_end=int(row["span_end"]),
+            created_at=str(row["created_at"]),
         )

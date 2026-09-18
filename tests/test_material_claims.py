@@ -20,7 +20,7 @@ def test_claim_extraction_fixture_separates_facts_from_conversational_filler() -
         "The archive has 42 documents.",
         "Water freezes at 0 degrees Celsius.",
     ]
-    assert all(text[claim.start:claim.end] == claim.text for claim in claims)
+    assert all(text[claim.start : claim.end] == claim.text for claim in claims)
 
 
 def test_material_claims_persist_with_exact_turn_spans(tmp_path: Path) -> None:
@@ -36,7 +36,15 @@ def test_material_claims_persist_with_exact_turn_spans(tmp_path: Path) -> None:
         db.execute(
             "INSERT INTO episodes(id,project_id,title,state,config_json,created_at,modified_at) "
             "VALUES (?,?,?,?,?,?,?)",
-            ("e1", project.id, "Episode", "draft", "{}", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"),
+            (
+                "e1",
+                project.id,
+                "Episode",
+                "draft",
+                "{}",
+                "2026-01-01T00:00:00Z",
+                "2026-01-01T00:00:00Z",
+            ),
         )
         db.execute(
             """CREATE TABLE IF NOT EXISTS conversation_turns (
@@ -54,6 +62,6 @@ def test_material_claims_persist_with_exact_turn_spans(tmp_path: Path) -> None:
     persisted = claim_service.list_turn_claims("t1")
     assert len(created) == 1
     assert persisted == created
-    assert turn.text[created[0].span_start:created[0].span_end] == created[0].text
+    assert turn.text[created[0].span_start : created[0].span_end] == created[0].text
     assert created[0].text == "The study has 12 participants."
     assert hosts is not None
