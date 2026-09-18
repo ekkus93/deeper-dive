@@ -9,10 +9,10 @@ from deeper_dive.batch_import import (
     plan_url_imports,
 )
 from deeper_dive.html_ingestion import HtmlUrlParser
-from deeper_dive.parsing import DocxParser, PdfParser, TextMarkdownParser
+from deeper_dive.parsing import DocxParser, PdfParser, SourceParser, TextMarkdownParser
 
 
-def _parsers() -> list[object]:
+def _parsers() -> list[SourceParser]:
     return [TextMarkdownParser(), PdfParser(), DocxParser(), HtmlUrlParser()]
 
 
@@ -22,7 +22,7 @@ def test_multiple_files_detect_duplicate_content(tmp_path: Path) -> None:
     first.write_text("same\n", encoding="utf-8")
     second.write_text("same\n", encoding="utf-8")
 
-    plan = plan_file_imports([first, second], _parsers())  # type: ignore[arg-type]
+    plan = plan_file_imports([first, second], _parsers())
 
     assert [candidate.disposition for candidate in plan.candidates] == [
         DuplicateDisposition.IMPORT,
@@ -35,13 +35,11 @@ def test_multiple_files_detect_duplicate_content(tmp_path: Path) -> None:
 def test_existing_content_hash_prevents_reimport(tmp_path: Path) -> None:
     source = tmp_path / "source.txt"
     source.write_text("already imported", encoding="utf-8")
-    first_plan = plan_file_imports([source], _parsers())  # type: ignore[arg-type]
+    first_plan = plan_file_imports([source], _parsers())
     content_hash = first_plan.candidates[0].content_hash
     assert content_hash is not None
 
-    second_plan = plan_file_imports(
-        [source], _parsers(), existing_content_hashes={content_hash}  # type: ignore[arg-type]
-    )
+    second_plan = plan_file_imports([source], _parsers(), existing_content_hashes={content_hash})
 
     assert second_plan.candidates[0].disposition is DuplicateDisposition.DUPLICATE_CONTENT
 
@@ -55,7 +53,7 @@ def test_directory_import_recurses_and_filters_supported_extensions(tmp_path: Pa
     supported.write_text("# Heading\nbody", encoding="utf-8")
     ignored.write_bytes(b"\x00\x01")
 
-    plan = plan_file_imports([corpus], _parsers())  # type: ignore[arg-type]
+    plan = plan_file_imports([corpus], _parsers())
 
     by_title = {candidate.title: candidate for candidate in plan.candidates}
     assert by_title["note.md"].disposition is DuplicateDisposition.IMPORT
