@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -89,7 +89,9 @@ class ClaimInspectorController:
                 str(by_id[chunk_id]["source_id"]),
                 str(by_id[chunk_id]["title"]),
                 str(by_id[chunk_id]["origin"]),
-                None if by_id[chunk_id]["location"] is None else str(by_id[chunk_id]["location"]),
+                None
+                if by_id[chunk_id]["location"] is None
+                else str(by_id[chunk_id]["location"]),
                 str(by_id[chunk_id]["text"]),
             )
             for chunk_id in ids
