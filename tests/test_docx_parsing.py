@@ -7,10 +7,10 @@ from deeper_dive.parsing import DocxParser, ParseRequest, validate_parse_result
 
 
 def _write_docx(path: Path, body: str) -> None:
-    document = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    document = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:body>{body}</w:body>
-</w:document>'''
+</w:document>"""
     with zipfile.ZipFile(path, "w") as archive:
         archive.writestr("word/document.xml", document)
 

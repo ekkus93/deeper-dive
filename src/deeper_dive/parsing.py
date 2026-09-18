@@ -183,9 +183,7 @@ class DocxParser:
             with zipfile.ZipFile(request.path) as archive:
                 document = archive.read("word/document.xml")
         except (OSError, KeyError, zipfile.BadZipFile):
-            return self._error(
-                "malformed-docx", "DOCX is unreadable or missing its document body"
-            )
+            return self._error("malformed-docx", "DOCX is unreadable or missing its document body")
         try:
             root = ElementTree.fromstring(document)
         except ElementTree.ParseError:
