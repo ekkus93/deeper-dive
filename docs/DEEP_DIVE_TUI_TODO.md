@@ -790,13 +790,13 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-102 — Director engine
 
-- [ ] Select speaker based on segment purpose, roles, relationships, prior participation, and evidence.
-- [ ] Manage pacing.
-- [ ] Manage transitions.
-- [ ] Avoid repetitive agreement.
-- [ ] Avoid artificial disagreement unsupported by evidence.
-- [ ] Manage callbacks/questions.
-- [ ] Stop segment/episode within configured bounds.
+- [x] Select speaker based on segment purpose, roles, relationships, prior participation, and evidence.
+- [x] Manage pacing.
+- [x] Manage transitions.
+- [x] Avoid repetitive agreement.
+- [x] Avoid artificial disagreement unsupported by evidence.
+- [x] Manage callbacks/questions.
+- [x] Stop segment/episode within configured bounds.
 
 **Acceptance criteria**
 
