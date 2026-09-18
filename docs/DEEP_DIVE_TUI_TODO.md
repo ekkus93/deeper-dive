@@ -393,10 +393,10 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-043 — Persistent vector index
 
-- [ ] Select lightweight local vector storage/index strategy appropriate for Python desktop use.
-- [ ] Persist vectors.
-- [ ] Support incremental add/remove/rebuild.
-- [ ] Preserve chunk IDs and provider/model version.
+- [x] Select lightweight local vector storage/index strategy appropriate for Python desktop use.
+- [x] Persist vectors.
+- [x] Support incremental add/remove/rebuild.
+- [x] Preserve chunk IDs and provider/model version.
 
 **Acceptance criteria**
 
