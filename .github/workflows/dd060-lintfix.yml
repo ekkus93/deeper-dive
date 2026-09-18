@@ -1,0 +1,25 @@
+name: DD-060 lint fix
+on:
+  push:
+    branches: [ralph/dd-060-user-config]
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ralph/dd-060-user-config
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - run: uv run ruff check --fix src/deeper_dive/user_config.py
+      - run: |
+          if ! git diff --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add src/deeper_dive/user_config.py
+            git commit -m 'style: organize DD-060 imports'
+            git push origin HEAD:ralph/dd-060-user-config
+          fi
