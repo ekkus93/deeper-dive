@@ -630,16 +630,16 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-076 — Research TUI screen
 
-- [ ] Policy selector.
-- [ ] Behavior toggles.
-- [ ] Research-focus editor.
-- [ ] Analyze corpus/find gaps action.
-- [ ] Gap list with priority/status/rationale.
-- [ ] Search/Ignore per gap.
-- [ ] Research-all-selected action.
-- [ ] Progress.
-- [ ] Candidate accepted/rejected summary.
-- [ ] Navigation to supplemental Sources.
+- [x] Policy selector.
+- [x] Behavior toggles.
+- [x] Research-focus editor.
+- [x] Analyze corpus/find gaps action.
+- [x] Gap list with priority/status/rationale.
+- [x] Search/Ignore per gap.
+- [x] Research-all-selected action.
+- [x] Progress.
+- [x] Candidate accepted/rejected summary.
+- [x] Navigation to supplemental Sources.
 
 **Acceptance criteria**
 
