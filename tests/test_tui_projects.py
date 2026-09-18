@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
-from textual.widgets import Input, ListView
+from textual.widgets import Input, Label, ListView
 
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.storage.workspace import WorkspaceManager
@@ -39,6 +39,7 @@ async def _home_workflow(tmp_path: Path) -> None:
 
         app.screen.query_one("#project-list", ListView).index = 0
         await pilot.click("#delete-project")
+        await pilot.pause()
         await pilot.click("#cancel-delete")
         await pilot.pause()
         assert len(service.list_projects()) == 1
@@ -53,12 +54,13 @@ async def _home_workflow(tmp_path: Path) -> None:
         await pilot.pause()
         app.screen.query_one("#project-list", ListView).index = 0
         await pilot.click("#delete-project")
+        await pilot.pause()
         await pilot.click("#confirm-delete")
         await pilot.pause()
         assert service.list_projects() == []
 
 
-def test_home_surfaces_paused_run_status_placeholder(tmp_path: Path) -> None:
+def test_home_surfaces_project_status_placeholder(tmp_path: Path) -> None:
     app, service = _app(tmp_path)
     project = service.create_project("Status project")
     summaries = service.list_project_summaries()
@@ -71,4 +73,5 @@ async def _assert_status_visible(app: DeeperDiveApp) -> None:
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
         item = app.screen.query_one("#project-list", ListView).children[0]
-        assert "status Ready" in str(item.render())
+        label = item.query_one(Label)
+        assert "status Ready" in str(label.render())

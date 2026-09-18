@@ -92,7 +92,6 @@ class DeeperDiveService:
             raise KeyError(project_id)
         updated = replace(project, name=name, modified_at=format_timestamp(self.clock.now()))
         repository.update_project(updated)
-        self._emit("project.rename", "completed", project_id)
         return updated
 
     def delete_project(self, project_id: str) -> None:
@@ -103,7 +102,6 @@ class DeeperDiveService:
         repository.delete_project(project_id)
         if workspace.root.exists():
             shutil.rmtree(workspace.root)
-        self._emit("project.delete", "completed", project_id)
 
     def list_sources(self, project_id: str) -> list[SourceRecord]:
         workspace = self._workspace(project_id)
