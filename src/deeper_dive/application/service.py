@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
+import shutil
+from dataclasses import dataclass, replace
 
 from deeper_dive.application.events import ProgressEvent, ProgressSink
 from deeper_dive.domain.clock import Clock, SystemClock, format_timestamp
@@ -12,6 +13,15 @@ from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord, SourceRecord
 from deeper_dive.storage.run_repositories import GenerationRunRepository
 from deeper_dive.storage.workspace import ProjectWorkspace, WorkspaceManager
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectSummary:
+    """Presentation-safe project overview for Home/Projects clients."""
+
+    project: ProjectRecord
+    source_count: int
+    run_status: str
 
 
 class DeeperDiveService:
@@ -60,6 +70,20 @@ class DeeperDiveService:
                 projects.append(project)
         return sorted(projects, key=lambda project: (project.created_at, project.id))
 
+    def list_project_summaries(self) -> list[ProjectSummary]:
+        summaries: list[ProjectSummary] = []
+        for project in self.list_projects():
+            workspace = self._workspace(project.id)
+            source_count = len(self._corpus(workspace).list_sources(project.id))
+            runs = GenerationRunRepository(Database(workspace.database)).list_runs()
+            run_status = "Ready"
+            if any(run.state == "paused" or run.pause_requested for run in runs):
+                run_status = "Paused"
+            elif any(run.state in {"running", "interrupted"} for run in runs):
+                run_status = "Interrupted"
+            summaries.append(ProjectSummary(project, source_count, run_status))
+        return summaries
+
     def rename_project(self, project_id: str, name: str) -> ProjectRecord:
         workspace = self._workspace(project_id)
         repository = self._corpus(workspace)
@@ -69,6 +93,15 @@ class DeeperDiveService:
         updated = replace(project, name=name, modified_at=format_timestamp(self.clock.now()))
         repository.update_project(updated)
         return updated
+
+    def delete_project(self, project_id: str) -> None:
+        workspace = self._workspace(project_id)
+        repository = self._corpus(workspace)
+        if repository.get_project(project_id) is None:
+            raise KeyError(project_id)
+        repository.delete_project(project_id)
+        if workspace.root.exists():
+            shutil.rmtree(workspace.root)
 
     def list_sources(self, project_id: str) -> list[SourceRecord]:
         workspace = self._workspace(project_id)
