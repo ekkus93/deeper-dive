@@ -1,29 +1,10 @@
-name: DD-076 reconcile
+name: DD-076 reconciliation helper disabled
+
 on:
-  push:
-    branches: [ralph/reconcile-dd076]
-permissions:
-  contents: write
+  workflow_dispatch:
+
 jobs:
-  reconcile:
-    if: github.actor != 'github-actions[bot]'
+  noop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ralph/reconcile-dd076
-      - run: |
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('docs/DEEP_DIVE_TUI_TODO.md')
-          s=p.read_text()
-          start=s.index('## DD-076 — Research TUI screen')
-          end=s.index('\n---', start)
-          block=s[start:end].replace('- [ ] ', '- [x] ')
-          p.write_text(s[:start]+block+s[end:])
-          PY
-          git config user.name github-actions
-          git config user.email actions@github.com
-          git add docs/DEEP_DIVE_TUI_TODO.md
-          git commit -m 'docs: reconcile DD-076 completion'
-          git push
+      - run: echo disabled
