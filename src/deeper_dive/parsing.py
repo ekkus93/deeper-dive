@@ -88,10 +88,7 @@ class SourceParser(Protocol):
 def validate_parse_result(parser: SourceParser, result: ParseResult) -> None:
     """Reject malformed adapter output before it reaches persistence/chunking."""
 
-    if (
-        result.parser_id != parser.parser_id
-        or result.parser_version != parser.parser_version
-    ):
+    if result.parser_id != parser.parser_id or result.parser_version != parser.parser_version:
         raise ValueError("parse result identity does not match parser")
     ordinals = [block.ordinal for block in result.blocks]
     if ordinals != list(range(len(ordinals))):
@@ -205,9 +202,7 @@ class DocxParser:
             if not text:
                 continue
             style_node = paragraph.find("./w:pPr/w:pStyle", namespace)
-            style = (
-                None if style_node is None else style_node.get(f"{{{self._word_ns}}}val")
-            )
+            style = None if style_node is None else style_node.get(f"{{{self._word_ns}}}val")
             is_heading = bool(style and style.lower().startswith("heading"))
             if is_heading:
                 current_heading = text
