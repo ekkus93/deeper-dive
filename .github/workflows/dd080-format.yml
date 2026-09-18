@@ -1,36 +1,10 @@
-name: DD-081 lint helper
+name: DD-080 helper disabled
+
 on:
-  push:
-    branches: [ralph/dd-081-host-behavior]
-permissions:
-  contents: write
+  workflow_dispatch:
+
 jobs:
-  fix:
-    if: github.actor != 'github-actions[bot]'
+  noop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ralph/dd-081-host-behavior
-      - uses: astral-sh/setup-uv@v6
-      - run: |
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('src/deeper_dive/hosts.py'); s=p.read_text()
-          for text in [
-            'Probe caveats, counterevidence, contradictions, and methodological limits.',
-            'Emphasize mechanisms, terminology, technical precision, and evidentiary limits.',
-            'Translate evidence into practical implications, constraints, and tradeoffs.',
-            'Establish chronology and documented intellectual or institutional context.',
-            'Manage turn-taking, transitions, unresolved questions, and balanced participation.',
-          ]:
-            s=s.replace(f'"instructions": "{text}",', f'"instructions": (\n            "{text}"\n        ),')
-          p.write_text(s)
-          PY
-          uv sync --frozen
-          uv run ruff format src/deeper_dive/hosts.py
-          git config user.name github-actions
-          git config user.email actions@github.com
-          git add src/deeper_dive/hosts.py
-          git commit -m 'style: lint DD-081 host behavior'
-          git push
+      - run: echo disabled
