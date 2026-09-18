@@ -536,12 +536,12 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-062 — Providers TUI screen
 
-- [ ] List configured LLM and TTS providers separately.
-- [ ] Add/edit/remove provider config.
-- [ ] Test/health action.
-- [ ] Discover models.
-- [ ] Discover voices for TTS-capable providers.
-- [ ] Display capabilities and actionable errors.
+- [x] List configured LLM and TTS providers separately.
+- [x] Add/edit/remove provider config.
+- [x] Test/health action.
+- [x] Discover models.
+- [x] Discover voices for TTS-capable providers.
+- [x] Display capabilities and actionable errors.
 
 **Acceptance criteria**
 
