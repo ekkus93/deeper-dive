@@ -18,7 +18,7 @@ class ShellScreen(Screen[None]):
     def __init__(self, key: str, title: str, description: str) -> None:
         super().__init__(id=f"screen-{key}")
         self.key = key
-        self.title = title
+        self.shell_title = title
         self.description = description
 
     def compose(self) -> ComposeResult:
@@ -30,7 +30,7 @@ class ShellScreen(Screen[None]):
             for key in PROJECT_SCREENS:
                 yield Button(key.title(), id=f"nav-{key}", name=key)
         with VerticalScroll(id="content"):
-            yield Label(self.title, id="screen-title")
+            yield Label(self.shell_title, id="screen-title")
             yield Static(self.description, id="screen-description")
             yield Static("Status: Ready", id="screen-status")
         yield Footer()
