@@ -53,9 +53,7 @@ class EpisodeConfigurationService:
     def create(self, project_id: str, config: EpisodeConfiguration) -> EpisodeRecord:
         self._validate_hosts(project_id, config)
         timestamp = format_timestamp(self.clock.now())
-        record = self._record(
-            str(new_episode_id()), project_id, timestamp, timestamp, config
-        )
+        record = self._record(str(new_episode_id()), project_id, timestamp, timestamp, config)
         self.episodes.create_episode(record, list(config.host_ids))
         return record
 
