@@ -87,7 +87,9 @@ class ClaimEvidenceRepository:
                     evidence.chunk_id,
                     evidence.relation.value,
                     json.dumps(evidence.retrieval_metadata, sort_keys=True, separators=(",", ":")),
-                    json.dumps(evidence.verification_metadata, sort_keys=True, separators=(",", ":")),
+                    json.dumps(
+                        evidence.verification_metadata, sort_keys=True, separators=(",", ":")
+                    ),
                 ),
             )
 
