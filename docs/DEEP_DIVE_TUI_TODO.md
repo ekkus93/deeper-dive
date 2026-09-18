@@ -860,10 +860,10 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-110 — Material claim extraction
 
-- [ ] Identify material factual claims from generated turns.
-- [ ] Exclude obvious greetings/transitions/opinions from mandatory verification.
-- [ ] Link claims to turn spans.
-- [ ] Persist claim records.
+- [x] Identify material factual claims from generated turns.
+- [x] Exclude obvious greetings/transitions/opinions from mandatory verification.
+- [x] Link claims to turn spans.
+- [x] Persist claim records.
 
 **Acceptance criteria**
 
