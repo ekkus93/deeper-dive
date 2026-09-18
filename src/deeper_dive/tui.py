@@ -12,6 +12,7 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
 from deeper_dive.application.service import DeeperDiveService, ProjectSummary, SourceImportSummary
+from deeper_dive.episode_plan_screen import EpisodePlanController, EpisodePlanScreen
 from deeper_dive.episode_setup_screen import EpisodeSetupScreen
 from deeper_dive.hosts_screen import HostsScreen
 from deeper_dive.llm import LLMProviderRegistry
@@ -494,6 +495,7 @@ class DeeperDiveApp(App[None]):
         "research": lambda: ResearchScreen(),
         "hosts": lambda: HostsScreen(),
         "episode": lambda: EpisodeSetupScreen(),
+        "plan": lambda: EpisodePlanScreen(),
         "generate": lambda: ShellScreen("generate", "Generate", "Preflight and generation status."),
         "library": lambda: ShellScreen("library", "Library", "Generated episodes and exports."),
     }
@@ -504,6 +506,7 @@ class DeeperDiveApp(App[None]):
         *,
         provider_controller: ProviderController | None = None,
         research_controller: ResearchController | None = None,
+        episode_plan_controller: EpisodePlanController | None = None,
     ) -> None:
         super().__init__()
         self.service = service if service is not None else DeeperDiveService(WorkspaceManager())
@@ -517,6 +520,10 @@ class DeeperDiveApp(App[None]):
         )
         self.current_project_id: str | None = None
         self.current_project_name: str | None = None
+        self.current_episode_id: str | None = None
+        self.episode_plan_controller = episode_plan_controller
+        self.plan_approved = False
+        self.auto_generate_after_approval = False
 
     def on_mount(self) -> None:
         self.install_screen(HomeProjectsScreen(), name="home")
