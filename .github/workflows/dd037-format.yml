@@ -1,27 +1,10 @@
-name: DD-037 formatter
+name: DD-037 formatter disabled
 
 on:
-  push:
-    branches:
-      - ralph/dd-037-sources-tui-complete
-
-permissions:
-  contents: write
+  workflow_dispatch:
 
 jobs:
-  format:
+  noop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-      - run: uv python install 3.12
-      - run: uv sync --frozen
-      - run: uv run ruff format tests/test_sources_tui_completion.py
-      - run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add tests/test_sources_tui_completion.py
-          if ! git diff --cached --quiet; then
-            git commit -m "style: format DD-037 completion tests"
-            git push
-          fi
+      - run: echo disabled
