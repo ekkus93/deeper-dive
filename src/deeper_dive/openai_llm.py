@@ -38,9 +38,7 @@ class OpenAITimeoutError(OpenAILLMError):
 
 
 JsonRequest = Callable[[str, str, dict[str, Any] | None, dict[str, str], float], dict[str, Any]]
-StreamRequest = Callable[
-    [str, dict[str, Any], dict[str, str], float], Iterator[dict[str, Any]]
-]
+StreamRequest = Callable[[str, dict[str, Any], dict[str, str], float], Iterator[dict[str, Any]]]
 Sleep = Callable[[float], None]
 
 
@@ -194,7 +192,12 @@ class OpenAILLMProvider:
                 raise OpenAILLMError("OpenAI structured response was not an object")
             structured = parsed
         model = value.get("model")
-        return LLMResponse(text, model if isinstance(model, str) else request.model or self._model, usage, structured)
+        return LLMResponse(
+            text,
+            model if isinstance(model, str) else request.model or self._model,
+            usage,
+            structured,
+        )
 
     def stream(self, request: LLMRequest) -> Iterator[LLMStreamChunk]:
         payload = self._payload(request, stream=True)

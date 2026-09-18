@@ -22,7 +22,13 @@ def request(*, schema: dict[str, object] | None = None) -> LLMRequest:
 def test_generate_normalizes_response_usage_and_latency() -> None:
     calls: list[tuple[str, str, dict[str, Any] | None]] = []
 
-    def fake(method: str, url: str, payload: dict[str, Any] | None, headers: dict[str, str], timeout: float) -> dict[str, Any]:
+    def fake(
+        method: str,
+        url: str,
+        payload: dict[str, Any] | None,
+        headers: dict[str, str],
+        timeout: float,
+    ) -> dict[str, Any]:
         calls.append((method, url, payload))
         assert headers["Authorization"] == "Bearer test-key"
         assert timeout == 4.0
@@ -32,7 +38,9 @@ def test_generate_normalizes_response_usage_and_latency() -> None:
             "usage": {"input_tokens": 3, "output_tokens": 2},
         }
 
-    provider = OpenAILLMProvider(api_key="test-key", model="gpt-test", timeout=4.0, request_json=fake)
+    provider = OpenAILLMProvider(
+        api_key="test-key", model="gpt-test", timeout=4.0, request_json=fake
+    )
     response = provider.generate(request())
     assert response.text == "answer"
     assert response.model == "gpt-test"
@@ -47,7 +55,13 @@ def test_generate_normalizes_response_usage_and_latency() -> None:
 def test_structured_output_requests_schema_and_parses_json() -> None:
     seen: dict[str, Any] = {}
 
-    def fake(method: str, url: str, payload: dict[str, Any] | None, headers: dict[str, str], timeout: float) -> dict[str, Any]:
+    def fake(
+        method: str,
+        url: str,
+        payload: dict[str, Any] | None,
+        headers: dict[str, str],
+        timeout: float,
+    ) -> dict[str, Any]:
         assert payload is not None
         seen.update(payload)
         return {"model": "gpt-test", "output_text": '{"topic":"science"}'}
@@ -72,7 +86,9 @@ def test_structured_output_requests_schema_and_parses_json() -> None:
 
 
 def test_stream_normalizes_text_deltas_and_completion() -> None:
-    def stream(url: str, payload: dict[str, Any], headers: dict[str, str], timeout: float) -> Iterator[dict[str, Any]]:
+    def stream(
+        url: str, payload: dict[str, Any], headers: dict[str, str], timeout: float
+    ) -> Iterator[dict[str, Any]]:
         assert payload["stream"] is True
         yield {"type": "response.output_text.delta", "delta": "hel"}
         yield {"type": "response.output_text.delta", "delta": "lo"}
@@ -91,7 +107,13 @@ def test_timeout_and_rate_limit_retry_are_bounded() -> None:
     attempts = 0
     sleeps: list[float] = []
 
-    def fake(method: str, url: str, payload: dict[str, Any] | None, headers: dict[str, str], timeout: float) -> dict[str, Any]:
+    def fake(
+        method: str,
+        url: str,
+        payload: dict[str, Any] | None,
+        headers: dict[str, str],
+        timeout: float,
+    ) -> dict[str, Any]:
         nonlocal attempts
         attempts += 1
         if attempts == 1:
@@ -100,15 +122,29 @@ def test_timeout_and_rate_limit_retry_are_bounded() -> None:
             raise OpenAIRateLimitError("rate")
         return {"model": "gpt-test", "output_text": "ok"}
 
-    provider = OpenAILLMProvider(api_key="k", model="gpt-test", max_retries=2, request_json=fake, sleep=sleeps.append)
+    provider = OpenAILLMProvider(
+        api_key="k", model="gpt-test", max_retries=2, request_json=fake, sleep=sleeps.append
+    )
     assert provider.generate(request()).text == "ok"
     assert attempts == 3
     assert sleeps == [0.25, 0.5]
 
-    def always_timeout(method: str, url: str, payload: dict[str, Any] | None, headers: dict[str, str], timeout: float) -> dict[str, Any]:
+    def always_timeout(
+        method: str,
+        url: str,
+        payload: dict[str, Any] | None,
+        headers: dict[str, str],
+        timeout: float,
+    ) -> dict[str, Any]:
         raise OpenAITimeoutError("timeout")
 
-    provider = OpenAILLMProvider(api_key="k", model="gpt-test", max_retries=1, request_json=always_timeout, sleep=lambda _: None)
+    provider = OpenAILLMProvider(
+        api_key="k",
+        model="gpt-test",
+        max_retries=1,
+        request_json=always_timeout,
+        sleep=lambda _: None,
+    )
     with pytest.raises(OpenAITimeoutError):
         provider.generate(request())
 
@@ -116,7 +152,13 @@ def test_timeout_and_rate_limit_retry_are_bounded() -> None:
 def test_auth_error_is_not_retried() -> None:
     attempts = 0
 
-    def fake(method: str, url: str, payload: dict[str, Any] | None, headers: dict[str, str], timeout: float) -> dict[str, Any]:
+    def fake(
+        method: str,
+        url: str,
+        payload: dict[str, Any] | None,
+        headers: dict[str, str],
+        timeout: float,
+    ) -> dict[str, Any]:
         nonlocal attempts
         attempts += 1
         raise OpenAIAuthError("bad key")
@@ -128,7 +170,13 @@ def test_auth_error_is_not_retried() -> None:
 
 
 def test_malformed_response_is_rejected() -> None:
-    def fake(method: str, url: str, payload: dict[str, Any] | None, headers: dict[str, str], timeout: float) -> dict[str, Any]:
+    def fake(
+        method: str,
+        url: str,
+        payload: dict[str, Any] | None,
+        headers: dict[str, str],
+        timeout: float,
+    ) -> dict[str, Any]:
         return {"model": "gpt-test", "output": [{"content": [{"type": "refusal"}]}]}
 
     provider = OpenAILLMProvider(api_key="k", model="gpt-test", request_json=fake)
@@ -137,7 +185,13 @@ def test_malformed_response_is_rejected() -> None:
 
 
 def test_model_discovery_and_health() -> None:
-    def fake(method: str, url: str, payload: dict[str, Any] | None, headers: dict[str, str], timeout: float) -> dict[str, Any]:
+    def fake(
+        method: str,
+        url: str,
+        payload: dict[str, Any] | None,
+        headers: dict[str, str],
+        timeout: float,
+    ) -> dict[str, Any]:
         assert method == "GET"
         return {"data": [{"id": "z-model"}, {"id": "a-model"}]}
 
