@@ -5,6 +5,7 @@ import pytest
 from deeper_dive.hosts import HostProfile, HostRelationship
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
+from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord
 
 
 def test_host_behavior_validates_traits_preferences_and_profile_fields() -> None:
@@ -38,7 +39,9 @@ def test_host_behavior_validates_traits_preferences_and_profile_fields() -> None
 
 
 def test_three_host_relationship_graph_persists_and_produces_prompt_context(tmp_path) -> None:
-    repository = HostEpisodeRepository(Database(tmp_path / "project.db"))
+    database = Database(tmp_path / "project.db")
+    CorpusRepository(database).create_project(ProjectRecord("p1", "Project", "now", "now"))
+    repository = HostEpisodeRepository(database)
     hosts = [HostProfile(f"h{i}", "p1", f"Host {i}") for i in range(1, 4)]
     for host in hosts:
         repository.create_host(host.to_record())
