@@ -34,7 +34,7 @@ async def _exercise_missing_hosts(tmp_path: Path) -> None:
         assert isinstance(screen, EpisodeSetupScreen)
         screen.query_one("#episode-title", Input).value = "No hosts yet"
         screen.action_build_plan()
-        assert "Add at least one host" in screen.query_one("#screen-status", Static).renderable
+        assert "Add at least one host" in _status_text(screen)
 
 
 def test_episode_setup_screen_validates_missing_provider_role(tmp_path: Path) -> None:
@@ -57,7 +57,7 @@ async def _exercise_missing_provider(tmp_path: Path) -> None:
         assert isinstance(screen, EpisodeSetupScreen)
         screen.query_one("#episode-title", Input).value = "Needs provider"
         screen.action_build_plan()
-        assert "episode_planning" in screen.query_one("#screen-status", Static).renderable
+        assert "episode_planning" in _status_text(screen)
 
 
 def test_episode_setup_screen_saves_complete_episode_configuration(tmp_path: Path) -> None:
@@ -89,7 +89,7 @@ async def _exercise_complete_setup(tmp_path: Path) -> None:
         screen.query_one("#episode-research-policy", Input).value = "useful"
         screen.query_one("#episode-citation-behavior", Input).value = "cite-every-claim"
         screen.action_build_plan()
-        assert "Episode setup saved" in screen.query_one("#screen-status", Static).renderable
+        assert "Episode setup saved" in _status_text(screen)
 
     database = Database(service.workspaces.project_root(project.id) / "project.db")
     config_service = EpisodeConfigurationService(database)
@@ -121,3 +121,7 @@ def _provider_controller(tmp_path: Path, *, configure: bool = True) -> ProviderC
 
 def _create_host(service: DeeperDiveService, project_id: str, host_id: str, name: str) -> None:
     service.hosts(project_id).create_host(HostProfile(host_id, project_id, name).to_record())
+
+
+def _status_text(screen: EpisodeSetupScreen) -> str:
+    return str(screen.query_one("#screen-status", Static).render())
