@@ -513,10 +513,10 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-060 — User configuration model
 
-- [ ] Add user config storage separate from project data.
-- [ ] Store endpoints, defaults, and non-secret provider settings.
-- [ ] Add config schema versioning.
-- [ ] Add clear validation messages.
+- [x] Add user config storage separate from project data.
+- [x] Store endpoints, defaults, and non-secret provider settings.
+- [x] Add config schema versioning.
+- [x] Add clear validation messages.
 
 **Acceptance criteria**
 
