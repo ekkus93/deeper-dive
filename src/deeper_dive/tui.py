@@ -50,15 +50,10 @@ class DeeperDiveApp(App[None]):
     CSS = """
     Screen { layout: vertical; }
     #global-nav, #project-nav { height: auto; padding: 0 1; }
-    #global-nav Button, #project-nav Button { min-width: 10; margin: 0 1 0 0; }
-    #content { padding: 1 2; }
+    #global-nav Button, #project-nav Button { min-width: 8; margin: 0 1 0 0; }
+    #content { padding: 1; }
     #screen-title { text-style: bold; margin-bottom: 1; }
     #screen-status { margin-top: 1; }
-    @media (max-width: 79) {
-        #global-nav, #project-nav { height: auto; overflow-x: auto; }
-        #global-nav Button, #project-nav Button { min-width: 8; }
-        #content { padding: 1; }
-    }
     """
     BINDINGS = [
         Binding("h", "navigate('home')", "Home"),
