@@ -213,9 +213,12 @@ class LlamaServerLLMProvider:
         if not isinstance(choices, list) or not choices or not isinstance(choices[0], Mapping):
             raise LlamaServerError("llama-server response is missing choices")
         message = choices[0].get("message")
-        if not isinstance(message, Mapping) or not isinstance(message.get("content"), str):
+        if not isinstance(message, Mapping):
             raise LlamaServerError("llama-server response is missing message content")
-        return message["content"]
+        content = message.get("content")
+        if not isinstance(content, str):
+            raise LlamaServerError("llama-server response is missing message content")
+        return content
 
     def _url(self, path: str) -> str:
         return f"{self._base_url}{path}"
