@@ -680,15 +680,15 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-082 — Hosts TUI screen
 
-- [ ] Host list and editor panes.
-- [ ] Add preset/custom host.
-- [ ] Duplicate.
-- [ ] Remove.
-- [ ] Reorder.
-- [ ] Edit traits/role/expertise/instructions.
-- [ ] Edit relationships.
-- [ ] TTS provider/voice selector placeholder wired to real TTS registry later.
-- [ ] Voice preview hook.
+- [x] Host list and editor panes.
+- [x] Add preset/custom host.
+- [x] Duplicate.
+- [x] Remove.
+- [x] Reorder.
+- [x] Edit traits/role/expertise/instructions.
+- [x] Edit relationships.
+- [x] TTS provider/voice selector placeholder wired to real TTS registry later.
+- [x] Voice preview hook.
 
 **Acceptance criteria**
 
