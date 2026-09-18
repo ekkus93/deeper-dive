@@ -763,11 +763,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-100 — Conversation state model
 
-- [ ] Persist segment progress.
-- [ ] Persist running conversation summary.
-- [ ] Persist unresolved questions/topics.
-- [ ] Persist recent-turn context references.
-- [ ] Persist participation statistics as advisory state.
+- [x] Persist segment progress.
+- [x] Persist running conversation summary.
+- [x] Persist unresolved questions/topics.
+- [x] Persist recent-turn context references.
+- [x] Persist participation statistics as advisory state.
 
 **Acceptance criteria**
 
