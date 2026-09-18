@@ -186,7 +186,9 @@ class ClaimInspectorScreen(Screen[None]):
                 f"[{item.chunk_id}] {relation} | {item.origin} | {item.source_title} | {location}"
             )
             passages.append(f"[{item.chunk_id}] {item.text}")
-        self.query_one("#claim-evidence", Static).update("\n".join(relations) or "No cited evidence")
+        self.query_one("#claim-evidence", Static).update(
+            "\n".join(relations) or "No cited evidence"
+        )
         self.query_one("#source-passage", Static).update("\n\n".join(passages))
 
     def _status(self, message: str) -> None:

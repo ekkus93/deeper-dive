@@ -11,8 +11,17 @@ from deeper_dive.claim_verification import ClaimVerificationService
 from deeper_dive.host_turn import HostTurnService
 from deeper_dive.material_claims import MaterialClaimService
 from deeper_dive.storage.database import Database
-from deeper_dive.storage.episode_repositories import EpisodeRecord, HostEpisodeRepository, HostProfileRecord
-from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord, SourceChunkRecord, SourceRecord
+from deeper_dive.storage.episode_repositories import (
+    EpisodeRecord,
+    HostEpisodeRepository,
+    HostProfileRecord,
+)
+from deeper_dive.storage.repositories import (
+    CorpusRepository,
+    ProjectRecord,
+    SourceChunkRecord,
+    SourceRecord,
+)
 
 
 class Unused:
@@ -42,9 +51,13 @@ async def _exercise(tmp_path: Path) -> None:
     corpus = CorpusRepository(database)
     corpus.create_project(ProjectRecord("p", "Inspect", "t", "t"))
     corpus.create_source(SourceRecord("s1", "p", "user", "text", "Primary", "t", status="ready"))
-    corpus.create_source(SourceRecord("s2", "p", "supplemental", "text", "Web", "t", status="ready"))
+    corpus.create_source(
+        SourceRecord("s2", "p", "supplemental", "text", "Web", "t", status="ready")
+    )
     corpus.create_chunk(SourceChunkRecord("good", "s1", 0, "The figure is 12.", "h1", "page 4"))
-    corpus.create_chunk(SourceChunkRecord("bad", "s2", 0, "The figure is not 10.", "h2", "section 2"))
+    corpus.create_chunk(
+        SourceChunkRecord("bad", "s2", 0, "The figure is not 10.", "h2", "section 2")
+    )
     episodes = HostEpisodeRepository(database)
     episodes.create_host(HostProfileRecord("h", "p", "Host"))
     episodes.create_episode(EpisodeRecord("e", "p", "Episode", "t", "t"), ["h"])
