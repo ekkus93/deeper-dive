@@ -100,7 +100,8 @@ def preflight_model_roles(
             blockers.append(
                 ModelRoleBlocker(
                     role,
-                    f"model {assignment.model!r} is unavailable from provider {assignment.provider!r}",
+                    f"model {assignment.model!r} is unavailable from provider "
+                    f"{assignment.provider!r}",
                 )
             )
             continue
