@@ -96,7 +96,10 @@ class DirectorEngine:
         ]
         if relevant:
             relation = relevant[0]
-            return f"{base}. Engage {relation.to_host_id} as a {relation.stance}; stay evidence-grounded."
+            return (
+                f"{base}. Engage {relation.to_host_id} as a {relation.stance}; "
+                "stay evidence-grounded."
+            )
         return (
             f"{base}. Add a distinct evidence-grounded contribution rather than shallow agreement."
         )
