@@ -1,0 +1,25 @@
+name: DD-034 format
+on:
+  push:
+    branches: [ralph/dd-034-html-url-ingestion]
+permissions:
+  contents: write
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ralph/dd-034-html-url-ingestion
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen --group dev
+      - run: uv run ruff check --fix src/deeper_dive/html_ingestion.py tests/test_html_ingestion.py
+      - run: uv run ruff format src/deeper_dive/html_ingestion.py tests/test_html_ingestion.py
+      - name: Commit formatter output
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/deeper_dive/html_ingestion.py tests/test_html_ingestion.py
+          git diff --cached --quiet || git commit -m 'style: apply Ruff to DD-034'
+          git push
