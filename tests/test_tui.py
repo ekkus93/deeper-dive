@@ -133,7 +133,7 @@ def _home(app: DeeperDiveApp) -> HomeProjectsScreen:
 
 
 def _text(screen: HomeProjectsScreen, selector: str) -> str:
-    return str(screen.query_one(selector, Static).renderable)
+    return str(screen.query_one(selector, Static).render())
 
 
 def _shortcut(destination: str) -> tuple[str, ...]:
