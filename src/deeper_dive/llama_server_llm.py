@@ -27,7 +27,9 @@ JsonRequest = Callable[[str, str, dict[str, Any] | None, float], dict[str, Any]]
 StreamRequest = Callable[[str, dict[str, Any], float], Iterator[dict[str, Any]]]
 
 
-def _json_request(method: str, url: str, payload: dict[str, Any] | None, timeout: float) -> dict[str, Any]:
+def _json_request(
+    method: str, url: str, payload: dict[str, Any] | None, timeout: float
+) -> dict[str, Any]:
     request = Request(
         url,
         data=None if payload is None else json.dumps(payload).encode("utf-8"),
@@ -147,7 +149,9 @@ class LlamaServerLLMProvider:
             try:
                 parsed = json.loads(text)
             except json.JSONDecodeError as exc:
-                raise LlamaServerError("llama-server structured response was not valid JSON") from exc
+                raise LlamaServerError(
+                    "llama-server structured response was not valid JSON"
+                ) from exc
             if not isinstance(parsed, dict):
                 raise LlamaServerError("llama-server structured response was not an object")
             structured = parsed

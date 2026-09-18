@@ -10,7 +10,9 @@ from deeper_dive.llm import LLMMessage, LLMRequest
 def test_llama_server_health_models_generation_and_structured_output() -> None:
     calls: list[tuple[str, str, dict[str, Any] | None, float]] = []
 
-    def request(method: str, url: str, payload: dict[str, Any] | None, timeout: float) -> dict[str, Any]:
+    def request(
+        method: str, url: str, payload: dict[str, Any] | None, timeout: float
+    ) -> dict[str, Any]:
         calls.append((method, url, payload, timeout))
         if url.endswith("/health"):
             return {"status": "ok"}
@@ -61,7 +63,9 @@ def test_llama_server_stream_and_custom_endpoint_paths() -> None:
 
 
 def test_llama_server_unavailable_is_recoverable_health_error() -> None:
-    def unavailable(method: str, url: str, payload: dict[str, Any] | None, timeout: float) -> dict[str, Any]:
+    def unavailable(
+        method: str, url: str, payload: dict[str, Any] | None, timeout: float
+    ) -> dict[str, Any]:
         raise LlamaServerError("llama-server is unavailable")
 
     provider = LlamaServerLLMProvider(model="m", request_json=unavailable)
@@ -71,7 +75,9 @@ def test_llama_server_unavailable_is_recoverable_health_error() -> None:
 
 
 def test_llama_server_common_malformed_shapes_are_errors() -> None:
-    def malformed(method: str, url: str, payload: dict[str, Any] | None, timeout: float) -> dict[str, Any]:
+    def malformed(
+        method: str, url: str, payload: dict[str, Any] | None, timeout: float
+    ) -> dict[str, Any]:
         if url.endswith("/models"):
             return {"data": "bad"}
         return {"choices": []}
