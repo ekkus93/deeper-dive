@@ -11,7 +11,9 @@ from deeper_dive.hosts import HostProfile, HostRelationship
 
 @pytest.mark.parametrize("host_count", [1, 2, 3, 5])
 def test_director_handles_multi_host_matrix_without_ab_alternation(host_count: int) -> None:
-    hosts = tuple(HostProfile(f"h{i}", "p1", f"Host {i}", role="analyst") for i in range(host_count))
+    hosts = tuple(
+        HostProfile(f"h{i}", "p1", f"Host {i}", role="analyst") for i in range(host_count)
+    )
     segment = PlannedSegment(
         "Evidence",
         "analyze evidence and implications",

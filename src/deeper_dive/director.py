@@ -55,7 +55,9 @@ class DirectorEngine:
 
         speaker = min(hosts, key=score)
         turn_number = state.segment_turn + 1
-        remaining = segment.target_duration_seconds if remaining_seconds is None else remaining_seconds
+        remaining = (
+            segment.target_duration_seconds if remaining_seconds is None else remaining_seconds
+        )
         hard_stop = turn_number >= self.policy.max_turns_per_segment
         content_exhausted = remaining <= self.policy.default_turn_seconds // 2
         signal = (
@@ -95,7 +97,9 @@ class DirectorEngine:
         if relevant:
             relation = relevant[0]
             return f"{base}. Engage {relation.to_host_id} as a {relation.stance}; stay evidence-grounded."
-        return f"{base}. Add a distinct evidence-grounded contribution rather than shallow agreement."
+        return (
+            f"{base}. Add a distinct evidence-grounded contribution rather than shallow agreement."
+        )
 
     @staticmethod
     def _handoff(
