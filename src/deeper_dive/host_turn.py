@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from dataclasses import dataclass
 from typing import Protocol
 from uuid import uuid4
@@ -45,7 +46,6 @@ class HostTurnService:
         existing = self._checkpointed_turn(run_id, unit_id)
         if existing is not None:
             return existing
-
         payload = self.provider.generate_turn(decision)
         speaker_id = str(payload.get("speaker_id", ""))
         if speaker_id != decision.speaker_id:
@@ -65,14 +65,9 @@ class HostTurnService:
             raise ValueError("generated turn cited evidence outside director scope")
         if len(set(evidence_ids)) != len(evidence_ids):
             raise ValueError("generated turn contains duplicate evidence IDs")
-
         turn = HostTurn(
-            id=str(uuid4()),
-            episode_id=episode_id,
-            segment_ordinal=state.segment_ordinal,
-            turn_ordinal=state.segment_turn,
-            speaker_id=speaker_id,
-            text=text,
+            id=str(uuid4()), episode_id=episode_id, segment_ordinal=state.segment_ordinal,
+            turn_ordinal=state.segment_turn, speaker_id=speaker_id, text=text,
             evidence_ids=evidence_ids,
         )
         self._commit(run_id, unit_id, turn, state)
@@ -81,15 +76,12 @@ class HostTurnService:
     def list_turns(self, episode_id: str) -> list[HostTurn]:
         with self.database.connection() as db:
             rows = db.execute(
-                "SELECT * FROM conversation_turns WHERE episode_id=? "
-                "ORDER BY segment_ordinal,turn_ordinal",
+                "SELECT * FROM conversation_turns WHERE episode_id=? ORDER BY segment_ordinal,turn_ordinal",
                 (episode_id,),
             ).fetchall()
         return [self._from_row(row) for row in rows]
 
-    def _commit(
-        self, run_id: str, unit_id: str, turn: HostTurn, previous: ConversationState
-    ) -> None:
+    def _commit(self, run_id: str, unit_id: str, turn: HostTurn, previous: ConversationState) -> None:
         participation = dict(previous.participation)
         participation[turn.speaker_id] = participation.get(turn.speaker_id, 0) + 1
         refs = (*previous.recent_context_refs, turn.id)[-8:]
@@ -98,15 +90,8 @@ class HostTurnService:
                 """INSERT INTO conversation_turns(
                     id,episode_id,segment_ordinal,turn_ordinal,speaker_id,text,evidence_ids_json
                 ) VALUES (?,?,?,?,?,?,?)""",
-                (
-                    turn.id,
-                    turn.episode_id,
-                    turn.segment_ordinal,
-                    turn.turn_ordinal,
-                    turn.speaker_id,
-                    turn.text,
-                    json.dumps(turn.evidence_ids),
-                ),
+                (turn.id, turn.episode_id, turn.segment_ordinal, turn.turn_ordinal,
+                 turn.speaker_id, turn.text, json.dumps(turn.evidence_ids)),
             )
             db.execute(
                 """INSERT INTO conversation_states(
@@ -114,21 +99,14 @@ class HostTurnService:
                     unresolved_topics_json,recent_context_refs_json,participation_json
                 ) VALUES (?,?,?,?,?,?,?)
                 ON CONFLICT(episode_id) DO UPDATE SET
-                    segment_ordinal=excluded.segment_ordinal,
-                    segment_turn=excluded.segment_turn,
+                    segment_ordinal=excluded.segment_ordinal, segment_turn=excluded.segment_turn,
                     running_summary=excluded.running_summary,
                     unresolved_topics_json=excluded.unresolved_topics_json,
                     recent_context_refs_json=excluded.recent_context_refs_json,
                     participation_json=excluded.participation_json""",
-                (
-                    turn.episode_id,
-                    previous.segment_ordinal,
-                    previous.segment_turn + 1,
-                    previous.running_summary,
-                    json.dumps(previous.unresolved_topics),
-                    json.dumps(refs),
-                    json.dumps(participation, sort_keys=True),
-                ),
+                (turn.episode_id, previous.segment_ordinal, previous.segment_turn + 1,
+                 previous.running_summary, json.dumps(previous.unresolved_topics), json.dumps(refs),
+                 json.dumps(participation, sort_keys=True)),
             )
             db.execute(
                 """INSERT OR IGNORE INTO generation_run_units(run_id,stage,unit_id,completed_at)
@@ -161,8 +139,7 @@ class HostTurnService:
                     segment_ordinal INTEGER NOT NULL CHECK(segment_ordinal >= 0),
                     turn_ordinal INTEGER NOT NULL CHECK(turn_ordinal >= 0),
                     speaker_id TEXT NOT NULL REFERENCES hosts(id) ON DELETE RESTRICT,
-                    text TEXT NOT NULL,
-                    evidence_ids_json TEXT NOT NULL DEFAULT '[]',
+                    text TEXT NOT NULL, evidence_ids_json TEXT NOT NULL DEFAULT '[]',
                     UNIQUE(episode_id,segment_ordinal,turn_ordinal)
                 )"""
             )
@@ -172,14 +149,10 @@ class HostTurnService:
         return f"{state.segment_ordinal}:{state.segment_turn}"
 
     @staticmethod
-    def _from_row(row: object) -> HostTurn:
-        data = dict(row)  # type: ignore[arg-type]
+    def _from_row(row: sqlite3.Row) -> HostTurn:
         return HostTurn(
-            id=str(data["id"]),
-            episode_id=str(data["episode_id"]),
-            segment_ordinal=int(data["segment_ordinal"]),
-            turn_ordinal=int(data["turn_ordinal"]),
-            speaker_id=str(data["speaker_id"]),
-            text=str(data["text"]),
-            evidence_ids=tuple(json.loads(str(data["evidence_ids_json"]))),
+            id=str(row["id"]), episode_id=str(row["episode_id"]),
+            segment_ordinal=int(row["segment_ordinal"]), turn_ordinal=int(row["turn_ordinal"]),
+            speaker_id=str(row["speaker_id"]), text=str(row["text"]),
+            evidence_ids=tuple(json.loads(str(row["evidence_ids_json"]))),
         )
