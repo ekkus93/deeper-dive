@@ -49,9 +49,7 @@ class FakeEmbeddingProvider:
         vectors: list[list[float]] = []
         for text in texts:
             digest = hashlib.sha256(text.encode("utf-8")).digest()
-            vectors.append(
-                [digest[index] / 255.0 for index in range(self.metadata.dimensions)]
-            )
+            vectors.append([digest[index] / 255.0 for index in range(self.metadata.dimensions)])
         return vectors
 
 
