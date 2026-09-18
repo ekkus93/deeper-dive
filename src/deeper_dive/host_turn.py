@@ -66,8 +66,12 @@ class HostTurnService:
         if len(set(evidence_ids)) != len(evidence_ids):
             raise ValueError("generated turn contains duplicate evidence IDs")
         turn = HostTurn(
-            id=str(uuid4()), episode_id=episode_id, segment_ordinal=state.segment_ordinal,
-            turn_ordinal=state.segment_turn, speaker_id=speaker_id, text=text,
+            id=str(uuid4()),
+            episode_id=episode_id,
+            segment_ordinal=state.segment_ordinal,
+            turn_ordinal=state.segment_turn,
+            speaker_id=speaker_id,
+            text=text,
             evidence_ids=evidence_ids,
         )
         self._commit(run_id, unit_id, turn, state)
@@ -81,7 +85,9 @@ class HostTurnService:
             ).fetchall()
         return [self._from_row(row) for row in rows]
 
-    def _commit(self, run_id: str, unit_id: str, turn: HostTurn, previous: ConversationState) -> None:
+    def _commit(
+        self, run_id: str, unit_id: str, turn: HostTurn, previous: ConversationState
+    ) -> None:
         participation = dict(previous.participation)
         participation[turn.speaker_id] = participation.get(turn.speaker_id, 0) + 1
         refs = (*previous.recent_context_refs, turn.id)[-8:]
@@ -90,8 +96,15 @@ class HostTurnService:
                 """INSERT INTO conversation_turns(
                     id,episode_id,segment_ordinal,turn_ordinal,speaker_id,text,evidence_ids_json
                 ) VALUES (?,?,?,?,?,?,?)""",
-                (turn.id, turn.episode_id, turn.segment_ordinal, turn.turn_ordinal,
-                 turn.speaker_id, turn.text, json.dumps(turn.evidence_ids)),
+                (
+                    turn.id,
+                    turn.episode_id,
+                    turn.segment_ordinal,
+                    turn.turn_ordinal,
+                    turn.speaker_id,
+                    turn.text,
+                    json.dumps(turn.evidence_ids),
+                ),
             )
             db.execute(
                 """INSERT INTO conversation_states(
@@ -104,9 +117,15 @@ class HostTurnService:
                     unresolved_topics_json=excluded.unresolved_topics_json,
                     recent_context_refs_json=excluded.recent_context_refs_json,
                     participation_json=excluded.participation_json""",
-                (turn.episode_id, previous.segment_ordinal, previous.segment_turn + 1,
-                 previous.running_summary, json.dumps(previous.unresolved_topics), json.dumps(refs),
-                 json.dumps(participation, sort_keys=True)),
+                (
+                    turn.episode_id,
+                    previous.segment_ordinal,
+                    previous.segment_turn + 1,
+                    previous.running_summary,
+                    json.dumps(previous.unresolved_topics),
+                    json.dumps(refs),
+                    json.dumps(participation, sort_keys=True),
+                ),
             )
             db.execute(
                 """INSERT OR IGNORE INTO generation_run_units(run_id,stage,unit_id,completed_at)
@@ -151,8 +170,11 @@ class HostTurnService:
     @staticmethod
     def _from_row(row: sqlite3.Row) -> HostTurn:
         return HostTurn(
-            id=str(row["id"]), episode_id=str(row["episode_id"]),
-            segment_ordinal=int(row["segment_ordinal"]), turn_ordinal=int(row["turn_ordinal"]),
-            speaker_id=str(row["speaker_id"]), text=str(row["text"]),
+            id=str(row["id"]),
+            episode_id=str(row["episode_id"]),
+            segment_ordinal=int(row["segment_ordinal"]),
+            turn_ordinal=int(row["turn_ordinal"]),
+            speaker_id=str(row["speaker_id"]),
+            text=str(row["text"]),
             evidence_ids=tuple(json.loads(str(row["evidence_ids_json"]))),
         )
