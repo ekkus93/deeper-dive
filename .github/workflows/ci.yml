@@ -7,15 +7,13 @@ on:
     branches: [master]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.8.22"
@@ -26,13 +24,17 @@ jobs:
         run: uv lock --check
       - name: Sync locked environment
         run: uv sync --frozen
-      - name: Format
+      - name: Ruff format
+        run: uv run ruff format --check .
+      - name: Ruff lint
+        run: uv run ruff check .
+      - name: Static typing
+        run: uv run mypy
+      - name: Tests
+        run: uv run pytest
+      - name: Build package
+        run: uv build
+      - name: CLI/import smoke
         run: |
-          uv run ruff format .
-          if ! git diff --quiet; then
-            git config user.name github-actions
-            git config user.email github-actions@github.com
-            git add .
-            git commit -m "style: apply Ruff formatting"
-            git push
-          fi
+          uv run deeper-dive --help
+          uv run python -c "import deeper_dive; print(deeper_dive.__version__)"
