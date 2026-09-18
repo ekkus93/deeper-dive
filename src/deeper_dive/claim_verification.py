@@ -134,7 +134,9 @@ class ClaimVerificationService:
                         'insufficient_evidence','not_applicable'
                     )),
                     rationale TEXT NOT NULL,
-                    confidence REAL CHECK(confidence IS NULL OR (confidence >= 0 AND confidence <= 1)),
+                    confidence REAL CHECK(
+                        confidence IS NULL OR (confidence >= 0 AND confidence <= 1)
+                    ),
                     supporting_evidence_ids_json TEXT NOT NULL DEFAULT '[]',
                     contradicting_evidence_ids_json TEXT NOT NULL DEFAULT '[]'
                 )"""
