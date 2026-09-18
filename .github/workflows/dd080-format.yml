@@ -1,10 +1,38 @@
-name: DD-080 formatter disabled
-
+name: DD-080 lint fixer
 on:
-  workflow_dispatch:
-
+  push:
+    branches: [ralph/dd-080-host-presets]
+permissions:
+  contents: write
 jobs:
-  noop:
+  fix:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
-      - run: echo disabled
+      - uses: actions/checkout@v4
+        with:
+          ref: ralph/dd-080-host-presets
+      - uses: astral-sh/setup-uv@v6
+      - run: |
+          uv sync --frozen
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/deeper_dive/hosts.py')
+          s=p.read_text()
+          replacements={
+          '"instructions": "Probe caveats, counterevidence, contradictions, and methodological limits.",':'"instructions": (\n            "Probe caveats, counterevidence, contradictions, and methodological limits."\n        ),',
+          '"instructions": "Emphasize mechanisms, terminology, technical precision, and evidentiary limits.",':'"instructions": (\n            "Emphasize mechanisms, terminology, technical precision, and evidentiary limits."\n        ),',
+          '"instructions": "Translate evidence into practical implications, constraints, and tradeoffs.",':'"instructions": (\n            "Translate evidence into practical implications, constraints, and tradeoffs."\n        ),',
+          '"instructions": "Establish chronology and documented intellectual or institutional context.",':'"instructions": (\n            "Establish chronology and documented intellectual or institutional context."\n        ),',
+          '"instructions": "Manage turn-taking, transitions, unresolved questions, and balanced participation.",':'"instructions": (\n            "Manage turn-taking, transitions, unresolved questions, and balanced participation."\n        ),',
+          }
+          for old,new in replacements.items(): s=s.replace(old,new)
+          p.write_text(s)
+          PY
+          uv run ruff check --fix src/deeper_dive/hosts.py tests/test_host_presets.py
+          uv run ruff format src/deeper_dive/hosts.py tests/test_host_presets.py
+          git config user.name github-actions
+          git config user.email actions@github.com
+          git add src/deeper_dive/hosts.py tests/test_host_presets.py
+          git commit -m 'style: lint DD-080 host presets'
+          git push
