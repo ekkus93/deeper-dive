@@ -1,0 +1,23 @@
+name: DD-080 formatter
+on:
+  push:
+    branches: [ralph/dd-080-host-presets]
+permissions:
+  contents: write
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ralph/dd-080-host-presets
+      - uses: astral-sh/setup-uv@v6
+      - run: |
+          uv sync --frozen
+          uv run ruff format src/deeper_dive/hosts.py tests/test_host_presets.py
+          git config user.name github-actions
+          git config user.email actions@github.com
+          git add src/deeper_dive/hosts.py tests/test_host_presets.py
+          git commit -m 'style: format DD-080 host presets'
+          git push
