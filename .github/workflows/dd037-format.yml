@@ -1,33 +1,10 @@
-name: DD-070-DD-075 reconcile
+name: DD-037 formatter disabled
 
 on:
-  push:
-    branches:
-      - ralph/reconcile-dd070-dd075
-
-permissions:
-  contents: write
+  workflow_dispatch:
 
 jobs:
-  reconcile:
+  noop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ralph/reconcile-dd070-dd075
-      - run: |
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('docs/DEEP_DIVE_TUI_TODO.md')
-          s=p.read_text()
-          before, rest=s.split('## DD-070 — Research policy model',1)
-          middle, after=rest.split('## DD-076 — Research TUI screen',1)
-          middle=middle.replace('- [ ]','- [x]')
-          p.write_text(before+'## DD-070 — Research policy model'+middle+'## DD-076 — Research TUI screen'+after)
-          PY
-      - run: |
-          git config user.name github-actions
-          git config user.email actions@github.com
-          git add docs/DEEP_DIVE_TUI_TODO.md
-          git commit -m 'docs: reconcile DD-070 through DD-075'
-          git push
+      - run: echo disabled
