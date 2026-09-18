@@ -13,8 +13,8 @@ from deeper_dive.storage.episode_repositories import (
     HostEpisodeRepository,
     HostProfileRecord,
 )
-from deeper_dive.storage.run_repositories import GenerationRunRecord, GenerationRunRepository
 from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord
+from deeper_dive.storage.run_repositories import GenerationRunRecord, GenerationRunRepository
 
 
 @dataclass
