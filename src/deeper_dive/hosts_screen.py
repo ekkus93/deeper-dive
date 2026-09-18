@@ -216,7 +216,7 @@ class HostsScreen(Screen[None]):
     def _move(self, delta: int) -> None:
         if self.selected_host_id not in self.display_order:
             return
-        index = self.display_order.index(cast(str, self.selected_host_id))
+        index = self.display_order.index(self.selected_host_id)
         target = max(0, min(len(self.display_order) - 1, index + delta))
         self.display_order[index], self.display_order[target] = (
             self.display_order[target],
