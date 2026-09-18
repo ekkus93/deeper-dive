@@ -225,12 +225,12 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-022 — Textual application shell
 
-- [ ] Add Textual app entry point.
-- [ ] Add Home/Projects screen shell.
-- [ ] Add global navigation to Providers, Settings, Help.
-- [ ] Add project top navigation: Sources, Research, Hosts, Episode, Generate, Library.
-- [ ] Add command palette and discoverable keyboard shortcuts.
-- [ ] Add responsive behavior for narrow terminals.
+- [x] Add Textual app entry point.
+- [x] Add Home/Projects screen shell.
+- [x] Add global navigation to Providers, Settings, Help.
+- [x] Add project top navigation: Sources, Research, Hosts, Episode, Generate, Library.
+- [x] Add command palette and discoverable keyboard shortcuts.
+- [x] Add responsive behavior for narrow terminals.
 
 **Acceptance criteria**
 
