@@ -82,7 +82,8 @@ class ProvidersScreen(Screen[None]):
                 name,
                 provider_type,
                 base_url=self.query_one("#provider-base-url", Input).value.strip() or None,
-                default_model=self.query_one("#provider-default-model", Input).value.strip() or None,
+                default_model=self.query_one("#provider-default-model", Input).value.strip()
+                or None,
             )
         except ValueError as exc:
             self._status(str(exc))
