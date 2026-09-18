@@ -82,7 +82,8 @@ class ConversationQualityHeuristics:
             QualityIssueKind.REPETITION,
             ids,
             "Repeated turn text detected.",
-            "Direct the next turn to add a distinct contribution; regenerate repeated turns if needed.",
+            "Direct the next turn to add a distinct contribution; "
+            "regenerate repeated turns if needed.",
         )
 
     def _monopoly(self, turns: list[HostTurn], hosts: set[str]) -> QualityIssue | None:
@@ -111,5 +112,6 @@ class ConversationQualityHeuristics:
             QualityIssueKind.SHALLOW_ACKNOWLEDGEMENT,
             tuple(ids),
             "Excessive shallow acknowledgements detected.",
-            "Require the next host contribution to add evidence, analysis, or a substantive question.",
+            "Require the next host contribution to add evidence, analysis, "
+            "or a substantive question.",
         )
