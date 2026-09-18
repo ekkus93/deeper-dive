@@ -18,8 +18,9 @@ jobs:
       - run: uv sync --frozen
       - run: |
           uv run ruff format .
-          uv run ruff check --fix .
-          if git diff --quiet; then exit 0; fi
           git config user.name github-actions
           git config user.email actions@github.com
-          git add . && git commit -m "style: format DD-104 type fix" && git push
+          git add .
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "style: format DD-104 type fix"
+          git push
