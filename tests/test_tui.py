@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 from pathlib import Path
 
 from textual.widgets import Input, Static
@@ -122,9 +123,7 @@ async def _home_projects_interrupted_run_state(tmp_path: Path) -> None:
 def _service(tmp_path: Path) -> DeeperDiveService:
     return DeeperDiveService(
         WorkspaceManager(tmp_path / "data"),
-        clock=FrozenClock.fromisoformat("2026-09-17T12:00:00+00:00")
-        if hasattr(FrozenClock, "fromisoformat")
-        else FrozenClock(__import__("datetime").datetime(2026, 9, 17, 12, 0, 0, tzinfo=__import__("datetime").UTC)),
+        clock=FrozenClock(datetime(2026, 9, 17, 12, 0, 0, tzinfo=UTC)),
     )
 
 
