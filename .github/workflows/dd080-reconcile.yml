@@ -1,0 +1,10 @@
+name: DD-080 reconcile helper disabled
+
+on:
+  workflow_dispatch:
+
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo disabled
