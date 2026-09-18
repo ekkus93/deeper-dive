@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from deeper_dive.parsing import (
     ParseDiagnostic,
+    ParsedBlock,
     ParseRequest,
     ParseResult,
     ParseSeverity,
-    ParsedBlock,
     SourceParser,
     validate_parse_result,
 )
