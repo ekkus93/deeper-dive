@@ -11,6 +11,7 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
 from deeper_dive.application.service import DeeperDiveService, ProjectSummary
+from deeper_dive.storage.repositories import SourceRecord
 from deeper_dive.storage.workspace import WorkspaceManager
 
 GLOBAL_SCREENS = ("home", "providers", "settings", "help")
@@ -194,6 +195,174 @@ class HomeProjectsScreen(NavigationMixin, Screen[None]):
         self.query_one("#screen-status", Static).update(f"Status: {value}")
 
 
+class SourcesScreen(NavigationMixin, Screen[None]):
+    """Sources workflow with grouped list, inspection, and basic actions."""
+
+    BINDINGS = [
+        Binding("ctrl+a", "add_paste", "Add pasted source"),
+        Binding("ctrl+i", "toggle_included", "Include/exclude"),
+        Binding("ctrl+d", "delete_selected", "Delete source"),
+    ]
+
+    def __init__(self) -> None:
+        super().__init__(id="screen-sources")
+        self.selected_source_id: str | None = None
+
+    @property
+    def _app(self) -> DeeperDiveApp:
+        return cast(DeeperDiveApp, self.app)
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield from _nav()
+        with VerticalScroll(id="content"):
+            yield Label("Sources", id="screen-title")
+            yield Static("Primary and supplemental sources with provenance.", id="screen-description")
+            yield Input(placeholder="Pasted source title", id="source-title")
+            yield Input(placeholder="Paste text source", id="source-text")
+            yield Button("Add Paste", id="action-add-paste", name="add-paste")
+            yield Button("Include/Exclude", id="action-toggle-source", name="toggle-source")
+            yield Button("Delete Source", id="action-delete-source", name="delete-source")
+            yield Static("", id="source-list")
+            yield Static("", id="source-details")
+            yield Static("", id="source-text-preview")
+            yield Static("Status: Ready", id="screen-status")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self.refresh_sources()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        action = event.button.name
+        if action == "add-paste":
+            self.action_add_paste()
+        elif action == "toggle-source":
+            self.action_toggle_included()
+        elif action == "delete-source":
+            self.action_delete_selected()
+        else:
+            super().on_button_pressed(event)
+
+    def action_add_paste(self) -> None:
+        project_id = self._app.current_project_id
+        if project_id is None:
+            self._set_status("Open a project before adding sources")
+            return
+        title_input = self.query_one("#source-title", Input)
+        text_input = self.query_one("#source-text", Input)
+        title = title_input.value.strip() or "Pasted text"
+        text = text_input.value
+        if not text.strip():
+            self._set_status("Pasted source text required")
+            return
+        source = self._app.service.add_pasted_source(project_id, title, text)
+        self.selected_source_id = source.id
+        title_input.value = ""
+        text_input.value = ""
+        self.refresh_sources(f"Added source: {source.title}")
+
+    def action_toggle_included(self) -> None:
+        source = self._selected_source()
+        if source is None:
+            self._set_status("No source selected")
+            return
+        project_id = self._app.current_project_id
+        assert project_id is not None
+        self._app.service.set_source_included(project_id, source.id, not source.included)
+        self.refresh_sources("Updated source inclusion")
+
+    def action_delete_selected(self) -> None:
+        source = self._selected_source()
+        if source is None:
+            self._set_status("No source selected")
+            return
+        project_id = self._app.current_project_id
+        assert project_id is not None
+        self._app.service.delete_source(project_id, source.id)
+        self.selected_source_id = None
+        self.refresh_sources("Deleted source")
+
+    def refresh_sources(self, status: str = "Ready") -> None:
+        project_id = self._app.current_project_id
+        if project_id is None:
+            self.query_one("#source-list", Static).update("No project open.")
+            self.query_one("#source-details", Static).update("Open a project from Home first.")
+            self.query_one("#source-text-preview", Static).update("")
+            self._set_status("No project open")
+            return
+        sources = self._app.service.list_sources(project_id)
+        ids = {source.id for source in sources}
+        if self.selected_source_id not in ids:
+            self.selected_source_id = sources[0].id if sources else None
+        self.query_one("#source-list", Static).update(self._source_list_text(sources))
+        self.query_one("#source-details", Static).update(self._details_text())
+        self.query_one("#source-text-preview", Static).update(self._preview_text())
+        self._set_status(status)
+
+    def _source_list_text(self, sources: list[SourceRecord]) -> str:
+        if not sources:
+            return "No sources yet. Paste text or add files when file import UI is connected."
+        primary = [source for source in sources if source.origin == "user"]
+        supplemental = [source for source in sources if source.origin == "supplemental"]
+        return "\n".join(
+            (
+                "Primary sources:",
+                *self._source_rows(primary),
+                "Supplemental sources:",
+                *self._source_rows(supplemental),
+            )
+        )
+
+    def _source_rows(self, sources: list[SourceRecord]) -> list[str]:
+        if not sources:
+            return ["  none"]
+        rows = []
+        for source in sources:
+            selected = "*" if source.id == self.selected_source_id else " "
+            included = "included" if source.included else "excluded"
+            rows.append(
+                f"{selected} {source.title} | {included} | {source.status} | {source.source_type}"
+            )
+        return rows
+
+    def _selected_source(self) -> SourceRecord | None:
+        project_id = self._app.current_project_id
+        if project_id is None or self.selected_source_id is None:
+            return None
+        return self._app.service.get_source(project_id, self.selected_source_id)
+
+    def _details_text(self) -> str:
+        source = self._selected_source()
+        if source is None:
+            return "No source selected."
+        return "\n".join(
+            (
+                f"Title: {source.title}",
+                f"Origin: {source.origin}",
+                f"Type: {source.source_type}",
+                f"Status: {source.status}",
+                f"Included: {source.included}",
+                f"Locator: {source.locator or 'none'}",
+                f"Content hash: {source.content_hash or 'none'}",
+            )
+        )
+
+    def _preview_text(self) -> str:
+        project_id = self._app.current_project_id
+        source = self._selected_source()
+        if project_id is None or source is None:
+            return ""
+        chunks = self._app.service.list_source_chunks(project_id, source.id)
+        if not chunks:
+            return "Parsed text: no chunks available"
+        first = chunks[0]
+        preview = first.text[:240]
+        return f"Parsed text ({first.location or 'unknown'}): {preview}"
+
+    def _set_status(self, value: str) -> None:
+        self.query_one("#screen-status", Static).update(f"Status: {value}")
+
+
 class ShellScreen(NavigationMixin, Screen[None]):
     """Simple named destination used until feature-specific screens replace the shell."""
 
@@ -253,7 +422,7 @@ class DeeperDiveApp(App[None]):
         "help": lambda: ShellScreen(
             "help", "Help", "Use the footer, keyboard shortcuts, or command palette to navigate."
         ),
-        "sources": lambda: ShellScreen("sources", "Sources", "Primary and supplemental sources."),
+        "sources": lambda: SourcesScreen(),
         "research": lambda: ShellScreen("research", "Research", "Research gaps and web evidence."),
         "hosts": lambda: ShellScreen("hosts", "Hosts", "Conversation host profiles."),
         "episode": lambda: ShellScreen("episode", "Episode", "Episode configuration and plan."),
