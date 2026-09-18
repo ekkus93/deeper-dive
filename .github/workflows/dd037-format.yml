@@ -1,10 +1,24 @@
-name: DD-037 formatter disabled
-
+name: DD-045 formatter
 on:
-  workflow_dispatch:
-
+  push:
+    branches: [ralph/dd-045-claims-evidence]
+permissions:
+  contents: write
 jobs:
-  noop:
+  format:
     runs-on: ubuntu-latest
     steps:
-      - run: echo disabled
+      - uses: actions/checkout@v4
+        with:
+          ref: ralph/dd-045-claims-evidence
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - run: uv run ruff format src/deeper_dive/claims.py tests/test_claims.py
+      - run: |
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src/deeper_dive/claims.py tests/test_claims.py
+            git commit -m "style: format DD-045"
+            git push
+          fi
