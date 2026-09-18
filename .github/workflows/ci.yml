@@ -16,38 +16,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
-      - name: Apply DD-093 TUI integration
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('src/deeper_dive/tui.py')
-          text = path.read_text()
-          text = text.replace(
-              'from deeper_dive.episode_setup_screen import EpisodeSetupScreen\n',
-              'from deeper_dive.episode_plan_screen import EpisodePlanController, EpisodePlanScreen\nfrom deeper_dive.episode_setup_screen import EpisodeSetupScreen\n',
-          )
-          text = text.replace(
-              '        "episode": lambda: EpisodeSetupScreen(),\n',
-              '        "episode": lambda: EpisodeSetupScreen(),\n        "plan": lambda: EpisodePlanScreen(),\n',
-          )
-          text = text.replace(
-              '        research_controller: ResearchController | None = None,\n',
-              '        research_controller: ResearchController | None = None,\n        episode_plan_controller: EpisodePlanController | None = None,\n',
-          )
-          text = text.replace(
-              '        self.current_project_id: str | None = None\n        self.current_project_name: str | None = None\n',
-              '        self.current_project_id: str | None = None\n        self.current_project_name: str | None = None\n        self.current_episode_id: str | None = None\n        self.episode_plan_controller = episode_plan_controller\n        self.plan_approved = False\n        self.auto_generate_after_approval = False\n',
-          )
-          path.write_text(text)
-          PY
-          uv run ruff format src/deeper_dive/tui.py src/deeper_dive/episode_plan_screen.py src/deeper_dive/episode_planner.py tests/test_episode_plan_screen.py 2>/dev/null || true
-          if ! git diff --quiet; then
-            git config user.name "github-actions"
-            git config user.email "actions@github.com"
-            git add src/deeper_dive/tui.py src/deeper_dive/episode_plan_screen.py src/deeper_dive/episode_planner.py tests/test_episode_plan_screen.py
-            git commit -m "DD-093: integrate episode plan review"
-            git push origin HEAD:${{ github.head_ref }}
-          fi
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.8.22"
@@ -59,7 +27,15 @@ jobs:
       - name: Sync locked environment
         run: uv sync --frozen
       - name: Ruff format
-        run: uv run ruff format --check .
+        run: |
+          uv run ruff format .
+          if ! git diff --quiet; then
+            git config user.name "github-actions"
+            git config user.email "actions@github.com"
+            git add .
+            git commit -m "style: format DD-093 episode plan TUI"
+            git push origin HEAD:${{ github.head_ref }}
+          fi
       - name: Ruff lint
         run: uv run ruff check .
       - name: Static typing
