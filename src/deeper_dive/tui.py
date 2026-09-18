@@ -68,6 +68,9 @@ class HomeScreen(Screen[None]):
         Binding("delete", "delete_project", "Delete"),
     ]
 
+    def __init__(self) -> None:
+        super().__init__(id="screen-home")
+
     def compose(self) -> ComposeResult:
         yield Header()
         with Horizontal(id="global-nav"):
@@ -95,7 +98,7 @@ class HomeScreen(Screen[None]):
                 f"{project.name} | modified {project.modified_at} | "
                 f"sources {summary.source_count} | status {summary.run_status}"
             )
-            project_list.append(ListItem(Label(text), id=f"project-{project.id}", name=project.id))
+            project_list.append(ListItem(Label(text), name=project.id))
 
     def _selected_id(self) -> str | None:
         item = self.query_one("#project-list", ListView).highlighted_child
