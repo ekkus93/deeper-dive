@@ -8,7 +8,11 @@ import pytest
 from deeper_dive.director_decision import DirectorDecision
 from deeper_dive.host_turn import HostTurnService
 from deeper_dive.storage.database import Database
-from deeper_dive.storage.episode_repositories import EpisodeRecord, HostEpisodeRepository, HostProfileRecord
+from deeper_dive.storage.episode_repositories import (
+    EpisodeRecord,
+    HostEpisodeRepository,
+    HostProfileRecord,
+)
 from deeper_dive.storage.run_repositories import GenerationRunRecord, GenerationRunRepository
 from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord
 
@@ -36,7 +40,9 @@ def _database(tmp_path: Path) -> Database:
     episodes = HostEpisodeRepository(database)
     episodes.create_host(HostProfileRecord("h", "p", "Host"))
     episodes.create_episode(EpisodeRecord("e", "p", "Episode", "t", "t"), ["h"])
-    GenerationRunRepository(database).create(GenerationRunRecord("r", "e", "conversation", "running", "t", "t"))
+    GenerationRunRepository(database).create(
+        GenerationRunRecord("r", "e", "conversation", "running", "t", "t")
+    )
     return database
 
 
