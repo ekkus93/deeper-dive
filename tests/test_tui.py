@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-import pytest
+import asyncio
 
 from deeper_dive.tui import GLOBAL_SCREENS, PROJECT_SCREENS, DeeperDiveApp
 
 
-@pytest.mark.asyncio
-async def test_shell_navigates_all_destinations() -> None:
+def test_shell_navigates_all_destinations() -> None:
+    asyncio.run(_navigate_all_destinations())
+
+
+async def _navigate_all_destinations() -> None:
     app = DeeperDiveApp()
     async with app.run_test(size=(100, 30)) as pilot:
         assert app.screen.id == "screen-home"
@@ -17,8 +20,11 @@ async def test_shell_navigates_all_destinations() -> None:
             assert app.query_one("#screen-status").renderable == "Status: Ready"
 
 
-@pytest.mark.asyncio
-async def test_shell_runs_at_minimum_terminal_size() -> None:
+def test_shell_runs_at_minimum_terminal_size() -> None:
+    asyncio.run(_run_at_minimum_terminal_size())
+
+
+async def _run_at_minimum_terminal_size() -> None:
     app = DeeperDiveApp()
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.press("1")
