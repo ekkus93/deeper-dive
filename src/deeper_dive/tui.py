@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -12,9 +12,6 @@ from textual.widgets import Button, Footer, Header, Input, Label, Static
 
 from deeper_dive.application.service import DeeperDiveService, ProjectSummary
 from deeper_dive.storage.workspace import WorkspaceManager
-
-if TYPE_CHECKING:
-    from textual.widget import Widget
 
 GLOBAL_SCREENS = ("home", "providers", "settings", "help")
 PROJECT_SCREENS = ("sources", "research", "hosts", "episode", "generate", "library")
