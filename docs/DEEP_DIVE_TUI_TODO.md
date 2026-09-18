@@ -651,15 +651,15 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-080 — Host preset definitions
 
-- [ ] Implement Curious Explainer.
-- [ ] Implement Skeptic.
-- [ ] Implement Synthesizer.
-- [ ] Implement Domain Expert.
-- [ ] Implement Practitioner.
-- [ ] Implement Historian.
-- [ ] Implement Moderator.
-- [ ] Implement Custom baseline.
-- [ ] Keep presets as data/configurable factories rather than hard-coded branching across engine code.
+- [x] Implement Curious Explainer.
+- [x] Implement Skeptic.
+- [x] Implement Synthesizer.
+- [x] Implement Domain Expert.
+- [x] Implement Practitioner.
+- [x] Implement Historian.
+- [x] Implement Moderator.
+- [x] Implement Custom baseline.
+- [x] Keep presets as data/configurable factories rather than hard-coded branching across engine code.
 
 **Acceptance criteria**
 
