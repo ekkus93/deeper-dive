@@ -668,11 +668,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-081 — Host behavior model
 
-- [ ] Add trait validation/ranges.
-- [ ] Add role/expertise/custom instructions.
-- [ ] Add evidence priorities.
-- [ ] Add turn-length/question/analogy/interruption preferences.
-- [ ] Add host relationships.
+- [x] Add trait validation/ranges.
+- [x] Add role/expertise/custom instructions.
+- [x] Add evidence priorities.
+- [x] Add turn-length/question/analogy/interruption preferences.
+- [x] Add host relationships.
 
 **Acceptance criteria**
 
