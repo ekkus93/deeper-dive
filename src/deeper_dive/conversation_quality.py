@@ -73,7 +73,9 @@ class ConversationQualityHeuristics:
         normalized = [" ".join(turn.text.lower().split()) for turn in turns]
         counts = Counter(normalized)
         repeated = {text for text, count in counts.items() if text and count >= 2}
-        ids = tuple(turn.id for turn, text in zip(turns, normalized, strict=True) if text in repeated)
+        ids = tuple(
+            turn.id for turn, text in zip(turns, normalized, strict=True) if text in repeated
+        )
         if not ids:
             return None
         return QualityIssue(
