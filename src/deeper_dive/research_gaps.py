@@ -154,9 +154,10 @@ class ResearchGapPlanner:
             messages=(
                 LLMMessage(
                     "system",
-                    "Identify research gaps only. Do not search the web. Return JSON with a gaps array. "
-                    "Categories: missing_context, disagreement, recency, cited_but_missing, other. "
-                    "Each gap needs category, rationale, priority 1-5, source_ids, and chunk_ids.",
+                    "Identify research gaps only. Do not search the web. "
+                    "Return JSON with a gaps array. Categories: missing_context, disagreement, "
+                    "recency, cited_but_missing, other. Each gap needs category, rationale, "
+                    "priority 1-5, source_ids, and chunk_ids.",
                 ),
                 LLMMessage("user", json.dumps(payload, sort_keys=True)),
             ),
