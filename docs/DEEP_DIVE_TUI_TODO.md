@@ -844,11 +844,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-106 — Conversation quality heuristics
 
-- [ ] Detect highly repetitive phrase/turn patterns.
-- [ ] Detect one host monopolizing unintentionally.
-- [ ] Detect excessive shallow acknowledgements.
-- [ ] Detect unsupported citation IDs.
-- [ ] Permit corrective director step or targeted regeneration.
+- [x] Detect highly repetitive phrase/turn patterns.
+- [x] Detect one host monopolizing unintentionally.
+- [x] Detect excessive shallow acknowledgements.
+- [x] Detect unsupported citation IDs.
+- [x] Permit corrective director step or targeted regeneration.
 
 **Acceptance criteria**
 
