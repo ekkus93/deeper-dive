@@ -240,12 +240,12 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-023 — Home/Projects workflow
 
-- [ ] New project dialog.
-- [ ] Project list with modified time/status/count placeholders.
-- [ ] Open project.
-- [ ] Rename project.
-- [ ] Delete project with confirmation.
-- [ ] Surface interrupted/paused run state.
+- [x] New project dialog.
+- [x] Project list with modified time/status/count placeholders.
+- [x] Open project.
+- [x] Rename project.
+- [x] Delete project with confirmation.
+- [x] Surface interrupted/paused run state.
 
 **Acceptance criteria**
 
@@ -258,10 +258,10 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-030 — Parser abstraction
 
-- [ ] Define parser contract and parse result model.
-- [ ] Preserve structural/location metadata where available.
-- [ ] Define parse warning/error reporting.
-- [ ] Store parser identity/version for cache invalidation.
+- [x] Define parser contract and parse result model.
+- [x] Preserve structural/location metadata where available.
+- [x] Define parse warning/error reporting.
+- [x] Store parser identity/version for cache invalidation.
 
 **Acceptance criteria**
 
@@ -269,10 +269,10 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-031 — Plain text and Markdown ingestion
 
-- [ ] Parse `.txt`.
-- [ ] Parse `.md` as text while retaining headings where practical.
-- [ ] Support pasted text source.
-- [ ] Compute content hashes.
+- [x] Parse `.txt`.
+- [x] Parse `.md` as text while retaining headings where practical.
+- [x] Support pasted text source.
+- [x] Compute content hashes.
 
 **Acceptance criteria**
 
@@ -280,11 +280,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-032 — PDF ingestion
 
-- [ ] Select maintained PDF text extraction library.
-- [ ] Extract per-page text where reliably possible.
-- [ ] Preserve page provenance.
-- [ ] Surface extraction warnings for image-only/unreadable PDFs.
-- [ ] Do not silently OCR in V1 unless explicitly added to spec/TODO.
+- [x] Select maintained PDF text extraction library.
+- [x] Extract per-page text where reliably possible.
+- [x] Preserve page provenance.
+- [x] Surface extraction warnings for image-only/unreadable PDFs.
+- [x] Do not silently OCR in V1 unless explicitly added to spec/TODO.
 
 **Acceptance criteria**
 
@@ -293,9 +293,9 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-033 — DOCX ingestion
 
-- [ ] Extract paragraphs/headings.
-- [ ] Preserve useful section metadata.
-- [ ] Handle malformed DOCX cleanly.
+- [x] Extract paragraphs/headings.
+- [x] Preserve useful section metadata.
+- [x] Handle malformed DOCX cleanly.
 
 **Acceptance criteria**
 
@@ -303,11 +303,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-034 — HTML/file and URL ingestion
 
-- [ ] Parse local HTML.
-- [ ] Fetch explicit HTTP/HTTPS user URLs with timeout/size limits.
-- [ ] Extract readable main text where practical.
-- [ ] Record original/final canonical URL and retrieval timestamp.
-- [ ] Distinguish explicit user URL fetching from automated research-network policy.
+- [x] Parse local HTML.
+- [x] Fetch explicit HTTP/HTTPS user URLs with timeout/size limits.
+- [x] Extract readable main text where practical.
+- [x] Record original/final canonical URL and retrieval timestamp.
+- [x] Distinguish explicit user URL fetching from automated research-network policy.
 
 **Acceptance criteria**
 
@@ -316,11 +316,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-035 — Directory/batch import and deduplication
 
-- [ ] Add multiple files.
-- [ ] Add directory recursively with supported-extension filtering.
-- [ ] Detect exact duplicate content by hash.
-- [ ] Detect duplicate canonical URLs.
-- [ ] Present duplicate disposition to user rather than silently duplicating.
+- [x] Add multiple files.
+- [x] Add directory recursively with supported-extension filtering.
+- [x] Detect exact duplicate content by hash.
+- [x] Detect duplicate canonical URLs.
+- [x] Present duplicate disposition to user rather than silently duplicating.
 
 **Acceptance criteria**
 
@@ -328,10 +328,10 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-036 — Chunking
 
-- [ ] Implement deterministic baseline chunker.
-- [ ] Preserve source/page/heading provenance.
-- [ ] Add configurable chunk-size/overlap internals with sensible defaults.
-- [ ] Version chunking configuration.
+- [x] Implement deterministic baseline chunker.
+- [x] Preserve source/page/heading provenance.
+- [x] Add configurable chunk-size/overlap internals with sensible defaults.
+- [x] Version chunking configuration.
 
 **Acceptance criteria**
 
@@ -340,14 +340,14 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-037 — Sources TUI screen
 
-- [ ] Implement primary/supplemental grouped source list.
-- [ ] Implement source details pane.
-- [ ] Add files/directory/URL/paste actions.
-- [ ] Include/exclude action.
-- [ ] Delete action.
-- [ ] Parsed-text inspection.
-- [ ] Metadata/provenance inspection.
-- [ ] Visible parse/index/error states.
+- [x] Implement primary/supplemental grouped source list.
+- [x] Implement source details pane.
+- [x] Add files/directory/URL/paste actions.
+- [x] Include/exclude action.
+- [x] Delete action.
+- [x] Parsed-text inspection.
+- [x] Metadata/provenance inspection.
+- [x] Visible parse/index/error states.
 
 **Acceptance criteria**
 
