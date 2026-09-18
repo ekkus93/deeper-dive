@@ -1,10 +1,29 @@
-name: DD-076 helper disabled
-
+name: DD-076 type fixer
 on:
-  workflow_dispatch:
-
+  push:
+    branches: [ralph/dd-076-research-tui]
+permissions:
+  contents: write
 jobs:
-  noop:
+  fix:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
-      - run: echo disabled
+      - uses: actions/checkout@v4
+        with:
+          ref: ralph/dd-076-research-tui
+      - run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/deeper_dive/research_screen.py')
+          s=p.read_text()
+          s=s.replace('from typing import Protocol, cast', 'from typing import Any, Protocol, cast')
+          s=s.replace('''    @property\n    def _app(self):\n        return self.app\n\n''', '')
+          s=s.replace('return cast(ResearchController, self.app.research_controller)', 'return cast(ResearchController, cast(Any, self.app).research_controller)')
+          p.write_text(s)
+          PY
+          git config user.name github-actions
+          git config user.email actions@github.com
+          git add src/deeper_dive/research_screen.py
+          git commit -m 'DD-076 satisfy strict Research screen typing'
+          git push
