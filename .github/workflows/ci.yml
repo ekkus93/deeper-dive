@@ -1,23 +1,40 @@
 name: CI
+
 on:
+  push:
+    branches: [master]
   pull_request:
     branches: [master]
+
 permissions:
-  contents: write
+  contents: read
+
 jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
         with:
-          ref: ${{ github.head_ref }}
-      - run: |
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('docs/DEEP_DIVE_TUI_TODO.md'); s=p.read_text()
-          a=s.index('## DD-104 — Host turn generation'); b=s.index('## DD-105 — Duration and pacing controller',a)
-          p.write_text(s[:a]+s[a:b].replace('- [ ]','- [x]')+s[b:])
-          PY
-          git config user.name github-actions
-          git config user.email actions@github.com
-          git add . && git commit -m "docs: reconcile DD-104 completion" && git push
+          version: "0.8.22"
+          enable-cache: true
+      - name: Set up Python
+        run: uv python install 3.12
+      - name: Validate dependency lock
+        run: uv lock --check
+      - name: Sync locked environment
+        run: uv sync --frozen
+      - name: Ruff format
+        run: uv run ruff format --check .
+      - name: Ruff lint
+        run: uv run ruff check .
+      - name: Static typing
+        run: uv run mypy
+      - name: Tests
+        run: uv run pytest
+      - name: Build package
+        run: uv build
+      - name: CLI/import smoke
+        run: |
+          uv run deeper-dive --help
+          uv run python -c "import deeper_dive; print(deeper_dive.__version__)"
