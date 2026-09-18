@@ -5,7 +5,12 @@ from pathlib import Path
 from deeper_dive.claim_evidence_retrieval import ClaimEvidenceRetriever
 from deeper_dive.material_claims import MaterialClaim
 from deeper_dive.storage.database import Database
-from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord, SourceChunkRecord, SourceRecord
+from deeper_dive.storage.repositories import (
+    CorpusRepository,
+    ProjectRecord,
+    SourceChunkRecord,
+    SourceRecord,
+)
 
 
 def test_supporting_and_counterevidence_coexist_with_origin_and_location(tmp_path: Path) -> None:
@@ -14,9 +19,22 @@ def test_supporting_and_counterevidence_coexist_with_origin_and_location(tmp_pat
     repo = CorpusRepository(database)
     repo.create_project(ProjectRecord("p", "P", "t", "t"))
     repo.create_source(SourceRecord("s1", "p", "user", "text", "Primary", "a", None, "t", "parsed"))
-    repo.create_source(SourceRecord("s2", "p", "supplemental", "text", "Web", "b", None, "t", "parsed"))
-    repo.create_chunk(SourceChunkRecord("c1", "s1", 0, "Mars has two moons Phobos and Deimos.", "h1", "page 2"))
-    repo.create_chunk(SourceChunkRecord("c2", "s2", 0, "Mars does not have two moons according to this disputed source.", "h2", "section 4"))
+    repo.create_source(
+        SourceRecord("s2", "p", "supplemental", "text", "Web", "b", None, "t", "parsed")
+    )
+    repo.create_chunk(
+        SourceChunkRecord("c1", "s1", 0, "Mars has two moons Phobos and Deimos.", "h1", "page 2")
+    )
+    repo.create_chunk(
+        SourceChunkRecord(
+            "c2",
+            "s2",
+            0,
+            "Mars does not have two moons according to this disputed source.",
+            "h2",
+            "section 4",
+        )
+    )
     claim = MaterialClaim("cl", "p", "e", "t", "Mars has two moons.", 0, 19, "now")
     results = ClaimEvidenceRetriever(database).retrieve(claim)
     by_id = {item.chunk_id: item for item in results}

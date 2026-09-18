@@ -55,4 +55,6 @@ class ClaimEvidenceRetriever:
 
     @staticmethod
     def _negated(text: str) -> bool:
-        return bool(re.search(r"\b(?:not|no|never|cannot|isn't|aren't|wasn't|weren't)\b", text.lower()))
+        return bool(
+            re.search(r"\b(?:not|no|never|cannot|isn't|aren't|wasn't|weren't)\b", text.lower())
+        )
