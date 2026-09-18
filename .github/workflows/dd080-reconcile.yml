@@ -1,26 +1,10 @@
-name: DD-081 reconcile
+name: DD-080 reconcile helper disabled
+
 on:
-  push:
-    branches: [ralph/reconcile-dd081]
-permissions:
-  contents: write
+  workflow_dispatch:
+
 jobs:
-  reconcile:
-    if: github.actor != 'github-actions[bot]'
+  noop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ralph/reconcile-dd081
-      - run: |
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('docs/DEEP_DIVE_TUI_TODO.md'); s=p.read_text()
-          start=s.index('## DD-081 — Host behavior model'); end=s.index('\n## DD-082', start)
-          p.write_text(s[:start]+s[start:end].replace('- [ ] ','- [x] ')+s[end:])
-          PY
-          git config user.name github-actions
-          git config user.email actions@github.com
-          git add docs/DEEP_DIVE_TUI_TODO.md
-          git commit -m 'docs: reconcile DD-081 completion'
-          git push
+      - run: echo disabled
