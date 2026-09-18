@@ -51,7 +51,9 @@ class DeleteDialog(ModalScreen[bool]):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="dialog"):
-            yield Label(f"Delete project '{self.project_name}'? This cannot be undone.")
+            yield Label(
+                f"Delete project '{self.project_name}'? This cannot be undone."
+            )
             with Horizontal():
                 yield Button("Delete", id="delete-confirm", variant="error")
                 yield Button("Cancel", id="delete-cancel")
