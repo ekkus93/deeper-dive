@@ -9,7 +9,7 @@ from deeper_dive.domain.clock import FrozenClock
 from deeper_dive.storage.workspace import WorkspaceManager
 
 
-def test_headless_service_creates_opens_and_renames_project(tmp_path: Path) -> None:
+def test_headless_service_creates_opens_renames_and_deletes_project(tmp_path: Path) -> None:
     events: list[ProgressEvent] = []
     clock = FrozenClock(datetime(2026, 1, 2, 3, 4, tzinfo=UTC))
     service = DeeperDiveService(WorkspaceManager(tmp_path), clock=clock, progress=events.append)
@@ -19,7 +19,14 @@ def test_headless_service_creates_opens_and_renames_project(tmp_path: Path) -> N
     renamed = service.rename_project(created.id, "Renamed")
     assert renamed.name == "Renamed"
     assert service.open_project(created.id) == renamed
-    assert events == [ProgressEvent("project.create", "completed", created.id)]
+    assert service.project_summaries()[0].run_status == "ready"
+    service.delete_project(created.id)
+    assert service.list_projects() == []
+    assert events == [
+        ProgressEvent("project.create", "completed", created.id),
+        ProgressEvent("project.rename", "completed", created.id),
+        ProgressEvent("project.delete", "completed", created.id),
+    ]
 
 
 def test_application_package_does_not_import_provider_adapters() -> None:
