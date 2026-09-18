@@ -41,7 +41,10 @@ class HostsScreen(Screen[None]):
                 yield Button(key.title(), id=f"nav-{key}", name=key)
         with VerticalScroll(id="content"):
             yield Label("Hosts", id="screen-title")
-            yield Static("Create and tune conversation hosts; host count is not fixed.", id="screen-description")
+            yield Static(
+                "Create and tune conversation hosts; host count is not fixed.",
+                id="screen-description",
+            )
             yield Static("", id="host-list")
             yield Input(value="custom", placeholder="Preset", id="host-preset")
             yield Input(placeholder="Display name", id="host-name")
@@ -53,8 +56,14 @@ class HostsScreen(Screen[None]):
             yield Input(placeholder="TTS provider", id="host-tts-provider")
             yield Input(placeholder="TTS voice", id="host-tts-voice")
             with Horizontal():
-                for label, name in (("Add", "add-host"), ("Save", "save-host"), ("Duplicate", "duplicate-host"),
-                                    ("Remove", "remove-host"), ("Up", "move-up"), ("Down", "move-down")):
+                for label, name in (
+                    ("Add", "add-host"),
+                    ("Save", "save-host"),
+                    ("Duplicate", "duplicate-host"),
+                    ("Remove", "remove-host"),
+                    ("Up", "move-up"),
+                    ("Down", "move-down"),
+                ):
                     yield Button(label, name=name)
             yield Input(placeholder="Relationship target host ID", id="relationship-target")
             yield Input(value="peer", placeholder="Relationship stance", id="relationship-stance")
@@ -69,10 +78,14 @@ class HostsScreen(Screen[None]):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         actions = {
-            "add-host": self.action_add_host, "save-host": self.action_save_host,
-            "duplicate-host": self.action_duplicate_host, "remove-host": self.action_remove_host,
-            "move-up": lambda: self._move(-1), "move-down": lambda: self._move(1),
-            "save-relationship": self.action_save_relationship, "preview-voice": self.action_preview_voice,
+            "add-host": self.action_add_host,
+            "save-host": self.action_save_host,
+            "duplicate-host": self.action_duplicate_host,
+            "remove-host": self.action_remove_host,
+            "move-up": lambda: self._move(-1),
+            "move-down": lambda: self._move(1),
+            "save-relationship": self.action_save_relationship,
+            "preview-voice": self.action_preview_voice,
         }
         name = event.button.name or ""
         if name in actions:
@@ -100,8 +113,10 @@ class HostsScreen(Screen[None]):
         if self.selected_host_id not in ids:
             self.selected_host_id = self.display_order[0] if self.display_order else None
         by_id = {record.id: record for record in records}
-        rows = [f"{'*' if item == self.selected_host_id else ' '} {by_id[item].display_name} [{item}]"
-                for item in self.display_order]
+        rows = [
+            f"{'*' if item == self.selected_host_id else ' '} {by_id[item].display_name} [{item}]"
+            for item in self.display_order
+        ]
         self.query_one("#host-list", Static).update("\n".join(rows) if rows else "No hosts yet.")
         self._load_selected()
         self._status(status)
@@ -115,10 +130,15 @@ class HostsScreen(Screen[None]):
             return
         host = HostProfile.from_record(record)
         values = {
-            "#host-preset": host.preset_origin or "custom", "#host-name": host.display_name,
-            "#host-role": host.role, "#host-expertise": host.expertise, "#host-instructions": host.instructions,
-            "#host-evidence": ", ".join(host.evidence_priorities), "#host-behavior": json.dumps(host.behavior, sort_keys=True),
-            "#host-tts-provider": host.tts_provider or "", "#host-tts-voice": host.tts_voice or "",
+            "#host-preset": host.preset_origin or "custom",
+            "#host-name": host.display_name,
+            "#host-role": host.role,
+            "#host-expertise": host.expertise,
+            "#host-instructions": host.instructions,
+            "#host-evidence": ", ".join(host.evidence_priorities),
+            "#host-behavior": json.dumps(host.behavior, sort_keys=True),
+            "#host-tts-provider": host.tts_provider or "",
+            "#host-tts-voice": host.tts_voice or "",
         }
         for selector, value in values.items():
             self.query_one(selector, Input).value = value
@@ -150,12 +170,19 @@ class HostsScreen(Screen[None]):
             return
         try:
             host = HostProfile(
-                current.id, current.project_id, self.query_one("#host-name", Input).value.strip(),
-                preset_origin=current.preset_origin, role=self.query_one("#host-role", Input).value.strip(),
+                current.id,
+                current.project_id,
+                self.query_one("#host-name", Input).value.strip(),
+                preset_origin=current.preset_origin,
+                role=self.query_one("#host-role", Input).value.strip(),
                 expertise=self.query_one("#host-expertise", Input).value.strip(),
                 instructions=self.query_one("#host-instructions", Input).value.strip(),
                 behavior=json.loads(self.query_one("#host-behavior", Input).value or "{}"),
-                evidence_priorities=[x.strip() for x in self.query_one("#host-evidence", Input).value.split(",") if x.strip()],
+                evidence_priorities=[
+                    x.strip()
+                    for x in self.query_one("#host-evidence", Input).value.split(",")
+                    if x.strip()
+                ],
                 tts_provider=self.query_one("#host-tts-provider", Input).value.strip() or None,
                 tts_voice=self.query_one("#host-tts-voice", Input).value.strip() or None,
             )
@@ -191,7 +218,10 @@ class HostsScreen(Screen[None]):
             return
         index = self.display_order.index(cast(str, self.selected_host_id))
         target = max(0, min(len(self.display_order) - 1, index + delta))
-        self.display_order[index], self.display_order[target] = self.display_order[target], self.display_order[index]
+        self.display_order[index], self.display_order[target] = (
+            self.display_order[target],
+            self.display_order[index],
+        )
         self.refresh_hosts("Reordered host list")
 
     def action_save_relationship(self) -> None:
@@ -205,7 +235,9 @@ class HostsScreen(Screen[None]):
             return
         try:
             relationship = HostRelationship(
-                project_id, self.selected_host_id, target,
+                project_id,
+                self.selected_host_id,
+                target,
                 self.query_one("#relationship-stance", Input).value.strip() or "peer",
                 self.query_one("#relationship-instructions", Input).value.strip(),
             )

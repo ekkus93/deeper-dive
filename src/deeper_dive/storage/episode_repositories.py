@@ -103,9 +103,17 @@ class HostEpisodeRepository:
                 instructions=?,behavior_json=?,evidence_priorities_json=?,tts_provider=?,tts_voice=?
                 WHERE id=? AND project_id=?""",
                 (
-                    host.display_name, host.preset_origin, host.role, host.expertise,
-                    host.instructions, host.behavior_json, host.evidence_priorities_json,
-                    host.tts_provider, host.tts_voice, host.id, host.project_id,
+                    host.display_name,
+                    host.preset_origin,
+                    host.role,
+                    host.expertise,
+                    host.instructions,
+                    host.behavior_json,
+                    host.evidence_priorities_json,
+                    host.tts_provider,
+                    host.tts_voice,
+                    host.id,
+                    host.project_id,
                 ),
             )
             if cursor.rowcount != 1:
