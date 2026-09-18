@@ -11,6 +11,7 @@ from deeper_dive.domain.clock import Clock, SystemClock, format_timestamp
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.retrieval import LexicalIndex
 from deeper_dive.storage.database import Database
+from deeper_dive.storage.episode_plan_repository import EpisodePlanRepository
 from deeper_dive.storage.episode_repositories import (
     EpisodePlanRecord,
     HostEpisodeRepository,
@@ -60,6 +61,7 @@ class EpisodePlannerService:
         self.clock = SystemClock() if clock is None else clock
         self.configurations = EpisodeConfigurationService(database, clock=self.clock)
         self.repository = HostEpisodeRepository(database)
+        self.plan_repository = EpisodePlanRepository(database)
         self.retrieval = LexicalIndex(database)
 
     def build_plan(self, episode_id: str) -> EpisodePlan:
@@ -143,7 +145,7 @@ class EpisodePlannerService:
             )
             for ordinal, segment in enumerate(plan.segments)
         ]
-        self.repository.save_plan(record, segments)
+        self.plan_repository.replace(record, segments)
 
     @staticmethod
     def _validate_segments(
