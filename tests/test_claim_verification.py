@@ -27,9 +27,17 @@ def _claim() -> MaterialClaim:
 
 def _evidence() -> list[ClaimEvidenceCandidate]:
     return [
-        ClaimEvidenceCandidate("c1", "s1", "Mars has two moons.", "user", "page 2", 1.0, "supports"),
         ClaimEvidenceCandidate(
-            "c2", "s2", "Mars does not have two moons.", "supplemental", "section 4", 0.8, "contradicts"
+            "c1", "s1", "Mars has two moons.", "user", "page 2", 1.0, "supports"
+        ),
+        ClaimEvidenceCandidate(
+            "c2",
+            "s2",
+            "Mars does not have two moons.",
+            "supplemental",
+            "section 4",
+            0.8,
+            "contradicts",
         ),
     ]
 

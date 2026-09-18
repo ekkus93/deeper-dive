@@ -80,7 +80,9 @@ class ClaimVerificationService:
         cited = set(output.supporting_evidence_ids) | set(output.contradicting_evidence_ids)
         unknown = cited - allowed
         if unknown:
-            raise ValueError(f"verification references evidence outside retrieved scope: {sorted(unknown)}")
+            raise ValueError(
+                f"verification references evidence outside retrieved scope: {sorted(unknown)}"
+            )
         result = VerificationResult(
             claim.id,
             output.state,
@@ -94,7 +96,9 @@ class ClaimVerificationService:
 
     def get(self, claim_id: str) -> VerificationResult | None:
         with self.database.connection() as db:
-            row = db.execute("SELECT * FROM claim_verifications WHERE claim_id=?", (claim_id,)).fetchone()
+            row = db.execute(
+                "SELECT * FROM claim_verifications WHERE claim_id=?", (claim_id,)
+            ).fetchone()
         return None if row is None else self._from_row(row)
 
     def _persist(self, result: VerificationResult) -> None:
@@ -144,5 +148,7 @@ class ClaimVerificationService:
             rationale=str(row["rationale"]),
             confidence=None if row["confidence"] is None else float(row["confidence"]),
             supporting_evidence_ids=tuple(json.loads(str(row["supporting_evidence_ids_json"]))),
-            contradicting_evidence_ids=tuple(json.loads(str(row["contradicting_evidence_ids_json"]))),
+            contradicting_evidence_ids=tuple(
+                json.loads(str(row["contradicting_evidence_ids_json"]))
+            ),
         )
