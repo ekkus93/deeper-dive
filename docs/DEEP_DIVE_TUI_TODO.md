@@ -553,9 +553,9 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-070 — Research policy model
 
-- [ ] Implement Off, Conservative, Useful, Aggressive modes.
-- [ ] Implement independent behavior toggles from spec.
-- [ ] Add project defaults and episode overrides.
+- [x] Implement Off, Conservative, Useful, Aggressive modes.
+- [x] Implement independent behavior toggles from spec.
+- [x] Add project defaults and episode overrides.
 
 **Acceptance criteria**
 
@@ -564,11 +564,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-071 — Corpus analysis and research-gap planner
 
-- [ ] Build structured corpus summary inputs.
-- [ ] Generate `ResearchGap` objects with category, rationale, priority.
-- [ ] Link gaps to relevant existing sources/chunks.
-- [ ] Detect at least missing context, disagreement, recency, and cited-but-missing categories where evidence permits.
-- [ ] Persist gap state.
+- [x] Build structured corpus summary inputs.
+- [x] Generate `ResearchGap` objects with category, rationale, priority.
+- [x] Link gaps to relevant existing sources/chunks.
+- [x] Detect at least missing context, disagreement, recency, and cited-but-missing categories where evidence permits.
+- [x] Persist gap state.
 
 **Acceptance criteria**
 
@@ -577,10 +577,10 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-072 — Search provider abstraction
 
-- [ ] Define search query/result provider contract.
-- [ ] Define fetch/extraction contract separately from search.
-- [ ] Add deterministic fake search provider.
-- [ ] Make query purpose/research-gap ID mandatory in automated research path.
+- [x] Define search query/result provider contract.
+- [x] Define fetch/extraction contract separately from search.
+- [x] Add deterministic fake search provider.
+- [x] Make query purpose/research-gap ID mandatory in automated research path.
 
 **Acceptance criteria**
 
@@ -588,11 +588,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-073 — Initial public web search implementation
 
-- [ ] Select an initial supported search backend suitable for the project.
-- [ ] Implement result normalization.
-- [ ] Apply configurable query/result bounds.
-- [ ] Handle provider errors/rate limits cleanly.
-- [ ] Document optional credentials or terms if required.
+- [x] Select an initial supported search backend suitable for the project.
+- [x] Implement result normalization.
+- [x] Apply configurable query/result bounds.
+- [x] Handle provider errors/rate limits cleanly.
+- [x] Document optional credentials or terms if required.
 
 **Acceptance criteria**
 
@@ -601,14 +601,14 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-074 — Research-safe web fetcher
 
-- [ ] HTTP/HTTPS only for automated research.
-- [ ] DNS/IP checks preventing private/link-local/loopback automated fetches.
-- [ ] Redirect revalidation.
-- [ ] Timeouts.
-- [ ] Maximum response size.
-- [ ] Content-type validation.
-- [ ] HTML/text extraction.
-- [ ] Canonical URL tracking.
+- [x] HTTP/HTTPS only for automated research.
+- [x] DNS/IP checks preventing private/link-local/loopback automated fetches.
+- [x] Redirect revalidation.
+- [x] Timeouts.
+- [x] Maximum response size.
+- [x] Content-type validation.
+- [x] HTML/text extraction.
+- [x] Canonical URL tracking.
 
 **Acceptance criteria**
 
@@ -616,12 +616,12 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-075 — Candidate evaluation and deduplication
 
-- [ ] Evaluate relevance to gap.
-- [ ] Detect source/content duplicates.
-- [ ] Capture publication/source metadata where possible.
-- [ ] Rank authority/quality with domain-sensitive heuristics and/or LLM assistance.
-- [ ] Record rejection reason.
-- [ ] Record accepted-source inclusion reason.
+- [x] Evaluate relevance to gap.
+- [x] Detect source/content duplicates.
+- [x] Capture publication/source metadata where possible.
+- [x] Rank authority/quality with domain-sensitive heuristics and/or LLM assistance.
+- [x] Record rejection reason.
+- [x] Record accepted-source inclusion reason.
 
 **Acceptance criteria**
 
