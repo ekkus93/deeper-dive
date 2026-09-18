@@ -27,7 +27,9 @@ class FakePlanController:
                     ("chunk-1",),
                     ("host-1",),
                 ),
-                PlannedSegment("Evidence", "Test the claim", 600, ("What evidence?",), (), ("host-2",)),
+                PlannedSegment(
+                    "Evidence", "Test the claim", 600, ("What evidence?",), (), ("host-2",)
+                ),
             ),
         )
         self.regenerated_segment: int | None = None

@@ -19,7 +19,9 @@ class EpisodePlanController(Protocol):
     def load_plan(self, episode_id: str) -> EpisodePlan: ...
     def regenerate_plan(self, episode_id: str) -> EpisodePlan: ...
     def regenerate_segment(self, episode_id: str, ordinal: int) -> EpisodePlan: ...
-    def edit_segment(self, episode_id: str, ordinal: int, segment: PlannedSegment) -> EpisodePlan: ...
+    def edit_segment(
+        self, episode_id: str, ordinal: int, segment: PlannedSegment
+    ) -> EpisodePlan: ...
     def approve_plan(self, episode_id: str) -> EpisodePlan: ...
 
 
@@ -59,7 +61,9 @@ class EpisodePlanScreen(Screen[None]):
             yield Button("Regenerate Segment", id="action-regenerate-segment", name="regen-segment")
             yield Button("Regenerate Plan", id="action-regenerate-plan", name="regen-plan")
             yield Checkbox("Auto-generate after approval", id="auto-generate")
-            yield Button("Approve and Generate", id="action-approve-generate", name="approve-generate")
+            yield Button(
+                "Approve and Generate", id="action-approve-generate", name="approve-generate"
+            )
             yield Static("Status: Ready", id="screen-status")
         yield Footer()
 
