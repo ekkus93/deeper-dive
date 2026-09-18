@@ -871,9 +871,9 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-111 — Evidence retrieval for claims
 
-- [ ] Retrieve supporting and counterevidence across primary and supplemental sources.
-- [ ] Preserve origin distinctions.
-- [ ] Include source-location metadata.
+- [x] Retrieve supporting and counterevidence across primary and supplemental sources.
+- [x] Preserve origin distinctions.
+- [x] Include source-location metadata.
 
 **Acceptance criteria**
 
