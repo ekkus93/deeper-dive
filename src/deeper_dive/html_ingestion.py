@@ -11,11 +11,11 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from deeper_dive.parsing import (
+    ParsedBlock,
     ParseDiagnostic,
     ParseRequest,
     ParseResult,
     ParseSeverity,
-    ParsedBlock,
 )
 
 DEFAULT_TIMEOUT_SECONDS = 15.0
