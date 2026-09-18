@@ -38,7 +38,13 @@ def test_docx_round_trips_title_headings_and_body(tmp_path: Path) -> None:
         "Details",
         "More text",
     ]
-    assert [block.heading for block in result.blocks] == [None, "Section One", "Section One", "Details", "Details"]
+    assert [block.heading for block in result.blocks] == [
+        None,
+        "Section One",
+        "Section One",
+        "Details",
+        "Details",
+    ]
     assert result.blocks[0].metadata["style"] == "Title"
     assert result.blocks[1].metadata["kind"] == "heading"
     assert result.blocks[2].location == "paragraph:3"
