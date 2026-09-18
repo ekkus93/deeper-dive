@@ -161,7 +161,9 @@ class EpisodePlannerService:
                 raise ValueError("segment duration must be positive")
             if any(host not in host_ids for host in segment.lead_host_ids):
                 raise ValueError("segment names a host outside the episode")
-            if allowed_evidence and any(eid not in allowed_evidence for eid in segment.evidence_ids):
+            if allowed_evidence and any(
+                eid not in allowed_evidence for eid in segment.evidence_ids
+            ):
                 raise ValueError("segment references evidence outside retrieved evidence")
             segments.append(segment)
         return segments

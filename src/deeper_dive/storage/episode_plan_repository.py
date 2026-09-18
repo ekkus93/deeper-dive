@@ -23,7 +23,14 @@ class EpisodePlanRepository:
             db.execute(
                 """INSERT INTO episode_plans(id,episode_id,status,plan_json,created_at,modified_at)
                 VALUES (?,?,?,?,?,?)""",
-                (plan.id, plan.episode_id, plan.status, plan.plan_json, plan.created_at, plan.modified_at),
+                (
+                    plan.id,
+                    plan.episode_id,
+                    plan.status,
+                    plan.plan_json,
+                    plan.created_at,
+                    plan.modified_at,
+                ),
             )
             for segment in segments:
                 db.execute(

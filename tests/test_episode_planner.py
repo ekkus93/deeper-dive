@@ -18,11 +18,32 @@ class FakePlanner:
     def generate_plan(self, request):
         self.calls += 1
         if request.get("mode") == "regenerate_segment":
-            return {"segments": [{"title": "Revised", "purpose": "repair", "target_duration_seconds": 300, "lead_host_ids": ["h1"]}]}
-        return {"segments": [
-            {"title": "Context", "purpose": "orient", "target_duration_seconds": 100, "lead_host_ids": ["h1"]},
-            {"title": "Analysis", "purpose": "explain", "target_duration_seconds": 100, "lead_host_ids": ["h2"]},
-        ]}
+            return {
+                "segments": [
+                    {
+                        "title": "Revised",
+                        "purpose": "repair",
+                        "target_duration_seconds": 300,
+                        "lead_host_ids": ["h1"],
+                    }
+                ]
+            }
+        return {
+            "segments": [
+                {
+                    "title": "Context",
+                    "purpose": "orient",
+                    "target_duration_seconds": 100,
+                    "lead_host_ids": ["h1"],
+                },
+                {
+                    "title": "Analysis",
+                    "purpose": "explain",
+                    "target_duration_seconds": 100,
+                    "lead_host_ids": ["h2"],
+                },
+            ]
+        }
 
 
 def _service(tmp_path):
@@ -34,7 +55,9 @@ def _service(tmp_path):
     clock = FrozenClock(datetime(2026, 1, 1, tzinfo=UTC))
     episode = EpisodeConfigurationService(database, clock=clock).create(
         "p1",
-        EpisodeConfiguration(title="Episode", focus="", target_duration_seconds=600, host_ids=("h1", "h2")),
+        EpisodeConfiguration(
+            title="Episode", focus="", target_duration_seconds=600, host_ids=("h1", "h2")
+        ),
     )
     fake = FakePlanner()
     return EpisodePlannerService(database, fake, clock=clock), episode.id, fake
