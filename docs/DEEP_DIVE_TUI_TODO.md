@@ -881,12 +881,12 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-112 — Verification classifier
 
-- [ ] Implement Supported.
-- [ ] Implement Partially Supported.
-- [ ] Implement Contradicted.
-- [ ] Implement Insufficient Evidence.
-- [ ] Implement Not Applicable.
-- [ ] Persist rationale/confidence where appropriate.
+- [x] Implement Supported.
+- [x] Implement Partially Supported.
+- [x] Implement Contradicted.
+- [x] Implement Insufficient Evidence.
+- [x] Implement Not Applicable.
+- [x] Persist rationale/confidence where appropriate.
 
 **Acceptance criteria**
 
