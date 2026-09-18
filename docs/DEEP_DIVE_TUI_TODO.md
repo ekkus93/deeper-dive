@@ -446,11 +446,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-051 — OpenAI LLM provider
 
-- [ ] Implement supported OpenAI generation path using the current official API/library chosen at implementation time.
-- [ ] Support structured output where available.
-- [ ] Support streaming where useful.
-- [ ] Normalize usage/latency/errors.
-- [ ] Apply bounded timeout/retry behavior.
+- [x] Implement supported OpenAI generation path using the current official API/library chosen at implementation time.
+- [x] Support structured output where available.
+- [x] Support streaming where useful.
+- [x] Normalize usage/latency/errors.
+- [x] Apply bounded timeout/retry behavior.
 
 **Acceptance criteria**
 
