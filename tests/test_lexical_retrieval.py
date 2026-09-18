@@ -15,20 +15,12 @@ def test_lexical_index_is_persistent_incremental_and_filters_excluded(tmp_path) 
     corpus = CorpusRepository(database)
     corpus.create_project(ProjectRecord("p", "Project", "now", "now"))
     corpus.create_source(SourceRecord("s1", "p", "user", "text", "Alpha", "now"))
-    corpus.create_source(
-        SourceRecord("s2", "p", "user", "text", "Hidden", "now", included=False)
-    )
+    corpus.create_source(SourceRecord("s2", "p", "user", "text", "Hidden", "now", included=False))
     corpus.create_chunk(
-        SourceChunkRecord(
-            "c1", "s1", 0, "orchards grow apples and pears", "h1", "page 1"
-        )
+        SourceChunkRecord("c1", "s1", 0, "orchards grow apples and pears", "h1", "page 1")
     )
-    corpus.create_chunk(
-        SourceChunkRecord("c2", "s1", 1, "quantum mechanics and photons", "h2")
-    )
-    corpus.create_chunk(
-        SourceChunkRecord("c3", "s2", 0, "apples apples hidden orchard", "h3")
-    )
+    corpus.create_chunk(SourceChunkRecord("c2", "s1", 1, "quantum mechanics and photons", "h2"))
+    corpus.create_chunk(SourceChunkRecord("c3", "s2", 0, "apples apples hidden orchard", "h3"))
 
     index = LexicalIndex(database)
     hits = index.search("p", "apples")
@@ -37,9 +29,7 @@ def test_lexical_index_is_persistent_incremental_and_filters_excluded(tmp_path) 
     assert hits[0].location == "page 1"
     assert hits[0].score > 0
 
-    corpus.create_chunk(
-        SourceChunkRecord("c4", "s1", 2, "apples are harvested in autumn", "h4")
-    )
+    corpus.create_chunk(SourceChunkRecord("c4", "s1", 2, "apples are harvested in autumn", "h4"))
     assert {hit.chunk_id for hit in index.search("p", "apples")} == {"c1", "c4"}
 
     reopened = LexicalIndex(database)
