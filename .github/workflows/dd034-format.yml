@@ -1,0 +1,9 @@
+name: DD-034 format helper (disabled)
+on:
+  workflow_dispatch:
+
+jobs:
+  disabled:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "DD-034 formatting helper is intentionally disabled"
