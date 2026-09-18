@@ -524,11 +524,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-061 — Secret storage abstraction
 
-- [ ] Define credential store interface.
-- [ ] Implement OS keyring backend where practical.
-- [ ] Support environment-variable credential references/fallback.
-- [ ] Ensure secrets never serialize into project config/database diagnostics.
-- [ ] Add centralized redaction utility.
+- [x] Define credential store interface.
+- [x] Implement OS keyring backend where practical.
+- [x] Support environment-variable credential references/fallback.
+- [x] Ensure secrets never serialize into project config/database diagnostics.
+- [x] Add centralized redaction utility.
 
 **Acceptance criteria**
 
