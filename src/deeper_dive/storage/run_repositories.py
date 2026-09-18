@@ -52,6 +52,14 @@ class GenerationRunRepository:
             row = db.execute("SELECT * FROM generation_runs WHERE id=?", (run_id,)).fetchone()
         return None if row is None else self._from_row(dict(row))
 
+    def list_all(self) -> list[GenerationRunRecord]:
+        """Return runs newest-first for project-level status surfaces."""
+        with self.database.connection() as db:
+            rows = db.execute(
+                "SELECT * FROM generation_runs ORDER BY modified_at DESC, id DESC"
+            ).fetchall()
+        return [self._from_row(dict(row)) for row in rows]
+
     def update(self, run: GenerationRunRecord) -> None:
         with self.database.transaction() as db:
             db.execute(
