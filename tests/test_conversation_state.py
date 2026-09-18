@@ -1,7 +1,10 @@
 from pathlib import Path
 
-from deeper_dive.conversation_state import ConversationState, ConversationStateRepository
-from deeper_dive.storage.database import Database, LATEST_SCHEMA_VERSION
+from deeper_dive.conversation_state import (
+    ConversationState,
+    ConversationStateRepository,
+)
+from deeper_dive.storage.database import LATEST_SCHEMA_VERSION, Database
 
 
 def test_conversation_state_round_trips_and_resumes_after_reopen(tmp_path: Path) -> None:
@@ -49,7 +52,9 @@ def test_conversation_state_partial_update_preserves_other_advisory_state(tmp_pa
             "INSERT INTO projects(id,name,created_at,modified_at) VALUES ('p','P','t','t')"
         )
         connection.execute(
-            "INSERT INTO episodes(id,project_id,title,created_at,modified_at) VALUES ('e','p','E','t','t')"
+            """INSERT INTO episodes(
+                id,project_id,title,created_at,modified_at
+            ) VALUES ('e','p','E','t','t')"""
         )
     repository = ConversationStateRepository(database)
     repository.save(ConversationState("e", running_summary="summary", participation={"host-a": 2}))
