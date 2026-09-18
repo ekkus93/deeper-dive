@@ -8,15 +8,19 @@ version = "0.1.0"
 description = "A terminal-first NotebookLM-style deep-dive application."
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+  "textual>=6,<7",
+]
 
 [project.scripts]
 deeper-dive = "deeper_dive.cli:main"
+deeper-dive-tui = "deeper_dive.tui:main"
 
 [dependency-groups]
 dev = [
   "mypy>=1.18,<2",
   "pytest>=8.4,<9",
+  "pytest-asyncio>=1.2,<2",
   "ruff>=0.13,<0.14",
 ]
 
@@ -43,3 +47,5 @@ mypy_path = "src"
 [tool.pytest.ini_options]
 addopts = "-ra --strict-config --strict-markers"
 testpaths = ["tests"]
+markers = ["asyncio: run test in an asyncio event loop"]
+asyncio_mode = "auto"
