@@ -45,7 +45,7 @@ def test_local_html_extracts_readable_text(tmp_path: Path) -> None:
     )
     result = HtmlUrlParser().parse(ParseRequest(path=path))
     assert not result.has_errors
-    assert result.blocks[0].text == "Title\nHello world ."
+    assert result.blocks[0].text == "Title\nHello world."
     assert result.metadata["source_origin"] == "user"
 
 
