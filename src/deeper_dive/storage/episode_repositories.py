@@ -96,6 +96,27 @@ class HostEpisodeRepository:
                 ),
             )
 
+    def update_host(self, host: HostProfileRecord) -> None:
+        with self.database.transaction() as db:
+            cursor = db.execute(
+                """UPDATE hosts SET display_name=?,preset_origin=?,role=?,expertise=?,
+                instructions=?,behavior_json=?,evidence_priorities_json=?,tts_provider=?,tts_voice=?
+                WHERE id=? AND project_id=?""",
+                (
+                    host.display_name, host.preset_origin, host.role, host.expertise,
+                    host.instructions, host.behavior_json, host.evidence_priorities_json,
+                    host.tts_provider, host.tts_voice, host.id, host.project_id,
+                ),
+            )
+            if cursor.rowcount != 1:
+                raise KeyError(host.id)
+
+    def delete_host(self, host_id: str) -> None:
+        with self.database.transaction() as db:
+            cursor = db.execute("DELETE FROM hosts WHERE id=?", (host_id,))
+            if cursor.rowcount != 1:
+                raise KeyError(host_id)
+
     def get_host(self, host_id: str) -> HostProfileRecord | None:
         with self.database.connection() as db:
             row = db.execute("SELECT * FROM hosts WHERE id=?", (host_id,)).fetchone()
