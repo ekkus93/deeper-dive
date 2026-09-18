@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from deeper_dive.domain.clock import FixedClock
+from deeper_dive.domain.clock import FrozenClock
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.hosts import create_host_from_preset
 from deeper_dive.storage.database import Database
@@ -19,7 +19,7 @@ def test_episode_configurations_are_independent_reproducible_snapshots(tmp_path)
     hosts.create_host(first.to_record())
     hosts.create_host(second.to_record())
     service = EpisodeConfigurationService(
-        database, clock=FixedClock(datetime(2026, 1, 1, tzinfo=UTC))
+        database, clock=FrozenClock(datetime(2026, 1, 1, tzinfo=UTC))
     )
 
     one_config = EpisodeConfiguration(
