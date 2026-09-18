@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import ipaddress
 import socket
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 from urllib.parse import urljoin, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
@@ -56,7 +57,7 @@ class ResearchSafeFetcher:
         self,
         *,
         transport: FetchTransport | None = None,
-        resolver=socket.getaddrinfo,
+        resolver: Callable[..., Any] = socket.getaddrinfo,
         max_redirects: int = 5,
     ) -> None:
         self.transport = transport or UrllibTransport()
