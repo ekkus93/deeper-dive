@@ -26,14 +26,23 @@ jobs:
         run: uv lock --check
       - name: Sync locked environment
         run: uv sync --frozen
-      - name: Ruff format and commit
+      - name: Apply persistence fix, format, and commit
         run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/deeper_dive/episode_planner.py')
+          text = path.read_text()
+          text = text.replace('from deeper_dive.storage.episode_repositories import (', 'from deeper_dive.storage.episode_plan_repository import EpisodePlanRepository\nfrom deeper_dive.storage.episode_repositories import (')
+          text = text.replace('self.repository = HostEpisodeRepository(database)\n        self.retrieval', 'self.repository = HostEpisodeRepository(database)\n        self.plan_repository = EpisodePlanRepository(database)\n        self.retrieval')
+          text = text.replace('self.repository.save_plan(record, segments)', 'self.plan_repository.replace(record, segments)')
+          path.write_text(text)
+          PY
           uv run ruff format .
           if ! git diff --quiet; then
             git config user.name github-actions
             git config user.email actions@github.com
             git add .
-            git commit -m "style: format DD-091 episode planner"
+            git commit -m "fix: replace persisted episode plans atomically"
             git push
           fi
       - name: Ruff lint
