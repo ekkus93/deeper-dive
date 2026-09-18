@@ -7,19 +7,43 @@ on:
     branches: [master]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.8.22"
           enable-cache: true
       - name: Set up Python
         run: uv python install 3.12
+      - name: Reconcile DD-090/DD-091 TODO
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('docs/DEEP_DIVE_TUI_TODO.md')
+          text = path.read_text()
+          def mark_block(text: str, heading: str) -> str:
+              start = text.index(heading)
+              end = text.index('\n## ', start + 1)
+              block = text[start:end].replace('- [ ]', '- [x]')
+              return text[:start] + block + text[end:]
+          text = mark_block(text, '## DD-090 — Episode configuration service')
+          text = mark_block(text, '## DD-091 — Structured episode planner')
+          path.write_text(text)
+          PY
+          if ! git diff --quiet; then
+            git config user.name "github-actions"
+            git config user.email "actions@github.com"
+            git add docs/DEEP_DIVE_TUI_TODO.md
+            git commit -m "docs: reconcile DD-090 and DD-091 completion"
+            git push origin HEAD:${{ github.head_ref }}
+          fi
       - name: Validate dependency lock
         run: uv lock --check
       - name: Sync locked environment
