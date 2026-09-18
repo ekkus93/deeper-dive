@@ -15,9 +15,9 @@ from deeper_dive.application.service import DeeperDiveService, ProjectSummary, S
 from deeper_dive.llm import LLMProviderRegistry
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.providers_screen import ProvidersScreen
-from deeper_dive.user_config import UserConfigStore
 from deeper_dive.storage.repositories import SourceRecord
 from deeper_dive.storage.workspace import WorkspaceManager
+from deeper_dive.user_config import UserConfigStore
 
 GLOBAL_SCREENS = ("home", "providers", "settings", "help")
 PROJECT_SCREENS = ("sources", "research", "hosts", "episode", "generate", "library")
