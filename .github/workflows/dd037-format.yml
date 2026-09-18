@@ -1,10 +1,36 @@
-name: DD-037 formatter disabled
+name: DD-074 typing fix
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - ralph/dd-074-safe-fetcher
+
+permissions:
+  contents: write
 
 jobs:
-  noop:
+  fix:
     runs-on: ubuntu-latest
     steps:
-      - run: echo disabled
+      - uses: actions/checkout@v4
+        with:
+          ref: ralph/dd-074-safe-fetcher
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/deeper_dive/research_fetch.py')
+          s=p.read_text()
+          s=s.replace('from typing import Protocol', 'from typing import Any, Callable, Protocol')
+          s=s.replace('resolver=socket.getaddrinfo,', 'resolver: Callable[..., Any] = socket.getaddrinfo,')
+          p.write_text(s)
+          PY
+          uv run ruff check --fix src/deeper_dive/research_fetch.py
+          uv run ruff format src/deeper_dive/research_fetch.py
+      - run: |
+          git config user.name github-actions
+          git config user.email actions@github.com
+          git add src/deeper_dive/research_fetch.py
+          git commit -m 'fix: type DD-074 resolver'
+          git push
