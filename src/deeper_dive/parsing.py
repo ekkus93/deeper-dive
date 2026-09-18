@@ -10,6 +10,9 @@ from pathlib import Path
 from typing import Protocol
 from xml.etree import ElementTree
 
+from pypdf import PdfReader
+from pypdf.errors import PdfReadError
+
 
 class ParseSeverity(StrEnum):
     """Severity of a parser diagnostic."""
@@ -153,6 +156,92 @@ class TextMarkdownParser:
             metadata={
                 "content_hash": content_hash,
                 "format": "markdown" if markdown else "text",
+            },
+        )
+
+    def _error(self, code: str, message: str) -> ParseResult:
+        return ParseResult(
+            self.parser_id,
+            self.parser_version,
+            (),
+            diagnostics=(ParseDiagnostic(ParseSeverity.ERROR, code, message),),
+        )
+
+
+class PdfParser:
+    """PDF parser using pypdf for per-page text extraction."""
+
+    parser_id = "pdf-pypdf"
+    parser_version = "1"
+    library = "pypdf"
+
+    def supports(self, request: ParseRequest) -> bool:
+        return request.path is not None and request.path.suffix.lower() == ".pdf"
+
+    def parse(self, request: ParseRequest) -> ParseResult:
+        if not self.supports(request):
+            return self._error("unsupported-type", "unsupported PDF source")
+        assert request.path is not None
+        try:
+            data = request.path.read_bytes()
+            reader = PdfReader(request.path, strict=False)
+        except (OSError, PdfReadError, ValueError) as exc:
+            return self._error("malformed-pdf", f"PDF is unreadable: {exc}")
+
+        blocks: list[ParsedBlock] = []
+        diagnostics: list[ParseDiagnostic] = []
+        for page_index, page in enumerate(reader.pages, start=1):
+            location = f"page:{page_index}"
+            try:
+                text = page.extract_text() or ""
+            except Exception as exc:  # pypdf can raise parser-specific stream errors here.
+                diagnostics.append(
+                    ParseDiagnostic(
+                        ParseSeverity.WARNING,
+                        "page-extraction-failed",
+                        f"unable to extract text from PDF page {page_index}: {exc}",
+                        location,
+                    )
+                )
+                continue
+            stripped = text.strip()
+            if not stripped:
+                diagnostics.append(
+                    ParseDiagnostic(
+                        ParseSeverity.WARNING,
+                        "page-no-text",
+                        f"PDF page {page_index} contains no extractable text",
+                        location,
+                    )
+                )
+                continue
+            blocks.append(
+                ParsedBlock(
+                    ordinal=len(blocks),
+                    text=stripped,
+                    location=location,
+                    metadata={"kind": "page", "page": str(page_index)},
+                )
+            )
+
+        if not blocks and diagnostics:
+            diagnostics.append(
+                ParseDiagnostic(
+                    ParseSeverity.WARNING,
+                    "image-only-or-empty-pdf",
+                    "PDF contains no extractable text; OCR is not performed in V1",
+                )
+            )
+        return ParseResult(
+            self.parser_id,
+            self.parser_version,
+            tuple(blocks),
+            tuple(diagnostics),
+            metadata={
+                "content_hash": hashlib.sha256(data).hexdigest(),
+                "format": "pdf",
+                "library": self.library,
+                "page_count": str(len(reader.pages)),
             },
         )
 

@@ -9,6 +9,7 @@ description = "A terminal-first NotebookLM-style deep-dive application."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+  "pypdf>=6.19,<7",
   "textual>=6,<7",
 ]
 
