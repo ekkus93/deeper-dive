@@ -73,7 +73,9 @@ class OpenAIEmbeddingProvider:
         if not isinstance(data, list):
             raise ValueError("OpenAI embedding response is missing data")
         ordered = sorted(data, key=lambda item: int(item["index"]))
-        return _vectors([item.get("embedding") for item in ordered], dimensions=self.metadata.dimensions)
+        return _vectors(
+            [item.get("embedding") for item in ordered], dimensions=self.metadata.dimensions
+        )
 
 
 class OllamaEmbeddingProvider:

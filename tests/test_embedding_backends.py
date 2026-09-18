@@ -16,7 +16,9 @@ def test_openai_embedding_adapter_contract_without_credentials() -> None:
 
     def post(url: str, payload: dict[str, Any], headers: dict[str, str], timeout: float):
         calls.append((url, payload, headers, timeout))
-        return {"data": [{"index": 1, "embedding": [0.3, 0.4]}, {"index": 0, "embedding": [0.1, 0.2]}]}
+        return {
+            "data": [{"index": 1, "embedding": [0.3, 0.4]}, {"index": 0, "embedding": [0.1, 0.2]}]
+        }
 
     provider = OpenAIEmbeddingProvider(
         api_key="test-key", model="text-embedding-test", dimensions=2, post_json=post
@@ -38,12 +40,16 @@ def test_ollama_embedding_adapter_contract_without_model() -> None:
     provider = OllamaEmbeddingProvider(model="local-test", dimensions=2, post_json=post)
     assert provider.embed(["a", "b"]) == [[1.0, 2.0], [3.0, 4.0]]
     assert provider.metadata.provider == "ollama"
-    assert calls == [("http://127.0.0.1:11434/api/embed", {"model": "local-test", "input": ["a", "b"]})]
+    assert calls == [
+        ("http://127.0.0.1:11434/api/embed", {"model": "local-test", "input": ["a", "b"]})
+    ]
 
 
 def test_sentence_transformer_style_adapter_uses_injected_encoder() -> None:
     provider = SentenceTransformerEmbeddingProvider(
-        model="tiny-local", dimensions=3, encoder=lambda texts: [[len(text), 1, 2] for text in texts]
+        model="tiny-local",
+        dimensions=3,
+        encoder=lambda texts: [[len(text), 1, 2] for text in texts],
     )
     assert provider.embed(["ab", "c"]) == [[2.0, 1.0, 2.0], [1.0, 1.0, 2.0]]
     assert provider.metadata.provider == "sentence-transformers"
