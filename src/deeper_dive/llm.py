@@ -106,16 +106,24 @@ class LLMProviderRegistry:
         return tuple(sorted(self._providers))
 
     def health(self) -> dict[str, ProviderHealth]:
-        return {provider_id: self._providers[provider_id].health() for provider_id in self.provider_ids()}
+        return {
+            provider_id: self._providers[provider_id].health()
+            for provider_id in self.provider_ids()
+        }
 
     def models(self) -> dict[str, tuple[LLMModel, ...]]:
-        return {provider_id: self._providers[provider_id].models() for provider_id in self.provider_ids()}
+        return {
+            provider_id: self._providers[provider_id].models()
+            for provider_id in self.provider_ids()
+        }
 
 
 class FakeLLMProvider:
     """Deterministic provider for orchestration and integration tests."""
 
-    def __init__(self, *, provider_id: str = "fake", model: str = "fake-v1", response: str = "fake response") -> None:
+    def __init__(
+        self, *, provider_id: str = "fake", model: str = "fake-v1", response: str = "fake response"
+    ) -> None:
         self._provider_id = provider_id
         self._model = LLMModel(
             provider_id,
