@@ -5,12 +5,26 @@ from __future__ import annotations
 import hashlib
 import shutil
 from dataclasses import dataclass, replace
+from pathlib import Path
 
 from deeper_dive.application.events import ProgressEvent, ProgressSink
+from deeper_dive.batch_import import (
+    BatchImportPlan,
+    canonicalize_url,
+    plan_file_imports,
+    plan_url_imports,
+)
 from deeper_dive.chunking import chunk_parse_result
 from deeper_dive.domain.clock import Clock, SystemClock, format_timestamp
 from deeper_dive.domain.ids import new_chunk_id, new_project_id, new_source_id, parse_project_id
-from deeper_dive.parsing import ParseRequest, TextMarkdownParser
+from deeper_dive.html_ingestion import HtmlUrlParser
+from deeper_dive.parsing import (
+    DocxParser,
+    ParseRequest,
+    ParseResult,
+    PdfParser,
+    TextMarkdownParser,
+)
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 from deeper_dive.storage.repositories import (
@@ -33,6 +47,14 @@ class ProjectSummary:
     source_count: int
     episode_count: int
     run_status: str
+
+
+@dataclass(frozen=True, slots=True)
+class SourceImportSummary:
+    """User-presentable source import outcome."""
+
+    plan: BatchImportPlan
+    imported: tuple[SourceRecord, ...]
 
 
 class DeeperDiveService:
@@ -117,42 +139,75 @@ class DeeperDiveService:
 
         if origin not in {"user", "supplemental"}:
             raise ValueError("source origin must be user or supplemental")
-        workspace = self._workspace(project_id)
-        repository = self._corpus(workspace)
-        project = repository.get_project(project_id)
-        if project is None:
-            raise KeyError(project_id)
         parser = TextMarkdownParser()
         result = parser.parse(ParseRequest(text=text, media_type="text/plain"))
         content_hash = (
             result.metadata.get("content_hash") or hashlib.sha256(text.encode("utf-8")).hexdigest()
         )
-        timestamp = format_timestamp(self.clock.now())
-        source = SourceRecord(
-            id=str(new_source_id()),
-            project_id=project_id,
+        return self._persist_parsed_source(
+            project_id,
             origin=origin,
             source_type="pasted-text",
             title=title,
             locator="paste://text",
             content_hash=content_hash,
-            imported_at=timestamp,
-            status="error" if result.has_errors else "parsed",
+            result=result,
         )
-        repository.create_source(source)
-        for chunk in chunk_parse_result(source.id, origin, result):
-            repository.create_chunk(
-                SourceChunkRecord(
-                    id=str(new_chunk_id()),
-                    source_id=source.id,
-                    ordinal=chunk.ordinal,
-                    text=chunk.text,
-                    content_hash=chunk.content_hash,
-                    location=chunk.location,
+
+    def add_file_sources(self, project_id: str, paths: list[Path]) -> SourceImportSummary:
+        """Import supported files/directories while surfacing duplicate disposition."""
+
+        repository = self._repository_for_project(project_id)
+        plan = plan_file_imports(
+            paths,
+            self._source_parsers(),
+            existing_content_hashes=self._existing_content_hashes(repository, project_id),
+        )
+        imported: list[SourceRecord] = []
+        for candidate in plan.importable:
+            path = Path(candidate.locator)
+            parser = self._parser_for_path(path)
+            if parser is None:
+                continue
+            result = parser.parse(ParseRequest(path=path))
+            imported.append(
+                self._persist_parsed_source(
+                    project_id,
+                    origin="user",
+                    source_type=candidate.source_type,
+                    title=candidate.title,
+                    locator=str(path),
+                    content_hash=candidate.content_hash,
+                    result=result,
                 )
             )
-        self._emit("source.add", source.status, source.id)
-        return source
+        return SourceImportSummary(plan, tuple(imported))
+
+    def add_url_sources(self, project_id: str, urls: list[str]) -> SourceImportSummary:
+        """Import explicit user URLs and expose canonical-URL duplicate disposition."""
+
+        repository = self._repository_for_project(project_id)
+        parser = HtmlUrlParser()
+        plan = plan_url_imports(
+            urls,
+            parser,
+            existing_canonical_urls=self._existing_canonical_urls(repository, project_id),
+        )
+        imported: list[SourceRecord] = []
+        for candidate in plan.importable:
+            result = parser.fetch_user_url(candidate.locator)
+            imported.append(
+                self._persist_parsed_source(
+                    project_id,
+                    origin="user",
+                    source_type="url",
+                    title=candidate.title,
+                    locator=candidate.canonical_url or candidate.locator,
+                    content_hash=result.metadata.get("content_hash"),
+                    result=result,
+                )
+            )
+        return SourceImportSummary(plan, tuple(imported))
 
     def list_sources(self, project_id: str) -> list[SourceRecord]:
         workspace = self._workspace(project_id)
@@ -194,6 +249,91 @@ class DeeperDiveService:
 
     def runs(self, project_id: str) -> GenerationRunRepository:
         return GenerationRunRepository(Database(self._workspace(project_id).database))
+
+    def _persist_parsed_source(
+        self,
+        project_id: str,
+        *,
+        origin: str,
+        source_type: str,
+        title: str,
+        locator: str,
+        content_hash: str | None,
+        result: ParseResult,
+    ) -> SourceRecord:
+        repository = self._repository_for_project(project_id)
+        status = self._status_for_parse(result)
+        source = SourceRecord(
+            id=str(new_source_id()),
+            project_id=project_id,
+            origin=origin,
+            source_type=source_type,
+            title=title,
+            locator=locator,
+            content_hash=content_hash or result.metadata.get("content_hash"),
+            imported_at=format_timestamp(self.clock.now()),
+            status=status,
+        )
+        repository.create_source(source)
+        for chunk in chunk_parse_result(source.id, origin, result):
+            repository.create_chunk(
+                SourceChunkRecord(
+                    id=str(new_chunk_id()),
+                    source_id=source.id,
+                    ordinal=chunk.ordinal,
+                    text=chunk.text,
+                    content_hash=chunk.content_hash,
+                    location=chunk.location,
+                )
+            )
+        self._emit("source.add", source.status, source.id)
+        return source
+
+    def _repository_for_project(self, project_id: str) -> CorpusRepository:
+        workspace = self._workspace(project_id)
+        repository = self._corpus(workspace)
+        if repository.get_project(project_id) is None:
+            raise KeyError(project_id)
+        return repository
+
+    def _existing_content_hashes(self, repository: CorpusRepository, project_id: str) -> set[str]:
+        return {
+            source.content_hash
+            for source in repository.list_sources(project_id)
+            if source.content_hash is not None
+        }
+
+    def _existing_canonical_urls(self, repository: CorpusRepository, project_id: str) -> set[str]:
+        canonical_urls: set[str] = set()
+        for source in repository.list_sources(project_id):
+            if source.locator is None:
+                continue
+            canonical = canonicalize_url(source.locator)
+            if canonical is not None:
+                canonical_urls.add(canonical)
+        return canonical_urls
+
+    @staticmethod
+    def _source_parsers() -> list[TextMarkdownParser | PdfParser | DocxParser | HtmlUrlParser]:
+        return [TextMarkdownParser(), PdfParser(), DocxParser(), HtmlUrlParser()]
+
+    @classmethod
+    def _parser_for_path(
+        cls, path: Path
+    ) -> TextMarkdownParser | PdfParser | DocxParser | HtmlUrlParser | None:
+        request = ParseRequest(path=path)
+        for parser in cls._source_parsers():
+            if parser.supports(request):
+                return parser
+        return None
+
+    @staticmethod
+    def _status_for_parse(result: ParseResult) -> str:
+        if result.has_errors:
+            return "error"
+        if result.diagnostics:
+            return "warning"
+        return "parsed"
 
     def _summarize_project(self, project: ProjectRecord) -> ProjectSummary:
         workspace = self._workspace(project.id)

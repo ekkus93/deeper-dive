@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -64,7 +65,7 @@ class BatchImportPlan:
 
 def plan_file_imports(
     inputs: list[Path],
-    parsers: list[SourceParser],
+    parsers: Sequence[SourceParser],
     *,
     existing_content_hashes: set[str] | None = None,
 ) -> BatchImportPlan:
@@ -194,7 +195,7 @@ def _expand_inputs(inputs: list[Path]) -> list[Path]:
     return paths
 
 
-def _parser_for(path: Path, parsers: list[SourceParser]) -> SourceParser | None:
+def _parser_for(path: Path, parsers: Sequence[SourceParser]) -> SourceParser | None:
     request = ParseRequest(path=path)
     for parser in parsers:
         if parser.supports(request):
