@@ -1,29 +1,10 @@
-name: Reconcile DD-040 DD-041
+name: DD-037 formatter disabled
 
 on:
-  push:
-    branches: [ralph/reconcile-dd040-dd041]
-permissions:
-  contents: write
+  workflow_dispatch:
+
 jobs:
-  reconcile:
+  noop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ralph/reconcile-dd040-dd041
-      - run: |
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('docs/DEEP_DIVE_TUI_TODO.md')
-          s=p.read_text()
-          start=s.index('## DD-040')
-          end=s.index('## DD-042')
-          s=s[:start]+s[start:end].replace('- [ ]','- [x]')+s[end:]
-          p.write_text(s)
-          PY
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/DEEP_DIVE_TUI_TODO.md
-          git commit -m "docs: reconcile DD-040 and DD-041 completion"
-          git push
+      - run: echo disabled
