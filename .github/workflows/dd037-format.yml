@@ -1,24 +1,10 @@
-name: DD-041 formatter
+name: DD-037 formatter disabled
 
 on:
-  push:
-    branches: [ralph/dd-041-embedding-provider]
-permissions:
-  contents: write
+  workflow_dispatch:
+
 jobs:
-  format:
+  noop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ralph/dd-041-embedding-provider
-      - uses: astral-sh/setup-uv@v6
-      - run: uv sync --frozen
-      - run: uv run ruff format src/deeper_dive/embeddings.py tests/test_embeddings.py
-      - run: |
-          if git diff --quiet; then exit 0; fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/deeper_dive/embeddings.py tests/test_embeddings.py
-          git commit -m "style: format DD-041"
-          git push
+      - run: echo disabled
