@@ -25,8 +25,9 @@ from deeper_dive.parsing import (
     PdfParser,
     TextMarkdownParser,
 )
+from deeper_dive.quick_deep_dive import QuickDeepDiveService
 from deeper_dive.storage.database import Database
-from deeper_dive.storage.episode_repositories import HostEpisodeRepository
+from deeper_dive.storage.episode_repositories import EpisodeRecord, HostEpisodeRepository
 from deeper_dive.storage.repositories import (
     CorpusRepository,
     ProjectRecord,
@@ -126,6 +127,18 @@ class DeeperDiveService:
         repository.delete_project(project_id)
         shutil.rmtree(workspace.root, ignore_errors=True)
         self._emit("project.delete", "completed", project_id)
+
+    def quick_deep_dive(self, project_id: str) -> EpisodeRecord:
+        """Create a normal draft episode using the Quick Deep Dive defaults."""
+
+        workspace = self._workspace(project_id)
+        repository = self._corpus(workspace)
+        if repository.get_project(project_id) is None:
+            raise KeyError(project_id)
+        service = QuickDeepDiveService(Database(workspace.database), clock=self.clock)
+        episode = service.create_episode(project_id)
+        self._emit("episode.quick_deep_dive", "completed", episode.id)
+        return episode
 
     def add_pasted_source(
         self,
