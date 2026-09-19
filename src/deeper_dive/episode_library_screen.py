@@ -106,7 +106,14 @@ class EpisodeLibraryScreen(Screen[None]):
             for key in ("home", "providers", "settings", "help"):
                 yield Button(key.title(), name=key)
         with Horizontal(id="project-nav"):
-            for key in ("sources", "research", "hosts", "episode", "generate", "library"):
+            for key in (
+                "sources",
+                "research",
+                "hosts",
+                "episode",
+                "generate",
+                "library",
+            ):
                 yield Button(key.title(), name=key)
         with VerticalScroll(id="content"):
             yield Label("Episode Library", id="screen-title")
@@ -181,7 +188,9 @@ class EpisodeLibraryScreen(Screen[None]):
         if self._selected() is None:
             self._status("No episode selected")
             return
-        self._status(f"Episode exports: {EpisodeLibraryController.export_location(self._app)}")
+        self._status(
+            f"Episode exports: {EpisodeLibraryController.export_location(self._app)}"
+        )
 
     def action_request_delete(self) -> None:
         if self._selected() is None:
