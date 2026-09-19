@@ -950,12 +950,12 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-122 — KittenTTS model manager
 
-- [ ] On-demand installation/download.
-- [ ] Version/installed-state tracking.
-- [ ] Download integrity verification where upstream artifacts permit.
-- [ ] Partial-download cleanup/recovery.
-- [ ] Configurable model directory.
-- [ ] Uninstall/reinstall support.
+- [x] On-demand installation/download.
+- [x] Version/installed-state tracking.
+- [x] Download integrity verification where upstream artifacts permit.
+- [x] Partial-download cleanup/recovery.
+- [x] Configurable model directory.
+- [x] Uninstall/reinstall support.
 
 **Acceptance criteria**
 
