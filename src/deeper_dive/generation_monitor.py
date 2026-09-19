@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Protocol, cast
 
 from textual.app import ComposeResult
@@ -55,7 +55,9 @@ class GenerationMonitorController:
         database = Database(app.service.workspaces.project_root(project_id) / "project.db")
         conversation = ConversationStateRepository(database).get(episode_id)
         units = repository.list_completed_units_all(run.id)
-        tts_units = [unit for unit in units if unit.stage == "tts" and unit.unit_id != "stage"]
+        tts_units = [
+            unit for unit in units if unit.stage == "tts" and unit.unit_id != "stage"
+        ]
         research_units = [
             unit for unit in units if unit.stage == "research" and unit.unit_id != "stage"
         ]
@@ -90,11 +92,18 @@ class GenerationMonitorController:
             if table is None:
                 return ()
             columns = {
-                str(row[1]) for row in connection.execute("PRAGMA table_info(conversation_turns)")
+                str(row[1])
+                for row in connection.execute("PRAGMA table_info(conversation_turns)")
             }
             if not {"episode_id", "id"}.issubset(columns):
                 return ()
-            text_column = "text" if "text" in columns else "content" if "content" in columns else None
+            text_column = (
+                "text"
+                if "text" in columns
+                else "content"
+                if "content" in columns
+                else None
+            )
             if text_column is None:
                 return ()
             rows = connection.execute(
@@ -102,7 +111,9 @@ class GenerationMonitorController:
                 "WHERE episode_id=? ORDER BY rowid DESC LIMIT 5",
                 (episode_id,),
             ).fetchall()
-        return tuple(f"{row['id']}: {str(row['body'])[:160]}" for row in reversed(rows))
+        return tuple(
+            f"{row['id']}: {str(row['body'])[:160]}" for row in reversed(rows)
+        )
 
 
 class MonitorApp(Protocol):
@@ -140,7 +151,14 @@ class GenerationMonitorScreen(Screen[None]):
             for key in ("home", "providers", "settings", "help"):
                 yield Button(key.title(), name=key)
         with Horizontal(id="project-nav"):
-            for key in ("sources", "research", "hosts", "episode", "generate", "library"):
+            for key in (
+                "sources",
+                "research",
+                "hosts",
+                "episode",
+                "generate",
+                "library",
+            ):
                 yield Button(key.title(), name=key)
         with VerticalScroll(id="content"):
             yield Label("Generation Monitor", id="screen-title")
@@ -194,10 +212,15 @@ class GenerationMonitorScreen(Screen[None]):
             self._status("Cancelled runs cannot resume")
             return
         repository = self._app.service.runs(self._project_id())
-        from dataclasses import replace
-
         repository.update(
-            replace(run, state="pending", pause_requested=False, failure_code=None, failure_message=None, modified_at=self._now())
+            replace(
+                run,
+                state="pending",
+                pause_requested=False,
+                failure_code=None,
+                failure_message=None,
+                modified_at=self._now(),
+            )
         )
         self.refresh_monitor("Run ready to resume")
 
@@ -211,8 +234,14 @@ class GenerationMonitorScreen(Screen[None]):
 
     def action_view_transcript(self) -> None:
         snapshot = self._app.generation_monitor_controller.snapshot(self._app)
-        text = "\n".join(snapshot.recent_turns) if snapshot.recent_turns else "Transcript not available yet."
-        self.query_one("#diagnostics-summary", Static).update("Transcript preview:\n" + text)
+        text = (
+            "\n".join(snapshot.recent_turns)
+            if snapshot.recent_turns
+            else "Transcript not available yet."
+        )
+        self.query_one("#diagnostics-summary", Static).update(
+            "Transcript preview:\n" + text
+        )
 
     def action_diagnostics(self) -> None:
         run = self._run()
@@ -225,7 +254,8 @@ class GenerationMonitorScreen(Screen[None]):
                     f"State: {run.state}",
                     f"Stage: {run.stage}",
                     f"Retries: {run.retry_count}",
-                    f"Failure: {run.failure_code or 'none'} - {run.failure_message or 'none'}",
+                    f"Failure: {run.failure_code or 'none'} - "
+                    f"{run.failure_message or 'none'}",
                 )
             )
         self.query_one("#diagnostics-summary", Static).update(text)
@@ -250,24 +280,34 @@ class GenerationMonitorScreen(Screen[None]):
         snapshot = self._app.generation_monitor_controller.snapshot(self._app)
         run = snapshot.run
         self.query_one("#generation-state", Static).update(
-            "Run: none" if run is None else f"Run: {run.id} | {run.state} | stage {run.stage}"
+            "Run: none"
+            if run is None
+            else f"Run: {run.id} | {run.state} | stage {run.stage}"
         )
         self.query_one("#stage-checklist", Static).update(
-            "Stages:\n" + "\n".join(
+            "Stages:\n"
+            + "\n".join(
                 f"{'[x]' if stage in snapshot.completed_stages else '[ ]'} {stage}"
                 for stage in snapshot.stages
             )
         )
         current = "Current section/turn: not available yet"
         if snapshot.section is not None or snapshot.turn is not None:
-            current = f"Current section/turn: {snapshot.section or 0} / {snapshot.turn or 0}"
+            current = (
+                f"Current section/turn: {snapshot.section or 0} / {snapshot.turn or 0}"
+            )
         self.query_one("#current-work", Static).update(current)
         self.query_one("#recent-turns", Static).update(
-            "Recent turns:\n" + ("\n".join(snapshot.recent_turns) if snapshot.recent_turns else "none yet")
+            "Recent turns:\n"
+            + ("\n".join(snapshot.recent_turns) if snapshot.recent_turns else "none yet")
         )
-        self.query_one("#tts-progress", Static).update(self._progress("TTS", snapshot.tts_completed, snapshot.tts_total))
+        self.query_one("#tts-progress", Static).update(
+            self._progress("TTS", snapshot.tts_completed, snapshot.tts_total)
+        )
         self.query_one("#research-progress", Static).update(
-            self._progress("Research", snapshot.research_completed, snapshot.research_total)
+            self._progress(
+                "Research", snapshot.research_completed, snapshot.research_total
+            )
         )
         if status is not None:
             self._status(status)
