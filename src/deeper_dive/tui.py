@@ -12,6 +12,7 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
 from deeper_dive.application.service import DeeperDiveService, ProjectSummary, SourceImportSummary
+from deeper_dive.episode_library_screen import EpisodeLibraryScreen
 from deeper_dive.episode_plan_screen import EpisodePlanController, EpisodePlanScreen
 from deeper_dive.episode_setup_screen import EpisodeSetupScreen
 from deeper_dive.generation_monitor import GenerationMonitorController, GenerationMonitorScreen
@@ -501,7 +502,7 @@ class DeeperDiveApp(App[None]):
         "plan": lambda: EpisodePlanScreen(),
         "generate": lambda: PreflightScreen(),
         "monitor": lambda: GenerationMonitorScreen(),
-        "library": lambda: ShellScreen("library", "Library", "Generated episodes and exports."),
+        "library": lambda: EpisodeLibraryScreen(),
     }
 
     def __init__(
