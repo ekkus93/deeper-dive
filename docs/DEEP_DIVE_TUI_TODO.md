@@ -1053,11 +1053,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-131 — Audio timeline model
 
-- [ ] Represent ordered turn audio clips.
-- [ ] Represent pauses.
-- [ ] Represent bounded overlap/interruption.
-- [ ] Generate chapter timestamps.
-- [ ] Persist timeline metadata.
+- [x] Represent ordered turn audio clips.
+- [x] Represent pauses.
+- [x] Represent bounded overlap/interruption.
+- [x] Generate chapter timestamps.
+- [x] Persist timeline metadata.
 
 **Acceptance criteria**
 
