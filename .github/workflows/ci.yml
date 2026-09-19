@@ -7,15 +7,13 @@ on:
     branches: [master]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ralph/dd-141-reconcile
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.8.22"
@@ -26,25 +24,6 @@ jobs:
         run: uv lock --check
       - name: Sync locked environment
         run: uv sync --frozen
-      - name: Reconcile DD-141 TODO
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          path = Path("docs/DEEP_DIVE_TUI_TODO.md")
-          text = path.read_text()
-          old = """## DD-141 — Pause/resume/cancel\n\n- [ ] Cooperative pause.\n- [ ] Cooperative cancel.\n- [ ] Resume after process restart.\n- [ ] Clear status for operations that cannot be interrupted mid-call.\n- [ ] Preserve completed units.\n\n**Acceptance criteria**\n\n- Automated integration tests pause/resume during conversation and TTS stages.\n"""
-          new = """## DD-141 — Pause/resume/cancel\n\n- [x] Cooperative pause.\n- [x] Cooperative cancel.\n- [x] Resume after process restart.\n- [x] Clear status for operations that cannot be interrupted mid-call.\n- [x] Preserve completed units.\n\n**Acceptance criteria**\n\n- Automated integration tests pause/resume during conversation and TTS stages.\n"""
-          if old not in text:
-              raise SystemExit("DD-141 block not found or already reconciled")
-          path.write_text(text.replace(old, new, 1))
-          PY
-          if ! git diff --quiet -- docs/DEEP_DIVE_TUI_TODO.md; then
-            git config user.name github-actions
-            git config user.email actions@github.com
-            git add docs/DEEP_DIVE_TUI_TODO.md
-            git commit -m "docs: reconcile DD-141 completion"
-            git push origin HEAD:ralph/dd-141-reconcile
-          fi
       - name: Ruff format
         run: uv run ruff format --check .
       - name: Ruff lint
