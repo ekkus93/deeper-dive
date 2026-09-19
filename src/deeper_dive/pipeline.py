@@ -204,7 +204,11 @@ class PipelineOrchestrator:
         return None
 
     def _update(
-        self, record: GenerationRunRecord, *, stage: str, state: str
+        self,
+        record: GenerationRunRecord,
+        *,
+        stage: str,
+        state: str,
     ) -> GenerationRunRecord:
         updated = GenerationRunRecord(
             id=record.id,
