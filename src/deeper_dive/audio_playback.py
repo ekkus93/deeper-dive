@@ -40,17 +40,23 @@ class PlaybackState:
 
 class AudioPlaybackBackend(Protocol):
     @property
-    def capabilities(self) -> PlaybackCapabilities: ...
+    def capabilities(self) -> PlaybackCapabilities:
+        ...
 
-    def play(self, audio_path: Path, *, start_seconds: float = 0.0) -> PlaybackState: ...
+    def play(self, audio_path: Path, *, start_seconds: float = 0.0) -> PlaybackState:
+        ...
 
-    def pause(self) -> PlaybackState: ...
+    def pause(self) -> PlaybackState:
+        ...
 
-    def resume(self) -> PlaybackState: ...
+    def resume(self) -> PlaybackState:
+        ...
 
-    def stop(self) -> PlaybackState: ...
+    def stop(self) -> PlaybackState:
+        ...
 
-    def is_running(self) -> bool: ...
+    def is_running(self) -> bool:
+        ...
 
 
 class NoAudioPlayerBackend:
@@ -64,27 +70,45 @@ class NoAudioPlayerBackend:
             can_pause=False,
             can_seek=False,
             chapter_sync=False,
-            detail="No supported local audio player was found; generation and export are unaffected.",
+            detail=(
+                "No supported local audio player was found; generation and export "
+                "are unaffected."
+            ),
         )
 
     def play(self, audio_path: Path, *, start_seconds: float = 0.0) -> PlaybackState:
         return PlaybackState(
-            False,
-            False,
-            self.capabilities.detail,
-            audio_path,
-            max(0.0, start_seconds),
-            self.capabilities,
+            available=False,
+            playing=False,
+            message=self.capabilities.detail,
+            audio_path=audio_path,
+            position_seconds=max(0.0, start_seconds),
+            capabilities=self.capabilities,
         )
 
     def pause(self) -> PlaybackState:
-        return PlaybackState(False, False, self.capabilities.detail, capabilities=self.capabilities)
+        return PlaybackState(
+            available=False,
+            playing=False,
+            message=self.capabilities.detail,
+            capabilities=self.capabilities,
+        )
 
     def resume(self) -> PlaybackState:
-        return PlaybackState(False, False, self.capabilities.detail, capabilities=self.capabilities)
+        return PlaybackState(
+            available=False,
+            playing=False,
+            message=self.capabilities.detail,
+            capabilities=self.capabilities,
+        )
 
     def stop(self) -> PlaybackState:
-        return PlaybackState(False, False, "No playback process is active.", capabilities=self.capabilities)
+        return PlaybackState(
+            available=False,
+            playing=False,
+            message="No playback process is active.",
+            capabilities=self.capabilities,
+        )
 
     def is_running(self) -> bool:
         return False
@@ -119,26 +143,26 @@ class LocalProcessAudioPlayer:
             can_seek=True,
             chapter_sync=True,
             detail=(
-                f"Using {self.strategy}. Play and seek restart the local player at the requested "
-                "position; pause is unavailable without player-specific IPC."
+                f"Using {self.strategy}. Play and seek restart the local player at "
+                "the requested position; pause is unavailable without player-specific IPC."
             ),
         )
 
     def play(self, audio_path: Path, *, start_seconds: float = 0.0) -> PlaybackState:
         if not audio_path.is_file():
             return PlaybackState(
-                True,
-                False,
-                f"Audio file not found: {audio_path}",
-                audio_path,
-                max(0.0, start_seconds),
-                self.capabilities,
+                available=True,
+                playing=False,
+                message=f"Audio file not found: {audio_path}",
+                audio_path=audio_path,
+                position_seconds=max(0.0, start_seconds),
+                capabilities=self.capabilities,
             )
         self.stop()
         position = max(0.0, start_seconds)
         args = self._args(audio_path, position)
         try:
-            self._process = subprocess.Popen(  # noqa: S603 - args are fixed argv, shell=False.
+            self._process = subprocess.Popen(  # noqa: S603 - fixed argv, shell=False.
                 args,
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
@@ -148,42 +172,42 @@ class LocalProcessAudioPlayer:
         except OSError as exc:
             self._process = None
             return PlaybackState(
-                True,
-                False,
-                f"Unable to start {self.strategy}: {exc}",
-                audio_path,
-                position,
-                self.capabilities,
+                available=True,
+                playing=False,
+                message=f"Unable to start {self.strategy}: {exc}",
+                audio_path=audio_path,
+                position_seconds=position,
+                capabilities=self.capabilities,
             )
         self._last_path = audio_path
         self._last_position = position
         return PlaybackState(
-            True,
-            True,
-            f"Playing {audio_path.name} at {position:.1f}s via {self.strategy}",
-            audio_path,
-            position,
-            self.capabilities,
+            available=True,
+            playing=True,
+            message=f"Playing {audio_path.name} at {position:.1f}s via {self.strategy}",
+            audio_path=audio_path,
+            position_seconds=position,
+            capabilities=self.capabilities,
         )
 
     def pause(self) -> PlaybackState:
         return PlaybackState(
-            True,
-            self.is_running(),
-            f"Pause is not supported by the {self.strategy} terminal playback strategy.",
-            self._last_path,
-            self._last_position,
-            self.capabilities,
+            available=True,
+            playing=self.is_running(),
+            message=f"Pause is not supported by the {self.strategy} terminal playback strategy.",
+            audio_path=self._last_path,
+            position_seconds=self._last_position,
+            capabilities=self.capabilities,
         )
 
     def resume(self) -> PlaybackState:
         return PlaybackState(
-            True,
-            self.is_running(),
-            f"Resume is not supported by the {self.strategy} terminal playback strategy.",
-            self._last_path,
-            self._last_position,
-            self.capabilities,
+            available=True,
+            playing=self.is_running(),
+            message=f"Resume is not supported by the {self.strategy} terminal playback strategy.",
+            audio_path=self._last_path,
+            position_seconds=self._last_position,
+            capabilities=self.capabilities,
         )
 
     def stop(self) -> PlaybackState:
@@ -192,12 +216,12 @@ class LocalProcessAudioPlayer:
             process.terminate()
         self._process = None
         return PlaybackState(
-            True,
-            False,
-            "Playback stopped.",
-            self._last_path,
-            self._last_position,
-            self.capabilities,
+            available=True,
+            playing=False,
+            message="Playback stopped.",
+            audio_path=self._last_path,
+            position_seconds=self._last_position,
+            capabilities=self.capabilities,
         )
 
     def is_running(self) -> bool:
@@ -253,11 +277,11 @@ class AudioPlaybackController:
     def seek(self, audio_path: Path, *, start_seconds: float) -> PlaybackState:
         if not self.capabilities.can_seek:
             return PlaybackState(
-                self.capabilities.can_play,
-                self.backend.is_running(),
-                "Seek is not supported by the selected playback strategy.",
-                audio_path,
-                max(0.0, start_seconds),
-                self.capabilities,
+                available=self.capabilities.can_play,
+                playing=self.backend.is_running(),
+                message="Seek is not supported by the selected playback strategy.",
+                audio_path=audio_path,
+                position_seconds=max(0.0, start_seconds),
+                capabilities=self.capabilities,
             )
         return self.backend.play(audio_path, start_seconds=start_seconds)
