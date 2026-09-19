@@ -188,9 +188,7 @@ async def _preflight_tui_unhealthy_provider(tmp_path: Path) -> None:
     ffmpeg = tmp_path / "ffmpeg"
     ffmpeg.write_text("fake", encoding="utf-8")
     config_store = UserConfigStore(tmp_path / "config.json")
-    config_store.save(
-        UserConfig(defaults={role.value: "fake:fake-v1" for role in ModelRole})
-    )
+    config_store.save(UserConfig(defaults={role.value: "fake:fake-v1" for role in ModelRole}))
     llm_registry = LLMProviderRegistry()
     llm_registry.register(UnhealthyLLM())
     app = DeeperDiveApp(
@@ -214,9 +212,7 @@ async def _preflight_tui_unhealthy_provider(tmp_path: Path) -> None:
         assert "host_generation: fake:fake-v1" in _text(screen, "#llm-preflight")
         assert "Host One: fake-tts / voice-a" in _text(screen, "#tts-preflight")
         assert "FFmpeg: available" in _text(screen, "#ffmpeg-preflight")
-        assert "LLM provider 'fake' is unhealthy: offline" in _text(
-            screen, "#preflight-issues"
-        )
+        assert "LLM provider 'fake' is unhealthy: offline" in _text(screen, "#preflight-issues")
         screen.action_generate()
         await pilot.pause()
         assert "Generation blocked: LLM provider 'fake' is unhealthy: offline" in _text(
