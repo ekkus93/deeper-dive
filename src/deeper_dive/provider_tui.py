@@ -3,20 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
-
 from deeper_dive.llm import LLMProvider, LLMProviderRegistry
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
-
-class TTSProvider(Protocol):
-    @property
-    def provider_id(self) -> str: ...
-
-    def health(self) -> tuple[bool, str]: ...
-
-    def voices(self) -> tuple[str, ...]: ...
-
+from deeper_dive.tts import TTSProvider
 
 @dataclass(slots=True)
 class ProviderController:
