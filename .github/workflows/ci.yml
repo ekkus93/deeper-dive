@@ -26,23 +26,26 @@ jobs:
         run: uv lock --check
       - name: Sync locked environment
         run: uv sync --frozen
-      - name: Apply DD-151 typing fix
+      - name: Apply DD-151 stage-marker fix
         run: |
           python - <<'PY'
           from pathlib import Path
-          path = Path("src/deeper_dive/generation_monitor.py")
-          text = path.read_text()
+          source = Path("src/deeper_dive/generation_monitor.py")
+          text = source.read_text()
           text = text.replace(
-              "        await asyncio.to_thread(self.runner, run_id, self.events.append)\n",
-              "        sink = cast(ProgressSink, self.events.append)\n        await asyncio.to_thread(self.runner, run_id, sink)\n",
+              "f\"{'[x]' if stage in snapshot.completed_stages else '[ ]'} {stage}\"",
+              "f\"{'✓' if stage in snapshot.completed_stages else '○'} {stage}\"",
           )
-          path.write_text(text)
+          source.write_text(text)
+          test = Path("tests/test_generation_monitor.py")
+          text = test.read_text().replace('"[x] sources"', '"✓ sources"').replace('"[ ] research"', '"○ research"')
+          test.write_text(text)
           PY
-          uv run ruff format src/deeper_dive/generation_monitor.py
+          uv run ruff format src/deeper_dive/generation_monitor.py tests/test_generation_monitor.py
           git config user.name "chatgpt-ralph-bridge[bot]"
           git config user.email "326723642+chatgpt-ralph-bridge[bot]@users.noreply.github.com"
-          git add src/deeper_dive/generation_monitor.py
-          git commit -m "fix: type generation progress sink"
+          git add src/deeper_dive/generation_monitor.py tests/test_generation_monitor.py
+          git commit -m "fix: render visible generation stage markers"
           git push origin HEAD:${{ github.head_ref }}
       - name: Ruff format
         run: uv run ruff format --check .
