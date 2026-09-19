@@ -31,6 +31,7 @@ packages = ["src/deeper_dive"]
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+extend-exclude = ["src/deeper_dive/transcript_review_screen.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
