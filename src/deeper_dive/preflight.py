@@ -67,7 +67,9 @@ class PreflightReport:
 class PreflightService:
     """Perform deterministic checks before expensive generation begins."""
 
-    def __init__(self, llm_registry: LLMProviderRegistry, tts_registry: TTSProviderRegistry) -> None:
+    def __init__(
+        self, llm_registry: LLMProviderRegistry, tts_registry: TTSProviderRegistry
+    ) -> None:
         self.llm_registry = llm_registry
         self.tts_registry = tts_registry
 
@@ -85,7 +87,9 @@ class PreflightService:
     ) -> PreflightReport:
         issues: list[PreflightIssue] = []
         role_result = preflight_model_roles(assignments, self.llm_registry)
-        issues.extend(PreflightIssue("llm_assignment", item.message) for item in role_result.blockers)
+        issues.extend(
+            PreflightIssue("llm_assignment", item.message) for item in role_result.blockers
+        )
 
         checked_llm: set[str] = set()
         for assignment in role_result.assignments.values():
