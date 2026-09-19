@@ -1,0 +1,25 @@
+name: Ralph fix DD-128 voice display
+on:
+  push:
+    branches: [ralph/dd-128-host-tts-ui-2]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/deeper_dive/providers_screen.py')
+          s=p.read_text().replace('f"{voice.name} [{voice.id}]"', 'f"{voice.name} (id={voice.id})"')
+          p.write_text(s)
+          PY
+          rm .github/workflows/ralph-fix-dd128-voice-display.yml
+          git config user.name github-actions
+          git config user.email actions@github.com
+          git add -A
+          git commit -m 'fix: render TTS voice IDs without markup'
+          git push
