@@ -40,7 +40,10 @@ class EpisodeLibraryController:
             return ()
         episodes = app.service.hosts(project_id).list_episodes(project_id)
         runs = app.service.runs(project_id)
-        return tuple(EpisodeLibraryItem(episode, runs.latest_for_episode(episode.id)) for episode in episodes)
+        return tuple(
+            EpisodeLibraryItem(episode, runs.latest_for_episode(episode.id))
+            for episode in episodes
+        )
 
     @staticmethod
     def duplicate(app: DeeperDiveApp, episode_id: str) -> EpisodeRecord:
@@ -107,7 +110,9 @@ class EpisodeLibraryScreen(Screen[None]):
                 yield Button(key.title(), name=key)
         with VerticalScroll(id="content"):
             yield Label("Episode Library", id="screen-title")
-            yield Static("Complete, draft, failed, and paused episodes retain independent run state.")
+            yield Static(
+                "Complete, draft, failed, and paused episodes retain independent run state."
+            )
             yield Static("", id="episode-library-list")
             yield Static("", id="episode-library-selection")
             yield Button("Open / Review", name="open-episode")
