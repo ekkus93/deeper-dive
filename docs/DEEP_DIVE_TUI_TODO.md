@@ -936,12 +936,12 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-121 — KittenTTS Micro runtime integration
 
-- [ ] Integrate KittenTTS Micro behind provider contract.
-- [ ] CPU-only operation path.
-- [ ] Enumerate bundled/supported voices.
-- [ ] Handle model/runtime absence cleanly.
-- [ ] Isolate blocking inference from Textual event loop.
-- [ ] Ensure cancellation is truthful: no UI claim that an uninterruptible inference was cancelled before it actually stops/returns.
+- [x] Integrate KittenTTS Micro behind provider contract.
+- [x] CPU-only operation path.
+- [x] Enumerate bundled/supported voices.
+- [x] Handle model/runtime absence cleanly.
+- [x] Isolate blocking inference from Textual event loop.
+- [x] Ensure cancellation is truthful: no UI claim that an uninterruptible inference was cancelled before it actually stops/returns.
 
 **Acceptance criteria**
 
