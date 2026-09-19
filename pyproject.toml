@@ -36,6 +36,7 @@ extend-exclude = [
   "src/deeper_dive/cli.py",
   "src/deeper_dive/diagnostics.py",
   "src/deeper_dive/preflight.py",
+  "src/deeper_dive/preflight_screen.py",
   "src/deeper_dive/transcript_review_screen.py",
   "tests/test_cli.py",
   "tests/test_diagnostics.py",
