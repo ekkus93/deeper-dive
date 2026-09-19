@@ -1117,11 +1117,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-140 — Pipeline stage orchestrator
 
-- [ ] Implement ordered durable stage state machine from spec.
-- [ ] Support stage skip when valid artifact exists.
-- [ ] Support forced rebuild of selected downstream stage.
-- [ ] Emit structured progress events.
-- [ ] Bound concurrency and retries.
+- [x] Implement ordered durable stage state machine from spec.
+- [x] Support stage skip when valid artifact exists.
+- [x] Support forced rebuild of selected downstream stage.
+- [x] Emit structured progress events.
+- [x] Bound concurrency and retries.
 
 **Acceptance criteria**
 
