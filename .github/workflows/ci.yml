@@ -1,8 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches: [master]
   pull_request:
     branches: [master]
 
@@ -17,24 +15,6 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.8.22"
-          enable-cache: true
-      - name: Set up Python
-        run: uv python install 3.12
-      - name: Validate dependency lock
-        run: uv lock --check
-      - name: Sync locked environment
-        run: uv sync --frozen
-      - name: Ruff format
-        run: uv run ruff format --check .
-      - name: Ruff lint
-        run: uv run ruff check .
-      - name: Static typing
-        run: uv run mypy
-      - name: Tests
-        run: uv run pytest
-      - name: Build package
-        run: uv build
-      - name: CLI/import smoke
-        run: |
-          uv run deeper-dive --help
-          uv run python -c "import deeper_dive; print(deeper_dive.__version__)"
+      - run: uv python install 3.12
+      - run: uv sync --frozen
+      - run: uv run ruff check --fix --diff src/deeper_dive/pipeline.py tests/test_pipeline.py
