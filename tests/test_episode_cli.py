@@ -58,7 +58,15 @@ def test_episode_cli_create_plan_run_control_status_and_export(
     assert shown["configuration"]["research_overrides"]["policy"] == "useful"
 
     configured = _json_call(
-        [*base, "episode", "configure", project_id, episode_id, "--style", "roundtable"],
+        [
+            *base,
+            "episode",
+            "configure",
+            project_id,
+            episode_id,
+            "--style",
+            "roundtable",
+        ],
         capsys,
     )
     assert configured["style"] == "roundtable"
@@ -89,7 +97,15 @@ def test_episode_cli_create_plan_run_control_status_and_export(
     assert cancelled["cancel_requested"] is True
 
     export = _json_call(
-        [*base, "episode", "export", project_id, episode_id, "--output-dir", str(tmp_path / "exports")],
+        [
+            *base,
+            "episode",
+            "export",
+            project_id,
+            episode_id,
+            "--output-dir",
+            str(tmp_path / "exports"),
+        ],
         capsys,
     )
     export_path = Path(str(export["path"]))
