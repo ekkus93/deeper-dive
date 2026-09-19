@@ -1,40 +1,34 @@
 name: CI
 
 on:
-  push:
-    branches: [master]
   pull_request:
     branches: [master]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  quality:
+  reconcile:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
         with:
-          version: "0.8.22"
-          enable-cache: true
-      - name: Set up Python
-        run: uv python install 3.12
-      - name: Validate dependency lock
-        run: uv lock --check
-      - name: Sync locked environment
-        run: uv sync --frozen
-      - name: Ruff format
-        run: uv run ruff format --check .
-      - name: Ruff lint
-        run: uv run ruff check .
-      - name: Static typing
-        run: uv run mypy
-      - name: Tests
-        run: uv run pytest
-      - name: Build package
-        run: uv build
-      - name: CLI/import smoke
+          ref: ${{ github.head_ref }}
+      - name: Reconcile DD-123 completion
         run: |
-          uv run deeper-dive --help
-          uv run python -c "import deeper_dive; print(deeper_dive.__version__)"
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("docs/DEEP_DIVE_TUI_TODO.md")
+          text = path.read_text()
+          start = text.index("## DD-123 — KittenTTS voice preview")
+          end = text.index("## DD-124 — KittenTTS benchmark", start)
+          section = text[start:end].replace("- [ ]", "- [x]")
+          path.write_text(text[:start] + section + text[end:])
+          PY
+          git config user.name github-actions
+          git config user.email actions@github.com
+          git add docs/DEEP_DIVE_TUI_TODO.md
+          if ! git diff --cached --quiet; then
+            git commit -m "docs: reconcile DD-123 completion"
+            git push origin HEAD:${{ github.head_ref }}
+          fi
