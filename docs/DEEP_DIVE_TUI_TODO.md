@@ -975,12 +975,12 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-124 — KittenTTS benchmark
 
-- [ ] Synthesize deterministic benchmark passage.
-- [ ] Measure wall time.
-- [ ] Determine generated audio duration.
-- [ ] Compute real-time factor and x-realtime.
-- [ ] Estimate 20/30-minute render time.
-- [ ] Save runtime/model/CPU metadata useful for later display.
+- [x] Synthesize deterministic benchmark passage.
+- [x] Measure wall time.
+- [x] Determine generated audio duration.
+- [x] Compute real-time factor and x-realtime.
+- [x] Estimate 20/30-minute render time.
+- [x] Save runtime/model/CPU metadata useful for later display.
 
 **Acceptance criteria**
 
