@@ -76,14 +76,10 @@ class KittenModelManager:
                 raise RuntimeError("KittenTTS model download produced an empty artifact")
             digest = _sha256(partial)
             if sha256 is not None and digest.lower() != sha256.lower():
-                raise RuntimeError(
-                    "KittenTTS model download failed SHA-256 integrity verification"
-                )
+                raise RuntimeError("KittenTTS model download failed SHA-256 integrity verification")
             artifact = self.model_dir / "model.bin"
             partial.replace(artifact)
-            self._write_manifest(
-                {"model_id": MICRO_MODEL_ID, "version": version, "sha256": digest}
-            )
+            self._write_manifest({"model_id": MICRO_MODEL_ID, "version": version, "sha256": digest})
         except BaseException:
             partial.unlink(missing_ok=True)
             raise
@@ -94,9 +90,7 @@ class KittenModelManager:
         (self.model_dir / "manifest.json").unlink(missing_ok=True)
         self._cleanup_partials()
 
-    def reinstall(
-        self, *, url: str, version: str, sha256: str | None = None
-    ) -> KittenModelState:
+    def reinstall(self, *, url: str, version: str, sha256: str | None = None) -> KittenModelState:
         self.uninstall()
         return self.install(url=url, version=version, sha256=sha256)
 
