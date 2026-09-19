@@ -125,14 +125,19 @@ class TTSGenerationStage:
             else:
                 missing.append((turn, key))
 
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = {
-                executor.submit(self._synthesize, run_id, turn, key): turn.turn_id
-                for turn, key in missing
-            }
-            for future in as_completed(futures):
-                artifact = future.result()
+        if self.max_workers == 1:
+            for turn, key in missing:
+                artifact = self._synthesize(run_id, turn, key)
                 resolved[artifact.turn_id] = artifact
+        else:
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                futures = {
+                    executor.submit(self._synthesize, run_id, turn, key): turn.turn_id
+                    for turn, key in missing
+                }
+                for future in as_completed(futures):
+                    artifact = future.result()
+                    resolved[artifact.turn_id] = artifact
         return tuple(resolved[turn.turn_id] for turn in turns)
 
     def _synthesize(self, run_id: str, turn: TTSTurn, key: str) -> TTSArtifact:
