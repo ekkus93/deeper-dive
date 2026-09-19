@@ -14,6 +14,8 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
+from deeper_dive.audio_playback import AudioPlaybackController, PlaybackState
+from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.claim_inspector_screen import ClaimInspectorController, ClaimInspectorScreen
 from deeper_dive.storage.database import Database
 
@@ -52,10 +54,15 @@ class SourcePassageSummary:
 
 
 class TranscriptReviewController:
-    """Read transcript, claim, and source-passage state for review screens."""
+    """Read transcript, claim, source-passage, and playback state for review screens."""
 
-    def __init__(self, repair: Callable[[str], object] | None = None) -> None:
+    def __init__(
+        self,
+        repair: Callable[[str], object] | None = None,
+        playback: AudioPlaybackController | None = None,
+    ) -> None:
         self.repair_callback = repair
+        self.playback = playback or AudioPlaybackController()
 
     def turns(self, app: DeeperDiveApp) -> tuple[TranscriptTurn, ...]:
         database = self._database(app)
@@ -146,6 +153,51 @@ class TranscriptReviewController:
         controller = ClaimInspectorController(self._database(app), self.repair_callback)
         return ClaimInspectorScreen(controller, turn_id)
 
+    def play_turn(self, app: DeeperDiveApp, turn: TranscriptTurn) -> PlaybackState:
+        audio_path = self.audio_path(app)
+        position = self.start_seconds_for_turn(app, turn.id)
+        if audio_path is None:
+            return PlaybackState(
+                available=False,
+                playing=False,
+                message="No exported audio file is available yet; generation/export are unaffected.",
+                position_seconds=position,
+                capabilities=self.playback.capabilities,
+            )
+        return self.playback.seek(audio_path, start_seconds=position)
+
+    def pause_playback(self) -> PlaybackState:
+        return self.playback.pause()
+
+    def resume_playback(self) -> PlaybackState:
+        return self.playback.resume()
+
+    def audio_path(self, app: DeeperDiveApp) -> Path | None:
+        project_id = self._project_id(app)
+        episode_id = self._episode_id(app)
+        output = app.service.workspaces.project_root(project_id) / "output"
+        direct = [output / f"{episode_id}{suffix}" for suffix in (".mp3", ".wav")]
+        for candidate in direct:
+            if candidate.is_file():
+                return candidate
+        for pattern in ("*.mp3", "*.wav"):
+            matches = sorted(output.glob(pattern))
+            if matches:
+                return matches[0]
+        return None
+
+    def start_seconds_for_turn(self, app: DeeperDiveApp, turn_id: str) -> float:
+        timeline = AudioTimelineRepository(self._database(app)).get(self._episode_id(app))
+        if timeline is None:
+            return 0.0
+        for placement in timeline.placements:
+            if placement.item.turn_id == turn_id:
+                return placement.start_seconds
+        for chapter in timeline.chapters:
+            if chapter.turn_id == turn_id:
+                return chapter.start_seconds
+        return 0.0
+
     def _database(self, app: DeeperDiveApp) -> Database:
         root = app.service.workspaces.project_root(self._project_id(app))
         return Database(root / "project.db")
@@ -203,6 +255,8 @@ class TranscriptReviewScreen(Screen[None]):
 
     BINDINGS = [
         Binding("enter", "select_turn", "Select turn"),
+        Binding("space", "play_selected", "Play selected"),
+        Binding("p", "pause_playback", "Pause playback"),
         Binding("c", "claim_inspector", "Claim inspector"),
         Binding("r", "regenerate_turn", "Regenerate turn"),
         Binding("e", "export", "Export"),
@@ -235,6 +289,10 @@ class TranscriptReviewScreen(Screen[None]):
             yield Static("", id="turn-citations")
             yield Static("", id="claims-pane")
             yield Static("", id="source-passages")
+            yield Button("Play Selected Turn", name="play-selected-turn")
+            yield Button("Pause Playback", name="pause-playback")
+            yield Button("Resume Playback", name="resume-playback")
+            yield Static("", id="playback-status")
             yield Button("Open Claim Inspector", name="claim-inspector")
             yield Button("Regenerate Turn / Section", name="regenerate-turn")
             yield Button("Export", name="export-review")
@@ -243,11 +301,15 @@ class TranscriptReviewScreen(Screen[None]):
 
     def on_mount(self) -> None:
         self.refresh_review()
+        self.query_one("#playback-status", Static).update(self._playback_strategy_text())
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         name = event.button.name or ""
         actions = {
             "select-turn": self.action_select_turn,
+            "play-selected-turn": self.action_play_selected,
+            "pause-playback": self.action_pause_playback,
+            "resume-playback": self.action_resume_playback,
             "claim-inspector": self.action_claim_inspector,
             "regenerate-turn": self.action_regenerate_turn,
             "export-review": self.action_export,
@@ -290,6 +352,20 @@ class TranscriptReviewScreen(Screen[None]):
         self.selected_index = index
         self._render_selected("Selected turn")
 
+    def action_play_selected(self) -> None:
+        turn = self._selected_turn()
+        if turn is None:
+            self._status("No turn selected")
+            return
+        state = self.controller.play_turn(self._app, turn)
+        self._render_playback_state(state)
+
+    def action_pause_playback(self) -> None:
+        self._render_playback_state(self.controller.pause_playback())
+
+    def action_resume_playback(self) -> None:
+        self._render_playback_state(self.controller.resume_playback())
+
     def action_claim_inspector(self) -> None:
         turn = self._selected_turn()
         if turn is None:
@@ -316,6 +392,24 @@ class TranscriptReviewScreen(Screen[None]):
             self._status(str(exc))
             return
         self._status(f"Exported transcript review: {path}")
+
+    def _playback_strategy_text(self) -> str:
+        capabilities = self.controller.playback.capabilities
+        return "\n".join(
+            (
+                f"Playback strategy: {capabilities.strategy}",
+                f"Play: {capabilities.can_play} | Pause: {capabilities.can_pause} | "
+                f"Seek/skip: {capabilities.can_seek}",
+                capabilities.detail,
+            )
+        )
+
+    def _render_playback_state(self, state: PlaybackState) -> None:
+        position = "unknown" if state.position_seconds is None else f"{state.position_seconds:.1f}s"
+        self.query_one("#playback-status", Static).update(
+            f"{self._playback_strategy_text()}\nLast action: {state.message}\nPosition: {position}"
+        )
+        self._status(state.message)
 
     def _chapter_text(self) -> str:
         return "\n".join(
