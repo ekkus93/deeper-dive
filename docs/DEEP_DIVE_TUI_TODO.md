@@ -1142,14 +1142,14 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-142 — Failure injection/resumption matrix
 
-- [ ] Add test hooks to fail after source parse.
-- [ ] Fail during research.
-- [ ] Fail during planning.
-- [ ] Fail at arbitrary conversation turn.
-- [ ] Fail during verification.
-- [ ] Fail at arbitrary TTS turn.
-- [ ] Fail during composition/export.
-- [ ] Verify restart/resume semantics for each.
+- [x] Add test hooks to fail after source parse.
+- [x] Fail during research.
+- [x] Fail during planning.
+- [x] Fail at arbitrary conversation turn.
+- [x] Fail during verification.
+- [x] Fail at arbitrary TTS turn.
+- [x] Fail during composition/export.
+- [x] Verify restart/resume semantics for each.
 
 **Acceptance criteria**
 
