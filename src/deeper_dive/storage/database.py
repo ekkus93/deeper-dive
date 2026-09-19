@@ -10,7 +10,7 @@ from pathlib import Path
 
 from deeper_dive.domain.errors import StorageError
 
-LATEST_SCHEMA_VERSION = 6
+LATEST_SCHEMA_VERSION = 7
 
 
 @dataclass(frozen=True, slots=True)
@@ -168,6 +168,22 @@ _MIGRATIONS = (
                 timeline_json TEXT NOT NULL,
                 duration_seconds REAL NOT NULL CHECK(duration_seconds >= 0)
             )""",
+        ),
+    ),
+    Migration(
+        version=7,
+        statements=(
+            """CREATE TABLE tts_artifacts (
+                turn_id TEXT PRIMARY KEY,
+                artifact_id TEXT NOT NULL,
+                cache_key TEXT NOT NULL UNIQUE,
+                status TEXT NOT NULL,
+                path TEXT NOT NULL,
+                provider_id TEXT NOT NULL,
+                voice TEXT NOT NULL,
+                model TEXT
+            )""",
+            "CREATE INDEX tts_artifact_cache_idx ON tts_artifacts(cache_key)",
         ),
     ),
 )
