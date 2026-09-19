@@ -18,7 +18,7 @@ from deeper_dive.storage.run_repositories import (
 class StageHandler(Protocol):
     """One idempotent pipeline stage."""
 
-    def __call__(self, context: "PipelineContext") -> None: ...
+    def __call__(self, context: PipelineContext) -> None: ...
 
 
 @dataclass(frozen=True, slots=True)
