@@ -964,10 +964,10 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-123 — KittenTTS voice preview
 
-- [ ] Deterministic preview sentence.
-- [ ] Preview cache by model/voice/settings/text hash.
-- [ ] Playback/export mechanism.
-- [ ] Clear errors when local audio playback unavailable.
+- [x] Deterministic preview sentence.
+- [x] Preview cache by model/voice/settings/text hash.
+- [x] Playback/export mechanism.
+- [x] Clear errors when local audio playback unavailable.
 
 **Acceptance criteria**
 
