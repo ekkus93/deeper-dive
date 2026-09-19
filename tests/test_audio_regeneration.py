@@ -52,6 +52,10 @@ def test_voice_or_settings_change_invalidates_only_affected_turn(tmp_path: Path)
     regenerator = PartialAudioRegenerator(stage)
     base = (TTSTurn("t1", "h", "hello world", "fake-tts", "voice-a"),)
     regenerator.regenerate(run_id="r", episode_id="e", turns=base)
-    changed = (TTSTurn("t1", "h", "hello world", "fake-tts", "voice-a", settings={"sample_rate_hz": 16000}),)
+    changed = (
+        TTSTurn(
+            "t1", "h", "hello world", "fake-tts", "voice-a", settings={"sample_rate_hz": 16000}
+        ),
+    )
     regenerator.regenerate(run_id="r", episode_id="e", turns=changed)
     assert len(provider.requests) == 2
