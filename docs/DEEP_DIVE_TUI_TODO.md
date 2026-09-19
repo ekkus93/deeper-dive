@@ -1130,11 +1130,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-141 — Pause/resume/cancel
 
-- [ ] Cooperative pause.
-- [ ] Cooperative cancel.
-- [ ] Resume after process restart.
-- [ ] Clear status for operations that cannot be interrupted mid-call.
-- [ ] Preserve completed units.
+- [x] Cooperative pause.
+- [x] Cooperative cancel.
+- [x] Resume after process restart.
+- [x] Clear status for operations that cannot be interrupted mid-call.
+- [x] Preserve completed units.
 
 **Acceptance criteria**
 
