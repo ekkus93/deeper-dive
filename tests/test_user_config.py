@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 
 import pytest
 
@@ -28,6 +29,13 @@ def test_user_config_round_trip_is_separate_and_versioned(tmp_path) -> None:
     assert loaded.defaults["host_generation"] == "local"
     assert path != project
     assert not project.exists()
+
+
+def test_saved_config_is_owner_only_on_posix(tmp_path) -> None:
+    path = tmp_path / "config.json"
+    UserConfigStore(path).save(UserConfig())
+    if os.name == "posix":
+        assert path.stat().st_mode & 0o777 == 0o600
 
 
 def test_invalid_endpoint_fails_with_clear_validation_message() -> None:
