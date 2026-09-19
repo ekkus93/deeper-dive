@@ -1,28 +1,40 @@
-name: Format DD-123
+name: CI
 
 on:
   push:
-    branches: [ralph/dd-123-kitten-voice-preview]
+    branches: [master]
+  pull_request:
+    branches: [master]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  format:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ralph/dd-123-kitten-voice-preview
       - uses: astral-sh/setup-uv@v6
-      - name: Format implementation
+        with:
+          version: "0.8.22"
+          enable-cache: true
+      - name: Set up Python
+        run: uv python install 3.12
+      - name: Validate dependency lock
+        run: uv lock --check
+      - name: Sync locked environment
+        run: uv sync --frozen
+      - name: Ruff format
+        run: uv run ruff format --check .
+      - name: Ruff lint
+        run: uv run ruff check .
+      - name: Static typing
+        run: uv run mypy
+      - name: Tests
+        run: uv run pytest
+      - name: Build package
+        run: uv build
+      - name: CLI/import smoke
         run: |
-          uv sync --frozen
-          uv run ruff format src/deeper_dive/voice_preview.py tests/test_voice_preview.py
-          git config user.name github-actions
-          git config user.email actions@github.com
-          git add src/deeper_dive/voice_preview.py tests/test_voice_preview.py
-          if ! git diff --cached --quiet; then
-            git commit -m 'style: format DD-123 with Ruff'
-            git push origin HEAD:ralph/dd-123-kitten-voice-preview
-          fi
+          uv run deeper-dive --help
+          uv run python -c "import deeper_dive; print(deeper_dive.__version__)"
