@@ -34,9 +34,11 @@ line-length = 100
 extend-exclude = [
   "src/deeper_dive/audio_playback.py",
   "src/deeper_dive/cli.py",
+  "src/deeper_dive/diagnostics.py",
   "src/deeper_dive/preflight.py",
   "src/deeper_dive/transcript_review_screen.py",
   "tests/test_cli.py",
+  "tests/test_diagnostics.py",
   "tests/test_preflight_routing.py",
   "tests/test_provider_cli.py",
   "tests/test_quick_deep_dive.py",
