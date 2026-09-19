@@ -183,8 +183,7 @@ class PipelineOrchestrator:
 
     def _stage_completed(self, run_id: str, stage: str) -> bool:
         return any(
-            unit.unit_id == "stage"
-            for unit in self.repository.list_completed_units(run_id, stage)
+            unit.unit_id == "stage" for unit in self.repository.list_completed_units(run_id, stage)
         )
 
     def _apply_requested_control(
