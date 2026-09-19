@@ -17,7 +17,13 @@ from deeper_dive.invalidation import (
         (Change.SOURCE_CONTENT, set(Artifact)),
         (
             Change.SOURCE_INCLUSION,
-            {Artifact.INDEX, Artifact.PLAN, Artifact.CONVERSATION, Artifact.TTS, Artifact.AUDIO},
+            {
+                Artifact.INDEX,
+                Artifact.PLAN,
+                Artifact.CONVERSATION,
+                Artifact.TTS,
+                Artifact.AUDIO,
+            },
         ),
         (
             Change.HOST_TEXT,
