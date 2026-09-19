@@ -116,9 +116,7 @@ class GenerationRunRepository:
 
     def list_completed_stages(self, run_id: str) -> list[str]:
         return [
-            unit.stage
-            for unit in self.list_completed_units_all(run_id)
-            if unit.unit_id == "stage"
+            unit.stage for unit in self.list_completed_units_all(run_id) if unit.unit_id == "stage"
         ]
 
     def _set_flag(self, run_id: str, column: str, modified_at: str) -> None:
