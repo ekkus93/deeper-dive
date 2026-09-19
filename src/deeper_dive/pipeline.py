@@ -133,7 +133,7 @@ class PipelineOrchestrator:
             if control_result is not None:
                 return control_result
 
-            completed = bool(self.repository.list_completed_units(run_id, stage))
+            completed = self._stage_completed(run_id, stage)
             valid = artifact_valid(stage) if artifact_valid is not None else completed
             if index < forced_index and completed and valid:
                 skipped.append(stage)
@@ -181,6 +181,11 @@ class PipelineOrchestrator:
             raise KeyError(f"unknown generation run: {run_id}")
         return record
 
+    def _stage_completed(self, run_id: str, stage: str) -> bool:
+        return any(
+            unit.unit_id == "stage" for unit in self.repository.list_completed_units(run_id, stage)
+        )
+
     def _apply_requested_control(
         self,
         record: GenerationRunRecord,
@@ -198,7 +203,11 @@ class PipelineOrchestrator:
         return None
 
     def _update(
-        self, record: GenerationRunRecord, *, stage: str, state: str
+        self,
+        record: GenerationRunRecord,
+        *,
+        stage: str,
+        state: str,
     ) -> GenerationRunRecord:
         updated = GenerationRunRecord(
             id=record.id,
