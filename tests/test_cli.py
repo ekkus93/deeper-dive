@@ -24,7 +24,10 @@ def test_cli_version(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def _create_project(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> dict[str, object]:
-    assert main(["--data-dir", str(tmp_path), "--json", "project", "create", "Demo"]) == 0
+    assert (
+        main(["--data-dir", str(tmp_path), "--json", "project", "create", "Demo"])
+        == 0
+    )
     return json.loads(capsys.readouterr().out)
 
 
@@ -39,7 +42,19 @@ def test_cli_project_create_list_info_json(
     listed = json.loads(capsys.readouterr().out)
     assert [item["id"] for item in listed] == [created["id"]]
 
-    assert main(["--data-dir", str(tmp_path), "--json", "project", "info", str(created["id"])]) == 0
+    assert (
+        main(
+            [
+                "--data-dir",
+                str(tmp_path),
+                "--json",
+                "project",
+                "info",
+                str(created["id"]),
+            ]
+        )
+        == 0
+    )
     assert json.loads(capsys.readouterr().out) == created
 
 
@@ -65,25 +80,93 @@ def test_cli_source_file_directory_lifecycle_json(
     (corpus / "alpha.txt").write_text("alpha evidence", encoding="utf-8")
     (corpus / "beta.md").write_text("# Beta\n\nbeta evidence", encoding="utf-8")
 
-    assert main(["--data-dir", str(tmp_path), "--json", "source", "add", project_id, str(corpus)]) == 0
+    assert (
+        main(
+            [
+                "--data-dir",
+                str(tmp_path),
+                "--json",
+                "source",
+                "add",
+                project_id,
+                str(corpus),
+            ]
+        )
+        == 0
+    )
     added = json.loads(capsys.readouterr().out)
     assert len(added["imported"]) == 2
     assert {item["disposition"] for item in added["candidates"]} == {"import"}
 
-    assert main(["--data-dir", str(tmp_path), "--json", "source", "list", project_id]) == 0
+    assert (
+        main(["--data-dir", str(tmp_path), "--json", "source", "list", project_id])
+        == 0
+    )
     sources = json.loads(capsys.readouterr().out)
     assert len(sources) == 2
     source_id = sources[0]["id"]
 
-    assert main(["--data-dir", str(tmp_path), "--json", "source", "show", project_id, source_id]) == 0
+    assert (
+        main(
+            [
+                "--data-dir",
+                str(tmp_path),
+                "--json",
+                "source",
+                "show",
+                project_id,
+                source_id,
+            ]
+        )
+        == 0
+    )
     assert json.loads(capsys.readouterr().out)["id"] == source_id
 
-    assert main(["--data-dir", str(tmp_path), "--json", "source", "exclude", project_id, source_id]) == 0
+    assert (
+        main(
+            [
+                "--data-dir",
+                str(tmp_path),
+                "--json",
+                "source",
+                "exclude",
+                project_id,
+                source_id,
+            ]
+        )
+        == 0
+    )
     assert json.loads(capsys.readouterr().out)["included"] is False
-    assert main(["--data-dir", str(tmp_path), "--json", "source", "include", project_id, source_id]) == 0
+    assert (
+        main(
+            [
+                "--data-dir",
+                str(tmp_path),
+                "--json",
+                "source",
+                "include",
+                project_id,
+                source_id,
+            ]
+        )
+        == 0
+    )
     assert json.loads(capsys.readouterr().out)["included"] is True
 
-    assert main(["--data-dir", str(tmp_path), "--json", "source", "remove", project_id, source_id]) == 0
+    assert (
+        main(
+            [
+                "--data-dir",
+                str(tmp_path),
+                "--json",
+                "source",
+                "remove",
+                project_id,
+                source_id,
+            ]
+        )
+        == 0
+    )
     assert json.loads(capsys.readouterr().out) == {"id": source_id, "removed": True}
 
 
