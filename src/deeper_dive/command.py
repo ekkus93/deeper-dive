@@ -9,7 +9,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from deeper_dive import cli
-from deeper_dive.kitten_model_manager import KittenModelManager
+from deeper_dive.kitten_model_manager import KittenModelManager, KittenModelState
 from deeper_dive.kitten_tts import KittenTTSMicroProvider
 from deeper_dive.llm import FakeLLMProvider
 from deeper_dive.storage.workspace import WorkspaceManager
@@ -50,35 +50,36 @@ def _provider(args: argparse.Namespace) -> int:
     config = UserConfigStore(workspace.data_dir / "config.json").load()
     command = args.provider_command
     if command == "list":
-        value = [
-            {"id": name, **provider.model_dump(mode="json")}
-            for name, provider in sorted(config.providers.items())
-        ]
-    elif command in {"health", "test", "models", "voices"}:
-        value = _inspect_provider(command, args.provider_id)
-    elif command in {"kitten-status", "kitten-install", "kitten-benchmark"}:
-        value = _kitten(command, workspace, args)
-    else:
-        raise ValueError(
-            "provider command must be list, health, test, models, voices, "
-            "kitten-status, kitten-install, or kitten-benchmark"
+        return _output(
+            [
+                {"id": name, **provider.model_dump(mode="json")}
+                for name, provider in sorted(config.providers.items())
+            ],
+            args.json_output,
         )
-    return _output(value, args.json_output)
+    if command in {"health", "test", "models", "voices"}:
+        return _output(_inspect_provider(command, args.provider_id), args.json_output)
+    if command in {"kitten-status", "kitten-install", "kitten-benchmark"}:
+        return _output(_kitten(command, workspace, args), args.json_output)
+    raise ValueError(
+        "provider command must be list, health, test, models, voices, "
+        "kitten-status, kitten-install, or kitten-benchmark"
+    )
 
 
 def _inspect_provider(command: str, provider_id: str | None) -> object:
     if provider_id in {None, "fake"}:
-        provider = FakeLLMProvider()
+        llm = FakeLLMProvider()
         if command in {"health", "test"}:
-            return {"id": provider.provider_id, **asdict(provider.health())}
+            return {"id": llm.provider_id, **asdict(llm.health())}
         if command == "models":
-            return [asdict(model) for model in provider.models()]
+            return [asdict(model) for model in llm.models()]
     if provider_id in {"fake-tts", "kitten"}:
-        provider = FakeTTSProvider() if provider_id == "fake-tts" else KittenTTSMicroProvider()
+        tts = FakeTTSProvider() if provider_id == "fake-tts" else KittenTTSMicroProvider()
         if command in {"health", "test"}:
-            return {"id": provider.provider_id, **asdict(provider.health())}
+            return {"id": tts.provider_id, **asdict(tts.health())}
         if command == "voices":
-            return [asdict(voice) for voice in provider.voices()]
+            return [asdict(voice) for voice in tts.voices()]
     raise ValueError(f"provider {provider_id!r} does not support {command}")
 
 
@@ -103,10 +104,14 @@ def _kitten(command: str, workspace: WorkspaceManager, args: argparse.Namespace)
     }
 
 
-def _state(state: object) -> dict[str, object]:
-    value = asdict(state)  # type: ignore[arg-type]
-    value["path"] = str(value["path"])
-    return value
+def _state(state: KittenModelState) -> dict[str, object]:
+    return {
+        "model_id": state.model_id,
+        "version": state.version,
+        "path": str(state.path),
+        "installed": state.installed,
+        "sha256": state.sha256,
+    }
 
 
 def _output(value: object, json_output: bool) -> int:
