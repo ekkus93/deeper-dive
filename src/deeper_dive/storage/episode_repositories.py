@@ -205,6 +205,12 @@ class HostEpisodeRepository:
             ).fetchall()
         return [EpisodeRecord(**dict(row)) for row in rows]
 
+    def delete_episode(self, episode_id: str) -> None:
+        with self.database.transaction() as db:
+            cursor = db.execute("DELETE FROM episodes WHERE id=?", (episode_id,))
+            if cursor.rowcount != 1:
+                raise KeyError(episode_id)
+
     def list_episode_host_ids(self, episode_id: str) -> list[str]:
         with self.database.connection() as db:
             rows = db.execute(
