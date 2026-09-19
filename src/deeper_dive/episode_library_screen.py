@@ -41,8 +41,7 @@ class EpisodeLibraryController:
         episodes = app.service.hosts(project_id).list_episodes(project_id)
         runs = app.service.runs(project_id)
         return tuple(
-            EpisodeLibraryItem(episode, runs.latest_for_episode(episode.id))
-            for episode in episodes
+            EpisodeLibraryItem(episode, runs.latest_for_episode(episode.id)) for episode in episodes
         )
 
     @staticmethod
