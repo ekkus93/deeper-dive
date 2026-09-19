@@ -8,7 +8,11 @@ from deeper_dive.application.events import ProgressEvent
 from deeper_dive.domain.clock import FrozenClock, format_timestamp
 from deeper_dive.pipeline import PipelineContext, PipelineOrchestrator
 from deeper_dive.storage.database import Database
-from deeper_dive.storage.run_repositories import GenerationRunRecord, GenerationRunRepository
+from deeper_dive.storage.run_repositories import (
+    CompletedUnitRecord,
+    GenerationRunRecord,
+    GenerationRunRepository,
+)
 
 STAGES = ("sources", "conversation", "tts", "export")
 
@@ -97,6 +101,25 @@ def test_invalid_artifact_is_rebuilt_even_when_checkpoint_exists(tmp_path) -> No
     orchestrator.run("run", artifact_valid=lambda stage: stage != "conversation")
 
     assert calls == ["conversation"]
+
+
+def test_partial_stage_internal_checkpoint_does_not_skip_whole_stage(tmp_path) -> None:
+    repository = make_repository(tmp_path)
+    repository.complete_unit(
+        CompletedUnitRecord("run", "sources", "parse", "2026-09-19T00:01:00.000000Z")
+    )
+    calls: list[str] = []
+
+    def handler(context: PipelineContext) -> None:
+        calls.append(context.stage)
+
+    orchestrator = PipelineOrchestrator(
+        repository, {stage: handler for stage in STAGES}, stages=STAGES
+    )
+
+    orchestrator.run("run")
+
+    assert calls == list(STAGES)
 
 
 def test_stage_retry_is_bounded_and_checkpointed_only_after_success(tmp_path) -> None:
