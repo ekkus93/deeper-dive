@@ -84,7 +84,5 @@ def test_failure_resumes_without_resynthesizing_completed_turns(tmp_path: Path) 
 
 def test_cache_identity_includes_settings(tmp_path: Path) -> None:
     base = TTSTurn("t", "h", "text", "p", "v", model="m", settings={"sample_rate_hz": 24000})
-    changed = TTSTurn(
-        "t", "h", "text", "p", "v", model="m", settings={"sample_rate_hz": 48000}
-    )
+    changed = TTSTurn("t", "h", "text", "p", "v", model="m", settings={"sample_rate_hz": 48000})
     assert TTSGenerationStage.cache_key(base) != TTSGenerationStage.cache_key(changed)
