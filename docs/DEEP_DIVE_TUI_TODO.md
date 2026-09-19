@@ -1077,11 +1077,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-133 — FFmpeg integration
 
-- [ ] Detect/configure FFmpeg.
-- [ ] Invoke without shell interpolation.
-- [ ] Compose canonical timeline.
-- [ ] Apply loudness normalization strategy.
-- [ ] Capture sanitized stderr on failure.
+- [x] Detect/configure FFmpeg.
+- [x] Invoke without shell interpolation.
+- [x] Compose canonical timeline.
+- [x] Apply loudness normalization strategy.
+- [x] Capture sanitized stderr on failure.
 
 **Acceptance criteria**
 
