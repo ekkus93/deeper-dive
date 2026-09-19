@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.scripts]
-deeper-dive = "deeper_dive.cli:main"
+deeper-dive = "deeper_dive.command:main"
 deeper-dive-tui = "deeper_dive.tui:main"
 
 [dependency-groups]
@@ -36,6 +36,7 @@ extend-exclude = [
   "src/deeper_dive/cli.py",
   "src/deeper_dive/transcript_review_screen.py",
   "tests/test_cli.py",
+  "tests/test_provider_cli.py",
   "tests/test_quick_deep_dive.py",
 ]
 

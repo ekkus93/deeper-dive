@@ -1,0 +1,50 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+
+from deeper_dive.command import main
+from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
+
+
+def _call(args: list[str], capsys: pytest.CaptureFixture[str]) -> object:
+    assert main(args) == 0
+    return json.loads(capsys.readouterr().out)
+
+
+def test_provider_cli_list_health_discovery_and_kitten_status(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    UserConfigStore(tmp_path / "config.json").save(
+        UserConfig(providers={"local": ProviderConfig(provider_type="ollama", base_url="http://localhost:11434")})
+    )
+    base = ["--data-dir", str(tmp_path), "--json", "provider"]
+
+    listed = _call([*base, "list"], capsys)
+    assert isinstance(listed, list)
+    assert listed[0]["id"] == "local"
+
+    health = _call([*base, "health", "fake"], capsys)
+    assert health == {"healthy": True, "id": "fake", "message": "ready"}
+
+    models = _call([*base, "models", "fake"], capsys)
+    assert models[0]["model"] == "fake-v1"
+
+    voices = _call([*base, "voices", "fake-tts"], capsys)
+    assert voices[0]["id"] == "voice-a"
+
+    status = _call([*base, "kitten-status"], capsys)
+    assert status["installed"] is False
+
+    benchmark = _call([*base, "kitten-benchmark"], capsys)
+    assert benchmark["voice_count"] == 8
+    assert benchmark["sample_rate_hz"] == 24000
+
+
+def test_provider_router_preserves_existing_cli(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    result = _call(["--data-dir", str(tmp_path), "--json", "project", "create", "Router"], capsys)
+    assert result["name"] == "Router"
