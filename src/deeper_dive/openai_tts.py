@@ -68,7 +68,7 @@ def _binary_request(
     )
     try:
         with urlopen(request, timeout=timeout) as response:  # noqa: S310 - configured API URL
-            return response.read()
+            return bytes(response.read())
     except TimeoutError as exc:
         raise OpenAITTSTimeoutError("OpenAI speech request timed out") from exc
     except HTTPError as exc:
