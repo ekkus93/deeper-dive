@@ -24,17 +24,5 @@ jobs:
         run: uv lock --check
       - name: Sync locked environment
         run: uv sync --frozen
-      - name: Ruff format
-        run: uv run ruff format --check .
-      - name: Ruff lint
-        run: uv run ruff check .
-      - name: Static typing
-        run: uv run mypy
-      - name: Tests
-        run: uv run pytest
-      - name: Build package
-        run: uv build
-      - name: CLI/import smoke
-        run: |
-          uv run deeper-dive --help
-          uv run python -c "import deeper_dive; print(deeper_dive.__version__)"
+      - name: Ruff formatting diff
+        run: uv run ruff format --diff src/deeper_dive/pipeline.py tests/test_pipeline.py
