@@ -236,8 +236,7 @@ class GenerationMonitorScreen(Screen[None]):
                     f"State: {run.state}",
                     f"Stage: {run.stage}",
                     f"Retries: {run.retry_count}",
-                    f"Failure: {run.failure_code or 'none'} - "
-                    f"{run.failure_message or 'none'}",
+                    f"Failure: {run.failure_code or 'none'} - {run.failure_message or 'none'}",
                 )
             )
         self.query_one("#diagnostics-summary", Static).update(text)
