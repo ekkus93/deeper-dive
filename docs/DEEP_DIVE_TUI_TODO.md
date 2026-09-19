@@ -1103,9 +1103,9 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-135 — Partial audio regeneration
 
-- [ ] Invalidate TTS only for changed turns/voices/settings.
-- [ ] Recompose final audio from cached unaffected clips.
-- [ ] Update timestamps/chapters after text-duration changes.
+- [x] Invalidate TTS only for changed turns/voices/settings.
+- [x] Recompose final audio from cached unaffected clips.
+- [x] Update timestamps/chapters after text-duration changes.
 
 **Acceptance criteria**
 
