@@ -1175,14 +1175,14 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-150 — Preflight TUI screen
 
-- [ ] Source counts.
-- [ ] Host count.
-- [ ] expected duration.
-- [ ] LLM role assignments/health.
-- [ ] TTS host assignments/health.
-- [ ] FFmpeg state.
-- [ ] warnings/blockers.
-- [ ] Generate/Cancel.
+- [x] Source counts.
+- [x] Host count.
+- [x] expected duration.
+- [x] LLM role assignments/health.
+- [x] TTS host assignments/health.
+- [x] FFmpeg state.
+- [x] warnings/blockers.
+- [x] Generate/Cancel.
 
 **Acceptance criteria**
 
