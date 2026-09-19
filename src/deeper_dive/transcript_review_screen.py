@@ -109,15 +109,23 @@ class TranscriptReviewController:
                 "" if row["rationale"] is None else str(row["rationale"]),
                 ()
                 if row["supporting_evidence_ids_json"] is None
-                else tuple(str(item) for item in json.loads(str(row["supporting_evidence_ids_json"]))),
+                else tuple(
+                    str(item)
+                    for item in json.loads(str(row["supporting_evidence_ids_json"]))
+                ),
                 ()
                 if row["contradicting_evidence_ids_json"] is None
-                else tuple(str(item) for item in json.loads(str(row["contradicting_evidence_ids_json"]))),
+                else tuple(
+                    str(item)
+                    for item in json.loads(str(row["contradicting_evidence_ids_json"]))
+                ),
             )
             for row in rows
         )
 
-    def passages(self, app: DeeperDiveApp, chunk_ids: tuple[str, ...]) -> tuple[SourcePassageSummary, ...]:
+    def passages(
+        self, app: DeeperDiveApp, chunk_ids: tuple[str, ...]
+    ) -> tuple[SourcePassageSummary, ...]:
         if not chunk_ids:
             return ()
         database = self._database(app)
@@ -150,16 +158,29 @@ class TranscriptReviewController:
     def export_markdown(self, app: DeeperDiveApp) -> Path:
         project_id = self._project_id(app)
         episode_id = self._episode_id(app)
-        path = app.service.workspaces.project_root(project_id) / "output" / f"{episode_id}-transcript-review.md"
+        path = (
+            app.service.workspaces.project_root(project_id)
+            / "output"
+            / f"{episode_id}-transcript-review.md"
+        )
         lines = [f"# Transcript review: {episode_id}", ""]
         for turn in self.turns(app):
-            lines.extend((f"## Chapter {turn.segment_ordinal + 1} / Turn {turn.turn_ordinal + 1}: {turn.speaker_name}", "", turn.text, ""))
+            lines.extend(
+                (
+                    f"## Chapter {turn.segment_ordinal + 1} / Turn {turn.turn_ordinal + 1}: {turn.speaker_name}",
+                    "",
+                    turn.text,
+                    "",
+                )
+            )
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("\n".join(lines), encoding="utf-8")
         return path
 
     def claim_inspector(self, app: DeeperDiveApp, turn_id: str) -> ClaimInspectorScreen:
-        return ClaimInspectorScreen(ClaimInspectorController(self._database(app), self.repair_callback), turn_id)
+        return ClaimInspectorScreen(
+            ClaimInspectorController(self._database(app), self.repair_callback), turn_id
+        )
 
     def _database(self, app: DeeperDiveApp) -> Database:
         return Database(app.service.workspaces.project_root(self._project_id(app)) / "project.db")
@@ -298,7 +319,9 @@ class TranscriptReviewScreen(Screen[None]):
 
     def _chapter_text(self) -> str:
         return "\n".join(
-            f"{'*' if index == self.selected_index else ' '} {index + 1}. Chapter {turn.segment_ordinal + 1} Turn {turn.turn_ordinal + 1} — {turn.speaker_name}"
+            f"{'*' if index == self.selected_index else ' '} {index + 1}. "
+            f"Chapter {turn.segment_ordinal + 1} Turn {turn.turn_ordinal + 1} — "
+            f"{turn.speaker_name}"
             for index, turn in enumerate(self.turns)
         )
 
@@ -308,8 +331,12 @@ class TranscriptReviewScreen(Screen[None]):
             self._status("No turn selected")
             return
         self.query_one("#turn-number", Input).value = str(self.selected_index + 1)
-        self.query_one("#transcript-turn", Static).update(f"{turn.speaker_name} [{turn.id}]\n{turn.text}")
-        self.query_one("#turn-citations", Static).update("Citations: " + (", ".join(turn.evidence_ids) if turn.evidence_ids else "none"))
+        self.query_one("#transcript-turn", Static).update(
+            f"{turn.speaker_name} [{turn.id}]\n{turn.text}"
+        )
+        self.query_one("#turn-citations", Static).update(
+            "Citations: " + (", ".join(turn.evidence_ids) if turn.evidence_ids else "none")
+        )
         claims = self.controller.claims(self._app, turn.id)
         evidence_ids: list[str] = list(turn.evidence_ids)
         claim_lines = []
@@ -317,11 +344,14 @@ class TranscriptReviewScreen(Screen[None]):
             claim_lines.append(f"[{claim.state}] {claim.text}\n  {claim.rationale}".rstrip())
             evidence_ids.extend(claim.supporting_ids)
             evidence_ids.extend(claim.contradicting_ids)
-        self.query_one("#claims-pane", Static).update("\n".join(claim_lines) if claim_lines else "No claims for selected turn.")
+        self.query_one("#claims-pane", Static).update(
+            "\n".join(claim_lines) if claim_lines else "No claims for selected turn."
+        )
         passages = self.controller.passages(self._app, tuple(dict.fromkeys(evidence_ids)))
         self.query_one("#source-passages", Static).update(
             "\n\n".join(
-                f"[{item.chunk_id}] {item.origin} | {item.source_title} | {item.location or 'location unavailable'}\n{item.text}"
+                f"[{item.chunk_id}] {item.origin} | {item.source_title} | "
+                f"{item.location or 'location unavailable'}\n{item.text}"
                 for item in passages
             )
             or "No source passages for selected turn."
