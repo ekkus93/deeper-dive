@@ -1,4 +1,5 @@
 from deeper_dive.hosts_screen import HostsScreen
+from deeper_dive.tts import TTSVoice
 
 
 def test_dd128_host_tts_actions_are_exposed() -> None:
@@ -9,3 +10,4 @@ def test_dd128_host_tts_actions_are_exposed() -> None:
         HostsScreen.action_benchmark_tts,
     )
     assert all(callable(action) for action in actions)
+    assert TTSVoice("Bella", "Bella").id == "Bella"
