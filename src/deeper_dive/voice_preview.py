@@ -8,7 +8,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from deeper_dive.tts import TTSAudioResult, TTSProvider, TTSRequest
+from deeper_dive.tts import TTSProvider, TTSRequest
 
 PREVIEW_TEXT = "Welcome to Deeper Dive. This is a preview of my speaking voice."
 
@@ -82,7 +82,8 @@ class VoicePreviewService:
         executable = player or self._discover_player()
         if executable is None:
             raise RuntimeError(
-                "local audio playback is unavailable; export the voice preview and play it externally"
+                "local audio playback is unavailable; export the voice preview "
+                "and play it externally"
             )
         completed = subprocess.run(
             [executable, str(cached)],
