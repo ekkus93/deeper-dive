@@ -1042,10 +1042,10 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-130 — Audio decode/normalization
 
-- [ ] Decode provider formats into canonical PCM representation.
-- [ ] Resample to canonical composition rate.
-- [ ] Normalize channel layout.
-- [ ] Validate corrupt/empty provider output.
+- [x] Decode provider formats into canonical PCM representation.
+- [x] Resample to canonical composition rate.
+- [x] Normalize channel layout.
+- [x] Validate corrupt/empty provider output.
 
 **Acceptance criteria**
 
