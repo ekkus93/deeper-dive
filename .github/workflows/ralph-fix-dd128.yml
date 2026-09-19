@@ -12,8 +12,15 @@ jobs:
         with: {fetch-depth: 0}
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --frozen
-      - run: uv run ruff check --fix src/deeper_dive/hosts_screen.py src/deeper_dive/provider_tui.py tests/test_hosts_screen.py tests/test_dd128_tts_ui.py
-      - run: uv run ruff format src/deeper_dive/hosts_screen.py src/deeper_dive/provider_tui.py tests/test_hosts_screen.py tests/test_dd128_tts_ui.py
+      - run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/deeper_dive/hosts_screen.py')
+          s=p.read_text().replace('f"Benchmark: {result.x_realtime:.2f}x realtime; 20 min ≈ {result.estimated_20_minute_render_seconds:.0f}s"', 'f"Benchmark: {result.x_realtime:.2f}x realtime; "\n                f"20 min ≈ {result.estimated_20_minute_render_seconds:.0f}s"')
+          p.write_text(s)
+          PY
+          uv run ruff check --fix src/deeper_dive/hosts_screen.py src/deeper_dive/provider_tui.py tests/test_hosts_screen.py tests/test_dd128_tts_ui.py
+          uv run ruff format src/deeper_dive/hosts_screen.py src/deeper_dive/provider_tui.py tests/test_hosts_screen.py tests/test_dd128_tts_ui.py
       - run: |
           rm .github/workflows/ralph-fix-dd128.yml
           git config user.name github-actions
