@@ -1220,12 +1220,12 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-153 — Transcript/review TUI
 
-- [ ] Chapter list.
-- [ ] Transcript grouped by turn/host.
-- [ ] Source citations/evidence for selected turn.
-- [ ] Claims pane.
-- [ ] Regenerate turn/section action.
-- [ ] Export action.
+- [x] Chapter list.
+- [x] Transcript grouped by turn/host.
+- [x] Source citations/evidence for selected turn.
+- [x] Claims pane.
+- [x] Regenerate turn/section action.
+- [x] Export action.
 
 **Acceptance criteria**
 
