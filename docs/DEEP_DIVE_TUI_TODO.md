@@ -1157,13 +1157,13 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-143 — Preflight service
 
-- [ ] Resolve providers/models for all required roles.
-- [ ] Test required provider health.
-- [ ] Check TTS voices/model availability.
-- [ ] Check FFmpeg.
-- [ ] Check source availability/index state.
-- [ ] Estimate transcript/episode size.
-- [ ] Add cloud-cost estimate only where pricing data is explicitly available/configured and label it as estimate.
+- [x] Resolve providers/models for all required roles.
+- [x] Test required provider health.
+- [x] Check TTS voices/model availability.
+- [x] Check FFmpeg.
+- [x] Check source availability/index state.
+- [x] Estimate transcript/episode size.
+- [x] Add cloud-cost estimate only where pricing data is explicitly available/configured and label it as estimate.
 
 **Acceptance criteria**
 
