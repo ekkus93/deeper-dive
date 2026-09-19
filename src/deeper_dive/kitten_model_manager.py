@@ -27,7 +27,10 @@ class KittenModelState:
 
 
 def _fetch(url: str, destination: Path) -> None:
-    with urllib.request.urlopen(url, timeout=60) as response, destination.open("wb") as output:
+    with (
+        urllib.request.urlopen(url, timeout=60) as response,
+        destination.open("wb") as output,
+    ):
         shutil.copyfileobj(response, output)
 
 
@@ -43,7 +46,9 @@ class KittenModelManager:
         artifact = self.model_dir / "model.bin"
         installed = bool(manifest and artifact.is_file())
         return KittenModelState(
-            model_id=str(manifest.get("model_id", MICRO_MODEL_ID)) if manifest else MICRO_MODEL_ID,
+            model_id=(
+                str(manifest.get("model_id", MICRO_MODEL_ID)) if manifest else MICRO_MODEL_ID
+            ),
             version=str(manifest.get("version", "unknown")) if manifest else "unknown",
             path=artifact,
             installed=installed,
@@ -60,7 +65,9 @@ class KittenModelManager:
         """Download atomically; an interrupted/invalid download is never considered installed."""
         self.model_dir.mkdir(parents=True, exist_ok=True)
         self._cleanup_partials()
-        fd, temporary_name = tempfile.mkstemp(prefix="model.", suffix=".partial", dir=self.model_dir)
+        fd, temporary_name = tempfile.mkstemp(
+            prefix="model.", suffix=".partial", dir=self.model_dir
+        )
         os.close(fd)
         partial = Path(temporary_name)
         try:
@@ -69,7 +76,9 @@ class KittenModelManager:
                 raise RuntimeError("KittenTTS model download produced an empty artifact")
             digest = _sha256(partial)
             if sha256 is not None and digest.lower() != sha256.lower():
-                raise RuntimeError("KittenTTS model download failed SHA-256 integrity verification")
+                raise RuntimeError(
+                    "KittenTTS model download failed SHA-256 integrity verification"
+                )
             artifact = self.model_dir / "model.bin"
             partial.replace(artifact)
             self._write_manifest(
