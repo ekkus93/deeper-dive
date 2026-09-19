@@ -43,7 +43,8 @@ def test_tts_stage_caches_and_checkpoints_each_turn(tmp_path: Path) -> None:
     assert all(item.path.is_file() for item in first)
     with database.connection() as db:
         rows = db.execute(
-            "SELECT unit_id FROM generation_run_units WHERE run_id='run' AND stage='tts' ORDER BY unit_id"
+            "SELECT unit_id FROM generation_run_units "
+            "WHERE run_id='run' AND stage='tts' ORDER BY unit_id"
         ).fetchall()
     assert [row["unit_id"] for row in rows] == ["t1", "t2"]
 
