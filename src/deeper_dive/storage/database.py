@@ -34,14 +34,16 @@ _MIGRATIONS = (
                 modified_at TEXT NOT NULL, instructions TEXT NOT NULL DEFAULT ''
             )""",
             """CREATE TABLE sources (
-                id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
                 origin TEXT NOT NULL CHECK(origin IN ('user','supplemental','generated_reference')),
-                source_type TEXT NOT NULL, title TEXT NOT NULL, locator TEXT, content_hash TEXT,
-                included INTEGER NOT NULL DEFAULT 1 CHECK(included IN (0,1)), status TEXT NOT NULL DEFAULT 'pending',
-                imported_at TEXT NOT NULL
+                source_type TEXT NOT NULL, title TEXT NOT NULL, locator TEXT,
+                content_hash TEXT, included INTEGER NOT NULL DEFAULT 1 CHECK(included IN (0,1)),
+                status TEXT NOT NULL DEFAULT 'pending', imported_at TEXT NOT NULL
             )""",
             """CREATE TABLE source_chunks (
-                id TEXT PRIMARY KEY, source_id TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+                id TEXT PRIMARY KEY,
+                source_id TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
                 ordinal INTEGER NOT NULL, text TEXT NOT NULL, content_hash TEXT NOT NULL,
                 location TEXT, UNIQUE(source_id, ordinal)
             )""",
@@ -53,40 +55,63 @@ _MIGRATIONS = (
         version=3,
         statements=(
             """CREATE TABLE hosts (
-                id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-                display_name TEXT NOT NULL, preset_origin TEXT, role TEXT NOT NULL DEFAULT '',
-                expertise TEXT NOT NULL DEFAULT '', instructions TEXT NOT NULL DEFAULT '',
-                behavior_json TEXT NOT NULL DEFAULT '{}', evidence_priorities_json TEXT NOT NULL DEFAULT '[]',
-                tts_provider TEXT, tts_voice TEXT
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                display_name TEXT NOT NULL,
+                preset_origin TEXT,
+                role TEXT NOT NULL DEFAULT '',
+                expertise TEXT NOT NULL DEFAULT '',
+                instructions TEXT NOT NULL DEFAULT '',
+                behavior_json TEXT NOT NULL DEFAULT '{}',
+                evidence_priorities_json TEXT NOT NULL DEFAULT '[]',
+                tts_provider TEXT,
+                tts_voice TEXT
             )""",
             """CREATE TABLE host_relationships (
                 project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
                 from_host_id TEXT NOT NULL REFERENCES hosts(id) ON DELETE CASCADE,
                 to_host_id TEXT NOT NULL REFERENCES hosts(id) ON DELETE CASCADE,
-                relationship_json TEXT NOT NULL DEFAULT '{}', PRIMARY KEY(from_host_id, to_host_id),
+                relationship_json TEXT NOT NULL DEFAULT '{}',
+                PRIMARY KEY(from_host_id, to_host_id),
                 CHECK(from_host_id <> to_host_id)
             )""",
             """CREATE TABLE episodes (
-                id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-                title TEXT NOT NULL, focus TEXT NOT NULL DEFAULT '', audience TEXT NOT NULL DEFAULT '',
-                technical_depth TEXT NOT NULL DEFAULT '', target_duration_seconds INTEGER NOT NULL DEFAULT 0,
-                style TEXT NOT NULL DEFAULT '', state TEXT NOT NULL DEFAULT 'draft', config_json TEXT NOT NULL DEFAULT '{}',
-                created_at TEXT NOT NULL, modified_at TEXT NOT NULL
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                title TEXT NOT NULL,
+                focus TEXT NOT NULL DEFAULT '',
+                audience TEXT NOT NULL DEFAULT '',
+                technical_depth TEXT NOT NULL DEFAULT '',
+                target_duration_seconds INTEGER NOT NULL DEFAULT 0,
+                style TEXT NOT NULL DEFAULT '',
+                state TEXT NOT NULL DEFAULT 'draft',
+                config_json TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL,
+                modified_at TEXT NOT NULL
             )""",
             """CREATE TABLE episode_hosts (
                 episode_id TEXT NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
-                host_id TEXT NOT NULL REFERENCES hosts(id) ON DELETE RESTRICT, ordinal INTEGER NOT NULL,
-                PRIMARY KEY(episode_id, host_id), UNIQUE(episode_id, ordinal)
+                host_id TEXT NOT NULL REFERENCES hosts(id) ON DELETE RESTRICT,
+                ordinal INTEGER NOT NULL,
+                PRIMARY KEY(episode_id, host_id),
+                UNIQUE(episode_id, ordinal)
             )""",
             """CREATE TABLE episode_plans (
-                id TEXT PRIMARY KEY, episode_id TEXT NOT NULL UNIQUE REFERENCES episodes(id) ON DELETE CASCADE,
-                status TEXT NOT NULL DEFAULT 'draft', plan_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL,
+                id TEXT PRIMARY KEY,
+                episode_id TEXT NOT NULL UNIQUE REFERENCES episodes(id) ON DELETE CASCADE,
+                status TEXT NOT NULL DEFAULT 'draft',
+                plan_json TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL,
                 modified_at TEXT NOT NULL
             )""",
             """CREATE TABLE segment_plans (
-                id TEXT PRIMARY KEY, episode_plan_id TEXT NOT NULL REFERENCES episode_plans(id) ON DELETE CASCADE,
-                ordinal INTEGER NOT NULL, title TEXT NOT NULL, purpose TEXT NOT NULL DEFAULT '',
-                target_duration_seconds INTEGER NOT NULL DEFAULT 0, segment_json TEXT NOT NULL DEFAULT '{}',
+                id TEXT PRIMARY KEY,
+                episode_plan_id TEXT NOT NULL REFERENCES episode_plans(id) ON DELETE CASCADE,
+                ordinal INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                purpose TEXT NOT NULL DEFAULT '',
+                target_duration_seconds INTEGER NOT NULL DEFAULT 0,
+                segment_json TEXT NOT NULL DEFAULT '{}',
                 UNIQUE(episode_plan_id, ordinal)
             )""",
             "CREATE INDEX host_project_idx ON hosts(project_id)",
@@ -99,15 +124,24 @@ _MIGRATIONS = (
         version=4,
         statements=(
             """CREATE TABLE generation_runs (
-                id TEXT PRIMARY KEY, episode_id TEXT NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
-                stage TEXT NOT NULL, state TEXT NOT NULL, retry_count INTEGER NOT NULL DEFAULT 0 CHECK(retry_count >= 0),
-                failure_code TEXT, failure_message TEXT, pause_requested INTEGER NOT NULL DEFAULT 0 CHECK(pause_requested IN (0,1)),
-                cancel_requested INTEGER NOT NULL DEFAULT 0 CHECK(cancel_requested IN (0,1)), created_at TEXT NOT NULL,
+                id TEXT PRIMARY KEY,
+                episode_id TEXT NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
+                stage TEXT NOT NULL,
+                state TEXT NOT NULL,
+                retry_count INTEGER NOT NULL DEFAULT 0 CHECK(retry_count >= 0),
+                failure_code TEXT,
+                failure_message TEXT,
+                pause_requested INTEGER NOT NULL DEFAULT 0 CHECK(pause_requested IN (0,1)),
+                cancel_requested INTEGER NOT NULL DEFAULT 0 CHECK(cancel_requested IN (0,1)),
+                created_at TEXT NOT NULL,
                 modified_at TEXT NOT NULL
             )""",
             """CREATE TABLE generation_run_units (
-                run_id TEXT NOT NULL REFERENCES generation_runs(id) ON DELETE CASCADE, stage TEXT NOT NULL,
-                unit_id TEXT NOT NULL, completed_at TEXT NOT NULL, PRIMARY KEY(run_id, stage, unit_id)
+                run_id TEXT NOT NULL REFERENCES generation_runs(id) ON DELETE CASCADE,
+                stage TEXT NOT NULL,
+                unit_id TEXT NOT NULL,
+                completed_at TEXT NOT NULL,
+                PRIMARY KEY(run_id, stage, unit_id)
             )""",
             "CREATE INDEX generation_run_episode_idx ON generation_runs(episode_id)",
         ),
@@ -118,8 +152,10 @@ _MIGRATIONS = (
             """CREATE TABLE conversation_states (
                 episode_id TEXT PRIMARY KEY REFERENCES episodes(id) ON DELETE CASCADE,
                 segment_ordinal INTEGER NOT NULL DEFAULT 0 CHECK(segment_ordinal >= 0),
-                segment_turn INTEGER NOT NULL DEFAULT 0 CHECK(segment_turn >= 0), running_summary TEXT NOT NULL DEFAULT '',
-                unresolved_topics_json TEXT NOT NULL DEFAULT '[]', recent_context_refs_json TEXT NOT NULL DEFAULT '[]',
+                segment_turn INTEGER NOT NULL DEFAULT 0 CHECK(segment_turn >= 0),
+                running_summary TEXT NOT NULL DEFAULT '',
+                unresolved_topics_json TEXT NOT NULL DEFAULT '[]',
+                recent_context_refs_json TEXT NOT NULL DEFAULT '[]',
                 participation_json TEXT NOT NULL DEFAULT '{}'
             )""",
         ),
@@ -129,7 +165,8 @@ _MIGRATIONS = (
         statements=(
             """CREATE TABLE audio_timelines (
                 episode_id TEXT PRIMARY KEY REFERENCES episodes(id) ON DELETE CASCADE,
-                timeline_json TEXT NOT NULL, duration_seconds REAL NOT NULL CHECK(duration_seconds >= 0)
+                timeline_json TEXT NOT NULL,
+                duration_seconds REAL NOT NULL CHECK(duration_seconds >= 0)
             )""",
         ),
     ),
@@ -137,8 +174,14 @@ _MIGRATIONS = (
         version=7,
         statements=(
             """CREATE TABLE tts_artifacts (
-                turn_id TEXT PRIMARY KEY, artifact_id TEXT NOT NULL, cache_key TEXT NOT NULL UNIQUE,
-                status TEXT NOT NULL, path TEXT NOT NULL, provider_id TEXT NOT NULL, voice TEXT NOT NULL, model TEXT
+                turn_id TEXT PRIMARY KEY,
+                artifact_id TEXT NOT NULL,
+                cache_key TEXT NOT NULL UNIQUE,
+                status TEXT NOT NULL,
+                path TEXT NOT NULL,
+                provider_id TEXT NOT NULL,
+                voice TEXT NOT NULL,
+                model TEXT
             )""",
             "CREATE INDEX tts_artifact_cache_idx ON tts_artifacts(cache_key)",
         ),
@@ -189,7 +232,8 @@ class Database:
             current = self._current_version(connection)
             if current > LATEST_SCHEMA_VERSION:
                 raise StorageError(
-                    f"database schema {current} is newer than supported schema {LATEST_SCHEMA_VERSION}"
+                    f"database schema {current} is newer than supported schema "
+                    f"{LATEST_SCHEMA_VERSION}"
                 )
             for migration in _MIGRATIONS:
                 if migration.version <= current:
