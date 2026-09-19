@@ -27,6 +27,7 @@ from deeper_dive.storage.episode_repositories import (
     HostProfileRecord,
 )
 from deeper_dive.tts import TTSProviderRegistry
+from deeper_dive.user_config import ProviderConfig
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,9 +78,8 @@ class PreflightController:
         target_minutes = self._target_minutes(episode)
         host_records = self._selected_host_records(host_repository, project_id, episode)
         hosts = tuple(HostProfile.from_record(host) for host in host_records)
-        assignments, assignment_issues = self._assignments(
-            app.provider_controller.config().defaults
-        )
+        config = app.provider_controller.config()
+        assignments, assignment_issues = self._assignments(config.defaults)
 
         tts_registry = TTSProviderRegistry()
         for provider in app.provider_controller.tts_providers.values():
@@ -94,9 +94,15 @@ class PreflightController:
             indexed_source_count=indexed_source_count,
             target_minutes=target_minutes,
             ffmpeg_executable=self.ffmpeg_executable,
+            local_provider_ids=self._local_provider_ids(config.providers, config.defaults),
+            local_only=self._local_only(config.defaults),
         )
         if assignment_issues:
-            report = PreflightReport((*assignment_issues, *report.issues), report.estimate)
+            report = PreflightReport(
+                (*assignment_issues, *report.issues),
+                report.estimate,
+                report.routes,
+            )
 
         return PreflightPresentation(
             project_name=app.current_project_name or project_id,
@@ -165,6 +171,25 @@ class PreflightController:
         return ModelRoleAssignments(user=user_assignments), tuple(issues)
 
     @staticmethod
+    def _local_provider_ids(
+        providers: dict[str, ProviderConfig], defaults: dict[str, str]
+    ) -> frozenset[str]:
+        local_ids = {
+            value.strip()
+            for value in defaults.get("local_provider_ids", "").split(",")
+            if value.strip()
+        }
+        local_types = {"fake", "fake-tts", "kitten", "llama-server", "local", "ollama"}
+        for name, provider in providers.items():
+            if provider.provider_type in local_types:
+                local_ids.add(name)
+        return frozenset(local_ids)
+
+    @staticmethod
+    def _local_only(defaults: dict[str, str]) -> bool:
+        return defaults.get("local_only", "").strip().lower() in {"1", "true", "yes", "on"}
+
+    @staticmethod
     def _llm_rows(assignments: ModelRoleAssignments) -> tuple[str, ...]:
         rows: list[str] = []
         for role in ModelRole:
@@ -224,6 +249,7 @@ class PreflightScreen(Screen[None]):
             yield Static("", id="preflight-summary")
             yield Static("", id="llm-preflight")
             yield Static("", id="tts-preflight")
+            yield Static("", id="routing-preflight")
             yield Static("", id="ffmpeg-preflight")
             yield Static("", id="preflight-issues")
             yield Button("Generate", id="action-generate", name="start-generation")
@@ -263,6 +289,9 @@ class PreflightScreen(Screen[None]):
         self.query_one("#tts-preflight", Static).update(
             "TTS host assignments / health:\n" + "\n".join(presentation.tts_rows)
         )
+        self.query_one("#routing-preflight", Static).update(
+            self._routing_text(presentation.report)
+        )
         self.query_one("#ffmpeg-preflight", Static).update(self._ffmpeg_text(presentation.report))
         self.query_one("#preflight-issues", Static).update(self._issue_text(presentation.report))
         blocker_count = len(presentation.report.blockers)
@@ -290,6 +319,19 @@ class PreflightScreen(Screen[None]):
                 f"Cloud cost estimate: {cost}",
             )
         )
+
+    @staticmethod
+    def _routing_text(report: PreflightReport) -> str:
+        if not report.routes:
+            return "Content routing:\nNo provider routes resolved."
+        rows = ["Content routing:"]
+        for route in report.routes:
+            locality = "local" if route.local else "remote"
+            model = f":{route.model}" if route.model else ""
+            rows.append(
+                f"{route.stage}: {route.provider}{model} | {locality} | {route.content}"
+            )
+        return "\n".join(rows)
 
     @staticmethod
     def _ffmpeg_text(report: PreflightReport) -> str:
