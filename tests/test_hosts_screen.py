@@ -73,8 +73,12 @@ def test_hosts_screen_discovers_and_configures_three_kitten_voices(tmp_path: Pat
 async def _exercise_three_kitten_voices(tmp_path: Path) -> None:
     service = DeeperDiveService(WorkspaceManager(tmp_path))
     project = service.create_project("Three voices")
-    kitten = FakeTTSProvider(provider_id="kitten", voices=tuple(TTSVoice(v, v) for v in ("Bella", "Luna", "Leo")))
-    controller = ProviderController(UserConfigStore(tmp_path / "config.json"), LLMProviderRegistry(), {"kitten": kitten})
+    kitten = FakeTTSProvider(
+        provider_id="kitten", voices=tuple(TTSVoice(v, v) for v in ("Bella", "Luna", "Leo"))
+    )
+    controller = ProviderController(
+        UserConfigStore(tmp_path / "config.json"), LLMProviderRegistry(), {"kitten": kitten}
+    )
     app = DeeperDiveApp(service, provider_controller=controller)
     async with app.run_test(size=(100, 45)) as pilot:
         app.current_project_id = project.id

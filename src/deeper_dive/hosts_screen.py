@@ -59,7 +59,9 @@ class HostsScreen(Screen[None]):
             yield Input(placeholder="TTS provider", id="host-tts-provider")
             yield Input(placeholder="TTS voice", id="host-tts-voice")
             yield Input(placeholder="Kitten model URL (for install)", id="kitten-model-url")
-            yield Input(value="micro", placeholder="Kitten model version", id="kitten-model-version")
+            yield Input(
+                value="micro", placeholder="Kitten model version", id="kitten-model-version"
+            )
             with Horizontal():
                 yield Button("Discover TTS", name="discover-tts")
                 yield Button("Preview Voice", name="preview-voice")
@@ -270,9 +272,13 @@ class HostsScreen(Screen[None]):
             self.query_one("#host-tts-provider", Input).value = provider_id
         provider = self._app.provider_controller.tts(provider_id)
         voices = provider.voices()
-        if voices and self.query_one("#host-tts-voice", Input).value.strip() not in {v.id for v in voices}:
+        if voices and self.query_one("#host-tts-voice", Input).value.strip() not in {
+            v.id for v in voices
+        }:
             self.query_one("#host-tts-voice", Input).value = voices[0].id
-        self._status(f"TTS providers: {', '.join(providers)} | voices: {', '.join(v.name for v in voices)}")
+        self._status(
+            f"TTS providers: {', '.join(providers)} | voices: {', '.join(v.name for v in voices)}"
+        )
 
     def action_preview_voice(self) -> None:
         provider_id = self.query_one("#host-tts-provider", Input).value.strip()
@@ -302,7 +308,11 @@ class HostsScreen(Screen[None]):
         manager = KittenModelManager(self._app.service.workspaces.data_dir / "models" / "kitten")
         if not url:
             state = manager.state()
-            self._status("Kitten model installed" if state.installed else "Enter a Kitten model URL to install")
+            self._status(
+                "Kitten model installed"
+                if state.installed
+                else "Enter a Kitten model URL to install"
+            )
             return
         try:
             state = manager.install(url=url, version=version)
@@ -318,11 +328,15 @@ class HostsScreen(Screen[None]):
             self._status("Choose a TTS provider and voice first")
             return
         try:
-            result = TTSBenchmarkService().run(self._app.provider_controller.tts(provider_id), voice=voice)
+            result = TTSBenchmarkService().run(
+                self._app.provider_controller.tts(provider_id), voice=voice
+            )
         except (KeyError, RuntimeError, ValueError) as exc:
             self._status(f"Benchmark failed: {exc}")
             return
-        self._status(f"Benchmark: {result.x_realtime:.2f}x realtime; 20 min ≈ {result.estimated_20_minute_render_seconds:.0f}s")
+        self._status(
+            f"Benchmark: {result.x_realtime:.2f}x realtime; 20 min ≈ {result.estimated_20_minute_render_seconds:.0f}s"
+        )
 
     def _status(self, value: str) -> None:
         self.query_one("#screen-status", Static).update(f"Status: {value}")

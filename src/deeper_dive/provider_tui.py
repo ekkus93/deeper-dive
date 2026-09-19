@@ -8,6 +8,7 @@ from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 from deeper_dive.tts import TTSProvider
 
+
 @dataclass(slots=True)
 class ProviderController:
     config_store: UserConfigStore
