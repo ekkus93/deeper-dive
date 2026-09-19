@@ -924,11 +924,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-120 — TTS provider contract and registry
 
-- [ ] Define synthesize/voices/health contract.
-- [ ] Normalize voice metadata.
-- [ ] Normalize audio result metadata.
-- [ ] Add deterministic fake TTS provider.
-- [ ] Add per-host provider/voice resolution.
+- [x] Define synthesize/voices/health contract.
+- [x] Normalize voice metadata.
+- [x] Normalize audio result metadata.
+- [x] Add deterministic fake TTS provider.
+- [x] Add per-host provider/voice resolution.
 
 **Acceptance criteria**
 
