@@ -267,7 +267,7 @@ class GenerationMonitorScreen(Screen[None]):
         self.query_one("#stage-checklist", Static).update(
             "Stages:\n"
             + "\n".join(
-                f"{'[x]' if stage in snapshot.completed_stages else '[ ]'} {stage}"
+                f"{'✓' if stage in snapshot.completed_stages else '○'} {stage}"
                 for stage in snapshot.stages
             )
         )
