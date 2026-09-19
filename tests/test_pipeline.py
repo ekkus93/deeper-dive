@@ -158,3 +158,112 @@ def test_frozen_clock_serialization_used_for_durable_updates(tmp_path) -> None:
     result = orchestrator.run("run")
 
     assert result.run.modified_at == format_timestamp(instant)
+
+
+def test_pause_requested_before_stage_stops_without_losing_prior_units(tmp_path) -> None:
+    repository = make_repository(tmp_path)
+    calls: list[str] = []
+
+    def handler(context: PipelineContext) -> None:
+        calls.append(context.stage)
+
+    orchestrator = PipelineOrchestrator(
+        repository, {stage: handler for stage in STAGES}, stages=STAGES
+    )
+    repository.request_pause("run", "2026-09-19T00:01:00.000000Z")
+
+    result = orchestrator.run("run")
+
+    assert result.run.state == "paused"
+    assert calls == []
+    assert result.executed_stages == ()
+    record = repository.get("run")
+    assert record is not None
+    assert record.pause_requested is True
+
+
+def test_pause_during_uninterruptible_stage_finishes_stage_then_pauses(tmp_path) -> None:
+    repository = make_repository(tmp_path)
+    calls: list[str] = []
+    events: list[ProgressEvent] = []
+
+    def handler(context: PipelineContext) -> None:
+        calls.append(context.stage)
+        if context.stage == "conversation":
+            repository.request_pause(context.run_id, "2026-09-19T00:02:00.000000Z")
+
+    orchestrator = PipelineOrchestrator(
+        repository, {stage: handler for stage in STAGES}, stages=STAGES, progress=events.append
+    )
+
+    result = orchestrator.run("run")
+
+    assert result.run.state == "paused"
+    assert result.executed_stages == ("sources", "conversation")
+    assert calls == ["sources", "conversation"]
+    assert repository.list_completed_units("run", "conversation")
+    assert events[-1].state == "paused"
+
+
+def test_resume_after_restart_continues_from_durable_stage_boundaries(tmp_path) -> None:
+    repository = make_repository(tmp_path)
+
+    def pause_on_conversation(context: PipelineContext) -> None:
+        if context.stage == "conversation":
+            repository.request_pause(context.run_id, "2026-09-19T00:02:00.000000Z")
+
+    first = PipelineOrchestrator(
+        repository, {stage: pause_on_conversation for stage in STAGES}, stages=STAGES
+    )
+    paused = first.run("run")
+    assert paused.run.state == "paused"
+
+    calls: list[str] = []
+
+    def handler(context: PipelineContext) -> None:
+        calls.append(context.stage)
+
+    restarted = PipelineOrchestrator(
+        repository, {stage: handler for stage in STAGES}, stages=STAGES
+    )
+    restarted.resume("run")
+    resumed = restarted.run("run")
+
+    assert resumed.run.state == "completed"
+    assert resumed.skipped_stages == ("sources", "conversation")
+    assert calls == ["tts", "export"]
+
+
+def test_cancel_during_tts_preserves_completed_units_and_stops_downstream(tmp_path) -> None:
+    repository = make_repository(tmp_path)
+    calls: list[str] = []
+
+    def handler(context: PipelineContext) -> None:
+        calls.append(context.stage)
+        if context.stage == "tts":
+            repository.request_cancel(context.run_id, "2026-09-19T00:03:00.000000Z")
+
+    orchestrator = PipelineOrchestrator(
+        repository, {stage: handler for stage in STAGES}, stages=STAGES
+    )
+
+    result = orchestrator.run("run")
+
+    assert result.run.state == "cancelled"
+    assert result.executed_stages == ("sources", "conversation", "tts")
+    assert calls == ["sources", "conversation", "tts"]
+    assert repository.list_completed_units("run", "tts")
+    assert not repository.list_completed_units("run", "export")
+
+
+def test_cancelled_runs_cannot_resume(tmp_path) -> None:
+    repository = make_repository(tmp_path)
+    orchestrator = PipelineOrchestrator(
+        repository, {stage: lambda context: None for stage in STAGES}, stages=STAGES
+    )
+    repository.request_cancel("run", "2026-09-19T00:03:00.000000Z")
+    cancelled = orchestrator.run("run")
+    assert cancelled.run.state == "cancelled"
+
+    with pytest.raises(ValueError, match="cancelled"):
+        orchestrator.resume("run")
