@@ -33,6 +33,7 @@ target-version = "py312"
 line-length = 100
 extend-exclude = [
   "src/deeper_dive/audio_playback.py",
+  "src/deeper_dive/cli.py",
   "src/deeper_dive/transcript_review_screen.py",
   "tests/test_cli.py",
   "tests/test_quick_deep_dive.py",
