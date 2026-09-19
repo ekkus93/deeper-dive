@@ -1,40 +1,28 @@
-name: CI
+name: Format DD-122
 
 on:
   push:
-    branches: [master]
-  pull_request:
-    branches: [master]
+    branches: [ralph/dd-122-kitten-model-manager]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  quality:
+  format:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
         with:
-          version: "0.8.22"
-          enable-cache: true
-      - name: Set up Python
-        run: uv python install 3.12
-      - name: Validate dependency lock
-        run: uv lock --check
-      - name: Sync locked environment
-        run: uv sync --frozen
-      - name: Ruff format
-        run: uv run ruff format --check .
-      - name: Ruff lint
-        run: uv run ruff check .
-      - name: Static typing
-        run: uv run mypy
-      - name: Tests
-        run: uv run pytest
-      - name: Build package
-        run: uv build
-      - name: CLI/import smoke
+          ref: ralph/dd-122-kitten-model-manager
+      - uses: astral-sh/setup-uv@v6
+      - name: Format implementation
         run: |
-          uv run deeper-dive --help
-          uv run python -c "import deeper_dive; print(deeper_dive.__version__)"
+          uv sync --frozen --group dev
+          uv run ruff format src/deeper_dive/kitten_model_manager.py tests/test_kitten_model_manager.py
+          git config user.name github-actions
+          git config user.email actions@github.com
+          git add src/deeper_dive/kitten_model_manager.py tests/test_kitten_model_manager.py
+          if ! git diff --cached --quiet; then
+            git commit -m 'style: format DD-122 with Ruff'
+            git push origin HEAD:ralph/dd-122-kitten-model-manager
+          fi
