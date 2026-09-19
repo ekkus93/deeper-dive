@@ -146,7 +146,7 @@ class ProvidersScreen(Screen[None]):
         try:
             voices = self.provider_app.provider_controller.tts(name).voices()
             self.query_one("#provider-details", Static).update(
-                "Voices:\n" + "\n".join(f"{voice.name} [{voice.id}]" for voice in voices)
+                "Voices:\n" + "\n".join(f"{voice.name} (id={voice.id})" for voice in voices)
             )
             self._status(f"Discovered {len(voices)} voice(s) for {name}")
         except (KeyError, RuntimeError, OSError) as exc:
