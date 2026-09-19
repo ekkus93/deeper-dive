@@ -37,12 +37,8 @@ def test_benchmark_synthesizes_deterministic_passage_and_records_metadata() -> N
     assert result.audio_seconds > 0
     assert result.realtime_factor == pytest.approx(2.0 / result.audio_seconds)
     assert result.x_realtime == pytest.approx(result.audio_seconds / 2.0)
-    assert result.estimated_20_minute_render_seconds == pytest.approx(
-        1200 * result.realtime_factor
-    )
-    assert result.estimated_30_minute_render_seconds == pytest.approx(
-        1800 * result.realtime_factor
-    )
+    assert result.estimated_20_minute_render_seconds == pytest.approx(1200 * result.realtime_factor)
+    assert result.estimated_30_minute_render_seconds == pytest.approx(1800 * result.realtime_factor)
     assert result.provider == "fake-tts"
     assert result.model == "fake-v1"
     assert result.voice == "voice-a"
