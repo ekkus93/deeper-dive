@@ -7,10 +7,13 @@ import json
 import sys
 from collections.abc import Sequence
 from dataclasses import asdict
+from enum import Enum
 from pathlib import Path
 
 from deeper_dive import __version__
 from deeper_dive.application.service import DeeperDiveService, SourceImportSummary
+from deeper_dive.domain.ids import parse_project_id
+from deeper_dive.research_controller import PersistentResearchController
 from deeper_dive.storage.repositories import SourceRecord
 from deeper_dive.storage.workspace import WorkspaceManager
 
@@ -48,6 +51,25 @@ def build_parser() -> argparse.ArgumentParser:
         command = source_commands.add_parser(action, help=f"{action} a project source")
         command.add_argument("project_id")
         command.add_argument("source_id")
+
+    research = commands.add_parser("research", help="inspect and run supplemental research")
+    research_commands = research.add_subparsers(dest="research_command", required=True)
+    analyze = research_commands.add_parser("analyze", help="analyze the corpus for research gaps")
+    analyze.add_argument("project_id")
+    analyze.add_argument("--focus", default="")
+    gaps = research_commands.add_parser("gaps", help="list research gaps")
+    gaps.add_argument("project_id")
+    run_research = research_commands.add_parser("run", help="research selected gaps")
+    run_research.add_argument("project_id")
+    run_research.add_argument("gap_ids", nargs="*")
+    run_research.add_argument("--all", action="store_true", dest="all_gaps")
+    ignore = research_commands.add_parser("ignore", help="ignore a research gap")
+    ignore.add_argument("project_id")
+    ignore.add_argument("gap_id")
+    outcomes = research_commands.add_parser(
+        "outcomes", help="list supplemental research candidate outcomes"
+    )
+    outcomes.add_argument("project_id")
     return parser
 
 
@@ -62,8 +84,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _project_command(service, args)
         if args.command == "source":
             return _source_command(service, args)
+        if args.command == "research":
+            return _research_command(service, args)
         return 2
-    except (KeyError, OSError, ValueError) as exc:
+    except (KeyError, OSError, RuntimeError, ValueError) as exc:
         print(str(exc), file=sys.stderr)
         return 2
 
@@ -109,6 +133,33 @@ def _source_command(service: DeeperDiveService, args: argparse.Namespace) -> int
     return _output({"id": source.id, "removed": True}, args.json_output)
 
 
+def _research_command(service: DeeperDiveService, args: argparse.Namespace) -> int:
+    project_id = args.project_id
+    if service.open_project(project_id) is None:
+        print(f"project not found: {project_id}", file=sys.stderr)
+        return 2
+    controller = PersistentResearchController(
+        lambda value: service.workspaces.project_root(parse_project_id(value)) / "project.db"
+    )
+    if args.research_command == "analyze":
+        gaps = controller.analyze(project_id, args.focus)
+        return _output([asdict(gap) for gap in gaps], args.json_output)
+    if args.research_command == "gaps":
+        return _output([asdict(gap) for gap in controller.gaps(project_id)], args.json_output)
+    if args.research_command == "ignore":
+        controller.set_gap_status(project_id, args.gap_id, "ignored")
+        return _output({"id": args.gap_id, "status": "ignored"}, args.json_output)
+    if args.research_command == "outcomes":
+        return _output([asdict(outcome) for outcome in controller.outcomes(project_id)], args.json_output)
+    gap_ids = tuple(args.gap_ids)
+    if args.all_gaps:
+        gap_ids = tuple(gap.id for gap in controller.gaps(project_id) if gap.status != "ignored")
+    if not gap_ids:
+        raise ValueError("research run requires one or more gap IDs or --all")
+    outcomes = controller.research(project_id, gap_ids)
+    return _output([asdict(outcome) for outcome in outcomes], args.json_output)
+
+
 def _output_import(summary: SourceImportSummary, json_output: bool) -> int:
     value = {
         "imported": [asdict(source) for source in summary.imported],
@@ -141,16 +192,25 @@ def _output_source(source: SourceRecord, json_output: bool) -> int:
     return 0
 
 
+def _json_default(value: object) -> object:
+    if isinstance(value, Enum):
+        return value.value
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+
 def _output(value: object, json_output: bool) -> int:
     if json_output:
-        print(json.dumps(value, sort_keys=True))
+        print(json.dumps(value, sort_keys=True, default=_json_default))
     elif isinstance(value, list):
         for item in value:
-            print(f"{item['id']}\t{item['name']}")
+            if isinstance(item, dict):
+                print(json.dumps(item, sort_keys=True, default=_json_default))
+            else:
+                print(str(item))
     elif isinstance(value, dict) and "name" in value:
         print(f"{value['id']}\t{value['name']}")
     else:
-        print(json.dumps(value, sort_keys=True))
+        print(json.dumps(value, sort_keys=True, default=_json_default))
     return 0
 
 
