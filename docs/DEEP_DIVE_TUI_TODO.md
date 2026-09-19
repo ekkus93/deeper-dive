@@ -1025,12 +1025,12 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-128 — Host TTS UI completion
 
-- [ ] Connect host editor to TTS registry.
-- [ ] Provider selector.
-- [ ] Voice selector.
-- [ ] Preview action.
-- [ ] Kitten model-install prompt/action.
-- [ ] Local benchmark action.
+- [x] Connect host editor to TTS registry.
+- [x] Provider selector.
+- [x] Voice selector.
+- [x] Preview action.
+- [x] Kitten model-install prompt/action.
+- [x] Local benchmark action.
 
 **Acceptance criteria**
 
