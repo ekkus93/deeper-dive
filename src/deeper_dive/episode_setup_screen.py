@@ -65,6 +65,7 @@ class EpisodeSetupScreen(Screen[None]):
             yield Input(
                 value="grounded", placeholder="Citation behavior", id="episode-citation-behavior"
             )
+            yield Button("Quick Deep Dive", id="action-quick-deep-dive", name="quick-deep-dive")
             yield Button("Build Plan", id="action-build-plan", name="build-plan")
             yield Static("Status: Ready", id="screen-status")
         yield Footer()
@@ -76,8 +77,22 @@ class EpisodeSetupScreen(Screen[None]):
         name = event.button.name or ""
         if name == "build-plan":
             self.action_build_plan()
+        elif name == "quick-deep-dive":
+            self.action_quick_deep_dive()
         elif name:
             self._app.action_navigate(name)
+
+    def action_quick_deep_dive(self) -> None:
+        project_id = self._app.current_project_id
+        if project_id is None:
+            self._status("Open a project before starting a Quick Deep Dive")
+            return
+        episode = self._app.service.quick_deep_dive(project_id)
+        self.current_episode_id = episode.id
+        self._app.current_episode_id = episode.id
+        self._app.current_run_id = None
+        self._status(f"Quick Deep Dive ready: {episode.title}")
+        self._app.action_navigate("generate")
 
     def action_build_plan(self) -> None:
         project_id = self._app.current_project_id
@@ -97,9 +112,11 @@ class EpisodeSetupScreen(Screen[None]):
         if self.current_episode_id is None:
             episode = service.create(project_id, config)
             self.current_episode_id = episode.id
+            self._app.current_episode_id = episode.id
             self._status(f"Episode setup saved: {episode.title}")
         else:
             episode = service.edit(self.current_episode_id, config)
+            self._app.current_episode_id = episode.id
             self._status(f"Episode setup updated: {episode.title}")
         self.refresh_summary()
 
