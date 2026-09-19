@@ -1089,12 +1089,12 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-134 — Export artifacts
 
-- [ ] WAV export.
-- [ ] MP3 export.
-- [ ] Markdown transcript.
-- [ ] Source manifest Markdown or JSON.
-- [ ] Episode metadata JSON.
-- [ ] Stable output naming with collision handling.
+- [x] WAV export.
+- [x] MP3 export.
+- [x] Markdown transcript.
+- [x] Source manifest Markdown or JSON.
+- [x] Episode metadata JSON.
+- [x] Stable output naming with collision handling.
 
 **Acceptance criteria**
 
