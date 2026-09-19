@@ -29,7 +29,9 @@ class FFmpegConfig:
             return cls(configured)
         discovered = shutil.which("ffmpeg")
         if discovered is None:
-            raise FFmpegError("FFmpeg was not found on PATH; install it or configure its executable path")
+            raise FFmpegError(
+                "FFmpeg was not found on PATH; install it or configure its executable path"
+            )
         return cls(Path(discovered))
 
 
@@ -39,7 +41,9 @@ class FFmpegComposer:
     def __init__(self, config: FFmpegConfig) -> None:
         self.config = config
 
-    def compose(self, timeline: AudioTimeline, artifact_paths: dict[str, Path], output: Path) -> None:
+    def compose(
+        self, timeline: AudioTimeline, artifact_paths: dict[str, Path], output: Path
+    ) -> None:
         clips = [placement for placement in timeline.placements if placement.item.kind == "clip"]
         if not clips:
             raise FFmpegError("timeline contains no audio clips")
@@ -77,6 +81,8 @@ class FFmpegComposer:
 
     @staticmethod
     def _sanitize(stderr: str, limit: int = 2000) -> str:
-        text = re.sub(r"(?i)(api[_-]?key|token|authorization|password)=\S+", r"\1=[redacted]", stderr)
+        text = re.sub(
+            r"(?i)(api[_-]?key|token|authorization|password)=\S+", r"\1=[redacted]", stderr
+        )
         text = " ".join(text.split())
         return text[:limit]
