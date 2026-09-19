@@ -92,7 +92,9 @@ class VoicePreviewService:
             text=True,
         )
         if completed.returncode:
-            raise RuntimeError(f"voice preview playback failed with exit code {completed.returncode}")
+            raise RuntimeError(
+                f"voice preview playback failed with exit code {completed.returncode}"
+            )
 
     @staticmethod
     def _discover_player() -> str | None:

@@ -39,7 +39,9 @@ def test_preview_can_be_exported(tmp_path: Path) -> None:
     assert destination.read_bytes() == cached.read_bytes()
 
 
-def test_playback_absence_has_actionable_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_playback_absence_has_actionable_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     previews = VoicePreviewService(tmp_path / "cache")
     cached = previews.preview(FakeTTSProvider(), voice="voice-a")
     monkeypatch.setattr(VoicePreviewService, "_discover_player", staticmethod(lambda: None))
