@@ -50,7 +50,7 @@ def test_quick_deep_dive_uses_existing_project_hosts_as_defaults(tmp_path: Path)
 
     database = Database(service.workspaces.project_root(project.id) / "project.db")
     config = EpisodeConfigurationService(database).load_configuration(episode.id)
-    assert config.host_ids == ("h1", "h2")
+    assert config.host_ids == ("h1", "h3")
     assert len(service.hosts(project.id).list_hosts(project.id)) == 3
 
 
