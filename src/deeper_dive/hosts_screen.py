@@ -13,7 +13,10 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
 from deeper_dive.hosts import HostProfile, HostRelationship, create_host_from_preset, preset_names
+from deeper_dive.kitten_model_manager import KittenModelManager
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
+from deeper_dive.tts_benchmark import TTSBenchmarkService
+from deeper_dive.voice_preview import VoicePreviewService
 
 if TYPE_CHECKING:
     from deeper_dive.tui import DeeperDiveApp
@@ -55,6 +58,15 @@ class HostsScreen(Screen[None]):
             yield Input(placeholder="Behavior JSON", id="host-behavior")
             yield Input(placeholder="TTS provider", id="host-tts-provider")
             yield Input(placeholder="TTS voice", id="host-tts-voice")
+            yield Input(placeholder="Kitten model URL (for install)", id="kitten-model-url")
+            yield Input(
+                value="micro", placeholder="Kitten model version", id="kitten-model-version"
+            )
+            with Horizontal():
+                yield Button("Discover TTS", name="discover-tts")
+                yield Button("Preview Voice", name="preview-voice")
+                yield Button("Install Kitten", name="install-kitten")
+                yield Button("Benchmark", name="benchmark-tts")
             with Horizontal():
                 for label, name in (
                     ("Add", "add-host"),
@@ -69,7 +81,6 @@ class HostsScreen(Screen[None]):
             yield Input(value="peer", placeholder="Relationship stance", id="relationship-stance")
             yield Input(placeholder="Relationship instructions", id="relationship-instructions")
             yield Button("Save Relationship", name="save-relationship")
-            yield Button("Preview Voice", name="preview-voice")
             yield Static("Status: Ready", id="screen-status")
         yield Footer()
 
@@ -86,6 +97,9 @@ class HostsScreen(Screen[None]):
             "move-down": lambda: self._move(1),
             "save-relationship": self.action_save_relationship,
             "preview-voice": self.action_preview_voice,
+            "discover-tts": self.action_discover_tts,
+            "install-kitten": self.action_install_kitten,
+            "benchmark-tts": self.action_benchmark_tts,
         }
         name = event.button.name or ""
         if name in actions:
@@ -247,25 +261,83 @@ class HostsScreen(Screen[None]):
             return
         self._status("Saved relationship")
 
+    def action_discover_tts(self) -> None:
+        providers = sorted(self._app.provider_controller.tts_providers)
+        if not providers:
+            self._status("No TTS providers configured")
+            return
+        provider_id = self.query_one("#host-tts-provider", Input).value.strip()
+        if provider_id not in providers:
+            provider_id = providers[0]
+            self.query_one("#host-tts-provider", Input).value = provider_id
+        provider = self._app.provider_controller.tts(provider_id)
+        voices = provider.voices()
+        if voices and self.query_one("#host-tts-voice", Input).value.strip() not in {
+            v.id for v in voices
+        }:
+            self.query_one("#host-tts-voice", Input).value = voices[0].id
+        self._status(
+            f"TTS providers: {', '.join(providers)} | voices: {', '.join(v.name for v in voices)}"
+        )
+
     def action_preview_voice(self) -> None:
-        provider = self.query_one("#host-tts-provider", Input).value.strip()
+        provider_id = self.query_one("#host-tts-provider", Input).value.strip()
         voice = self.query_one("#host-tts-voice", Input).value.strip()
-        if not provider or not voice:
+        if not provider_id or not voice:
             self._status("Choose a TTS provider and voice first")
             return
         try:
-            tts = self._app.provider_controller.tts(provider)
-            healthy, message = tts.health()
-            if not healthy:
-                self._status(f"TTS unavailable: {message}")
+            provider = self._app.provider_controller.tts(provider_id)
+            health = provider.health()
+            if not health.healthy:
+                self._status(f"TTS unavailable: {health.message}")
                 return
-            if voice not in tts.voices():
+            if voice not in {item.id for item in provider.voices()}:
                 self._status(f"Unknown voice: {voice}")
                 return
-        except KeyError as exc:
+            service = VoicePreviewService(self._app.service.workspaces.data_dir / "voice-previews")
+            path = service.preview(provider, voice=voice)
+        except (KeyError, RuntimeError, ValueError) as exc:
             self._status(str(exc))
             return
-        self._status(f"Voice preview hook ready: {provider}/{voice}")
+        self._status(f"Voice preview cached: {path.name}")
+
+    def action_install_kitten(self) -> None:
+        url = self.query_one("#kitten-model-url", Input).value.strip()
+        version = self.query_one("#kitten-model-version", Input).value.strip() or "micro"
+        manager = KittenModelManager(self._app.service.workspaces.data_dir / "models" / "kitten")
+        if not url:
+            state = manager.state()
+            self._status(
+                "Kitten model installed"
+                if state.installed
+                else "Enter a Kitten model URL to install"
+            )
+            return
+        try:
+            state = manager.install(url=url, version=version)
+        except (OSError, RuntimeError, ValueError) as exc:
+            self._status(f"Kitten install failed: {exc}")
+            return
+        self._status(f"Kitten model installed: {state.version}")
+
+    def action_benchmark_tts(self) -> None:
+        provider_id = self.query_one("#host-tts-provider", Input).value.strip()
+        voice = self.query_one("#host-tts-voice", Input).value.strip()
+        if not provider_id or not voice:
+            self._status("Choose a TTS provider and voice first")
+            return
+        try:
+            result = TTSBenchmarkService().run(
+                self._app.provider_controller.tts(provider_id), voice=voice
+            )
+        except (KeyError, RuntimeError, ValueError) as exc:
+            self._status(f"Benchmark failed: {exc}")
+            return
+        self._status(
+            f"Benchmark: {result.x_realtime:.2f}x realtime; "
+            f"20 min ≈ {result.estimated_20_minute_render_seconds:.0f}s"
+        )
 
     def _status(self, value: str) -> None:
         self.query_one("#screen-status", Static).update(f"Status: {value}")
