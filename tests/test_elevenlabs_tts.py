@@ -44,7 +44,9 @@ def test_elevenlabs_synthesizes_and_normalizes_audio() -> None:
     assert result.format == "mp3"
     assert result.provider == "elevenlabs"
     assert result.model == "custom-model"
-    assert "/text-to-speech/voice%2Fid?output_format=mp3_44100_128" in str(seen["url"])
+    assert "/text-to-speech/voice%2Fid?output_format=mp3_44100_128" in str(
+        seen["url"]
+    )
     assert seen["payload"] == {"text": "Hello", "model_id": "custom-model"}
     assert seen["headers"] == {"xi-api-key": "key"}
 
