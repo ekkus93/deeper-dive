@@ -92,9 +92,7 @@ class PipelineOrchestrator:
             raise KeyError(f"unknown generation run: {run_id}")
         if force_from is not None and force_from not in self.stages:
             raise ValueError(f"unknown force_from stage: {force_from}")
-        forced_index = (
-            self.stages.index(force_from) if force_from is not None else len(self.stages)
-        )
+        forced_index = self.stages.index(force_from) if force_from is not None else len(self.stages)
         executed: list[str] = []
         skipped: list[str] = []
 
