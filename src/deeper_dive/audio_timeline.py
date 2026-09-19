@@ -57,7 +57,9 @@ class TimelineItem:
         )
 
     @classmethod
-    def pause(cls, duration_seconds: float, *, metadata: dict[str, str] | None = None) -> TimelineItem:
+    def pause(
+        cls, duration_seconds: float, *, metadata: dict[str, str] | None = None
+    ) -> TimelineItem:
         return cls(kind="pause", duration_seconds=duration_seconds, metadata=metadata or {})
 
 

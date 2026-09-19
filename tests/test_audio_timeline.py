@@ -34,7 +34,9 @@ def test_timeline_duration_math_chapters_pauses_and_overlap_are_deterministic() 
     assert timeline.duration_seconds == pytest.approx(17.5)
     assert [placement.start_seconds for placement in timeline.placements] == [0.0, 10.0, 9.5]
     assert [placement.end_seconds for placement in timeline.placements] == [10.0, 11.5, 17.5]
-    assert [(chapter.title, chapter.start_seconds, chapter.turn_id) for chapter in timeline.chapters] == [
+    assert [
+        (chapter.title, chapter.start_seconds, chapter.turn_id) for chapter in timeline.chapters
+    ] == [
         ("Opening", 0.0, "turn-1"),
         ("Counterpoint", 9.5, "turn-2"),
     ]
