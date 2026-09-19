@@ -62,7 +62,8 @@ class TranscriptReviewController:
         episode_id = self._episode_id(app)
         with database.connection() as connection:
             table = connection.execute(
-                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversation_turns'"
+                "SELECT 1 FROM sqlite_master "
+                "WHERE type='table' AND name='conversation_turns'"
             ).fetchone()
             if table is None:
                 return ()
@@ -73,24 +74,14 @@ class TranscriptReviewController:
                 WHERE t.episode_id=? ORDER BY t.segment_ordinal,t.turn_ordinal""",
                 (episode_id,),
             ).fetchall()
-        return tuple(
-            TranscriptTurn(
-                str(row["id"]),
-                int(row["segment_ordinal"]),
-                int(row["turn_ordinal"]),
-                str(row["speaker_id"]),
-                str(row["speaker_name"]),
-                str(row["text"]),
-                tuple(str(item) for item in json.loads(str(row["evidence_ids_json"]))),
-            )
-            for row in rows
-        )
+        return tuple(self._turn_from_row(row) for row in rows)
 
     def claims(self, app: DeeperDiveApp, turn_id: str) -> tuple[TurnClaimSummary, ...]:
         database = self._database(app)
         with database.connection() as connection:
             table = connection.execute(
-                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='material_claims'"
+                "SELECT 1 FROM sqlite_master "
+                "WHERE type='table' AND name='material_claims'"
             ).fetchone()
             if table is None:
                 return ()
@@ -101,27 +92,7 @@ class TranscriptReviewController:
                 WHERE mc.turn_id=? ORDER BY mc.span_start,mc.id""",
                 (turn_id,),
             ).fetchall()
-        return tuple(
-            TurnClaimSummary(
-                str(row["id"]),
-                str(row["text"]),
-                "unverified" if row["state"] is None else str(row["state"]),
-                "" if row["rationale"] is None else str(row["rationale"]),
-                ()
-                if row["supporting_evidence_ids_json"] is None
-                else tuple(
-                    str(item)
-                    for item in json.loads(str(row["supporting_evidence_ids_json"]))
-                ),
-                ()
-                if row["contradicting_evidence_ids_json"] is None
-                else tuple(
-                    str(item)
-                    for item in json.loads(str(row["contradicting_evidence_ids_json"]))
-                ),
-            )
-            for row in rows
-        )
+        return tuple(self._claim_from_row(row) for row in rows)
 
     def passages(
         self, app: DeeperDiveApp, chunk_ids: tuple[str, ...]
@@ -140,11 +111,11 @@ class TranscriptReviewController:
         by_id = {str(row["id"]): row for row in rows}
         return tuple(
             SourcePassageSummary(
-                chunk_id,
-                str(by_id[chunk_id]["title"]),
-                str(by_id[chunk_id]["origin"]),
-                None if by_id[chunk_id]["location"] is None else str(by_id[chunk_id]["location"]),
-                str(by_id[chunk_id]["text"]),
+                chunk_id=chunk_id,
+                source_title=str(by_id[chunk_id]["title"]),
+                origin=str(by_id[chunk_id]["origin"]),
+                location=self._optional_text(by_id[chunk_id]["location"]),
+                text=str(by_id[chunk_id]["text"]),
             )
             for chunk_id in chunk_ids
             if chunk_id in by_id
@@ -158,32 +129,61 @@ class TranscriptReviewController:
     def export_markdown(self, app: DeeperDiveApp) -> Path:
         project_id = self._project_id(app)
         episode_id = self._episode_id(app)
-        path = (
-            app.service.workspaces.project_root(project_id)
-            / "output"
-            / f"{episode_id}-transcript-review.md"
-        )
+        root = app.service.workspaces.project_root(project_id)
+        path = root / "output" / f"{episode_id}-transcript-review.md"
         lines = [f"# Transcript review: {episode_id}", ""]
         for turn in self.turns(app):
-            lines.extend(
-                (
-                    f"## Chapter {turn.segment_ordinal + 1} / Turn {turn.turn_ordinal + 1}: {turn.speaker_name}",
-                    "",
-                    turn.text,
-                    "",
-                )
+            heading = (
+                f"## Chapter {turn.segment_ordinal + 1} / "
+                f"Turn {turn.turn_ordinal + 1}: {turn.speaker_name}"
             )
+            lines.extend((heading, "", turn.text, ""))
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("\n".join(lines), encoding="utf-8")
         return path
 
     def claim_inspector(self, app: DeeperDiveApp, turn_id: str) -> ClaimInspectorScreen:
-        return ClaimInspectorScreen(
-            ClaimInspectorController(self._database(app), self.repair_callback), turn_id
-        )
+        controller = ClaimInspectorController(self._database(app), self.repair_callback)
+        return ClaimInspectorScreen(controller, turn_id)
 
     def _database(self, app: DeeperDiveApp) -> Database:
-        return Database(app.service.workspaces.project_root(self._project_id(app)) / "project.db")
+        root = app.service.workspaces.project_root(self._project_id(app))
+        return Database(root / "project.db")
+
+    @staticmethod
+    def _turn_from_row(row: object) -> TranscriptTurn:
+        return TranscriptTurn(
+            id=str(row["id"]),
+            segment_ordinal=int(row["segment_ordinal"]),
+            turn_ordinal=int(row["turn_ordinal"]),
+            speaker_id=str(row["speaker_id"]),
+            speaker_name=str(row["speaker_name"]),
+            text=str(row["text"]),
+            evidence_ids=tuple(
+                str(item) for item in json.loads(str(row["evidence_ids_json"]))
+            ),
+        )
+
+    @classmethod
+    def _claim_from_row(cls, row: object) -> TurnClaimSummary:
+        return TurnClaimSummary(
+            id=str(row["id"]),
+            text=str(row["text"]),
+            state="unverified" if row["state"] is None else str(row["state"]),
+            rationale="" if row["rationale"] is None else str(row["rationale"]),
+            supporting_ids=cls._json_ids(row["supporting_evidence_ids_json"]),
+            contradicting_ids=cls._json_ids(row["contradicting_evidence_ids_json"]),
+        )
+
+    @staticmethod
+    def _json_ids(value: object) -> tuple[str, ...]:
+        if value is None:
+            return ()
+        return tuple(str(item) for item in json.loads(str(value)))
+
+    @staticmethod
+    def _optional_text(value: object) -> str | None:
+        return None if value is None else str(value)
 
     @staticmethod
     def _project_id(app: DeeperDiveApp) -> str:
@@ -319,11 +319,14 @@ class TranscriptReviewScreen(Screen[None]):
 
     def _chapter_text(self) -> str:
         return "\n".join(
-            f"{'*' if index == self.selected_index else ' '} {index + 1}. "
-            f"Chapter {turn.segment_ordinal + 1} Turn {turn.turn_ordinal + 1} — "
-            f"{turn.speaker_name}"
-            for index, turn in enumerate(self.turns)
+            self._chapter_row(index, turn) for index, turn in enumerate(self.turns)
         )
+
+    def _chapter_row(self, index: int, turn: TranscriptTurn) -> str:
+        selected = "*" if index == self.selected_index else " "
+        chapter = turn.segment_ordinal + 1
+        ordinal = turn.turn_ordinal + 1
+        return f"{selected} {index + 1}. Chapter {chapter} Turn {ordinal} — {turn.speaker_name}"
 
     def _render_selected(self, status: str) -> None:
         turn = self._selected_turn()
@@ -334,30 +337,45 @@ class TranscriptReviewScreen(Screen[None]):
         self.query_one("#transcript-turn", Static).update(
             f"{turn.speaker_name} [{turn.id}]\n{turn.text}"
         )
-        self.query_one("#turn-citations", Static).update(
-            "Citations: " + (", ".join(turn.evidence_ids) if turn.evidence_ids else "none")
-        )
+        self.query_one("#turn-citations", Static).update(self._citation_text(turn))
         claims = self.controller.claims(self._app, turn.id)
-        evidence_ids: list[str] = list(turn.evidence_ids)
-        claim_lines = []
-        for claim in claims:
-            claim_lines.append(f"[{claim.state}] {claim.text}\n  {claim.rationale}".rstrip())
-            evidence_ids.extend(claim.supporting_ids)
-            evidence_ids.extend(claim.contradicting_ids)
-        self.query_one("#claims-pane", Static).update(
-            "\n".join(claim_lines) if claim_lines else "No claims for selected turn."
-        )
-        passages = self.controller.passages(self._app, tuple(dict.fromkeys(evidence_ids)))
-        self.query_one("#source-passages", Static).update(
-            "\n\n".join(
-                f"[{item.chunk_id}] {item.origin} | {item.source_title} | "
-                f"{item.location or 'location unavailable'}\n{item.text}"
-                for item in passages
-            )
-            or "No source passages for selected turn."
-        )
+        evidence_ids = self._evidence_ids(turn, claims)
+        self.query_one("#claims-pane", Static).update(self._claims_text(claims))
+        passages = self.controller.passages(self._app, evidence_ids)
+        self.query_one("#source-passages", Static).update(self._passages_text(passages))
         self.query_one("#chapter-list", Static).update(self._chapter_text())
         self._status(status)
+
+    @staticmethod
+    def _citation_text(turn: TranscriptTurn) -> str:
+        values = ", ".join(turn.evidence_ids) if turn.evidence_ids else "none"
+        return f"Citations: {values}"
+
+    @staticmethod
+    def _claims_text(claims: tuple[TurnClaimSummary, ...]) -> str:
+        rows = [f"[{claim.state}] {claim.text}\n  {claim.rationale}".rstrip() for claim in claims]
+        return "\n".join(rows) if rows else "No claims for selected turn."
+
+    @staticmethod
+    def _evidence_ids(
+        turn: TranscriptTurn, claims: tuple[TurnClaimSummary, ...]
+    ) -> tuple[str, ...]:
+        evidence_ids: list[str] = list(turn.evidence_ids)
+        for claim in claims:
+            evidence_ids.extend(claim.supporting_ids)
+            evidence_ids.extend(claim.contradicting_ids)
+        return tuple(dict.fromkeys(evidence_ids))
+
+    @staticmethod
+    def _passages_text(passages: tuple[SourcePassageSummary, ...]) -> str:
+        rows = []
+        for item in passages:
+            location = item.location or "location unavailable"
+            rows.append(
+                f"[{item.chunk_id}] {item.origin} | {item.source_title} | "
+                f"{location}\n{item.text}"
+            )
+        return "\n\n".join(rows) if rows else "No source passages for selected turn."
 
     def _selected_turn(self) -> TranscriptTurn | None:
         return None if not self.turns else self.turns[self.selected_index]
