@@ -75,7 +75,8 @@ class GenerationMonitorController:
     async def run(self, run_id: str) -> None:
         if self.runner is None:
             raise RuntimeError("generation runner is not configured")
-        await asyncio.to_thread(self.runner, run_id, self.events.append)
+        sink = cast(ProgressSink, self.events.append)
+        await asyncio.to_thread(self.runner, run_id, sink)
 
     @staticmethod
     def _recent_turns(app: MonitorApp, episode_id: str) -> tuple[str, ...]:
