@@ -56,7 +56,7 @@ def test_elevenlabs_health_and_errors_are_actionable() -> None:
     provider = ElevenLabsTTSProvider(api_key="key", request_json=auth)
     health = provider.health()
     assert not health.healthy
-    assert "bad key" in health.detail
+    assert "bad key" in health.message
 
     empty = ElevenLabsTTSProvider(api_key="key", request_binary=lambda *args: b"")
     with pytest.raises(ElevenLabsTTSError, match="empty audio"):
