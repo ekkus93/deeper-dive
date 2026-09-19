@@ -14,6 +14,7 @@ from textual.widgets import Button, Footer, Header, Input, Label, Static
 from deeper_dive.application.service import DeeperDiveService, ProjectSummary, SourceImportSummary
 from deeper_dive.episode_plan_screen import EpisodePlanController, EpisodePlanScreen
 from deeper_dive.episode_setup_screen import EpisodeSetupScreen
+from deeper_dive.generation_monitor import GenerationMonitorController, GenerationMonitorScreen
 from deeper_dive.hosts_screen import HostsScreen
 from deeper_dive.llm import LLMProviderRegistry
 from deeper_dive.preflight_screen import PreflightController, PreflightScreen
@@ -301,6 +302,7 @@ class SourcesScreen(NavigationMixin, Screen[None]):
     def action_add_urls(self) -> None:
         project_id = self._project_id_or_status()
         if project_id is None:
+            self._set_status("Open a project before adding sources")
             return
         urls_input = self.query_one("#source-urls", Input)
         urls = [value.strip() for value in urls_input.value.split(",") if value.strip()]
@@ -498,6 +500,7 @@ class DeeperDiveApp(App[None]):
         "episode": lambda: EpisodeSetupScreen(),
         "plan": lambda: EpisodePlanScreen(),
         "generate": lambda: PreflightScreen(),
+        "monitor": lambda: GenerationMonitorScreen(),
         "library": lambda: ShellScreen("library", "Library", "Generated episodes and exports."),
     }
 
@@ -509,6 +512,7 @@ class DeeperDiveApp(App[None]):
         research_controller: ResearchController | None = None,
         episode_plan_controller: EpisodePlanController | None = None,
         preflight_controller: PreflightController | None = None,
+        generation_monitor_controller: GenerationMonitorController | None = None,
     ) -> None:
         super().__init__()
         self.service = service if service is not None else DeeperDiveService(WorkspaceManager())
@@ -523,8 +527,10 @@ class DeeperDiveApp(App[None]):
         self.current_project_id: str | None = None
         self.current_project_name: str | None = None
         self.current_episode_id: str | None = None
+        self.current_run_id: str | None = None
         self.episode_plan_controller = episode_plan_controller
         self.preflight_controller = preflight_controller or PreflightController()
+        self.generation_monitor_controller = generation_monitor_controller or GenerationMonitorController()
         self.plan_approved = False
         self.auto_generate_after_approval = False
 
