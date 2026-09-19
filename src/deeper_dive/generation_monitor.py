@@ -90,17 +90,12 @@ class GenerationMonitorController:
             if table is None:
                 return ()
             columns = {
-                str(row[1])
-                for row in connection.execute("PRAGMA table_info(conversation_turns)")
+                str(row[1]) for row in connection.execute("PRAGMA table_info(conversation_turns)")
             }
             if not {"episode_id", "id"}.issubset(columns):
                 return ()
             text_column = (
-                "text"
-                if "text" in columns
-                else "content"
-                if "content" in columns
-                else None
+                "text" if "text" in columns else "content" if "content" in columns else None
             )
             if text_column is None:
                 return ()
