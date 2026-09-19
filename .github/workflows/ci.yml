@@ -7,15 +7,13 @@ on:
     branches: [master]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.8.22"
@@ -26,16 +24,6 @@ jobs:
         run: uv lock --check
       - name: Sync locked environment
         run: uv sync --frozen
-      - name: Apply DD-151 formatter fix
-        run: |
-          uv run ruff format .
-          if ! git diff --quiet; then
-            git config user.name "chatgpt-ralph-bridge[bot]"
-            git config user.email "326723642+chatgpt-ralph-bridge[bot]@users.noreply.github.com"
-            git add src/deeper_dive/generation_monitor.py src/deeper_dive/storage/run_repositories.py src/deeper_dive/tui.py
-            git commit -m "style: format DD-151 implementation"
-            git push origin HEAD:${{ github.head_ref }}
-          fi
       - name: Ruff format
         run: uv run ruff format --check .
       - name: Ruff lint
