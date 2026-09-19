@@ -9,9 +9,15 @@ from textual.widgets import Input, Static
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.domain.clock import FrozenClock, format_timestamp
 from deeper_dive.domain.ids import new_episode_id, new_run_id
+from deeper_dive.hosts import HostProfile
+from deeper_dive.llm import FakeLLMProvider, LLMProviderRegistry, ProviderHealth
+from deeper_dive.model_roles import ModelRole
+from deeper_dive.preflight_screen import PreflightController, PreflightScreen
+from deeper_dive.provider_tui import ProviderController
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.storage.workspace import WorkspaceManager
+from deeper_dive.tts import FakeTTSProvider
 from deeper_dive.tui import (
     GLOBAL_SCREENS,
     PROJECT_SCREENS,
@@ -19,6 +25,7 @@ from deeper_dive.tui import (
     HomeProjectsScreen,
     SourcesScreen,
 )
+from deeper_dive.user_config import UserConfig, UserConfigStore
 
 
 def test_shell_navigates_all_destinations(tmp_path: Path) -> None:
@@ -161,6 +168,67 @@ async def _sources_tui_workflow(tmp_path: Path) -> None:
         assert "No sources yet" in _text(sources, "#source-list")
 
 
+def test_preflight_tui_surfaces_unhealthy_provider_blocker(tmp_path: Path) -> None:
+    asyncio.run(_preflight_tui_unhealthy_provider(tmp_path))
+
+
+async def _preflight_tui_unhealthy_provider(tmp_path: Path) -> None:
+    service = _service(tmp_path)
+    project = service.create_project("Preflight")
+    service.add_pasted_source(project.id, "Notes", "Grounded evidence for generation.")
+    service.hosts(project.id).create_host(
+        HostProfile(
+            id="host-1",
+            project_id=project.id,
+            display_name="Host One",
+            tts_provider="fake-tts",
+            tts_voice="voice-a",
+        ).to_record()
+    )
+    ffmpeg = tmp_path / "ffmpeg"
+    ffmpeg.write_text("fake", encoding="utf-8")
+    config_store = UserConfigStore(tmp_path / "config.json")
+    config_store.save(
+        UserConfig(defaults={role.value: "fake:fake-v1" for role in ModelRole})
+    )
+    llm_registry = LLMProviderRegistry()
+    llm_registry.register(UnhealthyLLM())
+    app = DeeperDiveApp(
+        service,
+        provider_controller=ProviderController(
+            config_store,
+            llm_registry,
+            {"fake-tts": FakeTTSProvider()},
+        ),
+        preflight_controller=PreflightController(ffmpeg_executable=ffmpeg),
+    )
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.current_project_id = project.id
+        app.current_project_name = project.name
+        app.action_navigate("generate")
+        await pilot.pause()
+        screen = _preflight(app)
+        assert "Sources: 1 included / 1 indexed" in _text(screen, "#preflight-summary")
+        assert "Hosts: 1" in _text(screen, "#preflight-summary")
+        assert "Expected duration: 20.0 minutes" in _text(screen, "#preflight-summary")
+        assert "host_generation: fake:fake-v1" in _text(screen, "#llm-preflight")
+        assert "Host One: fake-tts / voice-a" in _text(screen, "#tts-preflight")
+        assert "FFmpeg: available" in _text(screen, "#ffmpeg-preflight")
+        assert "LLM provider 'fake' is unhealthy: offline" in _text(
+            screen, "#preflight-issues"
+        )
+        screen.action_generate()
+        await pilot.pause()
+        assert "Generation blocked: LLM provider 'fake' is unhealthy: offline" in _text(
+            screen, "#screen-status"
+        )
+
+
+class UnhealthyLLM(FakeLLMProvider):
+    def health(self) -> ProviderHealth:
+        return ProviderHealth(False, "offline")
+
+
 def _service(tmp_path: Path) -> DeeperDiveService:
     return DeeperDiveService(
         WorkspaceManager(tmp_path / "data"),
@@ -178,7 +246,12 @@ def _sources(app: DeeperDiveApp) -> SourcesScreen:
     return app.screen
 
 
-def _text(screen: HomeProjectsScreen | SourcesScreen, selector: str) -> str:
+def _preflight(app: DeeperDiveApp) -> PreflightScreen:
+    assert isinstance(app.screen, PreflightScreen)
+    return app.screen
+
+
+def _text(screen: HomeProjectsScreen | SourcesScreen | PreflightScreen, selector: str) -> str:
     return str(screen.query_one(selector, Static).render())
 
 
