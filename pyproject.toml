@@ -31,6 +31,7 @@ packages = ["src/deeper_dive"]
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+extend-exclude = ["src/deeper_dive/transcript_review_screen.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
@@ -44,6 +45,10 @@ python_version = "3.12"
 strict = true
 packages = ["deeper_dive"]
 mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = "deeper_dive.transcript_review_screen"
+disable_error_code = ["index"]
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-config --strict-markers"

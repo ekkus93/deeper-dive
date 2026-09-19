@@ -15,6 +15,7 @@ from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
+from deeper_dive.transcript_review_screen import TranscriptReviewScreen
 
 if TYPE_CHECKING:
     from deeper_dive.tui import DeeperDiveApp
@@ -153,7 +154,7 @@ class EpisodeLibraryScreen(Screen[None]):
             return
         self._app.current_episode_id = item.episode.id
         self._app.current_run_id = None if item.run is None else item.run.id
-        self._app.action_navigate("monitor")
+        self.app.push_screen(TranscriptReviewScreen())
 
     def action_resume_selected(self) -> None:
         item = self._selected()
