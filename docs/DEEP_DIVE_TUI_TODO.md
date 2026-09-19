@@ -1190,15 +1190,15 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-151 — Generation monitor
 
-- [ ] Stage checklist.
-- [ ] Current section/turn.
-- [ ] Recent generated turns.
-- [ ] TTS progress.
-- [ ] Research progress.
-- [ ] Progress values only when meaningful.
-- [ ] Pause/resume/cancel.
-- [ ] View transcript.
-- [ ] View diagnostic errors/log summary.
+- [x] Stage checklist.
+- [x] Current section/turn.
+- [x] Recent generated turns.
+- [x] TTS progress.
+- [x] Research progress.
+- [x] Progress values only when meaningful.
+- [x] Pause/resume/cancel.
+- [x] View transcript.
+- [x] View diagnostic errors/log summary.
 
 **Acceptance criteria**
 
