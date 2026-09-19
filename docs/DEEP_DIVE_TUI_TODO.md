@@ -988,10 +988,10 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-125 — OpenAI TTS adapter
 
-- [ ] Implement supported OpenAI speech API path.
-- [ ] Voice/model discovery/config as available.
-- [ ] Normalize audio result.
-- [ ] Handle rate/auth/timeout errors.
+- [x] Implement supported OpenAI speech API path.
+- [x] Voice/model discovery/config as available.
+- [x] Normalize audio result.
+- [x] Handle rate/auth/timeout errors.
 
 **Acceptance criteria**
 
@@ -999,13 +999,13 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-126 — Generic OpenAI-compatible TTS adapter
 
-- [ ] Configurable base URL.
-- [ ] Optional credential/header reference.
-- [ ] Model.
-- [ ] Voice.
-- [ ] Response format.
-- [ ] Timeout.
-- [ ] Graceful handling of compatibility deviations.
+- [x] Configurable base URL.
+- [x] Optional credential/header reference.
+- [x] Model.
+- [x] Voice.
+- [x] Response format.
+- [x] Timeout.
+- [x] Graceful handling of compatibility deviations.
 
 **Acceptance criteria**
 
@@ -1013,11 +1013,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-127 — ElevenLabs adapter
 
-- [ ] Implement synthesis.
-- [ ] Voice discovery.
-- [ ] Model/config handling.
-- [ ] Normalize audio.
-- [ ] Handle auth/rate/timeout failures.
+- [x] Implement synthesis.
+- [x] Voice discovery.
+- [x] Model/config handling.
+- [x] Normalize audio.
+- [x] Handle auth/rate/timeout failures.
 
 **Acceptance criteria**
 
