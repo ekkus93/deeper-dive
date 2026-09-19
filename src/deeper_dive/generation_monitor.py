@@ -55,9 +55,7 @@ class GenerationMonitorController:
         database = Database(app.service.workspaces.project_root(project_id) / "project.db")
         conversation = ConversationStateRepository(database).get(episode_id)
         units = repository.list_completed_units_all(run.id)
-        tts_units = [
-            unit for unit in units if unit.stage == "tts" and unit.unit_id != "stage"
-        ]
+        tts_units = [unit for unit in units if unit.stage == "tts" and unit.unit_id != "stage"]
         research_units = [
             unit for unit in units if unit.stage == "research" and unit.unit_id != "stage"
         ]
@@ -111,9 +109,7 @@ class GenerationMonitorController:
                 "WHERE episode_id=? ORDER BY rowid DESC LIMIT 5",
                 (episode_id,),
             ).fetchall()
-        return tuple(
-            f"{row['id']}: {str(row['body'])[:160]}" for row in reversed(rows)
-        )
+        return tuple(f"{row['id']}: {str(row['body'])[:160]}" for row in reversed(rows))
 
 
 class MonitorApp(Protocol):
@@ -151,14 +147,7 @@ class GenerationMonitorScreen(Screen[None]):
             for key in ("home", "providers", "settings", "help"):
                 yield Button(key.title(), name=key)
         with Horizontal(id="project-nav"):
-            for key in (
-                "sources",
-                "research",
-                "hosts",
-                "episode",
-                "generate",
-                "library",
-            ):
+            for key in ("sources", "research", "hosts", "episode", "generate", "library"):
                 yield Button(key.title(), name=key)
         with VerticalScroll(id="content"):
             yield Label("Generation Monitor", id="screen-title")
@@ -239,9 +228,7 @@ class GenerationMonitorScreen(Screen[None]):
             if snapshot.recent_turns
             else "Transcript not available yet."
         )
-        self.query_one("#diagnostics-summary", Static).update(
-            "Transcript preview:\n" + text
-        )
+        self.query_one("#diagnostics-summary", Static).update("Transcript preview:\n" + text)
 
     def action_diagnostics(self) -> None:
         run = self._run()
@@ -280,9 +267,7 @@ class GenerationMonitorScreen(Screen[None]):
         snapshot = self._app.generation_monitor_controller.snapshot(self._app)
         run = snapshot.run
         self.query_one("#generation-state", Static).update(
-            "Run: none"
-            if run is None
-            else f"Run: {run.id} | {run.state} | stage {run.stage}"
+            "Run: none" if run is None else f"Run: {run.id} | {run.state} | stage {run.stage}"
         )
         self.query_one("#stage-checklist", Static).update(
             "Stages:\n"
@@ -293,9 +278,7 @@ class GenerationMonitorScreen(Screen[None]):
         )
         current = "Current section/turn: not available yet"
         if snapshot.section is not None or snapshot.turn is not None:
-            current = (
-                f"Current section/turn: {snapshot.section or 0} / {snapshot.turn or 0}"
-            )
+            current = f"Current section/turn: {snapshot.section or 0} / {snapshot.turn or 0}"
         self.query_one("#current-work", Static).update(current)
         self.query_one("#recent-turns", Static).update(
             "Recent turns:\n"
@@ -305,9 +288,7 @@ class GenerationMonitorScreen(Screen[None]):
             self._progress("TTS", snapshot.tts_completed, snapshot.tts_total)
         )
         self.query_one("#research-progress", Static).update(
-            self._progress(
-                "Research", snapshot.research_completed, snapshot.research_total
-            )
+            self._progress("Research", snapshot.research_completed, snapshot.research_total)
         )
         if status is not None:
             self._status(status)
