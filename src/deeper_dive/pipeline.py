@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Protocol
 
 from deeper_dive.application.events import ProgressEvent, ProgressSink
@@ -80,6 +80,33 @@ class PipelineOrchestrator:
         # orchestration itself serial preserves deterministic durable stage ordering.
         self.max_concurrency = max_concurrency
 
+    def request_pause(self, run_id: str) -> None:
+        """Request cooperative pause at the next safe stage boundary."""
+        self.repository.request_pause(run_id, self._now())
+
+    def request_cancel(self, run_id: str) -> None:
+        """Request cooperative cancel at the next safe stage boundary."""
+        self.repository.request_cancel(run_id, self._now())
+
+    def resume(self, run_id: str) -> GenerationRunRecord:
+        """Clear a durable pause request so a later process can continue the run."""
+        record = self.repository.get(run_id)
+        if record is None:
+            raise KeyError(f"unknown generation run: {run_id}")
+        if record.cancel_requested or record.state == "cancelled":
+            raise ValueError("cancelled runs cannot be resumed")
+        resumed = replace(
+            record,
+            state="pending",
+            pause_requested=False,
+            failure_code=None,
+            failure_message=None,
+            modified_at=self._now(),
+        )
+        self.repository.update(resumed)
+        self._emit(record.stage, "resumed")
+        return resumed
+
     def run(
         self,
         run_id: str,
@@ -96,7 +123,16 @@ class PipelineOrchestrator:
         executed: list[str] = []
         skipped: list[str] = []
 
+        control_result = self._apply_requested_control(record, tuple(executed), tuple(skipped))
+        if control_result is not None:
+            return control_result
+
         for index, stage in enumerate(self.stages):
+            record = self._refresh(run_id)
+            control_result = self._apply_requested_control(record, tuple(executed), tuple(skipped))
+            if control_result is not None:
+                return control_result
+
             completed = bool(self.repository.list_completed_units(run_id, stage))
             valid = artifact_valid(stage) if artifact_valid is not None else completed
             if index < forced_index and completed and valid:
@@ -130,9 +166,36 @@ class PipelineOrchestrator:
             executed.append(stage)
             self._emit(stage, "completed")
 
+            record = self._refresh(run_id)
+            control_result = self._apply_requested_control(record, tuple(executed), tuple(skipped))
+            if control_result is not None:
+                return control_result
+
         record = self._update(record, stage=self.stages[-1], state="completed")
         self._emit("pipeline", "completed", completed=len(self.stages), total=len(self.stages))
         return PipelineResult(record, tuple(executed), tuple(skipped))
+
+    def _refresh(self, run_id: str) -> GenerationRunRecord:
+        record = self.repository.get(run_id)
+        if record is None:
+            raise KeyError(f"unknown generation run: {run_id}")
+        return record
+
+    def _apply_requested_control(
+        self,
+        record: GenerationRunRecord,
+        executed: tuple[str, ...],
+        skipped: tuple[str, ...],
+    ) -> PipelineResult | None:
+        if record.cancel_requested:
+            cancelled = self._update(record, stage=record.stage, state="cancelled")
+            self._emit(record.stage, "cancelled", "cancel requested at safe boundary")
+            return PipelineResult(cancelled, executed, skipped)
+        if record.pause_requested:
+            paused = self._update(record, stage=record.stage, state="paused")
+            self._emit(record.stage, "paused", "pause requested at safe boundary")
+            return PipelineResult(paused, executed, skipped)
+        return None
 
     def _update(
         self, record: GenerationRunRecord, *, stage: str, state: str
