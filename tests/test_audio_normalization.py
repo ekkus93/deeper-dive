@@ -69,9 +69,7 @@ def test_provider_api_raw_pcm_requires_sample_rate() -> None:
 
 def test_corrupt_empty_and_unsupported_provider_outputs_are_rejected() -> None:
     with pytest.raises(AudioNormalizationError, match="empty"):
-        normalize_provider_audio(
-            TTSAudioResult(b"", "audio/wav", "wav", "fixture", "voice-a")
-        )
+        normalize_provider_audio(TTSAudioResult(b"", "audio/wav", "wav", "fixture", "voice-a"))
     with pytest.raises(AudioNormalizationError, match="invalid WAV"):
         normalize_provider_audio(
             TTSAudioResult(b"not-a-wav", "audio/wav", "wav", "fixture", "voice-a")
@@ -82,9 +80,7 @@ def test_corrupt_empty_and_unsupported_provider_outputs_are_rejected() -> None:
         )
 
 
-def _wav_bytes(
-    *, sample_rate_hz: int, channels: int, frames: tuple[tuple[int, ...], ...]
-) -> bytes:
+def _wav_bytes(*, sample_rate_hz: int, channels: int, frames: tuple[tuple[int, ...], ...]) -> bytes:
     buffer = io.BytesIO()
     with wave.open(buffer, "wb") as wav:
         wav.setnchannels(channels)

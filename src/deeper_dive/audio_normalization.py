@@ -124,7 +124,9 @@ def normalize_raw_pcm16(
         sample_rate_hz=CANONICAL_SAMPLE_RATE_HZ,
         channels=CANONICAL_CHANNELS,
         sample_width_bytes=CANONICAL_SAMPLE_WIDTH_BYTES,
-        duration_seconds=_duration_seconds(normalized, CANONICAL_SAMPLE_RATE_HZ, CANONICAL_CHANNELS),
+        duration_seconds=_duration_seconds(
+            normalized, CANONICAL_SAMPLE_RATE_HZ, CANONICAL_CHANNELS
+        ),
         source_format=source_format,
         source_media_type=source_media_type,
     )
