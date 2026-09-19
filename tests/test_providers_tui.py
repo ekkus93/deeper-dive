@@ -6,10 +6,11 @@ from pathlib import Path
 from textual.widgets import Input, Static
 
 from deeper_dive.application.service import DeeperDiveService
-from deeper_dive.llm import FakeLLMProvider, LLMProviderRegistry
+from deeper_dive.llm import FakeLLMProvider, LLMProviderRegistry, ProviderHealth
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.providers_screen import ProvidersScreen
 from deeper_dive.storage.workspace import WorkspaceManager
+from deeper_dive.tts import TTSVoice
 from deeper_dive.tui import DeeperDiveApp
 from deeper_dive.user_config import UserConfigStore
 
@@ -17,11 +18,11 @@ from deeper_dive.user_config import UserConfigStore
 class FakeTTSProvider:
     provider_id = "speech"
 
-    def health(self) -> tuple[bool, str]:
-        return True, "ready"
+    def health(self) -> ProviderHealth:
+        return ProviderHealth(True, "ready")
 
-    def voices(self) -> tuple[str, ...]:
-        return ("alice", "bob")
+    def voices(self) -> tuple[TTSVoice, ...]:
+        return (TTSVoice("alice", "Alice"), TTSVoice("bob", "Bob"))
 
 
 def test_providers_tui_configure_health_and_discovery(tmp_path: Path) -> None:
