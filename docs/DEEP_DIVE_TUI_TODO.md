@@ -1065,11 +1065,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-132 — TTS generation stage
 
-- [ ] Generate TTS per turn.
-- [ ] Cache by text+voice+provider/model/settings identity.
-- [ ] Persist TTS artifact IDs/status.
-- [ ] Checkpoint each completed turn.
-- [ ] Bounded concurrency where safe.
+- [x] Generate TTS per turn.
+- [x] Cache by text+voice+provider/model/settings identity.
+- [x] Persist TTS artifact IDs/status.
+- [x] Checkpoint each completed turn.
+- [x] Bounded concurrency where safe.
 
 **Acceptance criteria**
 
