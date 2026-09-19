@@ -3,7 +3,11 @@ from __future__ import annotations
 import pytest
 
 from deeper_dive.tts import FakeTTSProvider
-from deeper_dive.tts_benchmark import BENCHMARK_TEXT, TTSBenchmarkService, benchmark_math
+from deeper_dive.tts_benchmark import (
+    BENCHMARK_TEXT,
+    TTSBenchmarkService,
+    benchmark_math,
+)
 
 
 def test_benchmark_math_is_independent_of_real_model() -> None:
