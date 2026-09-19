@@ -52,6 +52,15 @@ class GenerationRunRepository:
             row = db.execute("SELECT * FROM generation_runs WHERE id=?", (run_id,)).fetchone()
         return None if row is None else self._from_row(dict(row))
 
+    def latest_for_episode(self, episode_id: str) -> GenerationRunRecord | None:
+        with self.database.connection() as db:
+            row = db.execute(
+                """SELECT * FROM generation_runs WHERE episode_id=?
+                ORDER BY modified_at DESC,id DESC LIMIT 1""",
+                (episode_id,),
+            ).fetchone()
+        return None if row is None else self._from_row(dict(row))
+
     def update(self, run: GenerationRunRecord) -> None:
         with self.database.transaction() as db:
             db.execute(
@@ -95,6 +104,20 @@ class GenerationRunRepository:
                 (run_id, stage),
             ).fetchall()
         return [CompletedUnitRecord(**dict(row)) for row in rows]
+
+    def list_completed_units_all(self, run_id: str) -> list[CompletedUnitRecord]:
+        with self.database.connection() as db:
+            rows = db.execute(
+                """SELECT run_id,stage,unit_id,completed_at FROM generation_run_units
+                WHERE run_id=? ORDER BY completed_at,stage,unit_id""",
+                (run_id,),
+            ).fetchall()
+        return [CompletedUnitRecord(**dict(row)) for row in rows]
+
+    def list_completed_stages(self, run_id: str) -> list[str]:
+        return [
+            unit.stage for unit in self.list_completed_units_all(run_id) if unit.unit_id == "stage"
+        ]
 
     def _set_flag(self, run_id: str, column: str, modified_at: str) -> None:
         if column not in {"pause_requested", "cancel_requested"}:
