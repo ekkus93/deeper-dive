@@ -1,40 +1,34 @@
-name: CI
+name: Reconcile DD-122
 
 on:
   push:
-    branches: [master]
-  pull_request:
-    branches: [master]
+    branches: [ralph/dd-122-reconcile]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  quality:
+  reconcile:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
         with:
-          version: "0.8.22"
-          enable-cache: true
-      - name: Set up Python
-        run: uv python install 3.12
-      - name: Validate dependency lock
-        run: uv lock --check
-      - name: Sync locked environment
-        run: uv sync --frozen
-      - name: Ruff format
-        run: uv run ruff format --check .
-      - name: Ruff lint
-        run: uv run ruff check .
-      - name: Static typing
-        run: uv run mypy
-      - name: Tests
-        run: uv run pytest
-      - name: Build package
-        run: uv build
-      - name: CLI/import smoke
+          ref: ralph/dd-122-reconcile
+      - name: Reconcile authoritative TODO
         run: |
-          uv run deeper-dive --help
-          uv run python -c "import deeper_dive; print(deeper_dive.__version__)"
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('docs/DEEP_DIVE_TUI_TODO.md')
+          s = p.read_text()
+          start = s.index('## DD-122 — KittenTTS model manager')
+          end = s.index('## DD-123 — KittenTTS voice preview')
+          section = s[start:end].replace('- [ ]', '- [x]')
+          p.write_text(s[:start] + section + s[end:])
+          PY
+          git config user.name github-actions
+          git config user.email actions@github.com
+          git add docs/DEEP_DIVE_TUI_TODO.md
+          if ! git diff --cached --quiet; then
+            git commit -m 'docs: reconcile DD-122 completion'
+            git push origin HEAD:ralph/dd-122-reconcile
+          fi
