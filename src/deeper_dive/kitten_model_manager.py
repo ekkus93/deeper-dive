@@ -85,7 +85,9 @@ class KittenModelManager:
         (self.model_dir / "manifest.json").unlink(missing_ok=True)
         self._cleanup_partials()
 
-    def reinstall(self, *, url: str, version: str, sha256: str | None = None) -> KittenModelState:
+    def reinstall(
+        self, *, url: str, version: str, sha256: str | None = None
+    ) -> KittenModelState:
         self.uninstall()
         return self.install(url=url, version=version, sha256=sha256)
 
