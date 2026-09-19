@@ -1233,11 +1233,11 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-154 — Audio playback integration
 
-- [ ] Determine portable terminal/local-player strategy.
-- [ ] Play/pause where supported.
-- [ ] Seek/skip where supported or provide documented reduced capability.
-- [ ] Keep selected chapter/turn synchronized approximately when feasible.
-- [ ] Fail gracefully on headless systems with no playback backend.
+- [x] Determine portable terminal/local-player strategy.
+- [x] Play/pause where supported.
+- [x] Seek/skip where supported or provide documented reduced capability.
+- [x] Keep selected chapter/turn synchronized approximately when feasible.
+- [x] Fail gracefully on headless systems with no playback backend.
 
 **Acceptance criteria**
 
