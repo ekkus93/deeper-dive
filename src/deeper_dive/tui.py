@@ -16,6 +16,7 @@ from deeper_dive.episode_plan_screen import EpisodePlanController, EpisodePlanSc
 from deeper_dive.episode_setup_screen import EpisodeSetupScreen
 from deeper_dive.hosts_screen import HostsScreen
 from deeper_dive.llm import LLMProviderRegistry
+from deeper_dive.preflight_screen import PreflightController, PreflightScreen
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.providers_screen import ProvidersScreen
 from deeper_dive.research_controller import PersistentResearchController
@@ -496,7 +497,7 @@ class DeeperDiveApp(App[None]):
         "hosts": lambda: HostsScreen(),
         "episode": lambda: EpisodeSetupScreen(),
         "plan": lambda: EpisodePlanScreen(),
-        "generate": lambda: ShellScreen("generate", "Generate", "Preflight and generation status."),
+        "generate": lambda: PreflightScreen(),
         "library": lambda: ShellScreen("library", "Library", "Generated episodes and exports."),
     }
 
@@ -507,6 +508,7 @@ class DeeperDiveApp(App[None]):
         provider_controller: ProviderController | None = None,
         research_controller: ResearchController | None = None,
         episode_plan_controller: EpisodePlanController | None = None,
+        preflight_controller: PreflightController | None = None,
     ) -> None:
         super().__init__()
         self.service = service if service is not None else DeeperDiveService(WorkspaceManager())
@@ -522,6 +524,7 @@ class DeeperDiveApp(App[None]):
         self.current_project_name: str | None = None
         self.current_episode_id: str | None = None
         self.episode_plan_controller = episode_plan_controller
+        self.preflight_controller = preflight_controller or PreflightController()
         self.plan_approved = False
         self.auto_generate_after_approval = False
 
