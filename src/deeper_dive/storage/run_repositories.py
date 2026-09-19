@@ -55,7 +55,8 @@ class GenerationRunRepository:
     def latest_for_episode(self, episode_id: str) -> GenerationRunRecord | None:
         with self.database.connection() as db:
             row = db.execute(
-                "SELECT * FROM generation_runs WHERE episode_id=? ORDER BY modified_at DESC,id DESC LIMIT 1",
+                """SELECT * FROM generation_runs WHERE episode_id=?
+                ORDER BY modified_at DESC,id DESC LIMIT 1""",
                 (episode_id,),
             ).fetchone()
         return None if row is None else self._from_row(dict(row))
