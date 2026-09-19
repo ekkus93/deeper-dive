@@ -41,7 +41,7 @@ jobs:
             git config user.email actions@github.com
             git add docs/DEEP_DIVE_TUI_TODO.md
             git commit -m "docs: reconcile DD-141 completion"
-            git push
+            git push origin HEAD:ralph/dd-141-reconcile
           fi
       - name: Ruff format
         run: uv run ruff format --check .
