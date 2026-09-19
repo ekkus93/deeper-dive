@@ -92,7 +92,9 @@ class PipelineOrchestrator:
             raise KeyError(f"unknown generation run: {run_id}")
         if force_from is not None and force_from not in self.stages:
             raise ValueError(f"unknown force_from stage: {force_from}")
-        forced_index = self.stages.index(force_from) if force_from is not None else len(self.stages)
+        forced_index = (
+            self.stages.index(force_from) if force_from is not None else len(self.stages)
+        )
         executed: list[str] = []
         skipped: list[str] = []
 
@@ -126,9 +128,7 @@ class PipelineOrchestrator:
                         raise
                     self._emit(stage, "retrying", f"retry {attempts}/{self.max_stage_retries}")
 
-            self.repository.complete_unit(
-                CompletedUnitRecord(run_id, stage, "stage", self._now())
-            )
+            self.repository.complete_unit(CompletedUnitRecord(run_id, stage, "stage", self._now()))
             executed.append(stage)
             self._emit(stage, "completed")
 
@@ -136,7 +136,9 @@ class PipelineOrchestrator:
         self._emit("pipeline", "completed", completed=len(self.stages), total=len(self.stages))
         return PipelineResult(record, tuple(executed), tuple(skipped))
 
-    def _update(self, record: GenerationRunRecord, *, stage: str, state: str) -> GenerationRunRecord:
+    def _update(
+        self, record: GenerationRunRecord, *, stage: str, state: str
+    ) -> GenerationRunRecord:
         updated = GenerationRunRecord(
             id=record.id,
             episode_id=record.episode_id,

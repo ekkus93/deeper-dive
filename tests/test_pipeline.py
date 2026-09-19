@@ -89,7 +89,9 @@ def test_invalid_artifact_is_rebuilt_even_when_checkpoint_exists(tmp_path) -> No
     def handler(context: PipelineContext) -> None:
         calls.append(context.stage)
 
-    orchestrator = PipelineOrchestrator(repository, {stage: handler for stage in STAGES}, stages=STAGES)
+    orchestrator = PipelineOrchestrator(
+        repository, {stage: handler for stage in STAGES}, stages=STAGES
+    )
     orchestrator.run("run")
     calls.clear()
 
@@ -108,7 +110,9 @@ def test_stage_retry_is_bounded_and_checkpointed_only_after_success(tmp_path) ->
         if attempts < 3:
             raise RuntimeError("transient")
 
-    handlers = {stage: (flaky if stage == "sources" else lambda context: None) for stage in STAGES}
+    handlers = {
+        stage: (flaky if stage == "sources" else lambda context: None) for stage in STAGES
+    }
     orchestrator = PipelineOrchestrator(repository, handlers, stages=STAGES, max_stage_retries=2)
 
     orchestrator.run("run")
@@ -123,7 +127,9 @@ def test_terminal_stage_failure_is_durable(tmp_path) -> None:
     def fail(context: PipelineContext) -> None:
         raise RuntimeError("provider unavailable")
 
-    handlers = {stage: (fail if stage == "sources" else lambda context: None) for stage in STAGES}
+    handlers = {
+        stage: (fail if stage == "sources" else lambda context: None) for stage in STAGES
+    }
     orchestrator = PipelineOrchestrator(repository, handlers, stages=STAGES, max_stage_retries=1)
 
     with pytest.raises(RuntimeError, match="provider unavailable"):
@@ -150,9 +156,7 @@ def test_frozen_clock_serialization_used_for_durable_updates(tmp_path) -> None:
     repository = make_repository(tmp_path)
     instant = datetime(2026, 9, 19, 5, 0, tzinfo=UTC)
     handlers = {stage: lambda context: None for stage in STAGES}
-    orchestrator = PipelineOrchestrator(
-        repository, handlers, stages=STAGES, clock=FrozenClock(instant)
-    )
+    orchestrator = PipelineOrchestrator(repository, handlers, stages=STAGES, clock=FrozenClock(instant))
 
     result = orchestrator.run("run")
 
