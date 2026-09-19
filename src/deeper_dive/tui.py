@@ -530,7 +530,9 @@ class DeeperDiveApp(App[None]):
         self.current_run_id: str | None = None
         self.episode_plan_controller = episode_plan_controller
         self.preflight_controller = preflight_controller or PreflightController()
-        self.generation_monitor_controller = generation_monitor_controller or GenerationMonitorController()
+        self.generation_monitor_controller = (
+            generation_monitor_controller or GenerationMonitorController()
+        )
         self.plan_approved = False
         self.auto_generate_after_approval = False
 
