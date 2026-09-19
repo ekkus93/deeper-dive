@@ -10,4 +10,5 @@ def test_dd128_host_tts_actions_are_exposed() -> None:
         HostsScreen.action_benchmark_tts,
     )
     assert all(callable(action) for action in actions)
-    assert TTSVoice("Bella", "Bella").id == "Bella"
+    voice = TTSVoice("Bella", "Bella")
+    assert (voice.id, voice.name) == ("Bella", "Bella")
