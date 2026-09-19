@@ -7,12 +7,12 @@ from textual.widgets import Input
 
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.hosts_screen import HostsScreen
+from deeper_dive.llm import LLMProviderRegistry
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.tts import FakeTTSProvider, TTSVoice
-from deeper_dive.user_config import UserConfigStore
-from deeper_dive.llm import LLMProviderRegistry
 from deeper_dive.tui import DeeperDiveApp
+from deeper_dive.user_config import UserConfigStore
 
 
 def test_hosts_screen_supports_six_hosts_editing_relationships_and_reorder(tmp_path: Path) -> None:

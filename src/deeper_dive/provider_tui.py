@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from deeper_dive.llm import LLMProvider, LLMProviderRegistry
-from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
+from deeper_dive.llm import LLMProvider, LLMProviderRegistry
 from deeper_dive.tts import TTSProvider
+from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
 @dataclass(slots=True)

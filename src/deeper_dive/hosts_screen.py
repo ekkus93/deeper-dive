@@ -14,9 +14,9 @@ from textual.widgets import Button, Footer, Header, Input, Label, Static
 
 from deeper_dive.hosts import HostProfile, HostRelationship, create_host_from_preset, preset_names
 from deeper_dive.kitten_model_manager import KittenModelManager
+from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 from deeper_dive.tts_benchmark import TTSBenchmarkService
 from deeper_dive.voice_preview import VoicePreviewService
-from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 
 if TYPE_CHECKING:
     from deeper_dive.tui import DeeperDiveApp
@@ -335,7 +335,8 @@ class HostsScreen(Screen[None]):
             self._status(f"Benchmark failed: {exc}")
             return
         self._status(
-            f"Benchmark: {result.x_realtime:.2f}x realtime; 20 min ≈ {result.estimated_20_minute_render_seconds:.0f}s"
+            f"Benchmark: {result.x_realtime:.2f}x realtime; "
+            f"20 min ≈ {result.estimated_20_minute_render_seconds:.0f}s"
         )
 
     def _status(self, value: str) -> None:
