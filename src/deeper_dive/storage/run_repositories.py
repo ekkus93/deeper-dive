@@ -49,13 +49,16 @@ class GenerationRunRepository:
 
     def get(self, run_id: str) -> GenerationRunRecord | None:
         with self.database.connection() as db:
-            row = db.execute("SELECT * FROM generation_runs WHERE id=?", (run_id,)).fetchone()
+            row = db.execute(
+                "SELECT * FROM generation_runs WHERE id=?", (run_id,)
+            ).fetchone()
         return None if row is None else self._from_row(dict(row))
 
     def latest_for_episode(self, episode_id: str) -> GenerationRunRecord | None:
         with self.database.connection() as db:
             row = db.execute(
-                "SELECT * FROM generation_runs WHERE episode_id=? ORDER BY modified_at DESC,id DESC LIMIT 1",
+                """SELECT * FROM generation_runs WHERE episode_id=?
+                ORDER BY modified_at DESC,id DESC LIMIT 1""",
                 (episode_id,),
             ).fetchone()
         return None if row is None else self._from_row(dict(row))
@@ -95,7 +98,9 @@ class GenerationRunRepository:
             )
             return cursor.rowcount == 1
 
-    def list_completed_units(self, run_id: str, stage: str) -> list[CompletedUnitRecord]:
+    def list_completed_units(
+        self, run_id: str, stage: str
+    ) -> list[CompletedUnitRecord]:
         with self.database.connection() as db:
             rows = db.execute(
                 """SELECT run_id,stage,unit_id,completed_at FROM generation_run_units
