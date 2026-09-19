@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
@@ -71,4 +72,11 @@ class UserConfigStore:
         payload = json.dumps(config.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
         temporary = self.path.with_suffix(self.path.suffix + ".tmp")
         temporary.write_text(payload, encoding="utf-8")
+        self._restrict_permissions(temporary)
         temporary.replace(self.path)
+        self._restrict_permissions(self.path)
+
+    @staticmethod
+    def _restrict_permissions(path: Path) -> None:
+        if os.name == "posix":
+            path.chmod(0o600)
