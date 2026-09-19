@@ -1,0 +1,32 @@
+name: Ralph reconcile DD-125 through DD-127
+on:
+  push:
+    branches: [ralph/dd-125-127-reconcile]
+permissions:
+  contents: write
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reconcile completed TTS adapters
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('docs/DEEP_DIVE_TUI_TODO.md')
+          text = path.read_text()
+          for start, end in [('## DD-125', '## DD-126'), ('## DD-126', '## DD-127'), ('## DD-127', '## DD-128')]:
+              left = text.index(start)
+              right = text.index(end, left)
+              section = text[left:right].replace('- [ ]', '- [x]')
+              text = text[:left] + section + text[right:]
+          path.write_text(text)
+          PY
+          rm .github/workflows/ralph-reconcile.yml
+          git config user.name github-actions
+          git config user.email actions@github.com
+          git add docs/DEEP_DIVE_TUI_TODO.md .github/workflows/ralph-reconcile.yml
+          git commit -m 'docs: reconcile DD-125 through DD-127 completion'
+          git push
