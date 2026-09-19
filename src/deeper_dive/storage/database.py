@@ -10,7 +10,7 @@ from pathlib import Path
 
 from deeper_dive.domain.errors import StorageError
 
-LATEST_SCHEMA_VERSION = 5
+LATEST_SCHEMA_VERSION = 6
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,6 +157,16 @@ _MIGRATIONS = (
                 unresolved_topics_json TEXT NOT NULL DEFAULT '[]',
                 recent_context_refs_json TEXT NOT NULL DEFAULT '[]',
                 participation_json TEXT NOT NULL DEFAULT '{}'
+            )""",
+        ),
+    ),
+    Migration(
+        version=6,
+        statements=(
+            """CREATE TABLE audio_timelines (
+                episode_id TEXT PRIMARY KEY REFERENCES episodes(id) ON DELETE CASCADE,
+                timeline_json TEXT NOT NULL,
+                duration_seconds REAL NOT NULL CHECK(duration_seconds >= 0)
             )""",
         ),
     ),
