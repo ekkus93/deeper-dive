@@ -1206,13 +1206,13 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-152 — Episode library TUI
 
-- [ ] List complete/draft/failed/paused episodes.
-- [ ] Open/review.
-- [ ] Resume.
-- [ ] Duplicate configuration.
-- [ ] Export.
-- [ ] Delete with confirmation.
-- [ ] New episode action.
+- [x] List complete/draft/failed/paused episodes.
+- [x] Open/review.
+- [x] Resume.
+- [x] Duplicate configuration.
+- [x] Export.
+- [x] Delete with confirmation.
+- [x] New episode action.
 
 **Acceptance criteria**
 
