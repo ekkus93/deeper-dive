@@ -38,3 +38,49 @@ jobs:
         run: |
           uv run deeper-dive --help
           uv run python -c "import deeper_dive; print(deeper_dive.__version__)"
+
+  fresh-machine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.22"
+      - name: Install fresh prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg espeak-ng
+          uv python install 3.12
+      - name: Build and install wheel in clean environment
+        run: |
+          uv build
+          uv venv /tmp/deeper-dive-fresh --python 3.12
+          uv pip install --python /tmp/deeper-dive-fresh/bin/python dist/*.whl
+      - name: Launch installed CLI and TUI entry points
+        run: |
+          /tmp/deeper-dive-fresh/bin/deeper-dive --help
+          timeout 5s /tmp/deeper-dive-fresh/bin/deeper-dive-tui || test $? -eq 124
+      - name: Exercise fake-provider project workflow
+        run: |
+          export PATH="/tmp/deeper-dive-fresh/bin:$PATH"
+          deeper-dive --json project create "Fresh machine smoke" > /tmp/project.json
+          deeper-dive --json project list > /tmp/projects.json
+          test -s /tmp/project.json
+          test -s /tmp/projects.json
+      - name: Install real KittenTTS runtime
+        run: |
+          uv pip install --python /tmp/deeper-dive-fresh/bin/python \
+            https://github.com/KittenML/KittenTTS/releases/download/0.8.1/kittentts-0.8.1-py3-none-any.whl
+      - name: Real KittenTTS Micro CPU smoke
+        run: |
+          /tmp/deeper-dive-fresh/bin/python - <<'PY'
+          from deeper_dive.kitten_tts import KittenTTSMicroProvider
+          from deeper_dive.tts import TTSRequest
+
+          provider = KittenTTSMicroProvider()
+          result = provider.synthesize(TTSRequest("Fresh machine CPU smoke.", "Bella"))
+          assert result.provider == "kitten"
+          assert result.audio.startswith(b"RIFF")
+          assert result.sample_rate_hz == 24000
+          print(f"KittenTTS Micro CPU smoke: {len(result.audio)} WAV bytes")
+          PY
