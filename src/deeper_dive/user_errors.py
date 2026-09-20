@@ -23,14 +23,32 @@ def actionable_error(area: str, exc: BaseException) -> UserError:
     detail = str(redact(str(exc)))
     normalized = area.strip().lower()
     guidance = {
-        "parser": ("Could not parse the source.", "Check that the file is supported and not damaged."),
-        "provider": ("Provider request failed.", "Check provider health, credentials, model, and network settings."),
-        "network": ("Network request failed.", "Check the URL, connectivity, redirects, and provider availability."),
-        "tts": ("Speech generation failed.", "Check the TTS provider, selected voice, and model installation."),
-        "ffmpeg": ("Audio processing failed.", "Check that FFmpeg is installed and available to Deeper Dive."),
+        "parser": (
+            "Could not parse the source.",
+            "Check that the file is supported and not damaged.",
+        ),
+        "provider": (
+            "Provider request failed.",
+            "Check provider health, credentials, model, and network settings.",
+        ),
+        "network": (
+            "Network request failed.",
+            "Check the URL, connectivity, redirects, and provider availability.",
+        ),
+        "tts": (
+            "Speech generation failed.",
+            "Check the TTS provider, selected voice, and model installation.",
+        ),
+        "ffmpeg": (
+            "Audio processing failed.",
+            "Check that FFmpeg is installed and available to Deeper Dive.",
+        ),
     }
     summary, action = guidance.get(
         normalized,
-        ("Operation failed.", "Review the diagnostics and retry after correcting the reported problem."),
+        (
+            "Operation failed.",
+            "Review the diagnostics and retry after correcting the reported problem.",
+        ),
     )
     return UserError(summary, action, detail)
