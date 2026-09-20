@@ -1,3 +1,4 @@
+# fmt: off
 from __future__ import annotations
 
 import zipfile
@@ -13,19 +14,11 @@ from deeper_dive.storage.workspace import WorkspaceManager
 
 
 def _parsers() -> list[parsing.SourceParser]:
-    return [
-        parsing.TextMarkdownParser(),
-        parsing.PdfParser(),
-        parsing.DocxParser(),
-        HtmlUrlParser(),
-    ]
+    return [parsing.TextMarkdownParser(), parsing.PdfParser(), parsing.DocxParser(), HtmlUrlParser()]
 
 
 def _docx(path: Path) -> None:
-    xml = (
-        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
-        '<w:body><w:p><w:r><w:t>DOCX fixture</w:t></w:r></w:p></w:body></w:document>'
-    )
+    xml = '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>DOCX fixture</w:t></w:r></w:p></w:body></w:document>'
     with zipfile.ZipFile(path, "w") as archive:
         archive.writestr("word/document.xml", xml)
 
@@ -81,3 +74,4 @@ def test_pasted_and_excluded_source_matrix(tmp_path: Path) -> None:
     excluded = service.get_source(project.id, source.id)
     assert excluded is not None
     assert not excluded.included
+# fmt: on
