@@ -18,6 +18,7 @@ from deeper_dive.model_roles import (
     ModelRole,
     ModelRoleAssignments,
     effective_model_role_assignments,
+    project_model_defaults_from_instructions,
 )
 from deeper_dive.preflight import (
     PreflightEstimate,
@@ -85,9 +86,12 @@ class PreflightController:
         host_records = self._selected_host_records(host_repository, project_id, episode)
         hosts = tuple(HostProfile.from_record(host) for host in host_records)
         config = app.provider_controller.config()
+        project_defaults = self._project_model_defaults(app, project_id)
         episode_overrides = self._episode_model_overrides(app, project_id, episode)
         assignments, assignment_issues = self._assignments(
-            config.defaults, episode_overrides
+            config.defaults,
+            project_defaults,
+            episode_overrides,
         )
 
         tts_registry = TTSProviderRegistry()
@@ -156,6 +160,13 @@ class PreflightController:
         return tuple(by_id[host_id] for host_id in host_ids if host_id in by_id)
 
     @staticmethod
+    def _project_model_defaults(app: PreflightApp, project_id: str) -> dict[str, str]:
+        project = app.service.open_project(project_id)
+        if project is None:
+            return {}
+        return project_model_defaults_from_instructions(project.instructions)
+
+    @staticmethod
     def _episode_model_overrides(
         app: PreflightApp,
         project_id: str,
@@ -173,10 +184,12 @@ class PreflightController:
     @staticmethod
     def _assignments(
         defaults: dict[str, str],
+        project_defaults: dict[str, str] | None = None,
         episode_overrides: dict[str, dict[str, str]] | None = None,
     ) -> tuple[ModelRoleAssignments, tuple[PreflightIssue, ...]]:
         assignments, errors = effective_model_role_assignments(
             user_defaults=defaults,
+            project_defaults=project_defaults or {},
             episode_overrides=episode_overrides or {},
         )
         issues = tuple(PreflightIssue("llm_assignment", error) for error in errors)
