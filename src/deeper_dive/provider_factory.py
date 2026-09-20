@@ -125,8 +125,8 @@ class ProviderFactory:
         network_scopes: dict[str, str] = {}
         for name, provider_config in sorted(config.providers.items()):
             kind = self._normalized_type(provider_config.provider_type)
-            network_scopes[name] = (
-                provider_config.network_scope or self._default_network_scope(kind)
+            network_scopes[name] = provider_config.network_scope or self._default_network_scope(
+                kind
             )
             if kind in LLM_PROVIDER_TYPES:
                 llm_registry.register(
