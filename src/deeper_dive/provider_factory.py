@@ -55,6 +55,7 @@ class ProviderBuildResult:
     llm_registry: LLMProviderRegistry
     tts_registry: TTSProviderRegistry
     tts_providers: dict[str, TTSProvider]
+    network_scopes: dict[str, str]
 
 
 class _AliasedLLMProvider:
@@ -121,8 +122,12 @@ class ProviderFactory:
         llm_registry = LLMProviderRegistry()
         tts_registry = TTSProviderRegistry()
         tts_providers: dict[str, TTSProvider] = {}
+        network_scopes: dict[str, str] = {}
         for name, provider_config in sorted(config.providers.items()):
             kind = self._normalized_type(provider_config.provider_type)
+            network_scopes[name] = provider_config.network_scope or self._default_network_scope(
+                kind
+            )
             if kind in LLM_PROVIDER_TYPES:
                 llm_registry.register(
                     _AliasedLLMProvider(
@@ -142,7 +147,17 @@ class ProviderFactory:
                     f"provider {name!r} has unsupported provider_type "
                     f"{provider_config.provider_type!r}"
                 )
-        return ProviderBuildResult(llm_registry, tts_registry, tts_providers)
+        return ProviderBuildResult(
+            llm_registry,
+            tts_registry,
+            tts_providers,
+            network_scopes,
+        )
+
+    @staticmethod
+    def _default_network_scope(kind: str) -> str:
+        local_types = {"fake", "fake-tts", "kitten", "ollama", "llama-server"}
+        return "local" if kind in local_types else "remote"
 
     @staticmethod
     def _normalized_type(value: str) -> str:
