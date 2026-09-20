@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.audio_playback import AudioPlaybackBackend, AudioPlaybackController
 from deeper_dive.episode_planner import EpisodePlanGenerator, EpisodePlannerService
 from deeper_dive.export import EpisodeExporter
 from deeper_dive.generation_monitor import GenerationMonitorController
+from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
 from deeper_dive.pipeline import PipelineOrchestrator, StageHandler
 from deeper_dive.preflight_screen import PreflightController
 from deeper_dive.provider_factory import ProviderBuildResult, ProviderFactory
@@ -27,6 +30,35 @@ from deeper_dive.targeted_repair import (
 )
 from deeper_dive.tts_benchmark import TTSBenchmarkService
 from deeper_dive.user_config import UserConfigStore
+
+
+@dataclass(frozen=True, slots=True)
+class LLMEpisodePlanGenerator:
+    """Adapt the normalized LLM boundary to structured episode planning."""
+
+    provider: LLMProvider
+    model: str | None = None
+
+    def generate_plan(self, request: dict[str, Any]) -> dict[str, Any]:
+        response = self.provider.generate(
+            LLMRequest(
+                messages=(
+                    LLMMessage(
+                        "system",
+                        "Return a JSON episode plan with a non-empty segments array.",
+                    ),
+                    LLMMessage("user", json.dumps(request, sort_keys=True)),
+                ),
+                model=self.model,
+                response_schema={"type": "object", "required": ["segments"]},
+            )
+        )
+        payload: object = response.structured
+        if payload is None:
+            payload = json.loads(response.text)
+        if not isinstance(payload, Mapping):
+            raise ValueError("planning provider returned a non-object response")
+        return dict(payload)
 
 
 @dataclass(slots=True)
@@ -89,6 +121,14 @@ class ProductionComposition:
         """Construct the shared planner while keeping its provider boundary injectable."""
 
         return EpisodePlannerService(self.database_for_project(project_id), generator)
+
+    def configured_planning_service(
+        self, project_id: str, provider_id: str, model: str | None = None
+    ) -> EpisodePlannerService:
+        """Construct planning from the same configured provider registry used in production."""
+
+        provider = self.providers.llm_registry.get(provider_id)
+        return self.planning_service(project_id, LLMEpisodePlanGenerator(provider, model))
 
     def pipeline_service(
         self, project_id: str, handlers: Mapping[str, StageHandler]

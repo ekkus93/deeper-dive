@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from deeper_dive.composition import ProductionComposition
+import json
+
+from deeper_dive.composition import LLMEpisodePlanGenerator, ProductionComposition
+from deeper_dive.llm import FakeLLMProvider
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
@@ -50,3 +53,32 @@ def test_production_composition_constructs_planner_with_injectable_provider_boun
 
     assert planner.database.path == composition.database_for_project(project.id).path
     assert isinstance(planner.generator, _PlanGenerator)
+
+
+def test_llm_episode_plan_generator_uses_normalized_provider_boundary() -> None:
+    response = json.dumps({"segments": [{"title": "Opening"}]})
+    provider = FakeLLMProvider(response=response)
+    generator = LLMEpisodePlanGenerator(provider, "fake-v1")
+
+    payload = generator.generate_plan({"episode": {"title": "Test"}})
+
+    assert payload == {"segments": [{"title": "Opening"}]}
+    assert provider.requests[0].model == "fake-v1"
+    expected_schema = {"type": "object", "required": ["segments"]}
+    assert provider.requests[0].response_schema == expected_schema
+
+
+def test_configured_planning_service_resolves_persisted_provider(tmp_path) -> None:
+    data_dir = tmp_path / "data"
+    config_store = UserConfigStore(data_dir / "config.json")
+    provider_config = ProviderConfig(provider_type="fake", default_model="fake-v1")
+    config_store.save(UserConfig(providers={"planner": provider_config}))
+    factory = ProviderFactory(environ={})
+    composition = ProductionComposition.build(data_dir, provider_factory=factory)
+    project = composition.service.create_project("Configured planner")
+
+    planner = composition.configured_planning_service(project.id, "planner", "fake-v1")
+
+    assert isinstance(planner.generator, LLMEpisodePlanGenerator)
+    assert planner.generator.provider.provider_id == "planner"
+    assert planner.generator.model == "fake-v1"
