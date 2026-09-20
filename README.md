@@ -2,7 +2,7 @@
 
 Deeper Dive is a terminal-first, local-friendly application for turning a collection of documents into evidence-grounded research conversations and generated multi-host audio deep dives. It is designed for private project workspaces, explicit provider routing, inspectable source provenance, durable generation checkpoints, and fake-provider automation in normal CI.
 
-The design authority is [`docs/DEEP_DIVE_TUI_SPEC.md`](docs/DEEP_DIVE_TUI_SPEC.md). The ordered implementation and qualification plan is [`docs/DEEP_DIVE_TUI_TODO.md`](docs/DEEP_DIVE_TUI_TODO.md).
+The design authority is [`docs/DEEP_DIVE_TUI_SPEC.md`](docs/DEEP_DIVE_TUI_SPEC.md). The ordered implementation and qualification plan is [`docs/DEEP_DIVE_TUI_TODO.md`](docs/DEEP_DIVE_TUI_TODO.md). Provider setup is documented in [`docs/PROVIDERS.md`](docs/PROVIDERS.md).
 
 ## Current interface
 
@@ -102,7 +102,7 @@ uv run deeper-dive-tui
 # Run preflight and review exactly which stages send content to each provider.
 ```
 
-Provider credentials are not stored in normal project databases, exported metadata, or diagnostic bundles by default.
+Provider credentials are not stored in normal project databases, exported metadata, or diagnostic bundles by default. See [`docs/PROVIDERS.md`](docs/PROVIDERS.md) for provider-specific setup.
 
 ## Core concepts
 
