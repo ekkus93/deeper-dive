@@ -6,11 +6,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from deeper_dive.application.service import DeeperDiveService
+from deeper_dive.episode_planner import EpisodePlanGenerator, EpisodePlannerService
 from deeper_dive.generation_monitor import GenerationMonitorController
 from deeper_dive.preflight_screen import PreflightController
 from deeper_dive.provider_factory import ProviderBuildResult, ProviderFactory
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.research_controller import PersistentResearchController
+from deeper_dive.storage.database import Database
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.user_config import UserConfigStore
 
@@ -58,3 +60,15 @@ class ProductionComposition:
             preflight_controller=PreflightController(),
             generation_monitor_controller=GenerationMonitorController(),
         )
+
+    def database_for_project(self, project_id: str) -> Database:
+        """Return the production database boundary for one project workspace."""
+
+        return Database(self.service.workspaces.project_root(project_id) / "project.db")
+
+    def planning_service(
+        self, project_id: str, generator: EpisodePlanGenerator
+    ) -> EpisodePlannerService:
+        """Construct the shared planner while keeping its provider boundary injectable."""
+
+        return EpisodePlannerService(self.database_for_project(project_id), generator)
