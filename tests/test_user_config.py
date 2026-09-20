@@ -18,6 +18,7 @@ def test_user_config_round_trip_is_separate_and_versioned(tmp_path) -> None:
                 provider_type="llama-server",
                 base_url="http://127.0.0.1:8080/",
                 default_model="model.gguf",
+                network_policy="local",
             )
         },
         defaults={"host_generation": "local"},
@@ -26,6 +27,7 @@ def test_user_config_round_trip_is_separate_and_versioned(tmp_path) -> None:
     loaded = store.load()
     assert loaded.schema_version == 1
     assert loaded.providers["local"].base_url == "http://127.0.0.1:8080"
+    assert loaded.providers["local"].network_policy == "local"
     assert loaded.defaults["host_generation"] == "local"
     assert path != project
     assert not project.exists()
@@ -41,6 +43,11 @@ def test_saved_config_is_owner_only_on_posix(tmp_path) -> None:
 def test_invalid_endpoint_fails_with_clear_validation_message() -> None:
     with pytest.raises(ValueError, match="base_url must use"):
         ProviderConfig(provider_type="ollama", base_url="file:///tmp/socket")
+
+
+def test_invalid_network_policy_is_rejected() -> None:
+    with pytest.raises(ValueError, match="network_policy"):
+        ProviderConfig(provider_type="ollama", network_policy="unrestricted")
 
 
 def test_invalid_persisted_config_fails_before_provider_use(tmp_path) -> None:
