@@ -46,7 +46,9 @@ async def _exercise_missing_provider(tmp_path: Path) -> None:
     service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
     project = service.create_project("Missing role")
     _create_host(service, project.id, "h1", "Host One")
-    app = DeeperDiveApp(service, provider_controller=_provider_controller(tmp_path, configure=False))
+    app = DeeperDiveApp(
+        service, provider_controller=_provider_controller(tmp_path, configure=False)
+    )
     async with app.run_test(size=(100, 40)) as pilot:
         app.current_project_id = project.id
         app.current_project_name = project.name
