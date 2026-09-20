@@ -1,3 +1,4 @@
+# fmt: off
 from __future__ import annotations
 
 import hashlib
@@ -17,13 +18,14 @@ from deeper_dive.storage.workspace import WorkspaceManager
 def test_research_modes_and_off_search_gate() -> None:
     provider = FakeSearchProvider()
     service = ResearchSearchService(provider)
-    for mode in (ResearchMode.CONSERVATIVE, ResearchMode.USEFUL, ResearchMode.AGGRESSIVE):
+    modes = (ResearchMode.CONSERVATIVE, ResearchMode.USEFUL, ResearchMode.AGGRESSIVE)
+    for mode in modes:
         policy = ResearchPolicy(mode)
         assert policy.automated_search_allowed
-        service.search(SearchQuery(mode.value, "gap path", research_gap_id=f"gap-{mode.value}"))
+        query = SearchQuery(mode.value, "gap path", research_gap_id=f"gap-{mode.value}")
+        service.search(query)
     assert len(provider.queries) == 3
-    off = ResearchPolicy(ResearchMode.OFF)
-    assert not off.automated_search_allowed
+    assert not ResearchPolicy(ResearchMode.OFF).automated_search_allowed
 
 
 def test_recency_contradiction_and_missing_citation_gap_categories() -> None:
@@ -32,7 +34,8 @@ def test_recency_contradiction_and_missing_citation_gap_categories() -> None:
         ResearchGapCategory.DISAGREEMENT,
         ResearchGapCategory.CITED_BUT_MISSING,
     }
-    assert {item.value for item in categories} == {"recency", "disagreement", "cited_but_missing"}
+    values = {item.value for item in categories}
+    assert values == {"recency", "disagreement", "cited_but_missing"}
 
 
 def test_candidate_duplicate_and_weak_rejection_matrix(tmp_path: Path) -> None:
@@ -61,3 +64,4 @@ def test_supplemental_provenance_reaches_final_manifest(tmp_path: Path) -> None:
     supplemental = [source for source in sources if source["origin"] == "supplemental"]
     assert supplemental
     assert supplemental[0]["locator"].startswith("fixture://supplemental/")
+# fmt: on
