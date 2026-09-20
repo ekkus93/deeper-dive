@@ -3,24 +3,19 @@ from __future__ import annotations
 import json
 import wave
 
-from deeper_dive.deterministic_fixture import (
-    DEFAULT_STAGES,
-    DeterministicFixtureRunner,
-    FIXTURE_EPISODE_ID,
-    FIXTURE_RUN_ID,
-)
+from deeper_dive import deterministic_fixture
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.workspace import WorkspaceManager
 
 
 def test_deterministic_fixture_runs_end_to_end_without_network(tmp_path):
-    runner = DeterministicFixtureRunner(WorkspaceManager(tmp_path))
+    runner = deterministic_fixture.DeterministicFixtureRunner(WorkspaceManager(tmp_path))
 
     result = runner.run()
 
-    assert result.episode_id == FIXTURE_EPISODE_ID
-    assert result.run_id == FIXTURE_RUN_ID
-    assert result.executed_stages == DEFAULT_STAGES
+    assert result.episode_id == deterministic_fixture.FIXTURE_EPISODE_ID
+    assert result.run_id == deterministic_fixture.FIXTURE_RUN_ID
+    assert result.executed_stages == deterministic_fixture.DEFAULT_STAGES
     assert result.skipped_stages == ()
     assert result.artifacts.wav.is_file()
     assert result.artifacts.transcript.is_file()
@@ -61,10 +56,10 @@ def test_deterministic_fixture_runs_end_to_end_without_network(tmp_path):
 
 
 def test_deterministic_fixture_rerun_uses_durable_stage_checkpoints(tmp_path):
-    runner = DeterministicFixtureRunner(WorkspaceManager(tmp_path))
+    runner = deterministic_fixture.DeterministicFixtureRunner(WorkspaceManager(tmp_path))
     first = runner.run()
     second = runner.run()
 
-    assert first.executed_stages == DEFAULT_STAGES
+    assert first.executed_stages == deterministic_fixture.DEFAULT_STAGES
     assert second.executed_stages == ()
-    assert second.skipped_stages == DEFAULT_STAGES
+    assert second.skipped_stages == deterministic_fixture.DEFAULT_STAGES
