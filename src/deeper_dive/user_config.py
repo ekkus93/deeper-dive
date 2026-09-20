@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
@@ -23,6 +24,7 @@ class ProviderConfig(BaseModel):
     voices: tuple[str, ...] = ()
     response_format: str = "wav"
     timeout_seconds: float = Field(default=60.0, gt=0, le=600)
+    network_scope: Literal["local", "remote"] | None = None
 
     @field_validator("base_url")
     @classmethod
