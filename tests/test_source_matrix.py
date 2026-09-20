@@ -46,9 +46,7 @@ def test_file_parser_matrix_qualifies_pdf_docx_txt_markdown_and_html(
     pdf = tmp_path / "fixture.pdf"
     txt.write_text("plain fixture", encoding="utf-8")
     markdown.write_text("# Fixture\nmarkdown body", encoding="utf-8")
-    html.write_text(
-        "<main><h1>Fixture</h1><p>HTML body</p></main>", encoding="utf-8"
-    )
+    html.write_text("<main><h1>Fixture</h1><p>HTML body</p></main>", encoding="utf-8")
     _write_docx(docx)
     writer = PdfWriter()
     writer.add_blank_page(width=72, height=72)
@@ -85,7 +83,8 @@ def test_url_directory_and_duplicate_matrix(tmp_path: Path) -> None:
     }
 
     url_plan = plan_url_imports(
-        ["HTTPS://Example.COM:443/article?a=2&b=1#fragment"], HtmlUrlParser()
+        ["HTTPS://Example.COM:443/article?a=2&b=1#fragment"],
+        HtmlUrlParser(),
     )
     candidate = url_plan.candidates[0]
     assert candidate.disposition is DuplicateDisposition.IMPORT
