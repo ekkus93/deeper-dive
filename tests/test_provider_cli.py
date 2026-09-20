@@ -55,18 +55,8 @@ def test_router_rewrites_delegated_cli_errors(
 ) -> None:
     project = _call(["--data-dir", str(tmp_path), "--json", "project", "create", "Errors"], capsys)
 
-    assert (
-        main([
-            "--data-dir",
-            str(tmp_path),
-            "source",
-            "add",
-            str(project["id"]),
-            str(tmp_path / "missing.txt"),
-        ])
-        == 2
-    )
+    assert main(["--data-dir", str(tmp_path), "research", "run", str(project["id"])]) == 2
     captured = capsys.readouterr()
     assert captured.out == ""
-    assert "Could not parse the source." in captured.err
-    assert "missing.txt" not in captured.err
+    assert "Network request failed." in captured.err
+    assert "gap IDs" not in captured.err
