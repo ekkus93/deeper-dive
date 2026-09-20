@@ -9,8 +9,13 @@ from deeper_dive.deterministic_fixture import DeterministicFixtureRunner
 from deeper_dive.research_candidates import CandidateEvaluator
 from deeper_dive.research_gaps import ResearchGap, ResearchGapCategory
 from deeper_dive.research_policy import ResearchMode, ResearchPolicy
-from deeper_dive.search import FakeSearchProvider, FetchedDocument, ResearchSearchService, SearchQuery
-from deeper_dive.search import SearchResult
+from deeper_dive.search import (
+    FakeSearchProvider,
+    FetchedDocument,
+    ResearchSearchService,
+    SearchQuery,
+    SearchResult,
+)
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.workspace import WorkspaceManager
 
