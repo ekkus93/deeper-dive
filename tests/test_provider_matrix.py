@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-import pytest
-
 from deeper_dive.elevenlabs_tts import ElevenLabsTTSProvider
 from deeper_dive.kitten_tts import KittenTTSMicroProvider
 from deeper_dive.llama_server_llm import LlamaServerLLMProvider
@@ -20,10 +18,20 @@ def _llm_request() -> LLMRequest:
 
 
 def test_openai_llm_contract_without_network() -> None:
-    def request(method: str, url: str, payload: object, headers: object, timeout: float) -> dict[str, object]:
+    def request(
+        method: str,
+        url: str,
+        payload: object,
+        headers: object,
+        timeout: float,
+    ) -> dict[str, object]:
         if method == "GET":
             return {"data": [{"id": "gpt-test"}]}
-        return {"output_text": "openai answer", "model": "gpt-test", "usage": {"input_tokens": 3, "output_tokens": 2}}
+        return {
+            "output_text": "openai answer",
+            "model": "gpt-test",
+            "usage": {"input_tokens": 3, "output_tokens": 2},
+        }
 
     provider = OpenAILLMProvider(api_key="test", model="gpt-test", request_json=request)
     assert provider.health().healthy
@@ -32,7 +40,12 @@ def test_openai_llm_contract_without_network() -> None:
 
 
 def test_ollama_llm_contract_without_network() -> None:
-    def request(method: str, url: str, payload: object, timeout: float) -> dict[str, object]:
+    def request(
+        method: str,
+        url: str,
+        payload: object,
+        timeout: float,
+    ) -> dict[str, object]:
         if url.endswith("/api/tags"):
             return {"models": [{"name": "qwen-test"}]}
         if url.endswith("/api/version"):
@@ -46,12 +59,20 @@ def test_ollama_llm_contract_without_network() -> None:
 
 
 def test_llama_server_contract_without_network() -> None:
-    def request(method: str, url: str, payload: object, timeout: float) -> dict[str, object]:
+    def request(
+        method: str,
+        url: str,
+        payload: object,
+        timeout: float,
+    ) -> dict[str, object]:
         if url.endswith("/health"):
             return {"status": "ok"}
         if url.endswith("/v1/models"):
             return {"data": [{"id": "gguf-test"}]}
-        return {"choices": [{"message": {"content": "llama answer"}}], "model": "gguf-test"}
+        return {
+            "choices": [{"message": {"content": "llama answer"}}],
+            "model": "gguf-test",
+        }
 
     provider = LlamaServerLLMProvider(model="gguf-test", request_json=request)
     assert provider.health().healthy
@@ -62,7 +83,13 @@ def test_llama_server_contract_without_network() -> None:
 class _KittenRuntime:
     available_voices = ("Bella",)
 
-    def generate(self, text: str, *, voice: str, speed: float = 1.0) -> Iterable[float]:
+    def generate(
+        self,
+        text: str,
+        *,
+        voice: str,
+        speed: float = 1.0,
+    ) -> Iterable[float]:
         return (0.0, 0.1, -0.1, 0.0)
 
 
@@ -103,7 +130,9 @@ def test_openai_compatible_tts_contract_without_network() -> None:
 def test_elevenlabs_tts_contract_without_network() -> None:
     provider = ElevenLabsTTSProvider(
         api_key="test",
-        request_json=lambda url, headers, timeout: {"voices": [{"voice_id": "v1", "name": "Test Voice"}]},
+        request_json=lambda url, headers, timeout: {
+            "voices": [{"voice_id": "v1", "name": "Test Voice"}]
+        },
         request_binary=lambda url, payload, headers, timeout: b"audio",
     )
     assert provider.health().healthy
