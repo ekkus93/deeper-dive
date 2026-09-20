@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.domain.clock import format_timestamp
 from deeper_dive.domain.ids import new_run_id
 from deeper_dive.storage.run_repositories import GenerationRunRecord
+
+if TYPE_CHECKING:
+    from deeper_dive.application.service import DeeperDiveService
 
 
 _ACTIVE_STATES = frozenset({"pending", "running", "paused"})
