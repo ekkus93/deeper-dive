@@ -52,11 +52,11 @@ class FirstRunStatus:
     def _kitten_guidance(self) -> str:
         if self.kitten_available:
             return "KittenTTS Micro: runtime available"
-        return "KittenTTS Micro: install the optional runtime for local CPU speech."
+        return "KittenTTS optional dependency is not installed; install it for local CPU speech."
 
     def _provider_guidance(self) -> str:
         if not self.configured_providers:
-            return "Providers: none configured. Cloud configuration may be skipped."
+            return "Providers: none configured; cloud configuration may be skipped."
         names = ", ".join(self.configured_providers)
         return f"Configured providers: {names}"
 
