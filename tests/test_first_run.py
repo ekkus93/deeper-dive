@@ -24,10 +24,10 @@ def test_first_run_allows_empty_cloud_configuration(tmp_path: Path) -> None:
         status = controller.status()
     assert status.cloud_required is False
     assert status.configured_providers == ()
-    text = "\n".join(status.guidance())
+    text = "\n".join(status.guidance()).lower()
     assert "cloud configuration may be skipped" in text
-    assert "install FFmpeg" in text
-    assert "KittenTTS optional dependency" in text
+    assert "install ffmpeg" in text
+    assert "kittentts optional dependency" in text
     assert "no copyrighted sample content is bundled" in text
 
 
