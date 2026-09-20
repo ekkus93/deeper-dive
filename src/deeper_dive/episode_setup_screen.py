@@ -10,6 +10,7 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
 from deeper_dive.composition import LLMEpisodePlanGenerator, ProductionComposition
+from deeper_dive.diagnostics import sanitize_provider_error
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.model_roles import (
     ModelAssignment,
@@ -125,7 +126,8 @@ class EpisodeSetupScreen(Screen[None]):
             )
             plan = planner.build_plan(episode.id)
         except (KeyError, ValueError, RuntimeError) as exc:
-            self._status(f"Planning failed: {exc}")
+            safe = sanitize_provider_error(assignment.provider, exc).message
+            self._status(f"Planning failed: {safe}")
             return
         self._app.episode_plan_controller = planner
         self.refresh_summary()
