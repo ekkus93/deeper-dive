@@ -10,6 +10,7 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
 from deeper_dive.provider_tui import ProviderController
+from deeper_dive.user_errors import user_status
 
 
 class ProviderApp(Protocol):
@@ -86,7 +87,7 @@ class ProvidersScreen(Screen[None]):
                 or None,
             )
         except ValueError as exc:
-            self._status(str(exc))
+            self._status(user_status("provider", exc))
             return
         self.selected_provider = name
         self.refresh_providers(f"Saved {provider_type} provider {name}")
@@ -114,7 +115,7 @@ class ProvidersScreen(Screen[None]):
                 state = "healthy" if health.healthy else "unhealthy"
                 self._status(f"{name}: {state} - {health.message}")
         except (KeyError, RuntimeError, OSError) as exc:
-            self._status(f"{name}: unavailable - {exc}")
+            self._status(f"{name}: {user_status('provider', exc)}")
 
     def action_models(self) -> None:
         name = self._selected_name()
@@ -134,7 +135,7 @@ class ProvidersScreen(Screen[None]):
             self.query_one("#provider-details", Static).update("Models:\n" + "\n".join(rows))
             self._status(f"Discovered {len(models)} model(s) for {name}")
         except (KeyError, RuntimeError, OSError) as exc:
-            self._status(f"{name}: model discovery failed - {exc}")
+            self._status(f"{name}: {user_status('provider', exc)}")
 
     def action_voices(self) -> None:
         name = self._selected_name()
@@ -150,7 +151,7 @@ class ProvidersScreen(Screen[None]):
             )
             self._status(f"Discovered {len(voices)} voice(s) for {name}")
         except (KeyError, RuntimeError, OSError) as exc:
-            self._status(f"{name}: voice discovery failed - {exc}")
+            self._status(f"{name}: {user_status('tts', exc)}")
 
     def refresh_providers(self, status: str = "Ready") -> None:
         providers = self.provider_app.provider_controller.config().providers

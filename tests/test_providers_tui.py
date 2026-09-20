@@ -92,7 +92,7 @@ async def _provider_error_workflow(tmp_path: Path) -> None:
         screen.query_one("#provider-type", Input).value = "llm"
         screen.action_save()
         screen.action_health()
-        assert "unavailable" in _text(screen, "#screen-status")
+        assert "Provider request failed." in _text(screen, "#screen-status")
 
 
 def _text(screen: ProvidersScreen, selector: str) -> str:

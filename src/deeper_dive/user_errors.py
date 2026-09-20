@@ -43,12 +43,19 @@ def actionable_error(area: str, exc: BaseException) -> UserError:
             "Audio processing failed.",
             "Check that FFmpeg is installed and available to Deeper Dive.",
         ),
-    }
-    summary, action = guidance.get(
-        normalized,
-        (
+        "generation": (
+            "Generation failed.",
+            "Open diagnostics for details, then retry after correcting the reported problem.",
+        ),
+        "operation": (
             "Operation failed.",
             "Review the diagnostics and retry after correcting the reported problem.",
         ),
-    )
+    }
+    summary, action = guidance.get(normalized, guidance["operation"])
     return UserError(summary, action, detail)
+
+
+def user_status(area: str, exc: BaseException) -> str:
+    """Return only the safe, actionable user-facing message for a UI status line."""
+    return actionable_error(area, exc).message
