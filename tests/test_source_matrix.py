@@ -6,11 +6,7 @@ from pathlib import Path
 from pypdf import PdfWriter
 
 from deeper_dive.application.service import DeeperDiveService
-from deeper_dive.batch_import import (
-    DuplicateDisposition,
-    plan_file_imports,
-    plan_url_imports,
-)
+from deeper_dive.batch_import import DuplicateDisposition, plan_file_imports, plan_url_imports
 from deeper_dive.html_ingestion import HtmlUrlParser
 from deeper_dive.parsing import (
     DocxParser,
@@ -36,9 +32,7 @@ def _write_docx(path: Path) -> None:
         archive.writestr("word/document.xml", document)
 
 
-def test_file_parser_matrix_qualifies_pdf_docx_txt_markdown_and_html(
-    tmp_path: Path,
-) -> None:
+def test_file_parser_matrix_qualifies_pdf_docx_txt_markdown_and_html(tmp_path: Path) -> None:
     txt = tmp_path / "fixture.txt"
     markdown = tmp_path / "fixture.md"
     html = tmp_path / "fixture.html"
