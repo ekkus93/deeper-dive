@@ -46,7 +46,7 @@ async def _providers_workflow(tmp_path: Path) -> None:
         screen = app.screen
 
         screen.query_one("#provider-name", Input).value = "fake"
-        screen.query_one("#provider-type", Input).value = "llm"
+        screen.query_one("#provider-type", Input).value = "fake"
         screen.action_save()
         screen.action_health()
         assert "healthy" in _text(screen, "#screen-status")
@@ -55,7 +55,7 @@ async def _providers_workflow(tmp_path: Path) -> None:
         assert "streaming=True" in _text(screen, "#provider-details")
 
         screen.query_one("#provider-name", Input).value = "speech"
-        screen.query_one("#provider-type", Input).value = "tts"
+        screen.query_one("#provider-type", Input).value = "fake-tts"
         screen.action_save()
         assert "fake" in _text(screen, "#llm-provider-list")
         assert "speech" in _text(screen, "#tts-provider-list")
@@ -89,7 +89,7 @@ async def _provider_error_workflow(tmp_path: Path) -> None:
         screen = app.screen
         assert isinstance(screen, ProvidersScreen)
         screen.query_one("#provider-name", Input).value = "missing"
-        screen.query_one("#provider-type", Input).value = "llm"
+        screen.query_one("#provider-type", Input).value = "fake"
         screen.action_save()
         screen.action_health()
         assert "Provider request failed." in _text(screen, "#screen-status")

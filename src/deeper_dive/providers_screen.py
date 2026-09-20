@@ -40,7 +40,10 @@ class ProvidersScreen(Screen[None]):
             yield Label("Providers", id="screen-title")
             yield Static("Configure language-model and speech providers.", id="screen-description")
             yield Input(placeholder="Config name / runtime provider ID", id="provider-name")
-            yield Input(placeholder="Provider type (llm or tts)", id="provider-type")
+            yield Input(
+                placeholder="Adapter: openai, ollama, llama-server, kitten, elevenlabs, ...",
+                id="provider-type",
+            )
             yield Input(placeholder="Base URL (optional)", id="provider-base-url")
             yield Input(placeholder="Default model (optional)", id="provider-default-model")
             yield Button("Add / Edit", id="action-save-provider", name="save")
@@ -75,8 +78,8 @@ class ProvidersScreen(Screen[None]):
     def action_save(self) -> None:
         name = self.query_one("#provider-name", Input).value.strip()
         provider_type = self.query_one("#provider-type", Input).value.strip().lower()
-        if not name or provider_type not in {"llm", "tts"}:
-            self._status("Name and provider type (llm or tts) are required")
+        if not name or not provider_type:
+            self._status("Name and concrete provider adapter are required")
             return
         try:
             self.provider_app.provider_controller.save_provider(
@@ -157,8 +160,16 @@ class ProvidersScreen(Screen[None]):
         providers = self.provider_app.provider_controller.config().providers
         if self.selected_provider not in providers:
             self.selected_provider = next(iter(sorted(providers)), None)
-        llm = [name for name, cfg in sorted(providers.items()) if cfg.provider_type == "llm"]
-        tts = [name for name, cfg in sorted(providers.items()) if cfg.provider_type == "tts"]
+        llm = [
+            name
+            for name, cfg in sorted(providers.items())
+            if self.provider_app.provider_controller.capability(cfg.provider_type) == "llm"
+        ]
+        tts = [
+            name
+            for name, cfg in sorted(providers.items())
+            if self.provider_app.provider_controller.capability(cfg.provider_type) == "tts"
+        ]
         self.query_one("#llm-provider-list", Static).update(self._list_text("LLM providers", llm))
         self.query_one("#tts-provider-list", Static).update(self._list_text("TTS providers", tts))
         self._status(status)
@@ -180,7 +191,8 @@ class ProvidersScreen(Screen[None]):
         return name
 
     def _provider_type(self, name: str) -> str:
-        return self.provider_app.provider_controller.config().providers[name].provider_type
+        config = self.provider_app.provider_controller.config().providers[name]
+        return self.provider_app.provider_controller.capability(config.provider_type)
 
     def _status(self, message: str) -> None:
         self.query_one("#screen-status", Static).update(f"Status: {message}")
