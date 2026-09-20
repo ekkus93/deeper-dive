@@ -46,6 +46,56 @@ def test_factory_builds_local_llm_adapters_without_contacting_network() -> None:
     assert result.llm_registry.get("llama").provider_id == "llama"
 
 
+def test_factory_builds_every_remote_adapter_without_network_calls() -> None:
+    result = ProviderFactory(
+        environ={
+            "OPENAI_API_KEY": "openai-fixture-secret",
+            "ELEVENLABS_API_KEY": "eleven-fixture-secret",
+            "COMPAT_KEY": "compat-fixture-secret",
+        }
+    ).build(
+        UserConfig(
+            providers={
+                "openai-chat": ProviderConfig(
+                    provider_type="openai",
+                    default_model="gpt-test",
+                ),
+                "openai-speech": ProviderConfig(provider_type="openai-tts"),
+                "eleven-speech": ProviderConfig(provider_type="elevenlabs"),
+                "compatible-speech": ProviderConfig(
+                    provider_type="openai-compatible-tts",
+                    base_url="https://tts.example.invalid/v1",
+                    credential_env="COMPAT_KEY",
+                    voices=("voice-a",),
+                ),
+            }
+        )
+    )
+
+    assert result.llm_registry.provider_ids() == ("openai-chat",)
+    assert result.tts_registry.provider_ids() == (
+        "compatible-speech",
+        "eleven-speech",
+        "openai-speech",
+    )
+    assert result.network_scopes == {
+        "compatible-speech": "remote",
+        "eleven-speech": "remote",
+        "openai-chat": "remote",
+        "openai-speech": "remote",
+    }
+
+
+def test_factory_builds_kitten_adapter_without_loading_model() -> None:
+    result = ProviderFactory(environ={}).build(
+        UserConfig(providers={"local-speech": ProviderConfig(provider_type="kitten")})
+    )
+
+    assert result.tts_registry.provider_ids() == ("local-speech",)
+    assert result.tts_providers["local-speech"].provider_id == "local-speech"
+    assert result.network_scopes["local-speech"] == "local"
+
+
 def test_factory_preserves_effective_network_policy_metadata() -> None:
     result = ProviderFactory(environ={"OPENAI_API_KEY": "fixture"}).build(
         UserConfig(
@@ -105,3 +155,22 @@ def test_factory_rejects_ambiguous_legacy_generic_types() -> None:
         ProviderFactory(environ={}).build(
             UserConfig(providers={"legacy": ProviderConfig(provider_type="llm")})
         )
+
+
+def test_factory_configuration_errors_never_echo_secret_values() -> None:
+    secret = "do-not-echo-this-secret"
+    config = UserConfig(
+        providers={
+            "broken": ProviderConfig(
+                provider_type="openai-compatible-tts",
+                credential_env="COMPAT_KEY",
+            )
+        }
+    )
+
+    with pytest.raises(ProviderConfigurationError) as captured:
+        ProviderFactory(environ={"COMPAT_KEY": secret}).build(config)
+
+    message = str(captured.value)
+    assert "base_url" in message
+    assert secret not in message
