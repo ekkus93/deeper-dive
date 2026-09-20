@@ -23,6 +23,7 @@ class ProviderConfig(BaseModel):
     voices: tuple[str, ...] = ()
     response_format: str = "wav"
     timeout_seconds: float = Field(default=60.0, gt=0, le=600)
+    network_policy: str = Field(default="remote", pattern="^(local|remote)$")
 
     @field_validator("base_url")
     @classmethod
