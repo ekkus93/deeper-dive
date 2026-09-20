@@ -63,7 +63,10 @@ def test_llm_episode_plan_generator_uses_normalized_provider_boundary() -> None:
 
     assert payload == {"segments": [{"title": "Opening"}]}
     assert provider.requests[0].model == "fake-v1"
-    assert provider.requests[0].response_schema == {"type": "object", "required": ["segments"]}
+    assert provider.requests[0].response_schema == {
+        "type": "object",
+        "required": ["segments"],
+    }
 
 
 def test_configured_planning_service_resolves_persisted_provider(tmp_path) -> None:
@@ -71,10 +74,14 @@ def test_configured_planning_service_resolves_persisted_provider(tmp_path) -> No
     config_store = UserConfigStore(data_dir / "config.json")
     config_store.save(
         UserConfig(
-            providers={"planner": ProviderConfig(provider_type="fake", default_model="fake-v1")}
+            providers={
+                "planner": ProviderConfig(provider_type="fake", default_model="fake-v1")
+            }
         )
     )
-    composition = ProductionComposition.build(data_dir, provider_factory=ProviderFactory(environ={}))
+    composition = ProductionComposition.build(
+        data_dir, provider_factory=ProviderFactory(environ={})
+    )
     project = composition.service.create_project("Configured planner")
 
     planner = composition.configured_planning_service(project.id, "planner", "fake-v1")
