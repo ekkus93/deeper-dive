@@ -122,7 +122,6 @@ async def _exercise_complete_setup(tmp_path: Path) -> None:
     assert plan.target_duration_seconds == 1200
 
 
-
 def test_episode_setup_screen_sanitizes_planning_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -142,7 +141,9 @@ async def _exercise_sanitized_planning_failure(
         scheme = "Bear" + "er "
         raise RuntimeError("Authorization: " + scheme + sensitive)
 
-    monkeypatch.setattr("deeper_dive.episode_setup_screen.ProductionComposition.build", fail_build)
+    monkeypatch.setattr(
+        "deeper_dive.episode_setup_screen.ProductionComposition.build", fail_build
+    )
     async with app.run_test(size=(100, 40)) as pilot:
         app.current_project_id = project.id
         app.current_project_name = project.name
