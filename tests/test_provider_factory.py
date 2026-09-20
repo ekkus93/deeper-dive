@@ -46,6 +46,31 @@ def test_factory_builds_local_llm_adapters_without_contacting_network() -> None:
     assert result.llm_registry.get("llama").provider_id == "llama"
 
 
+def test_factory_preserves_effective_network_policy_metadata() -> None:
+    result = ProviderFactory(environ={"OPENAI_API_KEY": "fixture"}).build(
+        UserConfig(
+            providers={
+                "local": ProviderConfig(provider_type="fake"),
+                "cloud": ProviderConfig(
+                    provider_type="openai",
+                    default_model="gpt-test",
+                ),
+                "forced-local": ProviderConfig(
+                    provider_type="openai",
+                    default_model="gpt-test",
+                    network_scope="local",
+                ),
+            }
+        )
+    )
+
+    assert result.network_scopes == {
+        "cloud": "remote",
+        "forced-local": "local",
+        "local": "local",
+    }
+
+
 def test_factory_requires_cloud_credential_only_when_provider_is_configured() -> None:
     with pytest.raises(ProviderConfigurationError, match="OPENAI_API_KEY"):
         ProviderFactory(environ={}).build(
