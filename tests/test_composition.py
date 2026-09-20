@@ -56,34 +56,25 @@ def test_production_composition_constructs_planner_with_injectable_provider_boun
 
 
 def test_llm_episode_plan_generator_uses_normalized_provider_boundary() -> None:
-    provider = FakeLLMProvider(
-        response=json.dumps({"segments": [{"title": "Opening"}]})
-    )
+    response = json.dumps({"segments": [{"title": "Opening"}]})
+    provider = FakeLLMProvider(response=response)
     generator = LLMEpisodePlanGenerator(provider, "fake-v1")
 
     payload = generator.generate_plan({"episode": {"title": "Test"}})
 
     assert payload == {"segments": [{"title": "Opening"}]}
     assert provider.requests[0].model == "fake-v1"
-    assert provider.requests[0].response_schema == {
-        "type": "object",
-        "required": ["segments"],
-    }
+    expected_schema = {"type": "object", "required": ["segments"]}
+    assert provider.requests[0].response_schema == expected_schema
 
 
 def test_configured_planning_service_resolves_persisted_provider(tmp_path) -> None:
     data_dir = tmp_path / "data"
     config_store = UserConfigStore(data_dir / "config.json")
-    config_store.save(
-        UserConfig(
-            providers={
-                "planner": ProviderConfig(provider_type="fake", default_model="fake-v1")
-            }
-        )
-    )
-    composition = ProductionComposition.build(
-        data_dir, provider_factory=ProviderFactory(environ={})
-    )
+    provider_config = ProviderConfig(provider_type="fake", default_model="fake-v1")
+    config_store.save(UserConfig(providers={"planner": provider_config}))
+    factory = ProviderFactory(environ={})
+    composition = ProductionComposition.build(data_dir, provider_factory=factory)
     project = composition.service.create_project("Configured planner")
 
     planner = composition.configured_planning_service(project.id, "planner", "fake-v1")
