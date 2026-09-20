@@ -56,7 +56,9 @@ def test_production_composition_constructs_planner_with_injectable_provider_boun
 
 
 def test_llm_episode_plan_generator_uses_normalized_provider_boundary() -> None:
-    provider = FakeLLMProvider(response=json.dumps({"segments": [{"title": "Opening"}]}))
+    provider = FakeLLMProvider(
+        response=json.dumps({"segments": [{"title": "Opening"}]})
+    )
     generator = LLMEpisodePlanGenerator(provider, "fake-v1")
 
     payload = generator.generate_plan({"episode": {"title": "Test"}})
