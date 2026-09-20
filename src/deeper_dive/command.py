@@ -15,6 +15,7 @@ from deeper_dive.llm import FakeLLMProvider
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.tts import FakeTTSProvider
 from deeper_dive.user_config import UserConfigStore
+from deeper_dive.user_errors import actionable_error
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -34,14 +35,49 @@ def main(argv: Sequence[str] | None = None) -> int:
     values = list(argv) if argv is not None else None
     args, _ = _parser().parse_known_args(values)
     if args.command != "provider":
-        return cli.main(values)
+        return _delegated_cli(values, args)
     try:
         return _provider(args)
     except (KeyError, OSError, RuntimeError, ValueError) as exc:
         import sys
 
-        print(str(exc), file=sys.stderr)
+        area = _provider_error_area(args.provider_command)
+        print(actionable_error(area, exc).message, file=sys.stderr)
         return 2
+
+
+def _delegated_cli(values: list[str] | None, args: argparse.Namespace) -> int:
+    import contextlib
+    import io
+    import sys
+
+    stderr = io.StringIO()
+    with contextlib.redirect_stderr(stderr):
+        code = cli.main(values)
+    diagnostic = stderr.getvalue().strip()
+    if code != 0 and diagnostic:
+        error = actionable_error(_cli_error_area(args), RuntimeError(diagnostic))
+        print(error.message, file=sys.stderr)
+    elif diagnostic:
+        print(diagnostic, file=sys.stderr)
+    return code
+
+
+def _cli_error_area(args: argparse.Namespace) -> str:
+    command = getattr(args, "command", "")
+    if command == "source":
+        return "network" if getattr(args, "url", False) else "parser"
+    if command == "research":
+        return "network"
+    if command == "host" and getattr(args, "host_command", "") == "voice":
+        return "tts"
+    return "operation"
+
+
+def _provider_error_area(provider_command: str | None) -> str:
+    if provider_command in {"voices", "kitten-install", "kitten-benchmark"}:
+        return "tts"
+    return "provider"
 
 
 def _provider(args: argparse.Namespace) -> int:

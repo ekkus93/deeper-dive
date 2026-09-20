@@ -19,6 +19,7 @@ from deeper_dive.conversation_state import ConversationStateRepository
 from deeper_dive.pipeline import DEFAULT_STAGES
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.run_repositories import GenerationRunRecord
+from deeper_dive.user_errors import user_status
 
 
 @dataclass(frozen=True, slots=True)
@@ -253,7 +254,7 @@ class GenerationMonitorScreen(Screen[None]):
         try:
             await self._app.generation_monitor_controller.run(run_id)
         except Exception as exc:
-            self._status(f"Generation failed: {exc}")
+            self._status(user_status("generation", exc))
         else:
             self._status("Generation finished")
         self.refresh_monitor()

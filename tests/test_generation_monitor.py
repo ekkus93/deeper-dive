@@ -81,6 +81,35 @@ async def _long_running_fake_provider_does_not_block_tui(tmp_path: Path) -> None
         await screen._task
 
 
+def test_background_generation_failure_uses_actionable_status(tmp_path: Path) -> None:
+    asyncio.run(_background_generation_failure_uses_actionable_status(tmp_path))
+
+
+async def _background_generation_failure_uses_actionable_status(tmp_path: Path) -> None:
+    service, project_id, episode_id, run_id = _fixture(tmp_path)
+
+    def failing_runner(selected_run_id: str, progress) -> None:
+        assert selected_run_id == run_id
+        raise RuntimeError("provider exploded with low-level detail")
+
+    controller = GenerationMonitorController(runner=failing_runner)
+    app = DeeperDiveApp(service, generation_monitor_controller=controller)
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.current_project_id = project_id
+        app.current_episode_id = episode_id
+        app.current_run_id = run_id
+        app.action_navigate("monitor")
+        await pilot.pause()
+        screen = _monitor(app)
+        screen.start_background_generation()
+        assert screen._task is not None
+        await screen._task
+        await pilot.pause()
+        status = _text(screen, "#screen-status")
+        assert "Generation failed." in status
+        assert "low-level detail" not in status
+
+
 def _fixture(tmp_path: Path) -> tuple[DeeperDiveService, str, str, str]:
     service = DeeperDiveService(
         WorkspaceManager(tmp_path / "data"),
