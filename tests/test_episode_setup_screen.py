@@ -142,7 +142,8 @@ async def _exercise_sanitized_planning_failure(tmp_path: Path) -> None:
         assert isinstance(screen, EpisodeSetupScreen)
         screen.query_one("#episode-title", Input).value = "Safe failure"
         with patch(
-            "deeper_dive.episode_setup_screen.ProductionComposition.build", side_effect=error
+            "deeper_dive.episode_setup_screen.ProductionComposition.build",
+            side_effect=error,
         ):
             screen.action_build_plan()
         status = _status_text(screen)
