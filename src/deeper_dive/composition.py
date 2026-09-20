@@ -3,18 +3,19 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from deeper_dive.application.events import ProgressSink
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.audio_playback import AudioPlaybackBackend, AudioPlaybackController
 from deeper_dive.episode_planner import EpisodePlanGenerator, EpisodePlannerService
 from deeper_dive.export import EpisodeExporter
 from deeper_dive.generation_monitor import GenerationMonitorController
 from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
-from deeper_dive.pipeline import PipelineOrchestrator, StageHandler
+from deeper_dive.pipeline import DEFAULT_STAGES, PipelineContext, PipelineOrchestrator, StageHandler
 from deeper_dive.preflight_screen import PreflightController
 from deeper_dive.provider_factory import ProviderBuildResult, ProviderFactory
 from deeper_dive.provider_tui import ProviderController
@@ -105,7 +106,9 @@ class ProductionComposition:
             provider_controller=provider_controller,
             research_controller=research_controller,
             preflight_controller=PreflightController(),
-            generation_monitor_controller=GenerationMonitorController(),
+            generation_monitor_controller=GenerationMonitorController(
+                _production_pipeline_runner(app_service)
+            ),
             benchmark_service=TTSBenchmarkService(),
             playback_controller=AudioPlaybackController(playback_backend),
         )
@@ -156,3 +159,29 @@ class ProductionComposition:
         return TargetedRepairService(
             self.database_for_project(project_id), provider, rechecker, summary_updater
         )
+
+
+def _production_pipeline_runner(
+    service: DeeperDiveService,
+) -> Callable[[str, ProgressSink], None]:
+    """Build the production monitor runner around durable orchestration."""
+
+    def run(run_id: str, progress: ProgressSink) -> None:
+        for project in service.list_projects():
+            repository = service.runs(project.id)
+            if repository.get(run_id) is None:
+                continue
+            handlers: dict[str, StageHandler] = {
+                stage: _durable_stage_boundary for stage in DEFAULT_STAGES
+            }
+            PipelineOrchestrator(repository, handlers, progress=progress).run(run_id)
+            return
+        raise KeyError(f"unknown generation run: {run_id}")
+
+    return run
+
+
+def _durable_stage_boundary(context: PipelineContext) -> None:
+    """Minimal idempotent stage boundary until content stages are production-wired."""
+
+    _ = context

@@ -12,6 +12,8 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Label, Static
 
 from deeper_dive.application.service import DeeperDiveService
+from deeper_dive.domain.clock import format_timestamp
+from deeper_dive.domain.ids import new_run_id
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.hosts import HostProfile
 from deeper_dive.model_roles import (
@@ -33,6 +35,7 @@ from deeper_dive.storage.episode_repositories import (
     HostEpisodeRepository,
     HostProfileRecord,
 )
+from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.tts import TTSProviderRegistry
 from deeper_dive.user_config import ProviderConfig
 
@@ -110,9 +113,14 @@ class PreflightController:
             local_provider_ids=self._local_provider_ids(config.providers, config.defaults),
             local_only=self._local_only(config.defaults),
         )
-        if assignment_issues:
+        extra_issues = list(assignment_issues)
+        if episode is None:
+            extra_issues.append(
+                PreflightIssue("episode_missing", "create/build an episode before generation")
+            )
+        if extra_issues:
             report = PreflightReport(
-                (*assignment_issues, *report.issues),
+                (*extra_issues, *report.issues),
                 report.estimate,
                 report.routes,
             )
@@ -127,6 +135,36 @@ class PreflightController:
             tts_rows=self._tts_rows(hosts),
             report=report,
         )
+
+    def start_generation(self, app: PreflightApp) -> GenerationRunRecord:
+        """Create or select the durable run that the monitor/pipeline should execute."""
+
+        project_id = app.current_project_id
+        if project_id is None:
+            raise ValueError("open a project before generation")
+        repository = app.service.hosts(project_id)
+        episode = self._selected_episode(repository, project_id, app.current_episode_id)
+        if episode is None:
+            raise ValueError("create/build an episode before generation")
+        runs = app.service.runs(project_id)
+        existing = runs.latest_for_episode(episode.id)
+        if existing is not None and existing.state not in {"cancelled", "failed"}:
+            app.current_episode_id = episode.id
+            app.current_run_id = existing.id
+            return existing
+        timestamp = format_timestamp(app.service.clock.now())
+        run = GenerationRunRecord(
+            id=str(new_run_id()),
+            episode_id=episode.id,
+            stage="sources",
+            state="pending",
+            created_at=timestamp,
+            modified_at=timestamp,
+        )
+        runs.create(run)
+        app.current_episode_id = episode.id
+        app.current_run_id = run.id
+        return run
 
     def _selected_episode(
         self,
@@ -243,6 +281,7 @@ class PreflightApp(Protocol):
     current_project_id: str | None
     current_project_name: str | None
     current_episode_id: str | None
+    current_run_id: str | None
 
     def action_navigate(self, destination: str) -> None: ...
 
@@ -296,11 +335,17 @@ class PreflightScreen(Screen[None]):
 
     def action_generate(self) -> None:
         presentation = self._app.preflight_controller.build(self._app)
-        if presentation.report.ready:
-            self._status("Preflight passed; generation start is ready")
+        if not presentation.report.ready:
+            first = presentation.report.blockers[0]
+            self._status(f"Generation blocked: {first.message}")
             return
-        first = presentation.report.blockers[0]
-        self._status(f"Generation blocked: {first.message}")
+        try:
+            run = self._app.preflight_controller.start_generation(self._app)
+        except (KeyError, RuntimeError, ValueError) as exc:
+            self._status(f"Generation blocked: {exc}")
+            return
+        self._status(f"Generation run started: {run.id}")
+        self._app.action_navigate("monitor")
 
     def action_cancel(self) -> None:
         self._app.action_navigate("episode")

@@ -165,6 +165,7 @@ class GenerationMonitorScreen(Screen[None]):
 
     def on_mount(self) -> None:
         self.refresh_monitor()
+        self.start_background_generation()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         name = event.button.name or ""
@@ -209,6 +210,7 @@ class GenerationMonitorScreen(Screen[None]):
             )
         )
         self.refresh_monitor("Run ready to resume")
+        self.start_background_generation()
 
     def action_cancel(self) -> None:
         run = self._run()
@@ -246,6 +248,10 @@ class GenerationMonitorScreen(Screen[None]):
     def start_background_generation(self) -> None:
         run = self._run()
         if run is None or self._app.generation_monitor_controller.runner is None:
+            return
+        if run.state != "pending":
+            return
+        if self._task is not None and not self._task.done():
             return
         self._task = asyncio.create_task(self._background_run(run.id))
 
