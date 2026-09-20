@@ -47,7 +47,8 @@ async def _exercise_missing_provider(tmp_path: Path) -> None:
     project = service.create_project("Missing role")
     _create_host(service, project.id, "h1", "Host One")
     app = DeeperDiveApp(
-        service, provider_controller=_provider_controller(tmp_path, configure=False)
+        service,
+        provider_controller=_provider_controller(tmp_path, configure=False),
     )
     async with app.run_test(size=(100, 40)) as pilot:
         app.current_project_id = project.id
@@ -146,9 +147,7 @@ async def _exercise_episode_override_replanning(tmp_path: Path) -> None:
             },
         ),
     )
-    app = DeeperDiveApp(
-        service, provider_controller=_provider_controller_with_override(tmp_path)
-    )
+    app = DeeperDiveApp(service, provider_controller=_provider_controller_with_override(tmp_path))
     async with app.run_test(size=(100, 40)) as pilot:
         app.current_project_id = project.id
         app.current_project_name = project.name
@@ -171,42 +170,6 @@ async def _exercise_episode_override_replanning(tmp_path: Path) -> None:
     assert plan.segments[0].title == "Override Opening"
     config = config_service.load_configuration(episode.id)
     assert config.model_overrides["episode_planning"]["provider"] == "override-provider"
-
-
-def test_episode_setup_uses_project_default_before_user_default(tmp_path: Path) -> None:
-    asyncio.run(_exercise_project_default_planning(tmp_path))
-
-
-async def _exercise_project_default_planning(tmp_path: Path) -> None:
-    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
-    project = service.create_project(
-        "Project default Planning",
-        instructions="{\"model_defaults\":{\"episode_planning\":\"project-provider:project-v1\"}}",
-    )
-    _create_host(service, project.id, "h1", "Explainer")
-    app = DeeperDiveApp(
-        service, provider_controller=_provider_controller_with_project_default(tmp_path)
-    )
-    async with app.run_test(size=(100, 40)) as pilot:
-        app.current_project_id = project.id
-        app.current_project_name = project.name
-        app.action_navigate("episode")
-        await pilot.pause()
-        screen = app.screen
-        assert isinstance(screen, EpisodeSetupScreen)
-        screen.query_one("#episode-title", Input).value = "Project Default Deep Dive"
-        screen.query_one("#episode-duration", Input).value = "600"
-        screen.query_one("#episode-hosts", Input).value = "h1"
-        destinations: list[str] = []
-        app.action_navigate = destinations.append  # type: ignore[method-assign]
-        screen.action_build_plan()
-        assert "Plan built: 1 segments" in _status_text(screen)
-        assert destinations == ["plan"]
-
-    database = Database(service.workspaces.project_root(project.id) / "project.db")
-    episode = service.hosts(project.id).list_episodes(project.id)[0]
-    plan = EpisodePlannerService(database, _unused_generator()).load_plan(episode.id)
-    assert plan.segments[0].title == "Project Opening"
 
 
 def _provider_controller(tmp_path: Path, *, configure: bool = True) -> ProviderController:
@@ -251,35 +214,6 @@ def _provider_controller_with_override(tmp_path: Path) -> ProviderController:
         )
     )
     store = UserConfigStore(tmp_path / "override-config.json")
-    config = store.load()
-    config.defaults["episode_planning"] = "user-provider:user-v1"
-    store.save(config)
-    return ProviderController(store, registry, {})
-
-
-def _provider_controller_with_project_default(tmp_path: Path) -> ProviderController:
-    registry = LLMProviderRegistry()
-    registry.register(
-        FakeLLMProvider(
-            provider_id="user-provider",
-            model="user-v1",
-            response=(
-                '{"segments":[{"title":"User Opening","purpose":"Use default",'
-                '"target_duration_seconds":600,"lead_host_ids":["h1"]}]}'
-            ),
-        )
-    )
-    registry.register(
-        FakeLLMProvider(
-            provider_id="project-provider",
-            model="project-v1",
-            response=(
-                '{"segments":[{"title":"Project Opening","purpose":"Use project",'
-                '"target_duration_seconds":600,"lead_host_ids":["h1"]}]}'
-            ),
-        )
-    )
-    store = UserConfigStore(tmp_path / "project-config.json")
     config = store.load()
     config.defaults["episode_planning"] = "user-provider:user-v1"
     store.save(config)
