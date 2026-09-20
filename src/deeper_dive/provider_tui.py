@@ -54,22 +54,32 @@ class ProviderController:
             base_url=base_url or None,
             default_model=default_model or None,
         )
+        providers = self._build(config)
         self.config_store.save(config)
-        self.reload()
+        self._install(providers)
 
     def remove_provider(self, name: str) -> None:
         config = self.config()
         config.providers.pop(name, None)
+        providers = self._build(config)
         self.config_store.save(config)
-        self.reload()
+        self._install(providers)
 
     def reload(self) -> ProviderBuildResult | None:
+        providers = self._build(self.config())
+        self._install(providers)
+        return providers
+
+    def _build(self, config: UserConfig) -> ProviderBuildResult | None:
         if self.provider_factory is None:
             return None
-        providers = self.provider_factory.build(self.config())
+        return self.provider_factory.build(config)
+
+    def _install(self, providers: ProviderBuildResult | None) -> None:
+        if providers is None:
+            return
         self.llm_registry = providers.llm_registry
         self.tts_providers = providers.tts_providers
-        return providers
 
     def llm(self, name: str) -> LLMProvider:
         return self.llm_registry.get(name)
