@@ -69,6 +69,12 @@ def test_production_composition_constructs_generation_support_services(tmp_path)
     pipeline = composition.pipeline_service(project.id, handlers)
     exporter = composition.exporter(project.id)
 
-    assert pipeline.repository.database.path == composition.database_for_project(project.id).path
-    assert exporter.output_dir == composition.service.workspaces.project_root(project.id) / "exports"
+    assert (
+        pipeline.repository.database.path
+        == composition.database_for_project(project.id).path
+    )
+    assert (
+        exporter.output_dir
+        == composition.service.workspaces.project_root(project.id) / "exports"
+    )
     assert composition.benchmark_service is not None
