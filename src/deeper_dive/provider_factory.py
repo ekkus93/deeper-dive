@@ -33,7 +33,9 @@ from deeper_dive.tts import (
 )
 from deeper_dive.user_config import ProviderConfig, UserConfig
 
-LLM_PROVIDER_TYPES = frozenset({"fake", "openai", "ollama", "llama-server"})
+LLM_PROVIDER_TYPES = frozenset(
+    {"fake", "openai", "ollama", "llama-server"}
+)
 TTS_PROVIDER_TYPES = frozenset(
     {
         "fake-tts",
@@ -125,7 +127,10 @@ class ProviderFactory:
             kind = self._normalized_type(provider_config.provider_type)
             if kind in LLM_PROVIDER_TYPES:
                 llm_registry.register(
-                    _AliasedLLMProvider(name, self._llm(kind, provider_config))
+                    _AliasedLLMProvider(
+                        name,
+                        self._llm(kind, provider_config),
+                    )
                 )
             elif kind in TTS_PROVIDER_TYPES:
                 provider = _AliasedTTSProvider(
@@ -176,7 +181,12 @@ class ProviderFactory:
             )
         raise ProviderConfigurationError(f"unsupported LLM provider type: {kind}")
 
-    def _tts(self, name: str, kind: str, config: ProviderConfig) -> TTSProvider:
+    def _tts(
+        self,
+        name: str,
+        kind: str,
+        config: ProviderConfig,
+    ) -> TTSProvider:
         if kind == "fake-tts":
             return FakeTTSProvider(provider_id=name)
         if kind == "kitten":
