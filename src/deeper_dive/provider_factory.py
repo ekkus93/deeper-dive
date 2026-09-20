@@ -33,9 +33,7 @@ from deeper_dive.tts import (
 )
 from deeper_dive.user_config import ProviderConfig, UserConfig
 
-LLM_PROVIDER_TYPES = frozenset(
-    {"fake", "openai", "ollama", "llama-server"}
-)
+LLM_PROVIDER_TYPES = frozenset({"fake", "openai", "ollama", "llama-server"})
 TTS_PROVIDER_TYPES = frozenset(
     {
         "fake-tts",
@@ -232,9 +230,7 @@ class ProviderFactory:
             return config.default_model
         if kind == "fake":
             return "fake-v1"
-        raise ProviderConfigurationError(
-            f"provider type {kind!r} requires default_model"
-        )
+        raise ProviderConfigurationError(f"provider type {kind!r} requires default_model")
 
     def _optional_secret(self, config: ProviderConfig) -> str | None:
         if not config.credential_env:
@@ -251,7 +247,6 @@ class ProviderFactory:
         secret = self.environ.get(env_name)
         if not secret:
             raise ProviderConfigurationError(
-                f"provider type {kind!r} requires credential environment variable "
-                f"{env_name}"
+                f"provider type {kind!r} requires credential environment variable {env_name}"
             )
         return secret

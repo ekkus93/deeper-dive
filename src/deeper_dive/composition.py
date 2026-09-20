@@ -37,9 +37,7 @@ class ProductionComposition:
     ) -> ProductionComposition:
         app_service = service or DeeperDiveService(WorkspaceManager(data_dir))
         app_service.workspaces.initialize()
-        config_store = UserConfigStore(
-            app_service.workspaces.data_dir / "config.json"
-        )
+        config_store = UserConfigStore(app_service.workspaces.data_dir / "config.json")
         providers = (provider_factory or ProviderFactory()).build(config_store.load())
         provider_controller = ProviderController(
             config_store,
@@ -47,9 +45,7 @@ class ProductionComposition:
             providers.tts_providers,
         )
         research_controller = PersistentResearchController(
-            lambda project_id: (
-                app_service.workspaces.project_root(project_id) / "project.db"
-            )
+            lambda project_id: (app_service.workspaces.project_root(project_id) / "project.db")
         )
         return cls(
             service=app_service,
