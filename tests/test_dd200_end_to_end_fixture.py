@@ -6,6 +6,7 @@ from pathlib import Path
 from deeper_dive.llm import FakeLLMProvider, LLMMessage, LLMRequest
 from deeper_dive.pipeline import DEFAULT_STAGES, PipelineContext, PipelineOrchestrator
 from deeper_dive.storage.database import Database
+from deeper_dive.storage.episode_repositories import EpisodeRecord, HostEpisodeRepository
 from deeper_dive.storage.run_repositories import GenerationRunRecord, GenerationRunRepository
 from deeper_dive.tts import FakeTTSProvider, TTSRequest, TTSVoice
 
@@ -18,6 +19,17 @@ def test_dd200_deterministic_fake_provider_pipeline(tmp_path: Path) -> None:
     output.mkdir()
 
     database = Database(tmp_path / "project.db")
+    episodes = HostEpisodeRepository(database)
+    episodes.create_episode(
+        EpisodeRecord(
+            id="episode-dd200",
+            project_id="project-dd200",
+            title="Deterministic fixture",
+            created_at="2026-01-01T00:00:00Z",
+            modified_at="2026-01-01T00:00:00Z",
+        ),
+        [],
+    )
     runs = GenerationRunRepository(database)
     run = GenerationRunRecord(
         id="run-dd200",
@@ -43,7 +55,6 @@ def test_dd200_deterministic_fake_provider_pipeline(tmp_path: Path) -> None:
         state["sources"] = [{"id": "primary-1", "kind": "primary", "text": primary_text}]
 
     def research(_: PipelineContext) -> None:
-        # Deterministic fake research evidence: no HTTP/search provider is invoked.
         state["supplemental"] = [
             {
                 "id": "supplemental-1",
