@@ -91,9 +91,12 @@ async def _exercise_complete_setup(tmp_path: Path) -> None:
         screen.query_one("#episode-avoid", Input).value = "fluff"
         screen.query_one("#episode-research-policy", Input).value = "useful"
         screen.query_one("#episode-citation-behavior", Input).value = "cite-every-claim"
+        destinations: list[str] = []
+        app.action_navigate = destinations.append  # type: ignore[method-assign]
         screen.action_build_plan()
         assert "Plan built: 1 segments" in _status_text(screen)
         assert app.current_episode_id is not None
+        assert destinations == ["plan"]
 
     database = Database(service.workspaces.project_root(project.id) / "project.db")
     config_service = EpisodeConfigurationService(database)
