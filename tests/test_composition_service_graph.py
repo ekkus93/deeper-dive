@@ -4,7 +4,7 @@ from deeper_dive.audio_playback import AudioPlaybackController
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.export import EpisodeExporter
 from deeper_dive.generation_monitor import GenerationMonitorController
-from deeper_dive.pipeline import PipelineContext, PipelineOrchestrator
+from deeper_dive.pipeline import DEFAULT_STAGES, PipelineContext, PipelineOrchestrator
 from deeper_dive.preflight_screen import PreflightController
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.targeted_repair import TargetedRepairService
@@ -46,10 +46,9 @@ def test_production_composition_constructs_shared_service_graph(tmp_path) -> Non
     project = composition.service.create_project("Composition graph")
 
     planner = composition.planning_service(project.id, _PlanGenerator())
-    stages = ("sources", "conversation", "tts", "export")
     pipeline = composition.pipeline_service(
         project.id,
-        {stage: (lambda context: None) for stage in stages},
+        {stage: (lambda context: None) for stage in DEFAULT_STAGES},
     )
     exporter = composition.exporter(project.id)
     repair = composition.targeted_repair_service(
@@ -79,7 +78,8 @@ def test_pipeline_stage_handlers_remain_injectable_through_composition(tmp_path)
     def handler(context: PipelineContext) -> None:
         seen.append(context.stage)
 
-    orchestrator = composition.pipeline_service(project.id, {"sources": handler})
+    handlers = {stage: handler for stage in DEFAULT_STAGES}
+    orchestrator = composition.pipeline_service(project.id, handlers)
 
-    assert orchestrator.handlers["sources"] is handler
+    assert all(orchestrator.handlers[stage] is handler for stage in DEFAULT_STAGES)
     assert seen == []
