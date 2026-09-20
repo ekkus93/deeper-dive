@@ -40,9 +40,7 @@ def test_dd200_deterministic_fake_provider_pipeline(tmp_path: Path) -> None:
     state: dict[str, object] = {}
 
     def sources(_: PipelineContext) -> None:
-        state["sources"] = [
-            {"id": "primary-1", "kind": "primary", "text": primary_text}
-        ]
+        state["sources"] = [{"id": "primary-1", "kind": "primary", "text": primary_text}]
 
     def research(_: PipelineContext) -> None:
         # Deterministic fake research evidence: no HTTP/search provider is invoked.
@@ -69,8 +67,7 @@ def test_dd200_deterministic_fake_provider_pipeline(tmp_path: Path) -> None:
 
     def verification(_: PipelineContext) -> None:
         state["claims"] = [
-            {"turn": index, "evidence": "primary-1", "verified": True}
-            for index in range(3)
+            {"turn": index, "evidence": "primary-1", "verified": True} for index in range(3)
         ]
 
     def synthesize(_: PipelineContext) -> None:
@@ -104,7 +101,16 @@ def test_dd200_deterministic_fake_provider_pipeline(tmp_path: Path) -> None:
     handlers = dict(
         zip(
             DEFAULT_STAGES,
-            (sources, research, planning, conversation, verification, synthesize, composition, export),
+            (
+                sources,
+                research,
+                planning,
+                conversation,
+                verification,
+                synthesize,
+                composition,
+                export,
+            ),
             strict=True,
         )
     )
