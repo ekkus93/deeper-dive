@@ -7,7 +7,11 @@ from unittest.mock import patch
 import pytest
 
 from deeper_dive.audio_timeline import AudioTimeline, TimelineItem
-from deeper_dive.diagnostics import DiagnosticEvent, StructuredDiagnosticLog, export_diagnostic_bundle
+from deeper_dive.diagnostics import (
+    DiagnosticEvent,
+    StructuredDiagnosticLog,
+    export_diagnostic_bundle,
+)
 from deeper_dive.domain.errors import UserError
 from deeper_dive.ffmpeg import FFmpegComposer, FFmpegConfig
 from deeper_dive.llm import FakeLLMProvider, LLMProviderRegistry
