@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -21,6 +22,7 @@ class ModelRole(StrEnum):
 
 
 REQUIRED_MODEL_ROLES = tuple(ModelRole)
+PROJECT_MODEL_DEFAULTS_KEY = "model_defaults"
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +70,31 @@ class ModelRolePreflight:
     @property
     def ready(self) -> bool:
         return not self.blockers
+
+
+def project_model_defaults_from_instructions(instructions: str) -> dict[str, str]:
+    """Extract project-level model defaults from a JSON project-instructions payload.
+
+    Project instructions may remain ordinary freeform text. Only a top-level JSON object
+    containing a ``model_defaults`` mapping participates in model-role resolution.
+    """
+
+    if not instructions.strip():
+        return {}
+    try:
+        payload: object = json.loads(instructions)
+    except json.JSONDecodeError:
+        return {}
+    if not isinstance(payload, Mapping):
+        return {}
+    raw_defaults = payload.get(PROJECT_MODEL_DEFAULTS_KEY)
+    if not isinstance(raw_defaults, Mapping):
+        return {}
+    return {
+        str(role): value
+        for role, value in raw_defaults.items()
+        if isinstance(role, str) and isinstance(value, str)
+    }
 
 
 def effective_model_role_assignments(

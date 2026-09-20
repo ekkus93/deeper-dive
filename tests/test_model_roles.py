@@ -8,6 +8,7 @@ from deeper_dive.model_roles import (
     ModelRoleAssignments,
     effective_model_role_assignments,
     preflight_model_roles,
+    project_model_defaults_from_instructions,
 )
 
 
@@ -25,6 +26,14 @@ def test_episode_project_user_precedence() -> None:
         ).resolve(role)
         == episode
     )
+
+
+def test_project_model_defaults_parse_only_explicit_json_defaults() -> None:
+    assert project_model_defaults_from_instructions("ordinary project guidance") == {}
+    assert project_model_defaults_from_instructions('{"notes":"keep this freeform"}') == {}
+    assert project_model_defaults_from_instructions(
+        '{"model_defaults":{"episode_planning":"project:plan-v1","ignored":3}}'
+    ) == {"episode_planning": "project:plan-v1"}
 
 
 def test_effective_assignment_parser_applies_episode_project_user_precedence() -> None:
@@ -61,6 +70,7 @@ def test_effective_assignment_parser_applies_episode_project_user_precedence() -
 def test_effective_assignment_parser_reports_actionable_errors() -> None:
     assignments, errors = effective_model_role_assignments(
         user_defaults={"episode_planning": "missing-separator"},
+        project_defaults={"host_generation": "also-missing-separator"},
         episode_overrides={
             "unknown_role": {"provider": "fake", "model": "fake-v1"},
             "directing": {"provider": "fake"},
@@ -69,6 +79,7 @@ def test_effective_assignment_parser_reports_actionable_errors() -> None:
 
     assert assignments.resolve(ModelRole.EPISODE_PLANNING) is None
     assert "default episode_planning assignment must use provider:model" in errors
+    assert "project default host_generation assignment must use provider:model" in errors
     assert "unknown episode model role 'unknown_role'" in errors
     assert "episode override directing must include provider and model" in errors
 

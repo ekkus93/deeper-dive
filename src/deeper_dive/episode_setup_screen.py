@@ -17,6 +17,7 @@ from deeper_dive.model_roles import (
     ModelRole,
     effective_model_role_assignments,
     preflight_model_roles,
+    project_model_defaults_from_instructions,
 )
 from deeper_dive.storage.database import Database
 
@@ -106,7 +107,7 @@ class EpisodeSetupScreen(Screen[None]):
         except ValueError as exc:
             self._status(str(exc))
             return
-        assignment = self._planning_assignment(config)
+        assignment = self._planning_assignment(project_id, config)
         if isinstance(assignment, str):
             self._status(assignment)
             return
@@ -188,10 +189,13 @@ class EpisodeSetupScreen(Screen[None]):
             raise ValueError(f"Unknown episode host ID: {missing[0]}")
         return selected
 
-    def _planning_assignment(self, config: EpisodeConfiguration) -> ModelAssignment | str:
+    def _planning_assignment(
+        self, project_id: str, config: EpisodeConfiguration
+    ) -> ModelAssignment | str:
         user_config = self._app.provider_controller.config()
         assignments, issues = effective_model_role_assignments(
             user_defaults=user_config.defaults,
+            project_defaults=self._project_model_defaults(project_id),
             episode_overrides=config.model_overrides,
         )
         if issues:
@@ -207,6 +211,12 @@ class EpisodeSetupScreen(Screen[None]):
         if not preflight.ready:
             return preflight.blockers[0].message
         return assignment
+
+    def _project_model_defaults(self, project_id: str) -> dict[str, str]:
+        project = self._app.service.open_project(project_id)
+        if project is None:
+            return {}
+        return project_model_defaults_from_instructions(project.instructions)
 
     def _existing_model_overrides(self, project_id: str) -> dict[str, dict[str, str]]:
         if self.current_episode_id is None:
