@@ -22,8 +22,8 @@
 
 ## DDR-001 — Introduce explicit production composition root
 
-- [ ] Identify and document the production object graph for TUI and CLI.
-- [ ] Construct shared configuration repositories/services in one composition layer.
+- [x] Identify and document the production object graph for TUI and CLI.
+- [x] Construct shared configuration repositories/services in one composition layer.
 - [ ] Construct planning, preflight, pipeline, export, benchmark, transcript-repair, and playback services there.
 - [ ] Supply TUI controllers from that composition root.
 - [ ] Supply CLI command handlers from the same underlying services.
@@ -37,15 +37,15 @@
 
 ## DDR-002 — Normalize provider identities and provider factory
 
-- [ ] Define concrete persisted provider identities.
-- [ ] Separate provider capability class from concrete adapter type.
-- [ ] Implement provider configuration validation.
-- [ ] Implement provider factory construction for all existing supported adapters.
-- [ ] Register constructed providers in the appropriate registries.
-- [ ] Preserve local/remote network-policy metadata.
-- [ ] Return actionable sanitized configuration errors.
-- [ ] Add compatibility handling/tests for existing persisted generic provider-type values.
-- [ ] Add factory tests for each supported provider type.
+- [x] Define concrete persisted provider identities.
+- [x] Separate provider capability class from concrete adapter type.
+- [x] Implement provider configuration validation.
+- [x] Implement provider factory construction for all existing supported adapters.
+- [x] Register constructed providers in the appropriate registries.
+- [x] Preserve local/remote network-policy metadata.
+- [x] Return actionable sanitized configuration errors.
+- [x] Add compatibility handling/tests for existing persisted generic provider-type values.
+- [x] Add factory tests for each supported provider type.
 
 **Acceptance criteria**
 
@@ -53,12 +53,12 @@
 
 ## DDR-003 — Enforce effective configuration precedence
 
-- [ ] Centralize effective assignment resolution.
+- [x] Centralize effective assignment resolution.
 - [ ] Apply episode overrides before project defaults.
 - [ ] Apply project defaults before user defaults.
 - [ ] Use documented built-in fallback only where explicitly allowed.
 - [ ] Make preflight and generation consume the same resolved assignments.
-- [ ] Add precedence tests covering conflicting episode/project/user values.
+- [x] Add precedence tests covering conflicting episode/project/user values.
 
 **Acceptance criteria**
 
