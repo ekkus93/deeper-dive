@@ -56,7 +56,9 @@ def test_candidate_duplicate_and_weak_rejection_matrix(tmp_path: Path) -> None:
     assert not duplicate.accepted
     assert duplicate.reason == "duplicate content"
     weak_result = SearchResult("https://example.test/food", "Pasta", "cooking recipe")
-    weak_doc = FetchedDocument(weak_result.url, weak_result.url, "tomato pasta recipe", "text/plain")
+    weak_doc = FetchedDocument(
+        weak_result.url, weak_result.url, "tomato pasta recipe", "text/plain"
+    )
     weak = evaluator.evaluate(gap, weak_result, weak_doc)
     assert not weak.accepted
     assert "not relevant" in weak.reason
