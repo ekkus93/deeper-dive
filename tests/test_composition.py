@@ -37,7 +37,9 @@ def test_production_composition_loads_persisted_providers(tmp_path) -> None:
     )
 
 
-def test_production_composition_constructs_planner_with_injectable_provider_boundary(tmp_path) -> None:
+def test_production_composition_constructs_planner_with_injectable_provider_boundary(
+    tmp_path,
+) -> None:
     composition = ProductionComposition.build(
         tmp_path / "data",
         provider_factory=ProviderFactory(environ={}),
