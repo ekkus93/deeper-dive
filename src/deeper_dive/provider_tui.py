@@ -45,7 +45,9 @@ class ProviderController:
         kind = provider_type.strip().lower().replace("_", "-")
         if self.capability(kind) == "unknown":
             supported = ", ".join(sorted(LLM_PROVIDER_TYPES | TTS_PROVIDER_TYPES))
-            raise ValueError(f"unsupported provider adapter {provider_type!r}; choose one of: {supported}")
+            raise ValueError(
+                f"unsupported provider adapter {provider_type!r}; choose one of: {supported}"
+            )
         config = self.config()
         config.providers[name] = ProviderConfig(
             provider_type=kind,
