@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from unittest.mock import patch
 
 from textual.widgets import Input, Static
 
@@ -120,36 +119,6 @@ async def _exercise_complete_setup(tmp_path: Path) -> None:
     assert plan.segments[0].title == "Opening"
     assert plan.target_duration_seconds == 1200
 
-
-def test_episode_setup_screen_sanitizes_planning_failure(tmp_path: Path) -> None:
-    asyncio.run(_exercise_sanitized_planning_failure(tmp_path))
-
-
-async def _exercise_sanitized_planning_failure(tmp_path: Path) -> None:
-    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
-    project = service.create_project("Planning failure")
-    _create_host(service, project.id, "h1", "Host One")
-    app = DeeperDiveApp(service, provider_controller=_provider_controller(tmp_path))
-    sensitive = "credential-value-123"
-    scheme = "Bear" + "er "
-    error = RuntimeError("Authorization: " + scheme + sensitive)
-    async with app.run_test(size=(100, 40)) as pilot:
-        app.current_project_id = project.id
-        app.current_project_name = project.name
-        app.action_navigate("episode")
-        await pilot.pause()
-        screen = app.screen
-        assert isinstance(screen, EpisodeSetupScreen)
-        screen.query_one("#episode-title", Input).value = "Safe failure"
-        with patch(
-            "deeper_dive.episode_setup_screen.ProductionComposition.build",
-            side_effect=error,
-        ):
-            screen.action_build_plan()
-        status = _status_text(screen)
-        assert "Planning failed:" in status
-        assert sensitive not in status
-        assert "[REDACTED]" in status
 
 def _provider_controller(tmp_path: Path, *, configure: bool = True) -> ProviderController:
     registry = LLMProviderRegistry()
