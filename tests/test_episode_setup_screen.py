@@ -181,7 +181,7 @@ async def _exercise_project_default_planning(tmp_path: Path) -> None:
     service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
     project = service.create_project(
         "Project default Planning",
-        instructions='{"model_defaults":{"episode_planning":"project-provider:project-v1"}}',
+        instructions="{\"model_defaults\":{\"episode_planning\":\"project-provider:project-v1\"}}",
     )
     _create_host(service, project.id, "h1", "Explainer")
     app = DeeperDiveApp(
