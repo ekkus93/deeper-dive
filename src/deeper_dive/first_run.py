@@ -14,9 +14,9 @@ LOCAL_URL_PREFIXES = ("http://127.0.0.1", "http://localhost")
 
 
 def _is_local(provider: ProviderConfig) -> bool:
-    provider_type = provider.provider_type.lower()
-    base_url = provider.base_url or ""
-    return provider_type in LOCAL_PROVIDER_TYPES or base_url.startswith(LOCAL_URL_PREFIXES)
+    kind = provider.provider_type.lower()
+    url = provider.base_url or ""
+    return kind in LOCAL_PROVIDER_TYPES or url.startswith(LOCAL_URL_PREFIXES)
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,38 +36,39 @@ class FirstRunStatus:
 
     def guidance(self) -> tuple[str, ...]:
         lines = ["Welcome to Deeper Dive. Cloud providers are optional."]
-        if self.ffmpeg_available:
-            lines.append("FFmpeg: available")
-        else:
-            lines.append("FFmpeg: not found. Install FFmpeg before audio assembly.")
-        if self.kitten_available:
-            lines.append("KittenTTS Micro: runtime available")
-        else:
-            lines.append(
-                "KittenTTS Micro: optional runtime not installed. "
-                "Install the KittenTTS optional dependency for local CPU speech."
-            )
-        if self.configured_providers:
-            names = ", ".join(self.configured_providers)
-            lines.append(f"Configured providers: {names}")
-        else:
-            lines.append("Providers: none configured. Cloud configuration may be skipped.")
-        if self.local_providers:
-            names = ", ".join(self.local_providers)
-            lines.append(f"Local providers: {names}")
-        else:
-            lines.append(
-                "Local LLM option: add an Ollama or llama-server endpoint when ready."
-            )
-        lines.append(
-            "Create an empty project and add your own sources; "
-            "no copyrighted sample content is bundled."
-        )
+        lines.append(self._ffmpeg_guidance())
+        lines.append(self._kitten_guidance())
+        lines.append(self._provider_guidance())
+        lines.append(self._local_guidance())
+        lines.append("Create an empty project and add your own sources.")
+        lines.append("No copyrighted sample content is bundled.")
         return tuple(lines)
+
+    def _ffmpeg_guidance(self) -> str:
+        if self.ffmpeg_available:
+            return "FFmpeg: available"
+        return "FFmpeg: not found. Install FFmpeg before audio assembly."
+
+    def _kitten_guidance(self) -> str:
+        if self.kitten_available:
+            return "KittenTTS Micro: runtime available"
+        return "KittenTTS Micro: install the optional runtime for local CPU speech."
+
+    def _provider_guidance(self) -> str:
+        if not self.configured_providers:
+            return "Providers: none configured. Cloud configuration may be skipped."
+        names = ", ".join(self.configured_providers)
+        return f"Configured providers: {names}"
+
+    def _local_guidance(self) -> str:
+        if not self.local_providers:
+            return "Local LLM option: add an Ollama or llama-server endpoint."
+        names = ", ".join(self.local_providers)
+        return f"Local providers: {names}"
 
 
 class FirstRunController:
-    """Side-effect-free readiness probe used by first-run UI and smoke tests."""
+    """Side-effect-free readiness probe for first-run UI and smoke tests."""
 
     def __init__(self, providers: ProviderController) -> None:
         self.providers = providers
@@ -75,13 +76,11 @@ class FirstRunController:
     def status(self) -> FirstRunStatus:
         config = self.providers.config()
         names = tuple(sorted(config.providers))
-        local = tuple(
-            sorted(
-                name
-                for name, provider in config.providers.items()
-                if _is_local(provider)
-            )
-        )
+        local_names = []
+        for name, provider in config.providers.items():
+            if _is_local(provider):
+                local_names.append(name)
+        local = tuple(sorted(local_names))
         return FirstRunStatus(
             ffmpeg_available=shutil.which("ffmpeg") is not None,
             kitten_available=importlib.util.find_spec("kittentts") is not None,
