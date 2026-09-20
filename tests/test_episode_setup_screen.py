@@ -123,13 +123,15 @@ async def _exercise_complete_setup(tmp_path: Path) -> None:
 
 
 def test_episode_setup_screen_sanitizes_planning_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     asyncio.run(_exercise_sanitized_planning_failure(tmp_path, monkeypatch))
 
 
 async def _exercise_sanitized_planning_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
     project = service.create_project("Planning failure")
