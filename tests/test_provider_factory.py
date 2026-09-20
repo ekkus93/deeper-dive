@@ -46,6 +46,41 @@ def test_factory_builds_local_llm_adapters_without_contacting_network() -> None:
     assert result.llm_registry.get("llama").provider_id == "llama"
 
 
+def test_factory_constructs_every_supported_adapter_without_network_calls() -> None:
+    result = ProviderFactory(
+        environ={"OPENAI_API_KEY": "fixture", "ELEVENLABS_API_KEY": "fixture"}
+    ).build(
+        UserConfig(
+            providers={
+                "fake": ProviderConfig(provider_type="fake"),
+                "openai": ProviderConfig(provider_type="openai", default_model="gpt-test"),
+                "ollama": ProviderConfig(provider_type="ollama", default_model="qwen-test"),
+                "llama": ProviderConfig(
+                    provider_type="llama-server", default_model="local.gguf"
+                ),
+                "fake-speech": ProviderConfig(provider_type="fake-tts"),
+                "kitten": ProviderConfig(provider_type="kitten"),
+                "openai-speech": ProviderConfig(provider_type="openai-tts"),
+                "compatible-speech": ProviderConfig(
+                    provider_type="openai-compatible-tts",
+                    base_url="http://127.0.0.1:9000/v1",
+                    voices=("voice-a",),
+                ),
+                "eleven": ProviderConfig(provider_type="elevenlabs"),
+            }
+        )
+    )
+
+    assert result.llm_registry.provider_ids() == ("fake", "llama", "ollama", "openai")
+    assert result.tts_registry.provider_ids() == (
+        "compatible-speech",
+        "eleven",
+        "fake-speech",
+        "kitten",
+        "openai-speech",
+    )
+
+
 def test_factory_preserves_effective_network_policy_metadata() -> None:
     result = ProviderFactory(environ={"OPENAI_API_KEY": "fixture"}).build(
         UserConfig(
