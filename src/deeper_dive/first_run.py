@@ -75,7 +75,9 @@ class FirstRunController:
     def status(self) -> FirstRunStatus:
         config = self.providers.config()
         names = tuple(sorted(config.providers))
-        local = tuple(sorted(name for name, provider in config.providers.items() if _is_local(provider)))
+        local = tuple(
+            sorted(name for name, provider in config.providers.items() if _is_local(provider))
+        )
         return FirstRunStatus(
             ffmpeg_available=shutil.which("ffmpeg") is not None,
             kitten_available=importlib.util.find_spec("kittentts") is not None,
