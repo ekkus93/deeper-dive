@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -15,7 +14,7 @@ from deeper_dive.director_decision import DirectorDecision
 from deeper_dive.export import EpisodeExporter, ManifestSource, TranscriptTurn
 from deeper_dive.host_turn import HostTurnService
 from deeper_dive.hosts import HostProfile
-from deeper_dive.pipeline import DEFAULT_STAGES, PipelineContext, PipelineOrchestrator
+from deeper_dive.pipeline import DEFAULT_STAGES, PipelineContext, PipelineOrchestrator, StageHandler
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_plan_repository import EpisodePlanRepository
 from deeper_dive.storage.episode_repositories import (
@@ -177,7 +176,7 @@ class DeterministicFixtureRunner:
                 )
             )
 
-    def _handler(self, stage: str) -> Callable[[PipelineContext], None]:
+    def _handler(self, stage: str) -> StageHandler:
         return {
             "sources": self._stage_sources,
             "research": self._stage_research,
