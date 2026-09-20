@@ -12,8 +12,13 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Label, Static
 
 from deeper_dive.application.service import DeeperDiveService
+from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.hosts import HostProfile
-from deeper_dive.model_roles import ModelAssignment, ModelRole, ModelRoleAssignments
+from deeper_dive.model_roles import (
+    ModelRole,
+    ModelRoleAssignments,
+    effective_model_role_assignments,
+)
 from deeper_dive.preflight import (
     PreflightEstimate,
     PreflightIssue,
@@ -21,6 +26,7 @@ from deeper_dive.preflight import (
     PreflightService,
 )
 from deeper_dive.provider_tui import ProviderController
+from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import (
     EpisodeRecord,
     HostEpisodeRepository,
@@ -79,7 +85,10 @@ class PreflightController:
         host_records = self._selected_host_records(host_repository, project_id, episode)
         hosts = tuple(HostProfile.from_record(host) for host in host_records)
         config = app.provider_controller.config()
-        assignments, assignment_issues = self._assignments(config.defaults)
+        episode_overrides = self._episode_model_overrides(app, project_id, episode)
+        assignments, assignment_issues = self._assignments(
+            config.defaults, episode_overrides
+        )
 
         tts_registry = TTSProviderRegistry()
         for provider in app.provider_controller.tts_providers.values():
@@ -147,28 +156,31 @@ class PreflightController:
         return tuple(by_id[host_id] for host_id in host_ids if host_id in by_id)
 
     @staticmethod
+    def _episode_model_overrides(
+        app: PreflightApp,
+        project_id: str,
+        episode: EpisodeRecord | None,
+    ) -> dict[str, dict[str, str]]:
+        if episode is None:
+            return {}
+        database = Database(app.service.workspaces.project_root(project_id) / "project.db")
+        try:
+            config = EpisodeConfigurationService(database).load_configuration(episode.id)
+        except KeyError:
+            return {}
+        return {role: dict(assignment) for role, assignment in config.model_overrides.items()}
+
+    @staticmethod
     def _assignments(
         defaults: dict[str, str],
+        episode_overrides: dict[str, dict[str, str]] | None = None,
     ) -> tuple[ModelRoleAssignments, tuple[PreflightIssue, ...]]:
-        user_assignments: dict[ModelRole, ModelAssignment] = {}
-        issues: list[PreflightIssue] = []
-        for role in ModelRole:
-            raw = defaults.get(role.value)
-            if raw is None:
-                continue
-            try:
-                provider, model = raw.split(":", 1)
-                user_assignments[role] = ModelAssignment(provider.strip(), model.strip())
-            except ValueError as exc:
-                issues.append(
-                    PreflightIssue(
-                        "llm_assignment",
-                        f"default {role.value} assignment must use provider:model",
-                    )
-                )
-                if str(exc) == "":
-                    continue
-        return ModelRoleAssignments(user=user_assignments), tuple(issues)
+        assignments, errors = effective_model_role_assignments(
+            user_defaults=defaults,
+            episode_overrides=episode_overrides or {},
+        )
+        issues = tuple(PreflightIssue("llm_assignment", error) for error in errors)
+        return assignments, issues
 
     @staticmethod
     def _local_provider_ids(

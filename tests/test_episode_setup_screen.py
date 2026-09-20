@@ -6,7 +6,7 @@ from pathlib import Path
 from textual.widgets import Input, Static
 
 from deeper_dive.application.service import DeeperDiveService
-from deeper_dive.episode_config import EpisodeConfigurationService
+from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.episode_planner import EpisodePlannerService
 from deeper_dive.episode_setup_screen import EpisodeSetupScreen
 from deeper_dive.hosts import HostProfile
@@ -120,6 +120,59 @@ async def _exercise_complete_setup(tmp_path: Path) -> None:
     assert plan.target_duration_seconds == 1200
 
 
+def test_episode_setup_replanning_honors_persisted_episode_model_override(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_exercise_episode_override_replanning(tmp_path))
+
+
+async def _exercise_episode_override_replanning(tmp_path: Path) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    project = service.create_project("Override Planning")
+    _create_host(service, project.id, "h1", "Explainer")
+    database = Database(service.workspaces.project_root(project.id) / "project.db")
+    config_service = EpisodeConfigurationService(database)
+    episode = config_service.create(
+        project.id,
+        EpisodeConfiguration(
+            title="Override Deep Dive",
+            target_duration_seconds=600,
+            host_ids=("h1",),
+            model_overrides={
+                "episode_planning": {
+                    "provider": "override-provider",
+                    "model": "override-v1",
+                }
+            },
+        ),
+    )
+    app = DeeperDiveApp(
+        service, provider_controller=_provider_controller_with_override(tmp_path)
+    )
+    async with app.run_test(size=(100, 40)) as pilot:
+        app.current_project_id = project.id
+        app.current_project_name = project.name
+        app.current_episode_id = episode.id
+        app.action_navigate("episode")
+        await pilot.pause()
+        screen = app.screen
+        assert isinstance(screen, EpisodeSetupScreen)
+        screen.current_episode_id = episode.id
+        screen.query_one("#episode-title", Input).value = "Override Deep Dive"
+        screen.query_one("#episode-duration", Input).value = "600"
+        screen.query_one("#episode-hosts", Input).value = "h1"
+        destinations: list[str] = []
+        app.action_navigate = destinations.append  # type: ignore[method-assign]
+        screen.action_build_plan()
+        assert "Plan built: 1 segments" in _status_text(screen)
+        assert destinations == ["plan"]
+
+    plan = EpisodePlannerService(database, _unused_generator()).load_plan(episode.id)
+    assert plan.segments[0].title == "Override Opening"
+    config = config_service.load_configuration(episode.id)
+    assert config.model_overrides["episode_planning"]["provider"] == "override-provider"
+
+
 def _provider_controller(tmp_path: Path, *, configure: bool = True) -> ProviderController:
     registry = LLMProviderRegistry()
     registry.register(
@@ -136,6 +189,35 @@ def _provider_controller(tmp_path: Path, *, configure: bool = True) -> ProviderC
         config = store.load()
         config.defaults["episode_planning"] = "fake:fake-v1"
         store.save(config)
+    return ProviderController(store, registry, {})
+
+
+def _provider_controller_with_override(tmp_path: Path) -> ProviderController:
+    registry = LLMProviderRegistry()
+    registry.register(
+        FakeLLMProvider(
+            provider_id="user-provider",
+            model="user-v1",
+            response=(
+                '{"segments":[{"title":"User Opening","purpose":"Use default",'
+                '"target_duration_seconds":600,"lead_host_ids":["h1"]}]}'
+            ),
+        )
+    )
+    registry.register(
+        FakeLLMProvider(
+            provider_id="override-provider",
+            model="override-v1",
+            response=(
+                '{"segments":[{"title":"Override Opening","purpose":"Use override",'
+                '"target_duration_seconds":600,"lead_host_ids":["h1"]}]}'
+            ),
+        )
+    )
+    store = UserConfigStore(tmp_path / "override-config.json")
+    config = store.load()
+    config.defaults["episode_planning"] = "user-provider:user-v1"
+    store.save(config)
     return ProviderController(store, registry, {})
 
 

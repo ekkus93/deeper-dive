@@ -15,7 +15,7 @@ from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfiguratio
 from deeper_dive.model_roles import (
     ModelAssignment,
     ModelRole,
-    ModelRoleAssignments,
+    effective_model_role_assignments,
     preflight_model_roles,
 )
 from deeper_dive.storage.database import Database
@@ -106,7 +106,7 @@ class EpisodeSetupScreen(Screen[None]):
         except ValueError as exc:
             self._status(str(exc))
             return
-        assignment = self._planning_assignment()
+        assignment = self._planning_assignment(config)
         if isinstance(assignment, str):
             self._status(assignment)
             return
@@ -175,6 +175,7 @@ class EpisodeSetupScreen(Screen[None]):
                     "#episode-citation-behavior", Input
                 ).value.strip(),
             },
+            model_overrides=self._existing_model_overrides(project_id),
         )
 
     def _host_ids(self, project_id: str) -> tuple[str, ...]:
@@ -187,24 +188,36 @@ class EpisodeSetupScreen(Screen[None]):
             raise ValueError(f"Unknown episode host ID: {missing[0]}")
         return selected
 
-    def _planning_assignment(self) -> ModelAssignment | str:
-        config = self._app.provider_controller.config()
-        default = config.defaults.get(ModelRole.EPISODE_PLANNING.value)
-        if not default:
+    def _planning_assignment(self, config: EpisodeConfiguration) -> ModelAssignment | str:
+        user_config = self._app.provider_controller.config()
+        assignments, issues = effective_model_role_assignments(
+            user_defaults=user_config.defaults,
+            episode_overrides=config.model_overrides,
+        )
+        if issues:
+            return issues[0]
+        assignment = assignments.resolve(ModelRole.EPISODE_PLANNING)
+        if assignment is None:
             return "Configure an episode_planning provider/model before building a plan"
-        try:
-            provider, model = default.split(":", 1)
-            assignment = ModelAssignment(provider, model)
-        except ValueError:
-            return "Default episode_planning role must use provider:model"
         preflight = preflight_model_roles(
-            ModelRoleAssignments(user={ModelRole.EPISODE_PLANNING: assignment}),
+            assignments,
             self._app.provider_controller.llm_registry,
             required_roles=(ModelRole.EPISODE_PLANNING,),
         )
         if not preflight.ready:
             return preflight.blockers[0].message
         return assignment
+
+    def _existing_model_overrides(self, project_id: str) -> dict[str, dict[str, str]]:
+        if self.current_episode_id is None:
+            return {}
+        try:
+            existing = self._configuration_service(project_id).load_configuration(
+                self.current_episode_id
+            )
+        except KeyError:
+            return {}
+        return {role: dict(assignment) for role, assignment in existing.model_overrides.items()}
 
     def _configuration_service(self, project_id: str) -> EpisodeConfigurationService:
         database = Database(self._app.service.workspaces.project_root(project_id) / "project.db")

@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Any
 
 from deeper_dive.llm import LLMProviderRegistry
 
@@ -67,6 +68,101 @@ class ModelRolePreflight:
     @property
     def ready(self) -> bool:
         return not self.blockers
+
+
+def effective_model_role_assignments(
+    *,
+    user_defaults: Mapping[str, str],
+    project_defaults: Mapping[str, str] | None = None,
+    episode_overrides: Mapping[str, Any] | None = None,
+) -> tuple[ModelRoleAssignments, tuple[str, ...]]:
+    """Parse and combine persisted assignment scopes using documented precedence."""
+
+    user, user_errors = _assignments_from_default_strings(user_defaults, "default")
+    project, project_errors = _assignments_from_default_strings(
+        project_defaults or {}, "project default"
+    )
+    episode, episode_errors = _assignments_from_episode_overrides(episode_overrides or {})
+    return (
+        ModelRoleAssignments(user=user, project=project, episode=episode),
+        (*user_errors, *project_errors, *episode_errors),
+    )
+
+
+def _assignments_from_default_strings(
+    values: Mapping[str, str],
+    label: str,
+) -> tuple[dict[ModelRole, ModelAssignment], tuple[str, ...]]:
+    assignments: dict[ModelRole, ModelAssignment] = {}
+    errors: list[str] = []
+    for role in ModelRole:
+        raw = values.get(role.value)
+        if raw is None:
+            continue
+        assignment, error = _assignment_from_identity(raw, role=role, label=label)
+        if error is not None:
+            errors.append(error)
+            continue
+        assert assignment is not None
+        assignments[role] = assignment
+    return assignments, tuple(errors)
+
+
+def _assignments_from_episode_overrides(
+    values: Mapping[str, Any],
+) -> tuple[dict[ModelRole, ModelAssignment], tuple[str, ...]]:
+    assignments: dict[ModelRole, ModelAssignment] = {}
+    errors: list[str] = []
+    for key, raw in values.items():
+        try:
+            role = ModelRole(key)
+        except ValueError:
+            errors.append(f"unknown episode model role {key!r}")
+            continue
+        assignment, error = _assignment_from_override(raw, role)
+        if error is not None:
+            errors.append(error)
+            continue
+        assert assignment is not None
+        assignments[role] = assignment
+    return assignments, tuple(errors)
+
+
+def _assignment_from_override(
+    raw: Any,
+    role: ModelRole,
+) -> tuple[ModelAssignment | None, str | None]:
+    if isinstance(raw, str):
+        return _assignment_from_identity(raw, role=role, label="episode override")
+    if not isinstance(raw, Mapping):
+        return (
+            None,
+            f"episode override {role.value} must be provider:model or provider/model fields",
+        )
+    provider = raw.get("provider")
+    model = raw.get("model")
+    if not isinstance(provider, str) or not isinstance(model, str):
+        return None, f"episode override {role.value} must include provider and model"
+    try:
+        return ModelAssignment(provider.strip(), model.strip()), None
+    except ValueError as exc:
+        return None, f"episode override {role.value} is invalid: {exc}"
+
+
+def _assignment_from_identity(
+    raw: str,
+    *,
+    role: ModelRole,
+    label: str,
+) -> tuple[ModelAssignment | None, str | None]:
+    try:
+        provider, model = raw.split(":", 1)
+    except ValueError:
+        return None, f"{label} {role.value} assignment must use provider:model"
+    try:
+        return ModelAssignment(provider.strip(), model.strip()), None
+    except ValueError as exc:
+        return None, f"{label} {role.value} assignment is invalid: {exc}"
 
 
 def preflight_model_roles(

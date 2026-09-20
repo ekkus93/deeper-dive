@@ -6,6 +6,7 @@ from deeper_dive.model_roles import (
     ModelAssignment,
     ModelRole,
     ModelRoleAssignments,
+    effective_model_role_assignments,
     preflight_model_roles,
 )
 
@@ -24,6 +25,52 @@ def test_episode_project_user_precedence() -> None:
         ).resolve(role)
         == episode
     )
+
+
+def test_effective_assignment_parser_applies_episode_project_user_precedence() -> None:
+    assignments, errors = effective_model_role_assignments(
+        user_defaults={
+            "episode_planning": "user-provider:user-model",
+            "host_generation": "user-provider:user-host-model",
+            "local_only": "true",
+        },
+        project_defaults={
+            "episode_planning": "project-provider:project-model",
+            "directing": "project-provider:project-directing-model",
+        },
+        episode_overrides={
+            "episode_planning": {
+                "provider": "episode-provider",
+                "model": "episode-model",
+            }
+        },
+    )
+
+    assert not errors
+    assert assignments.resolve(ModelRole.EPISODE_PLANNING) == ModelAssignment(
+        "episode-provider", "episode-model"
+    )
+    assert assignments.resolve(ModelRole.DIRECTING) == ModelAssignment(
+        "project-provider", "project-directing-model"
+    )
+    assert assignments.resolve(ModelRole.HOST_GENERATION) == ModelAssignment(
+        "user-provider", "user-host-model"
+    )
+
+
+def test_effective_assignment_parser_reports_actionable_errors() -> None:
+    assignments, errors = effective_model_role_assignments(
+        user_defaults={"episode_planning": "missing-separator"},
+        episode_overrides={
+            "unknown_role": {"provider": "fake", "model": "fake-v1"},
+            "directing": {"provider": "fake"},
+        },
+    )
+
+    assert assignments.resolve(ModelRole.EPISODE_PLANNING) is None
+    assert "default episode_planning assignment must use provider:model" in errors
+    assert "unknown episode model role 'unknown_role'" in errors
+    assert "episode override directing must include provider and model" in errors
 
 
 def test_all_documented_roles_are_required() -> None:
