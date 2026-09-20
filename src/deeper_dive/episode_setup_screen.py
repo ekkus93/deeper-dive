@@ -118,7 +118,7 @@ class EpisodeSetupScreen(Screen[None]):
             episode = service.edit(self.current_episode_id, config)
             self._app.current_episode_id = episode.id
         try:
-            provider = self._app.provider_controller.llm_registry.get(assignment.provider_id)
+            provider = self._app.provider_controller.llm_registry.get(assignment.provider)
             composition = ProductionComposition.build(service=self._app.service)
             planner = composition.planning_service(
                 project_id, LLMEpisodePlanGenerator(provider, assignment.model)
