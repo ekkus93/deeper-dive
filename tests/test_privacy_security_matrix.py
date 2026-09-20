@@ -1,3 +1,4 @@
+# fmt: off
 from __future__ import annotations
 
 from pathlib import Path
@@ -86,3 +87,4 @@ def test_ffmpeg_invocation_is_argv_only_and_never_uses_shell(tmp_path: Path) -> 
 
     assert run.call_args.kwargs["shell"] is False
     assert str(clip) in run.call_args.args[0]
+# fmt: on
