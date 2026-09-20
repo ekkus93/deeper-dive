@@ -80,7 +80,14 @@ def test_ffmpeg_invocation_is_argv_only_and_never_uses_shell(tmp_path: Path) -> 
     clip.write_bytes(b"audio")
     timeline = AudioTimeline.build(
         "episode",
-        (TimelineItem.clip(turn_id="turn", host_id="host", artifact_id="clip", duration_seconds=1),),
+        (
+            TimelineItem.clip(
+                turn_id="turn",
+                host_id="host",
+                artifact_id="clip",
+                duration_seconds=1,
+            ),
+        ),
     )
     with patch("subprocess.run") as run:
         run.return_value.returncode = 0
