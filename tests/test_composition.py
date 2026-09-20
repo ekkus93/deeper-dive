@@ -24,4 +24,9 @@ def test_production_composition_loads_persisted_providers(tmp_path) -> None:
 
     assert composition.provider_controller.llm_registry.provider_ids() == ("planner",)
     assert tuple(composition.provider_controller.tts_providers) == ("speech",)
-    assert composition.research_controller.database_for_project("12345678-1234-5678-1234-567812345678").name == "project.db"
+    assert (
+        composition.research_controller.database_for_project(
+            "12345678-1234-5678-1234-567812345678"
+        ).name
+        == "project.db"
+    )
