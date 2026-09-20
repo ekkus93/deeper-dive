@@ -165,7 +165,6 @@ class GenerationMonitorScreen(Screen[None]):
 
     def on_mount(self) -> None:
         self.refresh_monitor()
-        self.start_background_generation()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         name = event.button.name or ""
