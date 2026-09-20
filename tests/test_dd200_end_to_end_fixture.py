@@ -19,6 +19,12 @@ def test_dd200_deterministic_fake_provider_pipeline(tmp_path: Path) -> None:
     output.mkdir()
 
     database = Database(tmp_path / "project.db")
+    database.initialize()
+    with database.transaction() as db:
+        db.execute(
+            "INSERT INTO projects(id,name,created_at,modified_at) VALUES(?,?,?,?)",
+            ("project-dd200", "DD-200 fixture", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"),
+        )
     episodes = HostEpisodeRepository(database)
     episodes.create_episode(
         EpisodeRecord(
