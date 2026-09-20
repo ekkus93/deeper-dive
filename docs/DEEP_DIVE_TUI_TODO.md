@@ -157,46 +157,46 @@ No task may collapse user-supplied and supplemental sources into an indistinguis
 
 ## DD-160 — Source CLI
 
-- [ ] `source add` file.
-- [ ] `source add` directory.
-- [ ] URL input.
-- [ ] list/show/include/exclude/remove.
-- [ ] JSON output where useful.
+- [x] `source add` file.
+- [x] `source add` directory.
+- [x] URL input.
+- [x] list/show/include/exclude/remove.
+- [x] JSON output where useful.
 
 ## DD-161 — Research CLI
 
-- [ ] analyze gaps.
-- [ ] list gaps.
-- [ ] research selected/all.
-- [ ] ignore gap.
-- [ ] list supplemental sources/candidate outcomes.
+- [x] analyze gaps.
+- [x] list gaps.
+- [x] research selected/all.
+- [x] ignore gap.
+- [x] list supplemental sources/candidate outcomes.
 
 ## DD-162 — Host CLI
 
-- [ ] list presets.
-- [ ] create host from preset.
-- [ ] edit primary host fields.
-- [ ] list project hosts.
-- [ ] assign voice/provider.
+- [x] list presets.
+- [x] create host from preset.
+- [x] edit primary host fields.
+- [x] list project hosts.
+- [x] assign voice/provider.
 
 ## DD-163 — Episode CLI
 
-- [ ] create/configure episode.
-- [ ] plan.
-- [ ] show plan.
-- [ ] generate.
-- [ ] pause/cancel if addressed by process/job control model.
-- [ ] resume.
-- [ ] status.
-- [ ] export.
+- [x] create/configure episode.
+- [x] plan.
+- [x] show plan.
+- [x] generate.
+- [x] pause/cancel if addressed by process/job control model.
+- [x] resume.
+- [x] status.
+- [x] export.
 
 ## DD-164 — Provider CLI
 
-- [ ] list.
-- [ ] health/test.
-- [ ] model discovery.
-- [ ] voice discovery.
-- [ ] Kitten install/status/benchmark.
+- [x] list.
+- [x] health/test.
+- [x] model discovery.
+- [x] voice discovery.
+- [x] Kitten install/status/benchmark.
 
 **Milestone acceptance criteria**
 
