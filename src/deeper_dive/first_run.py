@@ -7,6 +7,16 @@ import shutil
 from dataclasses import dataclass
 
 from deeper_dive.provider_tui import ProviderController
+from deeper_dive.user_config import ProviderConfig
+
+LOCAL_PROVIDER_TYPES = {"ollama", "llama-server", "llama_server", "local"}
+LOCAL_URL_PREFIXES = ("http://127.0.0.1", "http://localhost")
+
+
+def _is_local(provider: ProviderConfig) -> bool:
+    provider_type = provider.provider_type.lower()
+    base_url = provider.base_url or ""
+    return provider_type in LOCAL_PROVIDER_TYPES or base_url.startswith(LOCAL_URL_PREFIXES)
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,39 +35,32 @@ class FirstRunStatus:
         return self.kitten_available or bool(self.local_providers)
 
     def guidance(self) -> tuple[str, ...]:
-        ffmpeg = (
-            "available"
-            if self.ffmpeg_available
-            else "not found — install FFmpeg before audio assembly."
-        )
-        kitten = (
-            "runtime available"
-            if self.kitten_available
-            else (
-                "optional runtime not installed — install the KittenTTS optional dependency "
-                "to enable local CPU speech."
+        lines = ["Welcome to Deeper Dive. Cloud providers are optional."]
+        if self.ffmpeg_available:
+            lines.append("FFmpeg: available")
+        else:
+            lines.append("FFmpeg: not found. Install FFmpeg before audio assembly.")
+        if self.kitten_available:
+            lines.append("KittenTTS Micro: runtime available")
+        else:
+            lines.append(
+                "KittenTTS Micro: optional runtime not installed. "
+                "Install the KittenTTS optional dependency for local CPU speech."
             )
-        )
-        lines = [
-            "Welcome to Deeper Dive. You can configure cloud providers or stay entirely local.",
-            f"FFmpeg: {ffmpeg}",
-            f"KittenTTS Micro: {kitten}",
-        ]
         if self.configured_providers:
-            lines.append("Configured providers: " + ", ".join(self.configured_providers))
+            names = ", ".join(self.configured_providers)
+            lines.append(f"Configured providers: {names}")
         else:
-            lines.append(
-                "Providers: none configured. This is valid; cloud configuration may be skipped."
-            )
+            lines.append("Providers: none configured. Cloud configuration may be skipped.")
         if self.local_providers:
-            lines.append("Local providers: " + ", ".join(self.local_providers))
+            names = ", ".join(self.local_providers)
+            lines.append(f"Local providers: {names}")
         else:
             lines.append(
-                "Local LLM option: add an Ollama or llama-server/OpenAI-compatible endpoint "
-                "when ready."
+                "Local LLM option: add an Ollama or llama-server endpoint when ready."
             )
         lines.append(
-            "Start by creating an empty project and adding your own sources; "
+            "Create an empty project and add your own sources; "
             "no copyrighted sample content is bundled."
         )
         return tuple(lines)
@@ -72,17 +75,7 @@ class FirstRunController:
     def status(self) -> FirstRunStatus:
         config = self.providers.config()
         names = tuple(sorted(config.providers))
-        local = tuple(
-            sorted(
-                name
-                for name, provider in config.providers.items()
-                if provider.provider_type.lower()
-                in {"ollama", "llama-server", "llama_server", "local"}
-                or (provider.base_url or "").startswith(
-                    ("http://127.0.0.1", "http://localhost")
-                )
-            )
-        )
+        local = tuple(sorted(name for name, provider in config.providers.items() if _is_local(provider)))
         return FirstRunStatus(
             ffmpeg_available=shutil.which("ffmpeg") is not None,
             kitten_available=importlib.util.find_spec("kittentts") is not None,
