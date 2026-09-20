@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from deeper_dive.llm import LLMProviderRegistry
-from deeper_dive.provider_factory import ProviderFactory
+from deeper_dive.provider_factory import ProviderConfigurationError, ProviderFactory
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.user_config import UserConfigStore
 
@@ -50,3 +50,35 @@ def test_save_rejects_generic_legacy_capability(tmp_path) -> None:
 
     with pytest.raises(ValueError, match="unsupported provider adapter"):
         controller.save_provider("legacy", "llm")
+
+
+def test_invalid_provider_is_validated_before_persistence(tmp_path) -> None:
+    store = UserConfigStore(tmp_path / "config.json")
+    controller = ProviderController(
+        store,
+        LLMProviderRegistry(),
+        {},
+        provider_factory=ProviderFactory(environ={}),
+    )
+
+    with pytest.raises(ProviderConfigurationError, match="OPENAI_API_KEY"):
+        controller.save_provider("cloud", "openai", default_model="gpt-test")
+
+    assert "cloud" not in store.load().providers
+    assert controller.llm_registry.provider_ids() == ()
+
+
+def test_remove_reloads_runtime_registry_after_persistence(tmp_path) -> None:
+    store = UserConfigStore(tmp_path / "config.json")
+    controller = ProviderController(
+        store,
+        LLMProviderRegistry(),
+        {},
+        provider_factory=ProviderFactory(environ={}),
+    )
+    controller.save_provider("planner", "fake")
+
+    controller.remove_provider("planner")
+
+    assert store.load().providers == {}
+    assert controller.llm_registry.provider_ids() == ()
