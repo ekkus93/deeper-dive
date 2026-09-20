@@ -36,7 +36,9 @@ def _write_docx(path: Path) -> None:
         archive.writestr("word/document.xml", document)
 
 
-def test_file_parser_matrix_qualifies_pdf_docx_txt_markdown_and_html(tmp_path: Path) -> None:
+def test_file_parser_matrix_qualifies_pdf_docx_txt_markdown_and_html(
+    tmp_path: Path,
+) -> None:
     txt = tmp_path / "fixture.txt"
     markdown = tmp_path / "fixture.md"
     html = tmp_path / "fixture.html"
@@ -44,7 +46,9 @@ def test_file_parser_matrix_qualifies_pdf_docx_txt_markdown_and_html(tmp_path: P
     pdf = tmp_path / "fixture.pdf"
     txt.write_text("plain fixture", encoding="utf-8")
     markdown.write_text("# Fixture\nmarkdown body", encoding="utf-8")
-    html.write_text("<main><h1>Fixture</h1><p>HTML body</p></main>", encoding="utf-8")
+    html.write_text(
+        "<main><h1>Fixture</h1><p>HTML body</p></main>", encoding="utf-8"
+    )
     _write_docx(docx)
     writer = PdfWriter()
     writer.add_blank_page(width=72, height=72)
