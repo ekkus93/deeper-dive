@@ -9,6 +9,7 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
+from deeper_dive.composition import LLMEpisodePlanGenerator, ProductionComposition
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.model_roles import (
     ModelAssignment,
@@ -104,21 +105,32 @@ class EpisodeSetupScreen(Screen[None]):
         except ValueError as exc:
             self._status(str(exc))
             return
-        blocker = self._planning_role_blocker()
-        if blocker is not None:
-            self._status(blocker)
+        assignment = self._planning_assignment()
+        if isinstance(assignment, str):
+            self._status(assignment)
             return
         service = self._configuration_service(project_id)
         if self.current_episode_id is None:
             episode = service.create(project_id, config)
             self.current_episode_id = episode.id
             self._app.current_episode_id = episode.id
-            self._status(f"Episode setup saved: {episode.title}")
         else:
             episode = service.edit(self.current_episode_id, config)
             self._app.current_episode_id = episode.id
-            self._status(f"Episode setup updated: {episode.title}")
+        try:
+            provider = self._app.provider_controller.llm_registry.get(assignment.provider)
+            composition = ProductionComposition.build(service=self._app.service)
+            planner = composition.planning_service(
+                project_id, LLMEpisodePlanGenerator(provider, assignment.model)
+            )
+            plan = planner.build_plan(episode.id)
+        except (KeyError, ValueError, RuntimeError) as exc:
+            self._status(f"Planning failed: {exc}")
+            return
+        self._app.episode_plan_controller = planner
         self.refresh_summary()
+        self._status(f"Plan built: {len(plan.segments)} segments")
+        self._app.action_navigate("plan")
 
     def refresh_summary(self) -> None:
         project_id = self._app.current_project_id
@@ -173,7 +185,7 @@ class EpisodeSetupScreen(Screen[None]):
             raise ValueError(f"Unknown episode host ID: {missing[0]}")
         return selected
 
-    def _planning_role_blocker(self) -> str | None:
+    def _planning_assignment(self) -> ModelAssignment | str:
         config = self._app.provider_controller.config()
         default = config.defaults.get(ModelRole.EPISODE_PLANNING.value)
         if not default:
@@ -188,9 +200,9 @@ class EpisodeSetupScreen(Screen[None]):
             self._app.provider_controller.llm_registry,
             required_roles=(ModelRole.EPISODE_PLANNING,),
         )
-        if preflight.ready:
-            return None
-        return preflight.blockers[0].message
+        if not preflight.ready:
+            return preflight.blockers[0].message
+        return assignment
 
     def _configuration_service(self, project_id: str) -> EpisodeConfigurationService:
         database = Database(self._app.service.workspaces.project_root(project_id) / "project.db")

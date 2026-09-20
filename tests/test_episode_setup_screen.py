@@ -7,6 +7,7 @@ from textual.widgets import Input, Static
 
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.episode_config import EpisodeConfigurationService
+from deeper_dive.episode_planner import EpisodePlannerService
 from deeper_dive.episode_setup_screen import EpisodeSetupScreen
 from deeper_dive.hosts import HostProfile
 from deeper_dive.llm import FakeLLMProvider, LLMProviderRegistry
@@ -60,7 +61,9 @@ async def _exercise_missing_provider(tmp_path: Path) -> None:
         assert "episode_planning" in _status_text(screen)
 
 
-def test_episode_setup_screen_saves_complete_episode_configuration(tmp_path: Path) -> None:
+def test_episode_setup_screen_builds_and_persists_plan_through_production_service(
+    tmp_path: Path,
+) -> None:
     asyncio.run(_exercise_complete_setup(tmp_path))
 
 
@@ -88,8 +91,12 @@ async def _exercise_complete_setup(tmp_path: Path) -> None:
         screen.query_one("#episode-avoid", Input).value = "fluff"
         screen.query_one("#episode-research-policy", Input).value = "useful"
         screen.query_one("#episode-citation-behavior", Input).value = "cite-every-claim"
+        destinations: list[str] = []
+        app.action_navigate = destinations.append  # type: ignore[method-assign]
         screen.action_build_plan()
-        assert "Episode setup saved" in _status_text(screen)
+        assert "Plan built: 1 segments" in _status_text(screen)
+        assert app.current_episode_id is not None
+        assert destinations == ["plan"]
 
     database = Database(service.workspaces.project_root(project.id) / "project.db")
     config_service = EpisodeConfigurationService(database)
@@ -106,17 +113,38 @@ async def _exercise_complete_setup(tmp_path: Path) -> None:
     assert config.avoid_topics == ("fluff",)
     assert config.research_overrides["policy"] == "useful"
     assert config.research_overrides["citation_behavior"] == "cite-every-claim"
+    planner = EpisodePlannerService(database, _unused_generator())
+    plan = planner.load_plan(episode.id)
+    assert len(plan.segments) == 1
+    assert plan.segments[0].title == "Opening"
+    assert plan.target_duration_seconds == 1200
 
 
 def _provider_controller(tmp_path: Path, *, configure: bool = True) -> ProviderController:
     registry = LLMProviderRegistry()
-    registry.register(FakeLLMProvider(model="fake-v1"))
+    registry.register(
+        FakeLLMProvider(
+            model="fake-v1",
+            response=(
+                '{"segments":[{"title":"Opening","purpose":"Explain evidence",'
+                '"target_duration_seconds":1200,"lead_host_ids":["h2","h1"]}]}'
+            ),
+        )
+    )
     store = UserConfigStore(tmp_path / "config.json")
     if configure:
         config = store.load()
         config.defaults["episode_planning"] = "fake:fake-v1"
         store.save(config)
     return ProviderController(store, registry, {})
+
+
+def _unused_generator():
+    class UnusedGenerator:
+        def generate_plan(self, request):  # pragma: no cover
+            raise AssertionError("persisted plan should be loaded without generation")
+
+    return UnusedGenerator()
 
 
 def _create_host(service: DeeperDiveService, project_id: str, host_id: str, name: str) -> None:
