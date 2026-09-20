@@ -12,20 +12,17 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
 from deeper_dive.application.service import DeeperDiveService, ProjectSummary, SourceImportSummary
+from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_library_screen import EpisodeLibraryScreen
 from deeper_dive.episode_plan_screen import EpisodePlanController, EpisodePlanScreen
 from deeper_dive.episode_setup_screen import EpisodeSetupScreen
 from deeper_dive.generation_monitor import GenerationMonitorController, GenerationMonitorScreen
 from deeper_dive.hosts_screen import HostsScreen
-from deeper_dive.llm import LLMProviderRegistry
 from deeper_dive.preflight_screen import PreflightController, PreflightScreen
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.providers_screen import ProvidersScreen
-from deeper_dive.research_controller import PersistentResearchController
 from deeper_dive.research_screen import ResearchController, ResearchScreen
 from deeper_dive.storage.repositories import SourceRecord
-from deeper_dive.storage.workspace import WorkspaceManager
-from deeper_dive.user_config import UserConfigStore
 
 GLOBAL_SCREENS = ("home", "providers", "settings", "help")
 PROJECT_SCREENS = ("sources", "research", "hosts", "episode", "generate", "library")
@@ -516,23 +513,18 @@ class DeeperDiveApp(App[None]):
         generation_monitor_controller: GenerationMonitorController | None = None,
     ) -> None:
         super().__init__()
-        self.service = service if service is not None else DeeperDiveService(WorkspaceManager())
-        self.provider_controller = provider_controller or ProviderController(
-            UserConfigStore(self.service.workspaces.data_dir / "config.json"),
-            LLMProviderRegistry(),
-            {},
-        )
-        self.research_controller = research_controller or PersistentResearchController(
-            lambda project_id: self.service.workspaces.project_root(project_id) / "project.db"
-        )
+        composition = ProductionComposition.build(service=service)
+        self.service = composition.service
+        self.provider_controller = provider_controller or composition.provider_controller
+        self.research_controller = research_controller or composition.research_controller
         self.current_project_id: str | None = None
         self.current_project_name: str | None = None
         self.current_episode_id: str | None = None
         self.current_run_id: str | None = None
         self.episode_plan_controller = episode_plan_controller
-        self.preflight_controller = preflight_controller or PreflightController()
+        self.preflight_controller = preflight_controller or composition.preflight_controller
         self.generation_monitor_controller = (
-            generation_monitor_controller or GenerationMonitorController()
+            generation_monitor_controller or composition.generation_monitor_controller
         )
         self.plan_approved = False
         self.auto_generate_after_approval = False

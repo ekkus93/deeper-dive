@@ -19,6 +19,9 @@ class ProviderConfig(BaseModel):
     provider_type: str = Field(min_length=1)
     base_url: str | None = None
     default_model: str | None = None
+    credential_env: str | None = None
+    voices: tuple[str, ...] = ()
+    response_format: str = "wav"
     timeout_seconds: float = Field(default=60.0, gt=0, le=600)
 
     @field_validator("base_url")
