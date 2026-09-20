@@ -29,14 +29,8 @@ def test_preflight_reports_project_default_assignment_before_user_default(
     tmp_path: Path,
 ) -> None:
     service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
-    instructions = (
-        '{"model_defaults":'
-        '{"episode_planning":"project-provider:project-v1"}}'
-    )
-    project = service.create_project(
-        "Preflight Project Defaults",
-        instructions=instructions,
-    )
+    instructions = '{"model_defaults":{"episode_planning":"project-provider:project-v1"}}'
+    project = service.create_project("Preflight Project Defaults", instructions=instructions)
     service.hosts(project.id).create_host(
         HostProfile("h1", project.id, "Host One").to_record()
     )
