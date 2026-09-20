@@ -33,20 +33,37 @@ class SettingsScreen(Screen[None]):
             for key in ("home", "providers", "settings", "help"):
                 yield Button(key.title(), id=f"nav-{key}", name=f"nav:{key}")
         with Horizontal(id="project-nav"):
-            for key in ("sources", "research", "hosts", "episode", "generate", "library"):
+            for key in (
+                "sources",
+                "research",
+                "hosts",
+                "episode",
+                "generate",
+                "library",
+            ):
                 yield Button(key.title(), id=f"nav-{key}", name=f"nav:{key}")
         with VerticalScroll(id="content"):
             yield Label("Settings", id="screen-title")
-            yield Static("Durable application defaults (credentials use environment variables).")
+            yield Static(
+                "Durable application defaults (credentials use environment variables)."
+            )
             for role in ModelRole:
-                yield Input(placeholder="provider:model", id=f"setting-role-{role.value}")
+                yield Input(
+                    placeholder="provider:model", id=f"setting-role-{role.value}"
+                )
             yield Input(placeholder="Default TTS provider", id="setting-tts-provider")
             yield Input(placeholder="Default TTS voice", id="setting-tts-voice")
             yield Input(placeholder="Research policy", id="setting-research-policy")
             yield Input(placeholder="Local only: true/false", id="setting-local-only")
-            yield Input(placeholder="Quick hosts, comma separated", id="setting-quick-hosts")
-            yield Input(placeholder="Quick duration minutes", id="setting-quick-duration")
-            yield Input(placeholder="Quick research policy", id="setting-quick-research-policy")
+            yield Input(
+                placeholder="Quick hosts, comma separated", id="setting-quick-hosts"
+            )
+            yield Input(
+                placeholder="Quick duration minutes", id="setting-quick-duration"
+            )
+            yield Input(
+                placeholder="Quick research policy", id="setting-quick-research-policy"
+            )
             yield Input(placeholder="Logging level", id="setting-log-level")
             yield Button("Save Settings", id="action-save-settings", name="save")
             yield Static("", id="settings-readiness")
@@ -66,7 +83,9 @@ class SettingsScreen(Screen[None]):
     def reload_settings(self) -> None:
         defaults = self.settings_app.provider_controller.config().defaults
         for role in ModelRole:
-            self.query_one(f"#setting-role-{role.value}", Input).value = defaults.get(role.value, "")
+            self.query_one(f"#setting-role-{role.value}", Input).value = defaults.get(
+                role.value, ""
+            )
         fields = {
             "#setting-tts-provider": "default_tts_provider",
             "#setting-tts-voice": "default_tts_voice",
