@@ -89,8 +89,18 @@ def test_host_turn_generation_accepts_variable_host_counts(
 def test_mixed_fake_tts_providers_cover_multi_host_matrix(tmp_path: Path) -> None:
     database, host_ids = _database(tmp_path, 5)
     registry = TTSProviderRegistry()
-    registry.register(FakeTTSProvider(provider_id="fake-tts-a", voices=(TTSVoice("voice-a", "A"),)))
-    registry.register(FakeTTSProvider(provider_id="fake-tts-b", voices=(TTSVoice("voice-a", "B"),)))
+    registry.register(
+        FakeTTSProvider(
+            provider_id="fake-tts-a",
+            voices=(TTSVoice("voice-a", "A"),),
+        )
+    )
+    registry.register(
+        FakeTTSProvider(
+            provider_id="fake-tts-b",
+            voices=(TTSVoice("voice-a", "B"),),
+        )
+    )
     repository = TTSArtifactRepository(database)
     stage = TTSGenerationStage(registry, repository, tmp_path / "tts", max_workers=1)
     turns = tuple(
