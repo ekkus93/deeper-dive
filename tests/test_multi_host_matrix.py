@@ -68,7 +68,8 @@ def _database(tmp_path: Path, host_count: int) -> tuple[Database, tuple[str, ...
 
 @pytest.mark.parametrize("host_count", [1, 2, 3, 5])
 def test_host_turn_generation_accepts_variable_host_counts(
-    tmp_path: Path, host_count: int
+    tmp_path: Path,
+    host_count: int,
 ) -> None:
     database, host_ids = _database(tmp_path, host_count)
     provider = MatrixTurnProvider()
