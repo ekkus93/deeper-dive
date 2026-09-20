@@ -13,7 +13,15 @@ from deeper_dive.tts_benchmark import TTSBenchmarkService
 
 class _PlanGenerator:
     def generate_plan(self, request):
-        return {"segments": [{"title": "Opening", "purpose": "Introduce", "target_duration_seconds": 60}]}
+        return {
+            "segments": [
+                {
+                    "title": "Opening",
+                    "purpose": "Introduce",
+                    "target_duration_seconds": 60,
+                }
+            ]
+        }
 
 
 class _RepairProvider:
@@ -38,8 +46,10 @@ def test_production_composition_constructs_shared_service_graph(tmp_path) -> Non
     project = composition.service.create_project("Composition graph")
 
     planner = composition.planning_service(project.id, _PlanGenerator())
+    stages = ("sources", "conversation", "tts", "export")
     pipeline = composition.pipeline_service(
-        project.id, {stage: (lambda context: None) for stage in ("sources", "conversation", "tts", "export")}
+        project.id,
+        {stage: (lambda context: None) for stage in stages},
     )
     exporter = composition.exporter(project.id)
     repair = composition.targeted_repair_service(
