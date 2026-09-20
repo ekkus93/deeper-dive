@@ -100,13 +100,13 @@
 
 ## DDR-020 — Wire Episode Setup to real planning
 
-- [ ] Persist episode configuration before planning.
+- [x] Persist episode configuration before planning.
 - [ ] Resolve effective hosts/provider/model assignments.
-- [ ] Invoke shared production planning service.
-- [ ] Persist generated plan.
-- [ ] Navigate to/refresh plan review on success.
-- [ ] Render actionable sanitized planning failures.
-- [ ] Remove unconditional production reliance on deterministic test planner.
+- [x] Invoke shared production planning service.
+- [x] Persist generated plan.
+- [x] Navigate to/refresh plan review on success.
+- [x] Render actionable sanitized planning failures.
+- [x] Remove unconditional production reliance on deterministic test planner.
 - [ ] Add production-wiring integration test.
 
 **Acceptance criteria**
