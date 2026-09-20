@@ -76,7 +76,11 @@ class FirstRunController:
         config = self.providers.config()
         names = tuple(sorted(config.providers))
         local = tuple(
-            sorted(name for name, provider in config.providers.items() if _is_local(provider))
+            sorted(
+                name
+                for name, provider in config.providers.items()
+                if _is_local(provider)
+            )
         )
         return FirstRunStatus(
             ffmpeg_available=shutil.which("ffmpeg") is not None,
