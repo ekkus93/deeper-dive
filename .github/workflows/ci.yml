@@ -60,13 +60,34 @@ jobs:
         run: |
           /tmp/deeper-dive-fresh/bin/deeper-dive --help
           timeout 5s /tmp/deeper-dive-fresh/bin/deeper-dive-tui || test $? -eq 124
-      - name: Exercise fake-provider project workflow
+      - name: Exercise installed-wheel corpus and episode workflow
         run: |
           export PATH="/tmp/deeper-dive-fresh/bin:$PATH"
+          export DEEPER_DIVE_DATA_DIR=/tmp/deeper-dive-smoke
+          mkdir -p /tmp/fresh-corpus /tmp/fresh-exports
+          printf '# Fresh corpus\n\nA small synthetic source for fresh-machine qualification.\n' > /tmp/fresh-corpus/source.md
           deeper-dive --json project create "Fresh machine smoke" > /tmp/project.json
-          deeper-dive --json project list > /tmp/projects.json
-          test -s /tmp/project.json
-          test -s /tmp/projects.json
+          PROJECT_ID="$(/tmp/deeper-dive-fresh/bin/python -c 'import json; print(json.load(open("/tmp/project.json"))["id"])')"
+          deeper-dive --json source add "$PROJECT_ID" /tmp/fresh-corpus > /tmp/sources.json
+          deeper-dive --json host create "$PROJECT_ID" curious_explainer > /tmp/host.json
+          HOST_ID="$(/tmp/deeper-dive-fresh/bin/python -c 'import json; print(json.load(open("/tmp/host.json"))["id"])')"
+          deeper-dive --json episode create "$PROJECT_ID" --title "Fresh smoke episode" --focus "Explain the synthetic source" --duration 60 --hosts "$HOST_ID" --research-policy off > /tmp/episode.json
+          EPISODE_ID="$(/tmp/deeper-dive-fresh/bin/python -c 'import json; print(json.load(open("/tmp/episode.json"))["id"])')"
+          deeper-dive --json episode plan "$PROJECT_ID" "$EPISODE_ID" > /tmp/plan.json
+          deeper-dive --json episode generate "$PROJECT_ID" "$EPISODE_ID" > /tmp/run.json
+          deeper-dive --json episode export "$PROJECT_ID" "$EPISODE_ID" --output-dir /tmp/fresh-exports > /tmp/export.json
+          /tmp/deeper-dive-fresh/bin/python - <<'PY'
+          import json
+          from pathlib import Path
+          sources = json.load(open("/tmp/sources.json"))
+          plan = json.load(open("/tmp/plan.json"))
+          run = json.load(open("/tmp/run.json"))
+          exported = json.load(open("/tmp/export.json"))
+          assert len(sources["imported"]) == 1
+          assert plan["segments"]
+          assert run["state"] == "pending"
+          assert Path(exported["path"]).is_file()
+          PY
       - name: Install real KittenTTS runtime
         run: |
           uv pip install --python /tmp/deeper-dive-fresh/bin/python \
