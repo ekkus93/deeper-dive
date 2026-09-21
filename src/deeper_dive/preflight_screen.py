@@ -79,7 +79,9 @@ class PreflightController:
                 report=report,
             )
 
-        sources = [source for source in app.service.list_sources(project_id) if source.included]
+        sources = [
+            source for source in app.service.list_sources(project_id) if source.included
+        ]
         indexed_source_count = sum(
             1 for source in sources if app.service.list_source_chunks(project_id, source.id)
         )
