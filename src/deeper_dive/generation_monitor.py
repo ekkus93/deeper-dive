@@ -198,6 +198,10 @@ class GenerationMonitorScreen(Screen[None]):
         if run.cancel_requested or run.state == "cancelled":
             self._status("Cancelled runs cannot resume")
             return
+        was_paused = run.state == "paused"
+        if not was_paused and not run.pause_requested:
+            self._status("Only paused or pause-requested runs can resume")
+            return
         repository = self._app.service.runs(self._project_id())
         repository.update(
             replace(
@@ -210,6 +214,8 @@ class GenerationMonitorScreen(Screen[None]):
             )
         )
         self.refresh_monitor("Run ready to resume")
+        if was_paused:
+            self.start_background_generation()
 
     def action_cancel(self) -> None:
         run = self._run()
