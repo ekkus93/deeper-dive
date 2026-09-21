@@ -12,7 +12,12 @@ from deeper_dive.domain.ids import new_episode_id, new_run_id
 from deeper_dive.hosts import HostProfile
 from deeper_dive.llm import FakeLLMProvider, LLMProviderRegistry, ProviderHealth
 from deeper_dive.model_roles import ModelRole
-from deeper_dive.preflight_screen import PreflightController, PreflightScreen
+from deeper_dive.preflight import PreflightEstimate, PreflightReport
+from deeper_dive.preflight_screen import (
+    PreflightController,
+    PreflightPresentation,
+    PreflightScreen,
+)
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
@@ -231,6 +236,43 @@ async def _preflight_tui_unhealthy_provider(tmp_path: Path) -> None:
         assert "Generation blocked: LLM provider 'fake' is unhealthy: offline" in _text(
             screen, "#screen-status"
         )
+
+
+def test_preflight_tui_sanitizes_generation_start_failures(tmp_path: Path) -> None:
+    asyncio.run(_preflight_tui_sanitizes_generation_start_failures(tmp_path))
+
+
+async def _preflight_tui_sanitizes_generation_start_failures(tmp_path: Path) -> None:
+    secret = "tui-runtime-value-654"
+    key_name = "api" + "_" + "key"
+
+    class FailingPreflightController:
+        def build(self, app: object) -> PreflightPresentation:
+            return PreflightPresentation(
+                project_name="Project",
+                source_count=1,
+                indexed_source_count=1,
+                host_count=1,
+                target_minutes=20.0,
+                llm_rows=("episode_planning: fake:fake-v1",),
+                tts_rows=("Host One: fake-tts / voice-a",),
+                report=PreflightReport((), PreflightEstimate(20.0, 1000, 500, None)),
+            )
+
+        def start_generation(self, app: object) -> GenerationRunRecord:
+            raise RuntimeError(f"provider failed {key_name}={secret}")
+
+    app = DeeperDiveApp(_service(tmp_path), preflight_controller=FailingPreflightController())  # type: ignore[arg-type]
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.action_navigate("generate")
+        await pilot.pause()
+        screen = _preflight(app)
+        screen.action_generate()
+        await pilot.pause()
+        status = _text(screen, "#screen-status")
+        assert secret not in status
+        assert "Generation blocked: provider failed" in status
+        assert f"{key_name}=[REDACTED]" in status
 
 
 class UnhealthyLLM(FakeLLMProvider):
