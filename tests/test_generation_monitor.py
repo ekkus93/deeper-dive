@@ -14,6 +14,7 @@ from deeper_dive.generation_monitor import GenerationMonitorController, Generati
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.run_repositories import CompletedUnitRecord, GenerationRunRecord
 from deeper_dive.storage.workspace import WorkspaceManager
+from deeper_dive.transcript_review_screen import TranscriptReviewScreen
 from deeper_dive.tui import DeeperDiveApp
 
 
@@ -49,6 +50,9 @@ async def _monitor_renders_durable_progress_and_controls(tmp_path: Path) -> None
         assert service.runs(project_id).get(run_id).cancel_requested is True  # type: ignore[union-attr]
         screen.action_diagnostics()
         assert "Run: " in _text(screen, "#diagnostics-summary")
+        screen.action_view_transcript()
+        await pilot.pause()
+        assert isinstance(app.screen, TranscriptReviewScreen)
 
 
 def test_long_running_fake_provider_does_not_block_tui(tmp_path: Path) -> None:
