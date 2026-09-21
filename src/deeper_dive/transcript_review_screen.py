@@ -56,11 +56,7 @@ class SourcePassageSummary:
 class TranscriptReviewController:
     """Read transcript, claim, source-passage, and playback state for review screens."""
 
-    def __init__(
-        self,
-        repair: Callable[[str], object] | None = None,
-        playback: AudioPlaybackController | None = None,
-    ) -> None:
+    def __init__(self, repair: Callable[[str], object] | None = None, playback: AudioPlaybackController | None = None) -> None:
         self.repair_callback = repair
         self.playback = playback or AudioPlaybackController()
 
@@ -68,65 +64,38 @@ class TranscriptReviewController:
         database = self._database(app)
         episode_id = self._episode_id(app)
         with database.connection() as connection:
-            table = connection.execute(
-                "SELECT 1 FROM sqlite_master "
-                "WHERE type='table' AND name='conversation_turns'"
-            ).fetchone()
+            table = connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversation_turns'").fetchone()
             if table is None:
                 return ()
-            rows = connection.execute(
-                """SELECT t.id,t.segment_ordinal,t.turn_ordinal,t.speaker_id,t.text,
+            rows = connection.execute("""SELECT t.id,t.segment_ordinal,t.turn_ordinal,t.speaker_id,t.text,
                 t.evidence_ids_json,COALESCE(h.display_name,t.speaker_id) AS speaker_name
                 FROM conversation_turns t LEFT JOIN hosts h ON h.id=t.speaker_id
-                WHERE t.episode_id=? ORDER BY t.segment_ordinal,t.turn_ordinal""",
-                (episode_id,),
-            ).fetchall()
+                WHERE t.episode_id=? ORDER BY t.segment_ordinal,t.turn_ordinal""", (episode_id,)).fetchall()
         return tuple(self._turn_from_row(row) for row in rows)
 
     def claims(self, app: DeeperDiveApp, turn_id: str) -> tuple[TurnClaimSummary, ...]:
         database = self._database(app)
         with database.connection() as connection:
-            table = connection.execute(
-                "SELECT 1 FROM sqlite_master "
-                "WHERE type='table' AND name='material_claims'"
-            ).fetchone()
+            table = connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='material_claims'").fetchone()
             if table is None:
                 return ()
-            rows = connection.execute(
-                """SELECT mc.id,mc.text,cv.state,cv.rationale,
+            rows = connection.execute("""SELECT mc.id,mc.text,cv.state,cv.rationale,
                 cv.supporting_evidence_ids_json,cv.contradicting_evidence_ids_json
                 FROM material_claims mc LEFT JOIN claim_verifications cv ON cv.claim_id=mc.id
-                WHERE mc.turn_id=? ORDER BY mc.span_start,mc.id""",
-                (turn_id,),
-            ).fetchall()
+                WHERE mc.turn_id=? ORDER BY mc.span_start,mc.id""", (turn_id,)).fetchall()
         return tuple(self._claim_from_row(row) for row in rows)
 
-    def passages(
-        self, app: DeeperDiveApp, chunk_ids: tuple[str, ...]
-    ) -> tuple[SourcePassageSummary, ...]:
+    def passages(self, app: DeeperDiveApp, chunk_ids: tuple[str, ...]) -> tuple[SourcePassageSummary, ...]:
         if not chunk_ids:
             return ()
         database = self._database(app)
         placeholders = ",".join("?" for _ in chunk_ids)
         with database.connection() as connection:
-            rows = connection.execute(
-                f"""SELECT c.id,c.text,c.location,s.title,s.origin
+            rows = connection.execute(f"""SELECT c.id,c.text,c.location,s.title,s.origin
                 FROM source_chunks c JOIN sources s ON s.id=c.source_id
-                WHERE c.id IN ({placeholders})""",
-                chunk_ids,
-            ).fetchall()
+                WHERE c.id IN ({placeholders})""", chunk_ids).fetchall()
         by_id = {str(row["id"]): row for row in rows}
-        return tuple(
-            SourcePassageSummary(
-                chunk_id=chunk_id,
-                source_title=str(by_id[chunk_id]["title"]),
-                origin=str(by_id[chunk_id]["origin"]),
-                location=self._optional_text(by_id[chunk_id]["location"]),
-                text=str(by_id[chunk_id]["text"]),
-            )
-            for chunk_id in chunk_ids
-            if chunk_id in by_id
-        )
+        return tuple(SourcePassageSummary(chunk_id=chunk_id, source_title=str(by_id[chunk_id]["title"]), origin=str(by_id[chunk_id]["origin"]), location=self._optional_text(by_id[chunk_id]["location"]), text=str(by_id[chunk_id]["text"])) for chunk_id in chunk_ids if chunk_id in by_id)
 
     def repair_turn(self, turn_id: str) -> None:
         if self.repair_callback is None:
@@ -140,10 +109,7 @@ class TranscriptReviewController:
         path = root / "output" / f"{episode_id}-transcript-review.md"
         lines = [f"# Transcript review: {episode_id}", ""]
         for turn in self.turns(app):
-            heading = (
-                f"## Chapter {turn.segment_ordinal + 1} / "
-                f"Turn {turn.turn_ordinal + 1}: {turn.speaker_name}"
-            )
+            heading = f"## Chapter {turn.segment_ordinal + 1} / Turn {turn.turn_ordinal + 1}: {turn.speaker_name}"
             lines.extend((heading, "", turn.text, ""))
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("\n".join(lines), encoding="utf-8")
@@ -157,13 +123,7 @@ class TranscriptReviewController:
         audio_path = self.audio_path(app)
         position = self.start_seconds_for_turn(app, turn.id)
         if audio_path is None:
-            return PlaybackState(
-                available=False,
-                playing=False,
-                message="No exported audio file is available yet; generation/export are unaffected.",
-                position_seconds=position,
-                capabilities=self.playback.capabilities,
-            )
+            return PlaybackState(available=False, playing=False, message="No exported audio file is available yet; generation/export are unaffected.", position_seconds=position, capabilities=self.playback.capabilities)
         return self.playback.seek(audio_path, start_seconds=position)
 
     def pause_playback(self) -> PlaybackState:
@@ -176,14 +136,10 @@ class TranscriptReviewController:
         project_id = self._project_id(app)
         episode_id = self._episode_id(app)
         output = app.service.workspaces.project_root(project_id) / "output"
-        direct = [output / f"{episode_id}{suffix}" for suffix in (".mp3", ".wav")]
-        for candidate in direct:
+        for suffix in (".mp3", ".wav"):
+            candidate = output / f"{episode_id}{suffix}"
             if candidate.is_file():
                 return candidate
-        for pattern in ("*.mp3", "*.wav"):
-            matches = sorted(output.glob(pattern))
-            if matches:
-                return matches[0]
         return None
 
     def start_seconds_for_turn(self, app: DeeperDiveApp, turn_id: str) -> float:
@@ -204,28 +160,11 @@ class TranscriptReviewController:
 
     @staticmethod
     def _turn_from_row(row: object) -> TranscriptTurn:
-        return TranscriptTurn(
-            id=str(row["id"]),
-            segment_ordinal=int(row["segment_ordinal"]),
-            turn_ordinal=int(row["turn_ordinal"]),
-            speaker_id=str(row["speaker_id"]),
-            speaker_name=str(row["speaker_name"]),
-            text=str(row["text"]),
-            evidence_ids=tuple(
-                str(item) for item in json.loads(str(row["evidence_ids_json"]))
-            ),
-        )
+        return TranscriptTurn(id=str(row["id"]), segment_ordinal=int(row["segment_ordinal"]), turn_ordinal=int(row["turn_ordinal"]), speaker_id=str(row["speaker_id"]), speaker_name=str(row["speaker_name"]), text=str(row["text"]), evidence_ids=tuple(str(item) for item in json.loads(str(row["evidence_ids_json"]))))
 
     @classmethod
     def _claim_from_row(cls, row: object) -> TurnClaimSummary:
-        return TurnClaimSummary(
-            id=str(row["id"]),
-            text=str(row["text"]),
-            state="unverified" if row["state"] is None else str(row["state"]),
-            rationale="" if row["rationale"] is None else str(row["rationale"]),
-            supporting_ids=cls._json_ids(row["supporting_evidence_ids_json"]),
-            contradicting_ids=cls._json_ids(row["contradicting_evidence_ids_json"]),
-        )
+        return TurnClaimSummary(id=str(row["id"]), text=str(row["text"]), state="unverified" if row["state"] is None else str(row["state"]), rationale="" if row["rationale"] is None else str(row["rationale"]), supporting_ids=cls._json_ids(row["supporting_evidence_ids_json"]), contradicting_ids=cls._json_ids(row["contradicting_evidence_ids_json"]))
 
     @staticmethod
     def _json_ids(value: object) -> tuple[str, ...]:
@@ -253,14 +192,7 @@ class TranscriptReviewController:
 class TranscriptReviewScreen(Screen[None]):
     """Review transcript turns, cited evidence, claims, and export actions."""
 
-    BINDINGS = [
-        Binding("enter", "select_turn", "Select turn"),
-        Binding("space", "play_selected", "Play selected"),
-        Binding("p", "pause_playback", "Pause playback"),
-        Binding("c", "claim_inspector", "Claim inspector"),
-        Binding("r", "regenerate_turn", "Regenerate turn"),
-        Binding("e", "export", "Export"),
-    ]
+    BINDINGS = [Binding("enter", "select_turn", "Select turn"), Binding("space", "play_selected", "Play selected"), Binding("p", "pause_playback", "Pause playback"), Binding("c", "claim_inspector", "Claim inspector"), Binding("r", "regenerate_turn", "Regenerate turn"), Binding("e", "export", "Export")]
 
     def __init__(self, controller: TranscriptReviewController | None = None) -> None:
         super().__init__(id="screen-review")
@@ -305,15 +237,7 @@ class TranscriptReviewScreen(Screen[None]):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         name = event.button.name or ""
-        actions = {
-            "select-turn": self.action_select_turn,
-            "play-selected-turn": self.action_play_selected,
-            "pause-playback": self.action_pause_playback,
-            "resume-playback": self.action_resume_playback,
-            "claim-inspector": self.action_claim_inspector,
-            "regenerate-turn": self.action_regenerate_turn,
-            "export-review": self.action_export,
-        }
+        actions = {"select-turn": self.action_select_turn, "play-selected-turn": self.action_play_selected, "pause-playback": self.action_pause_playback, "resume-playback": self.action_resume_playback, "claim-inspector": self.action_claim_inspector, "regenerate-turn": self.action_regenerate_turn, "export-review": self.action_export}
         action = actions.get(name)
         if action is not None:
             action()
@@ -395,26 +319,15 @@ class TranscriptReviewScreen(Screen[None]):
 
     def _playback_strategy_text(self) -> str:
         capabilities = self.controller.playback.capabilities
-        return "\n".join(
-            (
-                f"Playback strategy: {capabilities.strategy}",
-                f"Play: {capabilities.can_play} | Pause: {capabilities.can_pause} | "
-                f"Seek/skip: {capabilities.can_seek}",
-                capabilities.detail,
-            )
-        )
+        return "\n".join((f"Playback strategy: {capabilities.strategy}", f"Play: {capabilities.can_play} | Pause: {capabilities.can_pause} | Seek/skip: {capabilities.can_seek}", capabilities.detail))
 
     def _render_playback_state(self, state: PlaybackState) -> None:
         position = "unknown" if state.position_seconds is None else f"{state.position_seconds:.1f}s"
-        self.query_one("#playback-status", Static).update(
-            f"{self._playback_strategy_text()}\nLast action: {state.message}\nPosition: {position}"
-        )
+        self.query_one("#playback-status", Static).update(f"{self._playback_strategy_text()}\nLast action: {state.message}\nPosition: {position}")
         self._status(state.message)
 
     def _chapter_text(self) -> str:
-        return "\n".join(
-            self._chapter_row(index, turn) for index, turn in enumerate(self.turns)
-        )
+        return "\n".join(self._chapter_row(index, turn) for index, turn in enumerate(self.turns))
 
     def _chapter_row(self, index: int, turn: TranscriptTurn) -> str:
         selected = "*" if index == self.selected_index else " "
@@ -428,9 +341,7 @@ class TranscriptReviewScreen(Screen[None]):
             self._status("No turn selected")
             return
         self.query_one("#turn-number", Input).value = str(self.selected_index + 1)
-        self.query_one("#transcript-turn", Static).update(
-            f"{turn.speaker_name} [{turn.id}]\n{turn.text}"
-        )
+        self.query_one("#transcript-turn", Static).update(f"{turn.speaker_name} [{turn.id}]\n{turn.text}")
         self.query_one("#turn-citations", Static).update(self._citation_text(turn))
         claims = self.controller.claims(self._app, turn.id)
         evidence_ids = self._evidence_ids(turn, claims)
@@ -451,9 +362,7 @@ class TranscriptReviewScreen(Screen[None]):
         return "\n".join(rows) if rows else "No claims for selected turn."
 
     @staticmethod
-    def _evidence_ids(
-        turn: TranscriptTurn, claims: tuple[TurnClaimSummary, ...]
-    ) -> tuple[str, ...]:
+    def _evidence_ids(turn: TranscriptTurn, claims: tuple[TurnClaimSummary, ...]) -> tuple[str, ...]:
         evidence_ids: list[str] = list(turn.evidence_ids)
         for claim in claims:
             evidence_ids.extend(claim.supporting_ids)
@@ -465,10 +374,7 @@ class TranscriptReviewScreen(Screen[None]):
         rows = []
         for item in passages:
             location = item.location or "location unavailable"
-            rows.append(
-                f"[{item.chunk_id}] {item.origin} | {item.source_title} | "
-                f"{location}\n{item.text}"
-            )
+            rows.append(f"[{item.chunk_id}] {item.origin} | {item.source_title} | {location}\n{item.text}")
         return "\n\n".join(rows) if rows else "No source passages for selected turn."
 
     def _selected_turn(self) -> TranscriptTurn | None:
