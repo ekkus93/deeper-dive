@@ -177,7 +177,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "source":
             return _source_command(service, args)
         if args.command == "research":
-            return _research_command(service, args)
+            return _research_command(service, composition.research_controller, args)
         if args.command == "host":
             return _host_command(service, args)
         if args.command == "episode":
@@ -229,14 +229,15 @@ def _source_command(service: DeeperDiveService, args: argparse.Namespace) -> int
     return _output({"id": source.id, "removed": True}, args.json_output)
 
 
-def _research_command(service: DeeperDiveService, args: argparse.Namespace) -> int:
+def _research_command(
+    service: DeeperDiveService,
+    controller: PersistentResearchController,
+    args: argparse.Namespace,
+) -> int:
     project_id = args.project_id
     if service.open_project(project_id) is None:
         print(f"project not found: {project_id}", file=sys.stderr)
         return 2
-    controller = PersistentResearchController(
-        lambda value: service.workspaces.project_root(parse_project_id(value)) / "project.db"
-    )
     if args.research_command == "analyze":
         return _output(
             [asdict(gap) for gap in controller.analyze(project_id, args.focus)], args.json_output
