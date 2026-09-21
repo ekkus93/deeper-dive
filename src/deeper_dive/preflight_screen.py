@@ -79,9 +79,7 @@ class PreflightController:
                 report=report,
             )
 
-        sources = [
-            source for source in app.service.list_sources(project_id) if source.included
-        ]
+        sources = [source for source in app.service.list_sources(project_id) if source.included]
         indexed_source_count = sum(
             1 for source in sources if app.service.list_source_chunks(project_id, source.id)
         )
@@ -352,9 +350,7 @@ class PreflightScreen(Screen[None]):
         self.query_one("#tts-preflight", Static).update(
             "TTS host assignments / health:\n" + "\n".join(presentation.tts_rows)
         )
-        self.query_one("#routing-preflight", Static).update(
-            self._routing_text(presentation.report)
-        )
+        self.query_one("#routing-preflight", Static).update(self._routing_text(presentation.report))
         self.query_one("#ffmpeg-preflight", Static).update(self._ffmpeg_text(presentation.report))
         self.query_one("#preflight-issues", Static).update(self._issue_text(presentation.report))
         blocker_count = len(presentation.report.blockers)
@@ -391,9 +387,7 @@ class PreflightScreen(Screen[None]):
         for route in report.routes:
             locality = "local" if route.local else "remote"
             model = f":{route.model}" if route.model else ""
-            rows.append(
-                f"{route.stage}: {route.provider}{model} | {locality} | {route.content}"
-            )
+            rows.append(f"{route.stage}: {route.provider}{model} | {locality} | {route.content}")
         return "\n".join(rows)
 
     @staticmethod
