@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from deeper_dive import model_roles
 from deeper_dive.application.events import ProgressSink
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.audio_playback import AudioPlaybackBackend, AudioPlaybackController
@@ -139,6 +140,26 @@ class ProductionComposition:
 
         provider = self.providers.llm_registry.get(provider_id)
         return self.planning_service(project_id, LLMEpisodePlanGenerator(provider, model))
+
+    def effective_model_role_assignments(
+        self,
+        project_id: str,
+        *,
+        episode_overrides: Mapping[str, Any] | None = None,
+    ) -> tuple[model_roles.ModelRoleAssignments, tuple[str, ...]]:
+        """Resolve provider/model roles through production configuration precedence."""
+
+        project = self.service.open_project(project_id)
+        project_defaults = (
+            model_roles.project_model_defaults_from_instructions(project.instructions)
+            if project is not None
+            else {}
+        )
+        return model_roles.effective_model_role_assignments(
+            user_defaults=self.provider_controller.config().defaults,
+            project_defaults=project_defaults,
+            episode_overrides=episode_overrides or {},
+        )
 
     def pipeline_service(
         self,
