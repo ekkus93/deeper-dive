@@ -10,22 +10,18 @@ from dataclasses import asdict, replace
 from enum import Enum
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
 
 from deeper_dive import __version__
 from deeper_dive.application.service import DeeperDiveService, SourceImportSummary
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.diagnostics import sanitize_exception_message
-from deeper_dive.domain.clock import SystemClock, format_timestamp
-from deeper_dive.domain.ids import parse_project_id
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.episode_planner import EpisodePlannerService
 from deeper_dive.hosts import HostProfile, create_host_from_preset, preset_names
 from deeper_dive.research_controller import PersistentResearchController
-from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.repositories import SourceRecord
-from deeper_dive.storage.run_repositories import GenerationRunRecord, GenerationRunRepository
+from deeper_dive.storage.run_repositories import GenerationRunRecord
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -182,7 +178,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "host":
             return _host_command(service, args)
         if args.command == "episode":
-            return _episode_command(service, args)
+            return _episode_command(composition, args)
         return 2
     except (KeyError, OSError, RuntimeError, ValueError) as exc:
         print(sanitize_exception_message(exc), file=sys.stderr)
@@ -305,12 +301,13 @@ def _host_command(service: DeeperDiveService, args: argparse.Namespace) -> int:
     return _output(HostProfile.from_record(updated).as_dict(), args.json_output)
 
 
-def _episode_command(service: DeeperDiveService, args: argparse.Namespace) -> int:
+def _episode_command(composition: ProductionComposition, args: argparse.Namespace) -> int:
+    service = composition.service
     project_id = args.project_id
     if service.open_project(project_id) is None:
         print(f"project not found: {project_id}", file=sys.stderr)
         return 2
-    database = _database_for_project(service, project_id)
+    database = composition.database_for_project(project_id)
     repository = service.hosts(project_id)
     config_service = EpisodeConfigurationService(database)
     if args.episode_command == "list":
@@ -329,43 +326,49 @@ def _episode_command(service: DeeperDiveService, args: argparse.Namespace) -> in
     if args.episode_command == "show":
         return _output(_episode_payload(config_service, repository, episode), args.json_output)
     if args.episode_command == "plan":
-        return _output(asdict(_planner(database).build_plan(episode.id)), args.json_output)
+        return _output(
+            asdict(_planner(composition, project_id).build_plan(episode.id)),
+            args.json_output,
+        )
     if args.episode_command == "show-plan":
-        return _output(asdict(_planner(database).load_plan(episode.id)), args.json_output)
+        return _output(
+            asdict(_planner(composition, project_id).load_plan(episode.id)),
+            args.json_output,
+        )
     if args.episode_command == "generate":
-        return _output(asdict(_create_generation_run(database, episode.id)), args.json_output)
+        run = composition.create_generation_run(project_id, episode.id)
+        result = composition.run_generation(project_id, run.id)
+        return _output(asdict(result.run), args.json_output)
     if args.episode_command in {"pause", "cancel", "resume", "status"}:
-        return _episode_run_command(database, episode, args)
+        return _episode_run_command(composition, episode, args)
     if args.episode_command == "export":
         return _output(
-            _export_episode(service, project_id, episode, args.output_dir), args.json_output
+            _export_episode(composition, project_id, episode, args.output_dir),
+            args.json_output,
         )
     return 2
 
 
 def _episode_run_command(
-    database: Database,
+    composition: ProductionComposition,
     episode: EpisodeRecord,
     args: argparse.Namespace,
 ) -> int:
-    runs = GenerationRunRepository(database)
+    runs = composition.generation_run_repository(episode.project_id)
     run = runs.latest_for_episode(episode.id)
     if args.episode_command == "status":
         return _output(_status_payload(episode, run), args.json_output)
     if run is None:
         raise KeyError(f"no generation run for episode: {episode.id}")
-    timestamp = format_timestamp(SystemClock().now())
+    pipeline = composition.generation_pipeline(episode.project_id)
     if args.episode_command == "pause":
-        runs.request_pause(run.id, timestamp)
+        pipeline.request_pause(run.id)
         updated = runs.get(run.id)
     elif args.episode_command == "cancel":
-        runs.request_cancel(run.id, timestamp)
+        pipeline.request_cancel(run.id)
         updated = runs.get(run.id)
     else:
-        if run.cancel_requested or run.state == "cancelled":
-            raise ValueError("cancelled runs cannot be resumed")
-        updated = replace(run, state="pending", pause_requested=False, modified_at=timestamp)
-        runs.update(updated)
+        updated = pipeline.resume(run.id)
     assert updated is not None
     return _output(asdict(updated), args.json_output)
 
@@ -428,12 +431,8 @@ def _csv(value: str | None) -> tuple[str, ...]:
     return tuple(item.strip() for item in value.split(",") if item.strip())
 
 
-def _database_for_project(service: DeeperDiveService, project_id: str) -> Database:
-    return Database(service.workspaces.project_root(parse_project_id(project_id)) / "project.db")
-
-
-def _planner(database: Database) -> EpisodePlannerService:
-    return EpisodePlannerService(database, _DeterministicPlanGenerator())
+def _planner(composition: ProductionComposition, project_id: str) -> EpisodePlannerService:
+    return composition.planning_service(project_id, _DeterministicPlanGenerator())
 
 
 class _DeterministicPlanGenerator:
@@ -454,21 +453,6 @@ class _DeterministicPlanGenerator:
                 }
             ]
         }
-
-
-def _create_generation_run(database: Database, episode_id: str) -> GenerationRunRecord:
-    repository = GenerationRunRepository(database)
-    timestamp = format_timestamp(SystemClock().now())
-    run = GenerationRunRecord(
-        id=str(uuid4()),
-        episode_id=episode_id,
-        stage="sources",
-        state="pending",
-        created_at=timestamp,
-        modified_at=timestamp,
-    )
-    repository.create(run)
-    return run
 
 
 def _episode_record(
@@ -499,22 +483,23 @@ def _status_payload(
 
 
 def _export_episode(
-    service: DeeperDiveService,
+    composition: ProductionComposition,
     project_id: str,
     episode: EpisodeRecord,
     output_dir: Path | None,
 ) -> dict[str, object]:
-    database = _database_for_project(service, project_id)
+    service = composition.service
+    database = composition.database_for_project(project_id)
     repository = service.hosts(project_id)
     config_service = EpisodeConfigurationService(database)
-    run = GenerationRunRepository(database).latest_for_episode(episode.id)
+    run = composition.generation_run_repository(project_id).latest_for_episode(episode.id)
     payload = _episode_payload(config_service, repository, episode)
     payload["run"] = None if run is None else asdict(run)
     try:
-        payload["plan"] = asdict(_planner(database).load_plan(episode.id))
+        payload["plan"] = asdict(_planner(composition, project_id).load_plan(episode.id))
     except KeyError:
         payload["plan"] = None
-    root = output_dir or (service.workspaces.project_root(parse_project_id(project_id)) / "output")
+    root = output_dir or composition.exporter(project_id).output_dir
     root.mkdir(parents=True, exist_ok=True)
     path = root / f"{episode.id}-episode-export.json"
     path.write_text(

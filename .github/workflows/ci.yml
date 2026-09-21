@@ -85,7 +85,8 @@ jobs:
           exported = json.load(open("/tmp/export.json"))
           assert len(sources["imported"]) == 1
           assert plan["segments"]
-          assert run["state"] == "pending"
+          assert run["state"] == "completed"
+          assert run["stage"] == "export"
           assert Path(exported["path"]).is_file()
           PY
       - name: Install real KittenTTS runtime
