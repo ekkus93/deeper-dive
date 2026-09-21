@@ -27,6 +27,14 @@ Important rules:
 
 When adding a feature, prefer a small service/controller with deterministic unit tests first, then wire it into TUI and CLI surfaces.
 
+## Production composition root
+
+`ProductionComposition.build` is the production object graph entry point for product surfaces that need shared services. It initializes the workspace, loads persisted configuration, builds provider registries through `ProviderFactory`, and exposes the shared provider controller, research controller, preflight controller, generation monitor controller, benchmark service, playback controller, and application service.
+
+The TUI consumes this composition through `DeeperDiveApp`: injected controllers remain available for tests, but normal app construction receives the provider, research, preflight, generation-monitor, benchmark, and playback boundaries from the production composition root. CLI construction now also builds production composition once in `deeper_dive.cli.main`; project/source/host/episode commands use the composed application service, and research commands use the composed `research_controller` instead of creating a second `PersistentResearchController` path.
+
+DDR-091 is not complete yet. Provider inspection in `deeper_dive.command`, episode planning, generation/run control, and export still contain command-local construction or placeholder paths. Those paths must be migrated or deliberately retained with narrow documentation before the duplicate-construction checklist can be closed.
+
 ## Domain model
 
 Core concepts are represented as durable records and service-layer value objects:
