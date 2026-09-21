@@ -69,8 +69,7 @@ class TranscriptReviewController:
         episode_id = self._episode_id(app)
         with database.connection() as connection:
             table = connection.execute(
-                "SELECT 1 FROM sqlite_master "
-                "WHERE type='table' AND name='conversation_turns'"
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversation_turns'"
             ).fetchone()
             if table is None:
                 return ()
@@ -87,8 +86,7 @@ class TranscriptReviewController:
         database = self._database(app)
         with database.connection() as connection:
             table = connection.execute(
-                "SELECT 1 FROM sqlite_master "
-                "WHERE type='table' AND name='material_claims'"
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='material_claims'"
             ).fetchone()
             if table is None:
                 return ()
@@ -420,7 +418,9 @@ class TranscriptReviewScreen(Screen[None]):
             self._status("No turn selected")
             return
         self.query_one("#turn-number", Input).value = str(self.selected_index + 1)
-        self.query_one("#transcript-turn", Static).update(f"{turn.speaker_name} [{turn.id}]\n{turn.text}")
+        self.query_one("#transcript-turn", Static).update(
+            f"{turn.speaker_name} [{turn.id}]\n{turn.text}"
+        )
         self.query_one("#turn-citations", Static).update(self._citation_text(turn))
         claims = self.controller.claims(self._app, turn.id)
         evidence_ids = self._evidence_ids(turn, claims)
@@ -441,7 +441,9 @@ class TranscriptReviewScreen(Screen[None]):
         return "\n".join(rows) if rows else "No claims for selected turn."
 
     @staticmethod
-    def _evidence_ids(turn: TranscriptTurn, claims: tuple[TurnClaimSummary, ...]) -> tuple[str, ...]:
+    def _evidence_ids(
+        turn: TranscriptTurn, claims: tuple[TurnClaimSummary, ...]
+    ) -> tuple[str, ...]:
         evidence_ids: list[str] = list(turn.evidence_ids)
         for claim in claims:
             evidence_ids.extend(claim.supporting_ids)
@@ -453,7 +455,9 @@ class TranscriptReviewScreen(Screen[None]):
         rows = []
         for item in passages:
             location = item.location or "location unavailable"
-            rows.append(f"[{item.chunk_id}] {item.origin} | {item.source_title} | {location}\n{item.text}")
+            rows.append(
+                f"[{item.chunk_id}] {item.origin} | {item.source_title} | {location}\n{item.text}"
+            )
         return "\n\n".join(rows) if rows else "No source passages for selected turn."
 
     def _selected_turn(self) -> TranscriptTurn | None:
