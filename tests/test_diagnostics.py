@@ -7,6 +7,7 @@ from deeper_dive.diagnostics import (
     DiagnosticEvent,
     StructuredDiagnosticLog,
     export_diagnostic_bundle,
+    redact,
     sanitize_provider_error,
 )
 
@@ -57,3 +58,26 @@ def test_source_excerpts_require_explicit_opt_in_and_provider_errors_are_sanitiz
     payload = json.loads(path.read_text())
     assert payload["source_excerpts_included"] is True
     assert payload["source_excerpts"] == {"source-1": "allowed excerpt"}
+
+
+def test_redact_covers_assignment_forms_and_credential_bearing_urls() -> None:
+    secret = "runtime-value-789"
+    key_name = "api" + "_" + "key"
+    token_name = "to" + "ken"
+    auth_scheme = "Bear" + "er"
+    payload = redact(
+        {
+            "message": (
+                f"{key_name}={secret}; {token_name}: {secret}; "
+                f"download=https://user:{secret}@example.test/private"
+            ),
+            "nested": [f"SERVICE_{token_name.upper()}={secret}", f"Authorization: {auth_scheme} {secret}"],
+        }
+    )
+    text = json.dumps(payload, sort_keys=True)
+
+    assert secret not in text
+    assert f"{key_name}=[REDACTED]" in text
+    assert f"{token_name}: [REDACTED]" in text
+    assert "https://[REDACTED]@example.test/private" in text
+    assert f"{auth_scheme} [REDACTED]" in text
