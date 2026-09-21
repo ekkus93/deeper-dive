@@ -100,7 +100,9 @@ class PreflightService:
         issues: list[PreflightIssue] = []
         routes: list[ProviderRoute] = []
         role_result = preflight_model_roles(assignments, self.llm_registry)
-        issues.extend(PreflightIssue("llm_assignment", item.message) for item in role_result.blockers)
+        issues.extend(
+            PreflightIssue("llm_assignment", item.message) for item in role_result.blockers
+        )
 
         checked_llm: set[str] = set()
         for role, assignment in role_result.assignments.items():
@@ -139,7 +141,8 @@ class PreflightService:
             issues.append(
                 PreflightIssue(
                     "local_only_violation",
-                    f"project local-only mode forbids remote provider route(s): {', '.join(remote_llm)}",
+                    "project local-only mode forbids remote provider route(s): "
+                    f"{', '.join(remote_llm)}",
                 )
             )
 
