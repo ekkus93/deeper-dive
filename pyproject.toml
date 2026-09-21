@@ -43,7 +43,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ruff.format]
 quote-style = "double"
-indent-style = "spaces"
+indent-style = "space"
 
 [tool.mypy]
 python_version = "3.12"
