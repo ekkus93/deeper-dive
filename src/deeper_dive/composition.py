@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from deeper_dive import model_roles
 from deeper_dive.application.events import ProgressSink
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.audio_playback import AudioPlaybackBackend, AudioPlaybackController
@@ -15,17 +16,7 @@ from deeper_dive.episode_planner import EpisodePlanGenerator, EpisodePlannerServ
 from deeper_dive.export import EpisodeExporter
 from deeper_dive.generation_monitor import GenerationMonitorController
 from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
-from deeper_dive.model_roles import (
-    ModelRoleAssignments,
-    effective_model_role_assignments as resolve_model_role_assignments,
-    project_model_defaults_from_instructions,
-)
-from deeper_dive.pipeline import (
-    DEFAULT_STAGES,
-    PipelineContext,
-    PipelineOrchestrator,
-    StageHandler,
-)
+from deeper_dive.pipeline import DEFAULT_STAGES, PipelineContext, PipelineOrchestrator, StageHandler
 from deeper_dive.preflight_screen import PreflightController
 from deeper_dive.provider_factory import ProviderBuildResult, ProviderFactory
 from deeper_dive.provider_tui import ProviderController
@@ -155,16 +146,16 @@ class ProductionComposition:
         project_id: str,
         *,
         episode_overrides: Mapping[str, Any] | None = None,
-    ) -> tuple[ModelRoleAssignments, tuple[str, ...]]:
+    ) -> tuple[model_roles.ModelRoleAssignments, tuple[str, ...]]:
         """Resolve provider/model roles through production configuration precedence."""
 
         project = self.service.open_project(project_id)
         project_defaults = (
-            project_model_defaults_from_instructions(project.instructions)
+            model_roles.project_model_defaults_from_instructions(project.instructions)
             if project is not None
             else {}
         )
-        return resolve_model_role_assignments(
+        return model_roles.effective_model_role_assignments(
             user_defaults=self.provider_controller.config().defaults,
             project_defaults=project_defaults,
             episode_overrides=episode_overrides or {},
