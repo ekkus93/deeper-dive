@@ -39,4 +39,4 @@ def test_production_composition_owns_shared_service_construction(tmp_path) -> No
     assert isinstance(composition.playback_controller, AudioPlaybackController)
     assert planner.database.path == composition.database_for_project(project.id).path
     assert pipeline.repository.database.path == composition.database_for_project(project.id).path
-    assert getattr(composition.service, "_production_composition") is composition
+    assert composition.service._production_composition is composition  # type: ignore[attr-defined]
