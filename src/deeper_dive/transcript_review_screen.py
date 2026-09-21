@@ -22,6 +22,10 @@ from deeper_dive.storage.database import Database
 if TYPE_CHECKING:
     from deeper_dive.tui import DeeperDiveApp
 
+NO_EXPORTED_AUDIO_MESSAGE = (
+    "No exported audio file is available yet; generation/export are unaffected."
+)
+
 
 @dataclass(frozen=True, slots=True)
 class TranscriptTurn:
@@ -158,10 +162,7 @@ class TranscriptReviewController:
             return PlaybackState(
                 available=False,
                 playing=False,
-                message=(
-                    "No exported audio file is available yet; generation/export "
-                    "are unaffected."
-                ),
+                message=NO_EXPORTED_AUDIO_MESSAGE,
                 position_seconds=position,
                 capabilities=self.playback.capabilities,
             )
