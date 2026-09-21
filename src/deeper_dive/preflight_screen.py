@@ -12,6 +12,7 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Label, Static
 
 from deeper_dive.application.service import DeeperDiveService
+from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.generation_monitor import GenerationMonitorScreen
 from deeper_dive.generation_start import select_or_create_generation_run
@@ -327,7 +328,7 @@ class PreflightScreen(Screen[None]):
         try:
             run = self._app.preflight_controller.start_generation(self._app)
         except (KeyError, RuntimeError, ValueError) as exc:
-            self._status(f"Generation blocked: {exc}")
+            self._status(f"Generation blocked: {sanitize_exception_message(exc)}")
             return
         self._status(f"Generation run started: {run.id}")
         self._app.action_navigate("monitor")
