@@ -117,7 +117,7 @@ class ProductionComposition:
             benchmark_service=TTSBenchmarkService(),
             playback_controller=AudioPlaybackController(playback_backend),
         )
-        setattr(app_service, "_production_composition", composition)
+        app_service._production_composition = composition  # type: ignore[attr-defined]
         return composition
 
     def database_for_project(self, project_id: str) -> Database:
