@@ -9,12 +9,11 @@ from dataclasses import asdict
 from pathlib import Path
 
 from deeper_dive import cli
+from deeper_dive.composition import ProductionComposition
 from deeper_dive.kitten_model_manager import KittenModelManager, KittenModelState
 from deeper_dive.kitten_tts import KittenTTSMicroProvider
-from deeper_dive.llm import FakeLLMProvider
+from deeper_dive.provider_tui import ProviderController
 from deeper_dive.storage.workspace import WorkspaceManager
-from deeper_dive.tts import FakeTTSProvider
-from deeper_dive.user_config import UserConfigStore
 from deeper_dive.user_errors import actionable_error
 
 
@@ -81,9 +80,9 @@ def _provider_error_area(provider_command: str | None) -> str:
 
 
 def _provider(args: argparse.Namespace) -> int:
-    workspace = WorkspaceManager(args.data_dir)
-    workspace.initialize()
-    config = UserConfigStore(workspace.data_dir / "config.json").load()
+    composition = ProductionComposition.build(data_dir=args.data_dir)
+    workspace = composition.service.workspaces
+    config = composition.config_store.load()
     command = args.provider_command
     if command == "list":
         return _output(
@@ -94,7 +93,10 @@ def _provider(args: argparse.Namespace) -> int:
             args.json_output,
         )
     if command in {"health", "test", "models", "voices"}:
-        return _output(_inspect_provider(command, args.provider_id), args.json_output)
+        return _output(
+            _inspect_provider(composition.provider_controller, command, args.provider_id),
+            args.json_output,
+        )
     if command in {"kitten-status", "kitten-install", "kitten-benchmark"}:
         return _output(_kitten(command, workspace, args), args.json_output)
     raise ValueError(
@@ -103,19 +105,21 @@ def _provider(args: argparse.Namespace) -> int:
     )
 
 
-def _inspect_provider(command: str, provider_id: str | None) -> object:
-    if provider_id in {None, "fake"}:
-        llm = FakeLLMProvider()
-        if command in {"health", "test"}:
-            return {"id": llm.provider_id, **asdict(llm.health())}
-        if command == "models":
-            return [asdict(model) for model in llm.models()]
-    if provider_id in {"fake-tts", "kitten"}:
-        tts = FakeTTSProvider() if provider_id == "fake-tts" else KittenTTSMicroProvider()
-        if command in {"health", "test"}:
-            return {"id": tts.provider_id, **asdict(tts.health())}
-        if command == "voices":
-            return [asdict(voice) for voice in tts.voices()]
+def _inspect_provider(
+    controller: ProviderController, command: str, provider_id: str | None
+) -> object:
+    if provider_id is None:
+        raise ValueError(f"provider id is required for {command}")
+    if command == "models":
+        return [asdict(model) for model in controller.llm(provider_id).models()]
+    if command == "voices":
+        return [asdict(voice) for voice in controller.tts(provider_id).voices()]
+    if command in {"health", "test"}:
+        try:
+            provider = controller.llm(provider_id)
+        except KeyError:
+            provider = controller.tts(provider_id)
+        return {"id": provider.provider_id, **asdict(provider.health())}
     raise ValueError(f"provider {provider_id!r} does not support {command}")
 
 

@@ -18,13 +18,23 @@ def test_provider_cli_list_health_discovery_and_kitten_status(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     UserConfigStore(tmp_path / "config.json").save(
-        UserConfig(providers={"local": ProviderConfig(provider_type="ollama", base_url="http://localhost:11434")})
+        UserConfig(
+            providers={
+                "local": ProviderConfig(
+                    provider_type="ollama",
+                    base_url="http://localhost:11434",
+                    default_model="qwen3",
+                ),
+                "fake": ProviderConfig(provider_type="fake"),
+                "fake-tts": ProviderConfig(provider_type="fake-tts"),
+            }
+        )
     )
     base = ["--data-dir", str(tmp_path), "--json", "provider"]
 
     listed = _call([*base, "list"], capsys)
     assert isinstance(listed, list)
-    assert listed[0]["id"] == "local"
+    assert {item["id"] for item in listed} == {"fake", "fake-tts", "local"}
 
     health = _call([*base, "health", "fake"], capsys)
     assert health == {"healthy": True, "id": "fake", "message": "ready"}
