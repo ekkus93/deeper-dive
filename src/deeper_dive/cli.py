@@ -237,20 +237,26 @@ def _research_command(service: DeeperDiveService, args: argparse.Namespace) -> i
         lambda value: service.workspaces.project_root(parse_project_id(value)) / "project.db"
     )
     if args.research_command == "analyze":
-        return _output([asdict(gap) for gap in controller.analyze(project_id, args.focus)], args.json_output)
+        return _output(
+            [asdict(gap) for gap in controller.analyze(project_id, args.focus)], args.json_output
+        )
     if args.research_command == "gaps":
         return _output([asdict(gap) for gap in controller.gaps(project_id)], args.json_output)
     if args.research_command == "ignore":
         controller.set_gap_status(project_id, args.gap_id, "ignored")
         return _output({"id": args.gap_id, "status": "ignored"}, args.json_output)
     if args.research_command == "outcomes":
-        return _output([asdict(outcome) for outcome in controller.outcomes(project_id)], args.json_output)
+        return _output(
+            [asdict(outcome) for outcome in controller.outcomes(project_id)], args.json_output
+        )
     gap_ids = tuple(args.gap_ids)
     if args.all_gaps:
         gap_ids = tuple(gap.id for gap in controller.gaps(project_id) if gap.status != "ignored")
     if not gap_ids:
         raise ValueError("research run requires one or more gap IDs or --all")
-    return _output([asdict(outcome) for outcome in controller.research(project_id, gap_ids)], args.json_output)
+    return _output(
+        [asdict(outcome) for outcome in controller.research(project_id, gap_ids)], args.json_output
+    )
 
 
 def _host_command(service: DeeperDiveService, args: argparse.Namespace) -> int:
@@ -263,7 +269,10 @@ def _host_command(service: DeeperDiveService, args: argparse.Namespace) -> int:
     repository = service.hosts(project_id)
     if args.host_command == "list":
         return _output(
-            [HostProfile.from_record(record).as_dict() for record in repository.list_hosts(project_id)],
+            [
+                HostProfile.from_record(record).as_dict()
+                for record in repository.list_hosts(project_id)
+            ],
             args.json_output,
         )
     if args.host_command == "create":
@@ -284,7 +293,9 @@ def _host_command(service: DeeperDiveService, args: argparse.Namespace) -> int:
             display_name=args.name if args.name is not None else record.display_name,
             role=args.role if args.role is not None else record.role,
             expertise=args.expertise if args.expertise is not None else record.expertise,
-            instructions=args.instructions if args.instructions is not None else record.instructions,
+            instructions=args.instructions
+            if args.instructions is not None
+            else record.instructions,
         )
         HostProfile.from_record(updated).validate()
     repository.update_host(updated)
@@ -300,7 +311,9 @@ def _episode_command(service: DeeperDiveService, args: argparse.Namespace) -> in
     repository = service.hosts(project_id)
     config_service = EpisodeConfigurationService(database)
     if args.episode_command == "list":
-        return _output([asdict(episode) for episode in repository.list_episodes(project_id)], args.json_output)
+        return _output(
+            [asdict(episode) for episode in repository.list_episodes(project_id)], args.json_output
+        )
     if args.episode_command == "create":
         config = _episode_config_from_args(service, project_id, args)
         return _output(asdict(config_service.create(project_id, config)), args.json_output)
@@ -321,7 +334,9 @@ def _episode_command(service: DeeperDiveService, args: argparse.Namespace) -> in
     if args.episode_command in {"pause", "cancel", "resume", "status"}:
         return _episode_run_command(database, episode, args)
     if args.episode_command == "export":
-        return _output(_export_episode(service, project_id, episode, args.output_dir), args.json_output)
+        return _output(
+            _export_episode(service, project_id, episode, args.output_dir), args.json_output
+        )
     return 2
 
 
@@ -370,7 +385,9 @@ def _episode_config_from_args(
     return EpisodeConfiguration(
         title=_arg_or_existing(args.title, existing.title if existing else None, "title"),
         focus=_arg_or_existing(args.focus, existing.focus if existing else "", "focus"),
-        audience=_arg_or_existing(args.audience, existing.audience if existing else "general", "audience"),
+        audience=_arg_or_existing(
+            args.audience, existing.audience if existing else "general", "audience"
+        ),
         technical_depth=_arg_or_existing(
             args.technical_depth,
             existing.technical_depth if existing else "balanced",
@@ -386,7 +403,8 @@ def _episode_config_from_args(
         style=_arg_or_existing(args.style, existing.style if existing else "discussion", "style"),
         host_ids=hosts or (existing.host_ids if existing is not None else ()),
         must_cover=_csv(args.must_cover) or (existing.must_cover if existing is not None else ()),
-        avoid_topics=_csv(args.avoid_topics) or (existing.avoid_topics if existing is not None else ()),
+        avoid_topics=_csv(args.avoid_topics)
+        or (existing.avoid_topics if existing is not None else ()),
         research_overrides=research_overrides,
         source_overrides=dict(existing.source_overrides) if existing is not None else {},
         model_overrides=dict(existing.model_overrides) if existing is not None else {},
@@ -450,7 +468,9 @@ def _create_generation_run(database: Database, episode_id: str) -> GenerationRun
     return run
 
 
-def _episode_record(record: EpisodeRecord | None, project_id: str, episode_id: str) -> EpisodeRecord:
+def _episode_record(
+    record: EpisodeRecord | None, project_id: str, episode_id: str
+) -> EpisodeRecord:
     if record is None or record.project_id != project_id:
         raise KeyError(f"episode not found: {episode_id}")
     return record
@@ -494,7 +514,9 @@ def _export_episode(
     root = output_dir or (service.workspaces.project_root(parse_project_id(project_id)) / "output")
     root.mkdir(parents=True, exist_ok=True)
     path = root / f"{episode.id}-episode-export.json"
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True, default=_json_default), encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True, default=_json_default), encoding="utf-8"
+    )
     return {"path": str(path), "episode_id": episode.id}
 
 
@@ -539,7 +561,11 @@ def _output(value: object, json_output: bool) -> int:
         print(json.dumps(value, sort_keys=True, default=_json_default))
     elif isinstance(value, list):
         for item in value:
-            print(json.dumps(item, sort_keys=True, default=_json_default) if isinstance(item, dict) else str(item))
+            print(
+                json.dumps(item, sort_keys=True, default=_json_default)
+                if isinstance(item, dict)
+                else str(item)
+            )
     elif isinstance(value, dict) and "name" in value:
         print(f"{value.get('id', '')}\t{value['name']}")
     else:
