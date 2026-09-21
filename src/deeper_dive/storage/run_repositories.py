@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
+from deeper_dive.diagnostics import redact
 from deeper_dive.storage.database import Database
 
 
@@ -72,7 +73,7 @@ class GenerationRunRepository:
                     run.state,
                     run.retry_count,
                     run.failure_code,
-                    run.failure_message,
+                    self._safe_failure_message(run.failure_message),
                     int(run.pause_requested),
                     int(run.cancel_requested),
                     run.modified_at,
@@ -129,7 +130,13 @@ class GenerationRunRepository:
             )
 
     @staticmethod
-    def _values(run: GenerationRunRecord) -> tuple[object, ...]:
+    def _safe_failure_message(message: str | None) -> str | None:
+        if message is None:
+            return None
+        return str(redact(message))
+
+    @classmethod
+    def _values(cls, run: GenerationRunRecord) -> tuple[object, ...]:
         return (
             run.id,
             run.episode_id,
@@ -137,7 +144,7 @@ class GenerationRunRepository:
             run.state,
             run.retry_count,
             run.failure_code,
-            run.failure_message,
+            cls._safe_failure_message(run.failure_message),
             int(run.pause_requested),
             int(run.cancel_requested),
             run.created_at,

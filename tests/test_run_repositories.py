@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 from deeper_dive.storage.database import Database
@@ -42,6 +43,33 @@ def test_run_stage_failure_flags_and_retry_state_survive_reopen(tmp_path: Path) 
     assert restored.failure_message == "provider timed out"
     assert restored.pause_requested is True
     assert restored.cancel_requested is True
+
+
+def test_repository_redacts_failure_message_even_when_caller_supplies_raw_text(
+    tmp_path: Path,
+) -> None:
+    repository = _repository(tmp_path)
+    secret = "runtime-value-678"
+    key_name = "to" + "ken"
+    run = GenerationRunRecord("r1", "e1", "conversation", "running", "t0", "t0")
+    repository.create(run)
+
+    repository.update(
+        replace(
+            run,
+            state="failed",
+            failure_code="provider_error",
+            failure_message=f"provider rejected {key_name}={secret}",
+            modified_at="t1",
+        )
+    )
+
+    restored = repository.get("r1")
+    assert restored is not None
+    assert restored.failure_message is not None
+    assert secret not in restored.failure_message
+    assert "provider rejected" in restored.failure_message
+    assert f"{key_name}=[REDACTED]" in restored.failure_message
 
 
 def test_completed_work_unit_checkpoint_is_idempotent_and_durable(tmp_path: Path) -> None:
