@@ -27,10 +27,7 @@ def test_cli_version(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def _create_project(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> dict[str, object]:
-    assert (
-        main(["--data-dir", str(tmp_path), "--json", "project", "create", "Demo"])
-        == 0
-    )
+    assert main(["--data-dir", str(tmp_path), "--json", "project", "create", "Demo"]) == 0
     return json.loads(capsys.readouterr().out)
 
 
