@@ -10,6 +10,17 @@ from typing import Any, Mapping
 
 _SECRET_KEY = re.compile(r"(authorization|api[-_]?key|token|secret|password|cookie)", re.I)
 _BEARER = re.compile(r"(?i)bearer\s+[A-Za-z0-9._~+/=-]+")
+_ASSIGNMENT = re.compile(
+    r"(?i)\b(authorization|api[-_]?key|token|secret|password|cookie)"
+    r"(\s*[:=]\s*)([^\s,;]+)"
+)
+_CREDENTIAL_URL = re.compile(r"(?i)(https?://)([^/@\s:]+):([^/@\s]+)@")
+
+
+def _redact_text(value: str) -> str:
+    value = _BEARER.sub("Bearer [REDACTED]", value)
+    value = _ASSIGNMENT.sub(lambda match: f"{match.group(1)}{match.group(2)}[REDACTED]", value)
+    return _CREDENTIAL_URL.sub(r"\1[REDACTED]@", value)
 
 
 def redact(value: object) -> object:
@@ -22,7 +33,7 @@ def redact(value: object) -> object:
     if isinstance(value, (list, tuple)):
         return [redact(item) for item in value]
     if isinstance(value, str):
-        return _BEARER.sub("Bearer [REDACTED]", value)
+        return _redact_text(value)
     return value
 
 
@@ -51,7 +62,9 @@ class StructuredDiagnosticLog:
             handle.write(json.dumps(event.payload(), sort_keys=True) + "\n")
 
 
-def sanitize_provider_error(provider: str, exc: BaseException, *, run_id: str | None = None) -> DiagnosticEvent:
+def sanitize_provider_error(
+    provider: str, exc: BaseException, *, run_id: str | None = None
+) -> DiagnosticEvent:
     """Return a support-safe provider failure without headers or credential values."""
     return DiagnosticEvent(
         level="error",
