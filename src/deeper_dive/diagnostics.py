@@ -12,8 +12,8 @@ from typing import Any
 _SECRET_KEY = re.compile(r"(authorization|api[-_]?key|token|secret|password|cookie)", re.I)
 _BEARER = re.compile(r"(?i)bearer\s+[A-Za-z0-9._~+/=-]+")
 _ASSIGNMENT = re.compile(
-    r"(?i)\b(authorization|api[-_]?key|token|secret|password|cookie)"
-    r"(\s*[:=]\s*)([^\s,;]+)"
+    r"(?i)\b([A-Za-z0-9_-]*(?:authorization|api[-_]?key|token|secret|password|cookie)"
+    r"[A-Za-z0-9_-]*)(\s*[:=]\s*)([^\s,;]+)"
 )
 _CREDENTIAL_URL = re.compile(r"(?i)(https?://)([^/@\s:]+):([^/@\s]+)@")
 
