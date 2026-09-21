@@ -6,7 +6,7 @@ from deeper_dive.application.events import ProgressEvent
 from deeper_dive.composition import LLMEpisodePlanGenerator, ProductionComposition
 from deeper_dive.domain.ids import new_episode_id, new_run_id
 from deeper_dive.llm import FakeLLMProvider
-from deeper_dive.pipeline import DEFAULT_STAGES
+from deeper_dive.pipeline import DEFAULT_STAGES, PipelineContext
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
@@ -37,6 +37,10 @@ def test_production_composition_loads_persisted_providers(tmp_path) -> None:
 
     assert composition.provider_controller.llm_registry.provider_ids() == ("planner",)
     assert tuple(composition.provider_controller.tts_providers) == ("speech",)
+    assert composition.preflight_service.llm_registry is composition.providers.llm_registry
+    assert composition.preflight_service.tts_registry is composition.providers.tts_registry
+    assert composition.benchmark_service is not None
+    assert composition.playback_controller is not None
     assert (
         composition.research_controller.database_for_project(
             "12345678-1234-5678-1234-567812345678"
@@ -87,6 +91,49 @@ def test_configured_planning_service_resolves_persisted_provider(tmp_path) -> No
     assert isinstance(planner.generator, LLMEpisodePlanGenerator)
     assert planner.generator.provider.provider_id == "planner"
     assert planner.generator.model == "fake-v1"
+
+
+def test_production_composition_constructs_generation_run_and_pipeline(tmp_path) -> None:
+    composition = ProductionComposition.build(
+        tmp_path / "data",
+        provider_factory=ProviderFactory(environ={}),
+    )
+    project = composition.service.create_project("Composition pipeline")
+    timestamp = "2026-09-20T00:00:00.000000Z"
+    episode_id = str(new_episode_id())
+    composition.service.hosts(project.id).create_episode(
+        EpisodeRecord(
+            id=episode_id,
+            project_id=project.id,
+            title="Episode",
+            created_at=timestamp,
+            modified_at=timestamp,
+        ),
+        [],
+    )
+    visited: list[str] = []
+
+    def handler(context: PipelineContext) -> None:
+        visited.append(f"{context.run_id}:{context.stage}")
+
+    run = composition.create_generation_run(project.id, episode_id)
+    events: list[ProgressEvent] = []
+    pipeline = composition.generation_pipeline(
+        project.id,
+        progress=events.append,
+        handlers={stage: handler for stage in DEFAULT_STAGES},
+    )
+
+    result = pipeline.run(run.id)
+
+    assert run.state == "pending"
+    assert result.run.state == "completed"
+    assert [item.split(":", 1)[1] for item in visited] == list(DEFAULT_STAGES)
+    assert composition.generation_run_repository(project.id).list_completed_stages(run.id) == list(
+        DEFAULT_STAGES
+    )
+    assert events[-1].operation == "pipeline"
+    assert events[-1].state == "completed"
 
 
 def test_production_composition_monitor_runner_executes_durable_pipeline(tmp_path) -> None:
