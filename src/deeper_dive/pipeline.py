@@ -7,7 +7,7 @@ from dataclasses import dataclass, replace
 from typing import Protocol
 
 from deeper_dive.application.events import ProgressEvent, ProgressSink
-from deeper_dive.diagnostics import redact
+from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.domain.clock import Clock, SystemClock, format_timestamp
 from deeper_dive.storage.run_repositories import (
     CompletedUnitRecord,
@@ -152,7 +152,7 @@ class PipelineOrchestrator:
                 except Exception as exc:
                     attempts += 1
                     if attempts > self.max_stage_retries:
-                        safe_message = str(redact(str(exc)))
+                        safe_message = sanitize_exception_message(exc)
                         failed = GenerationRunRepository.with_failure(
                             record,
                             code="stage_failed",
