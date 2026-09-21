@@ -13,6 +13,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
+_NO_PLAYER_DETAIL = (
+    "No supported local audio player was found; generation and export are unaffected."
+)
+
 
 @dataclass(frozen=True, slots=True)
 class PlaybackCapabilities:
@@ -64,10 +68,7 @@ class NoAudioPlayerBackend:
             can_pause=False,
             can_seek=False,
             chapter_sync=False,
-            detail=(
-                "No supported local audio player was found; generation and export "
-                "are unaffected."
-            ),
+            detail=_NO_PLAYER_DETAIL,
         )
 
     def play(self, audio_path: Path, *, start_seconds: float = 0.0) -> PlaybackState:
