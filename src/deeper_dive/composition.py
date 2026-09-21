@@ -8,13 +8,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from deeper_dive.application.events import ProgressSink
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.audio_playback import AudioPlaybackBackend, AudioPlaybackController
 from deeper_dive.episode_planner import EpisodePlanGenerator, EpisodePlannerService
 from deeper_dive.export import EpisodeExporter
 from deeper_dive.generation_monitor import GenerationMonitorController
 from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
-from deeper_dive.pipeline import PipelineOrchestrator, StageHandler
+from deeper_dive.pipeline import DEFAULT_STAGES, PipelineContext, PipelineOrchestrator, StageHandler
 from deeper_dive.preflight_screen import PreflightController
 from deeper_dive.provider_factory import ProviderBuildResult, ProviderFactory
 from deeper_dive.provider_tui import ProviderController
@@ -98,6 +99,13 @@ class ProductionComposition:
         research_controller = PersistentResearchController(
             lambda project_id: (app_service.workspaces.project_root(project_id) / "project.db")
         )
+        monitor_controller = GenerationMonitorController(
+            runner=lambda run_id, progress: cls._run_generation_pipeline(
+                app_service,
+                run_id,
+                progress,
+            )
+        )
         return cls(
             service=app_service,
             config_store=config_store,
@@ -105,7 +113,7 @@ class ProductionComposition:
             provider_controller=provider_controller,
             research_controller=research_controller,
             preflight_controller=PreflightController(),
-            generation_monitor_controller=GenerationMonitorController(),
+            generation_monitor_controller=monitor_controller,
             benchmark_service=TTSBenchmarkService(),
             playback_controller=AudioPlaybackController(playback_backend),
         )
@@ -131,12 +139,16 @@ class ProductionComposition:
         return self.planning_service(project_id, LLMEpisodePlanGenerator(provider, model))
 
     def pipeline_service(
-        self, project_id: str, handlers: Mapping[str, StageHandler]
+        self,
+        project_id: str,
+        handlers: Mapping[str, StageHandler],
+        *,
+        progress: ProgressSink | None = None,
     ) -> PipelineOrchestrator:
         """Construct durable orchestration with injectable idempotent stage handlers."""
 
         repository = GenerationRunRepository(self.database_for_project(project_id))
-        return PipelineOrchestrator(repository, handlers)
+        return PipelineOrchestrator(repository, handlers, progress=progress)
 
     def exporter(self, project_id: str) -> EpisodeExporter:
         """Construct the exporter rooted in the selected project workspace."""
@@ -156,3 +168,39 @@ class ProductionComposition:
         return TargetedRepairService(
             self.database_for_project(project_id), provider, rechecker, summary_updater
         )
+
+    @staticmethod
+    def _run_generation_pipeline(
+        service: DeeperDiveService,
+        run_id: str,
+        progress: ProgressSink,
+    ) -> None:
+        project_id = _project_id_for_run(service, run_id)
+        repository = service.runs(project_id)
+        PipelineOrchestrator(
+            repository,
+            _production_stage_handlers(),
+            progress=progress,
+        ).run(run_id)
+
+
+def _project_id_for_run(service: DeeperDiveService, run_id: str) -> str:
+    for project in service.list_projects():
+        if service.runs(project.id).get(run_id) is not None:
+            return project.id
+    raise KeyError(f"unknown generation run: {run_id}")
+
+
+def _production_stage_handlers() -> dict[str, StageHandler]:
+    return {stage: _durable_stage_boundary for stage in DEFAULT_STAGES}
+
+
+def _durable_stage_boundary(context: PipelineContext) -> None:
+    """Production-safe stage boundary until richer stage services own the work.
+
+    The orchestrator still owns durable state transitions, retries, checkpoints,
+    pause/cancel boundaries, and progress events. Stage-specific content generation
+    can replace these handlers incrementally without changing TUI/CLI wiring.
+    """
+
+    _ = context
