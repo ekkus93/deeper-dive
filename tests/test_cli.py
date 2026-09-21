@@ -27,10 +27,7 @@ def test_cli_version(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def _create_project(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> dict[str, object]:
-    assert (
-        main(["--data-dir", str(tmp_path), "--json", "project", "create", "Demo"])
-        == 0
-    )
+    assert main(["--data-dir", str(tmp_path), "--json", "project", "create", "Demo"]) == 0
     return json.loads(capsys.readouterr().out)
 
 
@@ -122,10 +119,7 @@ def test_cli_source_file_directory_lifecycle_json(
     assert len(added["imported"]) == 2
     assert {item["disposition"] for item in added["candidates"]} == {"import"}
 
-    assert (
-        main(["--data-dir", str(tmp_path), "--json", "source", "list", project_id])
-        == 0
-    )
+    assert main(["--data-dir", str(tmp_path), "--json", "source", "list", project_id]) == 0
     sources = json.loads(capsys.readouterr().out)
     assert len(sources) == 2
     source_id = sources[0]["id"]
