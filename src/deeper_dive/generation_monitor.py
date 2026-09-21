@@ -248,7 +248,7 @@ class GenerationMonitorScreen(Screen[None]):
         run = self._run()
         if run is None or self._app.generation_monitor_controller.runner is None:
             return
-        if run.state != "pending":
+        if run.state not in {"pending", "running"}:
             return
         if self._task is not None and not self._task.done():
             return

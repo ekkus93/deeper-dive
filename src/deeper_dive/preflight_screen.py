@@ -12,8 +12,9 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Label, Static
 
 from deeper_dive.application.service import DeeperDiveService
+from deeper_dive.domain.clock import format_timestamp
 from deeper_dive.episode_config import EpisodeConfigurationService
-from deeper_dive.generation_start import select_or_create_generation_run
+from deeper_dive.generation_monitor import GenerationMonitorScreen
 from deeper_dive.hosts import HostProfile
 from deeper_dive.model_roles import (
     ModelRole,
@@ -112,14 +113,12 @@ class PreflightController:
             local_provider_ids=self._local_provider_ids(config.providers, config.defaults),
             local_only=self._local_only(config.defaults),
         )
-        extra_issues = list(assignment_issues)
+        issues = list(assignment_issues)
         if episode is None:
-            extra_issues.append(
-                PreflightIssue("episode_missing", "create/build an episode before generation")
-            )
-        if extra_issues:
+            issues.append(PreflightIssue("episode_missing", "create an episode before generation"))
+        if issues:
             report = PreflightReport(
-                (*extra_issues, *report.issues),
+                (*issues, *report.issues),
                 report.estimate,
                 report.routes,
             )
@@ -136,19 +135,21 @@ class PreflightController:
         )
 
     def start_generation(self, app: PreflightApp) -> GenerationRunRecord:
-        """Select the duplicate-safe durable run that the monitor should execute."""
-
         project_id = app.current_project_id
         if project_id is None:
-            raise ValueError("open a project before generation")
+            raise RuntimeError("open a project before generation")
         repository = app.service.hosts(project_id)
         episode = self._selected_episode(repository, project_id, app.current_episode_id)
         if episode is None:
-            raise ValueError("create/build an episode before generation")
-        result = select_or_create_generation_run(app.service, project_id, episode.id)
+            raise RuntimeError("create an episode before generation")
         app.current_episode_id = episode.id
-        app.current_run_id = result.run.id
-        return result.run
+        run = app.service.select_or_create_generation_run(
+            project_id,
+            episode.id,
+            format_timestamp(app.service.clock.now()),
+        )
+        app.current_run_id = run.id
+        return run
 
     def _selected_episode(
         self,
@@ -330,6 +331,12 @@ class PreflightScreen(Screen[None]):
             return
         self._status(f"Generation run started: {run.id}")
         self._app.action_navigate("monitor")
+        self.call_after_refresh(self._start_monitor_generation)
+
+    def _start_monitor_generation(self) -> None:
+        screen = self.app.screen
+        if isinstance(screen, GenerationMonitorScreen):
+            screen.start_background_generation()
 
     def action_cancel(self) -> None:
         self._app.action_navigate("episode")
