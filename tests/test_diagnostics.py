@@ -106,3 +106,24 @@ def test_provider_error_sanitization_covers_sdk_exception_shapes() -> None:
     assert auth_header in event.message
     assert "https://[REDACTED]@example.test/v1" in event.message
     assert f"{key_name}=[REDACTED]" in event.message
+
+
+def test_debug_and_repr_payloads_do_not_leak_original_secret_values() -> None:
+    secret = "debug-runtime-value-901"
+    key_name = "api" + "_" + "key"
+    token_name = "to" + "ken"
+    payload = redact(
+        {
+            "debug": f"ProviderDebug({key_name}={secret!r})",
+            "repr": {"raw": f"TokenObject({token_name}={secret})"},
+            "safe": "keep useful context",
+        }
+    )
+    text = json.dumps(payload, sort_keys=True)
+
+    assert secret not in text
+    assert "ProviderDebug" in text
+    assert "TokenObject" in text
+    assert f"{key_name}=[REDACTED]" in text
+    assert f"{token_name}=[REDACTED]" in text
+    assert "keep useful context" in text
