@@ -45,7 +45,9 @@ def test_run_stage_failure_flags_and_retry_state_survive_reopen(tmp_path: Path) 
     assert restored.cancel_requested is True
 
 
-def test_repository_redacts_failure_message_even_when_caller_supplies_raw_text(tmp_path: Path) -> None:
+def test_repository_redacts_failure_message_even_when_caller_supplies_raw_text(
+    tmp_path: Path,
+) -> None:
     repository = _repository(tmp_path)
     secret = "runtime-value-678"
     key_name = "to" + "ken"
