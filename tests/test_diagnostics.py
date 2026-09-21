@@ -44,7 +44,9 @@ def test_structured_log_and_bundle_redact_secrets_and_preserve_run_ids(tmp_path:
     assert "source_excerpts" not in payload
 
 
-def test_source_excerpts_require_explicit_opt_in_and_provider_errors_are_sanitized(tmp_path: Path) -> None:
+def test_source_excerpts_require_explicit_opt_in_and_provider_errors_are_sanitized(
+    tmp_path: Path,
+) -> None:
     secret = "provider-secret-456"
     event = sanitize_provider_error("remote", RuntimeError(f"Bearer {secret}"), run_id="run-9")
     assert secret not in event.message
@@ -71,7 +73,10 @@ def test_redact_covers_assignment_forms_and_credential_bearing_urls() -> None:
                 f"{key_name}={secret}; {token_name}: {secret}; "
                 f"download=https://user:{secret}@example.test/private"
             ),
-            "nested": [f"SERVICE_{token_name.upper()}={secret}", f"{auth_scheme}: Bearer {secret}"],
+            "nested": [
+                f"SERVICE_{token_name.upper()}={secret}",
+                f"{auth_scheme}: Bearer {secret}",
+            ],
         }
     )
     text = json.dumps(payload, sort_keys=True)

@@ -33,7 +33,6 @@ target-version = "py312"
 line-length = 100
 extend-exclude = [
   "tests/test_cli.py",
-  "tests/test_diagnostics.py",
   "tests/test_invalidation.py",
   "tests/test_preflight_routing.py",
   "tests/test_provider_cli.py",
