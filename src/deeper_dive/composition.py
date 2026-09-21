@@ -20,7 +20,12 @@ from deeper_dive.model_roles import (
     ModelRoleAssignments,
     project_model_defaults_from_instructions,
 )
-from deeper_dive.pipeline import DEFAULT_STAGES, PipelineContext, PipelineOrchestrator, StageHandler
+from deeper_dive.pipeline import (
+    DEFAULT_STAGES,
+    PipelineContext,
+    PipelineOrchestrator,
+    StageHandler,
+)
 from deeper_dive.preflight_screen import PreflightController
 from deeper_dive.provider_factory import ProviderBuildResult, ProviderFactory
 from deeper_dive.provider_tui import ProviderController
