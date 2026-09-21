@@ -123,7 +123,7 @@ class EpisodeSetupScreen(Screen[None]):
             provider = self._app.provider_controller.llm_registry.get(assignment.provider)
             composition = cast(
                 ProductionComposition,
-                getattr(self._app.service, "_production_composition"),
+                getattr(self._app.service, "_production_composition"),  # noqa: B009
             )
             planner = composition.planning_service(
                 project_id, LLMEpisodePlanGenerator(provider, assignment.model)
