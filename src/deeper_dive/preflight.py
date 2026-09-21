@@ -77,7 +77,9 @@ class PreflightReport:
 class PreflightService:
     """Perform deterministic checks before expensive generation begins."""
 
-    def __init__(self, llm_registry: LLMProviderRegistry, tts_registry: TTSProviderRegistry) -> None:
+    def __init__(
+        self, llm_registry: LLMProviderRegistry, tts_registry: TTSProviderRegistry
+    ) -> None:
         self.llm_registry = llm_registry
         self.tts_registry = tts_registry
 
