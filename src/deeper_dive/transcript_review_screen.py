@@ -158,7 +158,10 @@ class TranscriptReviewController:
             return PlaybackState(
                 available=False,
                 playing=False,
-                message="No exported audio file is available yet; generation/export are unaffected.",
+                message=(
+                    "No exported audio file is available yet; generation/export "
+                    "are unaffected."
+                ),
                 position_seconds=position,
                 capabilities=self.playback.capabilities,
             )
