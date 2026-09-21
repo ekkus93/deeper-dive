@@ -81,3 +81,24 @@ def test_redact_covers_assignment_forms_and_credential_bearing_urls() -> None:
     assert f"{token_name}: [REDACTED]" in text
     assert "https://[REDACTED]@example.test/private" in text
     assert f"{auth_scheme}: [REDACTED]" in text
+
+
+def test_provider_error_sanitization_covers_sdk_exception_shapes() -> None:
+    secret = "sdk-runtime-value-012"
+    auth_header = "Author" + "ization"
+    key_name = "api" + "_" + "key"
+    sdk_message = (
+        "ProviderError(status=401, "
+        f"headers={{{auth_header!r}: 'Bearer {secret}'}}, "
+        f"request_url='https://user:{secret}@example.test/v1', "
+        f"body='{key_name}={secret}')"
+    )
+
+    event = sanitize_provider_error("sdk", RuntimeError(sdk_message), run_id="run-sdk")
+
+    assert secret not in event.message
+    assert event.run_id == "run-sdk"
+    assert auth_header in event.message
+    assert "[REDACTED]" in event.message
+    assert "https://[REDACTED]@example.test/v1" in event.message
+    assert f"{key_name}=[REDACTED]" in event.message
