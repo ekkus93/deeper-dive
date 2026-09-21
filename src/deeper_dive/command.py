@@ -116,10 +116,11 @@ def _inspect_provider(
         return [asdict(voice) for voice in controller.tts(provider_id).voices()]
     if command in {"health", "test"}:
         try:
-            provider = controller.llm(provider_id)
+            llm = controller.llm(provider_id)
         except KeyError:
-            provider = controller.tts(provider_id)
-        return {"id": provider.provider_id, **asdict(provider.health())}
+            tts = controller.tts(provider_id)
+            return {"id": tts.provider_id, **asdict(tts.health())}
+        return {"id": llm.provider_id, **asdict(llm.health())}
     raise ValueError(f"provider {provider_id!r} does not support {command}")
 
 
