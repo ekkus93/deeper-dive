@@ -6,12 +6,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol, cast
 
+from rich.text import Text
 from textual.app import ComposeResult
 from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Label, Static
 
 from deeper_dive.application.service import DeeperDiveService
+from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.generation_monitor import GenerationMonitorScreen
 from deeper_dive.generation_start import select_or_create_generation_run
@@ -327,7 +329,7 @@ class PreflightScreen(Screen[None]):
         try:
             run = self._app.preflight_controller.start_generation(self._app)
         except (KeyError, RuntimeError, ValueError) as exc:
-            self._status(f"Generation blocked: {exc}")
+            self._status(f"Generation blocked: {sanitize_exception_message(exc)}")
             return
         self._status(f"Generation run started: {run.id}")
         self._app.action_navigate("monitor")
@@ -417,4 +419,4 @@ class PreflightScreen(Screen[None]):
         return "\n".join(lines)
 
     def _status(self, message: str) -> None:
-        self.query_one("#screen-status", Static).update(f"Status: {message}")
+        self.query_one("#screen-status", Static).update(Text(f"Status: {message}"))
