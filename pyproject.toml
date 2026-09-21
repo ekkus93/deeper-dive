@@ -32,7 +32,6 @@ packages = ["src/deeper_dive"]
 target-version = "py312"
 line-length = 100
 extend-exclude = [
-  "src/deeper_dive/cli.py",
   "tests/test_cli.py",
   "tests/test_diagnostics.py",
   "tests/test_invalidation.py",
