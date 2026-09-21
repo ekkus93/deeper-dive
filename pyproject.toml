@@ -32,7 +32,6 @@ packages = ["src/deeper_dive"]
 target-version = "py312"
 line-length = 100
 extend-exclude = [
-  "tests/test_cli.py",
   "tests/test_invalidation.py",
   "tests/test_preflight_routing.py",
   "tests/test_provider_cli.py",
@@ -44,7 +43,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ruff.format]
 quote-style = "double"
-indent-style = "space"
+indent-style = "spaces"
 
 [tool.mypy]
 python_version = "3.12"
