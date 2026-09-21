@@ -106,7 +106,7 @@ class ProductionComposition:
                 progress,
             )
         )
-        return cls(
+        composition = cls(
             service=app_service,
             config_store=config_store,
             providers=providers,
@@ -117,6 +117,8 @@ class ProductionComposition:
             benchmark_service=TTSBenchmarkService(),
             playback_controller=AudioPlaybackController(playback_backend),
         )
+        app_service._production_composition = composition  # type: ignore[attr-defined]
+        return composition
 
     def database_for_project(self, project_id: str) -> Database:
         """Return the production database boundary for one project workspace."""
