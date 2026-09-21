@@ -47,6 +47,17 @@ def redact(value: object) -> object:
     return value
 
 
+def sanitize_exception_message(exc: BaseException) -> str:
+    """Return a redacted exception message including sanitized chained context."""
+
+    parts = [str(exc)]
+    if exc.__cause__ is not None:
+        parts.append(f"caused by: {exc.__cause__}")
+    elif exc.__context__ is not None and not exc.__suppress_context__:
+        parts.append(f"context: {exc.__context__}")
+    return str(redact(" | ".join(part for part in parts if part)))
+
+
 @dataclass(frozen=True, slots=True)
 class DiagnosticEvent:
     level: str
@@ -81,7 +92,7 @@ def sanitize_provider_error(
         event="provider_error",
         run_id=run_id,
         provider=provider,
-        message=str(redact(str(exc))),
+        message=sanitize_exception_message(exc),
     )
 
 
