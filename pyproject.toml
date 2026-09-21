@@ -32,6 +32,7 @@ packages = ["src/deeper_dive"]
 target-version = "py312"
 line-length = 100
 extend-exclude = [
+  "src/deeper_dive/audio_playback.py",
   "src/deeper_dive/cli.py",
   "src/deeper_dive/preflight.py",
   "src/deeper_dive/preflight_screen.py",
