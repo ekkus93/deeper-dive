@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol, cast
 
+from rich.markup import escape
 from textual.app import ComposeResult
 from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
@@ -418,4 +419,4 @@ class PreflightScreen(Screen[None]):
         return "\n".join(lines)
 
     def _status(self, message: str) -> None:
-        self.query_one("#screen-status", Static).update(f"Status: {message}")
+        self.query_one("#screen-status", Static).update(f"Status: {escape(message)}")
