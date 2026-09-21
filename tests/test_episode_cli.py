@@ -18,7 +18,7 @@ def _json_list(args: list[str], capsys: pytest.CaptureFixture[str]) -> list[dict
     return json.loads(capsys.readouterr().out)
 
 
-def test_episode_cli_create_plan_run_control_status_and_export(
+def test_episode_cli_create_plan_generate_status_and_export(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -80,21 +80,12 @@ def test_episode_cli_create_plan_run_control_status_and_export(
 
     run = _json_call([*base, "episode", "generate", project_id, episode_id], capsys)
     assert run["episode_id"] == episode_id
-    assert run["state"] == "pending"
-
-    paused = _json_call([*base, "episode", "pause", project_id, episode_id], capsys)
-    assert paused["pause_requested"] is True
+    assert run["state"] == "completed"
+    assert run["stage"] == "export"
 
     status = _json_call([*base, "episode", "status", project_id, episode_id], capsys)
     assert status["run"]["id"] == run["id"]
-    assert status["run"]["pause_requested"] is True
-
-    resumed = _json_call([*base, "episode", "resume", project_id, episode_id], capsys)
-    assert resumed["state"] == "pending"
-    assert resumed["pause_requested"] is False
-
-    cancelled = _json_call([*base, "episode", "cancel", project_id, episode_id], capsys)
-    assert cancelled["cancel_requested"] is True
+    assert status["run"]["state"] == "completed"
 
     export = _json_call(
         [
@@ -114,3 +105,4 @@ def test_episode_cli_create_plan_run_control_status_and_export(
     assert exported["episode"]["id"] == episode_id
     assert exported["plan"]["id"] == plan["id"]
     assert exported["run"]["id"] == run["id"]
+    assert exported["run"]["state"] == "completed"
