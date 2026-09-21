@@ -1,8 +1,11 @@
-# DDR-090 Ruff exclusion audit — 2026-09-21
+# DDR-090 Ruff exclusion audit
 
-## Current configuration
+**Date:** 2026-09-21  
+**Scope:** Current state of `pyproject.toml` Ruff exclusions for `docs/DEEP_DIVE_V1_INTEGRATION_REMEDIATION_TODO_2026-09-19.md` DDR-090.
 
-`pyproject.toml` has no Ruff exclusions for production modules. The current `extend-exclude` list contains only these test modules:
+## Current `extend-exclude` inventory
+
+The current Ruff `extend-exclude` list contains only test modules:
 
 - `tests/test_cli.py`
 - `tests/test_diagnostics.py`
@@ -11,10 +14,23 @@
 - `tests/test_provider_cli.py`
 - `tests/test_quick_deep_dive.py`
 
-Therefore the production modules named by DDR-090 — `audio_playback.py`, `cli.py`, `diagnostics.py`, `preflight.py`, `preflight_screen.py`, and `transcript_review_screen.py` — are all inside the normal Ruff target set. There is no broad production exclusion left to retain or narrow.
+## Production module inventory requested by DDR-090
 
-## Qualification
+DDR-090 names these production modules for individual Ruff remediation or narrow retained-exception documentation:
 
-The normal repository CI runs Ruff, formatting, mypy, and tests against the production tree. DDR-090 should be considered satisfied when exact-head CI remains green with this configuration: production code is not excluded, so each named module is covered by the ordinary Ruff invocation rather than requiring a separate exclusion-specific command.
+- `src/deeper_dive/audio_playback.py`
+- `src/deeper_dive/cli.py`
+- `src/deeper_dive/diagnostics.py`
+- `src/deeper_dive/preflight.py`
+- `src/deeper_dive/preflight_screen.py`
+- `src/deeper_dive/transcript_review_screen.py`
 
-The remaining `extend-exclude` entries are test-only technical debt and are not production-module exclusions. They should be handled separately rather than reintroducing a production exception.
+None of those production modules currently appears in the broad Ruff `extend-exclude` list. This means the remaining DDR-090 work should focus on direct per-module Ruff runs, fixes, and any narrow retained-exception notes rather than removing production paths from the global exclude list.
+
+## Current retained exceptions
+
+`pyproject.toml` still has one targeted mypy override for `deeper_dive.transcript_review_screen` disabling `index`. That is not a Ruff exclusion, but it remains relevant to DDR-090's maintainability audit and should be reviewed with the transcript review screen remediation work.
+
+## Follow-up checklist
+
+This document satisfies only the inventory step. Do not close DDR-090 until the named production modules have direct Ruff evidence, any necessary fixes are merged, formatter and mypy remain green, and broad exclusions are removed or explicitly narrowed where appropriate.
