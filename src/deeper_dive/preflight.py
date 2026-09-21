@@ -104,13 +104,24 @@ class PreflightService:
         for role, assignment in role_result.assignments.items():
             local = assignment.provider in local_provider_ids
             routes.append(
-                ProviderRoute(role.value, assignment.provider, assignment.model, local, "source text and generated context")
+                ProviderRoute(
+                    role.value,
+                    assignment.provider,
+                    assignment.model,
+                    local,
+                    "source text and generated context",
+                )
             )
             if assignment.provider not in checked_llm:
                 checked_llm.add(assignment.provider)
                 health = self.llm_registry.get(assignment.provider).health()
                 if not health.healthy:
-                    issues.append(PreflightIssue("llm_unhealthy", f"LLM provider {assignment.provider!r} is unhealthy: {health.message}"))
+                    issues.append(
+                        PreflightIssue(
+                            "llm_unhealthy",
+                            f"LLM provider {assignment.provider!r} is unhealthy: {health.message}",
+                        )
+                    )
 
         remote_llm = sorted({route.provider for route in routes if not route.local})
         if source_count > 0 and remote_llm:
@@ -152,12 +163,22 @@ class PreflightService:
                 checked_tts.add(provider.provider_id)
                 health = provider.health()
                 if not health.healthy:
-                    issues.append(PreflightIssue("tts_unhealthy", f"TTS provider {provider.provider_id!r} is unhealthy: {health.message}"))
+                    issues.append(
+                        PreflightIssue(
+                            "tts_unhealthy",
+                            f"TTS provider {provider.provider_id!r} is unhealthy: {health.message}",
+                        )
+                    )
 
         if source_count <= 0:
             issues.append(PreflightIssue("sources_missing", "project has no included sources"))
         elif indexed_source_count < source_count:
-            issues.append(PreflightIssue("sources_unindexed", f"only {indexed_source_count} of {source_count} included sources are indexed"))
+            issues.append(
+                PreflightIssue(
+                    "sources_unindexed",
+                    f"only {indexed_source_count} of {source_count} included sources are indexed",
+                )
+            )
 
         try:
             FFmpegConfig.detect(ffmpeg_executable)
