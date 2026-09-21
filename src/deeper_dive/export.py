@@ -9,6 +9,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from deeper_dive.audio_normalization import CanonicalAudio
+from deeper_dive.diagnostics import redact
 from deeper_dive.ffmpeg import FFmpegComposer
 
 
@@ -72,18 +73,7 @@ class EpisodeExporter:
 
     @staticmethod
     def write_metadata(path: Path, metadata: dict[str, object]) -> Path:
-        forbidden = {"api_key", "apikey", "token", "authorization", "password", "secret"}
+        """Persist metadata through the canonical recursive secret sanitizer."""
 
-        def clean(value: object) -> object:
-            if isinstance(value, dict):
-                return {
-                    str(key): clean(item)
-                    for key, item in value.items()
-                    if str(key).lower().replace("-", "_") not in forbidden
-                }
-            if isinstance(value, list):
-                return [clean(item) for item in value]
-            return value
-
-        path.write_text(json.dumps(clean(metadata), indent=2, sort_keys=True), encoding="utf-8")
+        path.write_text(json.dumps(redact(metadata), indent=2, sort_keys=True), encoding="utf-8")
         return path
