@@ -48,9 +48,7 @@ def test_source_excerpts_require_explicit_opt_in_and_provider_errors_are_sanitiz
     tmp_path: Path,
 ) -> None:
     secret = "provider-secret-456"
-    event = sanitize_provider_error(
-        "remote", RuntimeError(f"Bearer {secret}"), run_id="run-9"
-    )
+    event = sanitize_provider_error("remote", RuntimeError(f"Bearer {secret}"), run_id="run-9")
     assert secret not in event.message
     assert event.run_id == "run-9"
 
