@@ -209,7 +209,6 @@ class GenerationMonitorScreen(Screen[None]):
             )
         )
         self.refresh_monitor("Run ready to resume")
-        self.start_background_generation()
 
     def action_cancel(self) -> None:
         run = self._run()
