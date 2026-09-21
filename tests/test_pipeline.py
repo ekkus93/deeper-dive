@@ -185,6 +185,32 @@ def test_terminal_stage_failure_persists_only_sanitized_message(tmp_path) -> Non
     assert f"{key_name}=[REDACTED]" in record.failure_message
 
 
+def test_terminal_stage_failure_sanitizes_nested_cause_text(tmp_path) -> None:
+    repository = make_repository(tmp_path)
+    secret = "cause-runtime-value-678"
+    key_name = "to" + "ken"
+
+    def fail(context: PipelineContext) -> None:
+        try:
+            raise RuntimeError(f"inner provider failure {key_name}={secret}")
+        except RuntimeError as exc:
+            raise RuntimeError("outer provider unavailable") from exc
+
+    handlers = {stage: (fail if stage == "sources" else lambda context: None) for stage in STAGES}
+    orchestrator = PipelineOrchestrator(repository, handlers, stages=STAGES, max_stage_retries=0)
+
+    with pytest.raises(RuntimeError, match="outer provider unavailable"):
+        orchestrator.run("run")
+
+    record = repository.get("run")
+    assert record is not None
+    assert record.failure_message is not None
+    assert secret not in record.failure_message
+    assert "outer provider unavailable" in record.failure_message
+    assert "caused by:" in record.failure_message
+    assert f"{key_name}=[REDACTED]" in record.failure_message
+
+
 def test_configuration_bounds_are_validated(tmp_path) -> None:
     repository = make_repository(tmp_path)
     handlers = {stage: lambda context: None for stage in STAGES}
