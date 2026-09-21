@@ -36,15 +36,9 @@ def test_quick_deep_dive_creates_normal_episode_with_default_hosts_and_useful_po
 def test_quick_deep_dive_uses_existing_project_hosts_as_defaults(tmp_path: Path) -> None:
     service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
     project = service.create_project("Quick with hosts")
-    service.hosts(project.id).create_host(
-        HostProfile("h1", project.id, "Existing One").to_record()
-    )
-    service.hosts(project.id).create_host(
-        HostProfile("h2", project.id, "Existing Two").to_record()
-    )
-    service.hosts(project.id).create_host(
-        HostProfile("h3", project.id, "Existing Three").to_record()
-    )
+    service.hosts(project.id).create_host(HostProfile("h1", project.id, "Existing One").to_record())
+    service.hosts(project.id).create_host(HostProfile("h2", project.id, "Existing Two").to_record())
+    service.hosts(project.id).create_host(HostProfile("h3", project.id, "Existing Three").to_record())
 
     episode = service.quick_deep_dive(project.id)
 
