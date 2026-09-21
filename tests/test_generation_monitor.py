@@ -76,8 +76,9 @@ async def _monitor_rejects_resume_when_run_is_not_paused(tmp_path: Path) -> None
         screen = _monitor(app)
         screen.action_resume()
         await pilot.pause()
-        assert "Only paused or pause-requested runs can resume" in _text(
-            screen, "#screen-status"
+        assert (
+            "Only paused or pause-requested runs can resume"
+            in _text(screen, "#screen-status")
         )
         assert repository.get(run_id).state == "completed"  # type: ignore[union-attr]
 
