@@ -8,8 +8,8 @@
 - Research CLI commands now consume the `research_controller` provided by `ProductionComposition` instead of constructing a separate `PersistentResearchController` path.
 - Provider CLI inspection now routes through production-composed provider configuration and registries instead of constructing hard-coded fake providers in `deeper_dive.command`.
 - The configured fake LLM adapter built by `ProviderFactory` now returns a deterministic episode-plan-shaped response. This keeps CI-safe planning fakes behind explicit persisted provider configuration rather than a command-local planner.
-- TUI Episode Setup planning no longer constructs a second `ProductionComposition` while handling Build Plan; the screen uses the already resolved provider/model assignment and project database to build the shared planner boundary for the selected episode.
 - Developer architecture notes identify `ProductionComposition.build` as the current production object graph entry point for TUI and CLI surfaces.
+- TUI Episode Setup planning now reuses the app's existing production composition boundary instead of constructing a second `ProductionComposition` while building a plan.
 
 ## Remaining DDR-091 work
 
