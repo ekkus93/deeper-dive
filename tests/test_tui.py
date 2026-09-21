@@ -185,6 +185,18 @@ async def _preflight_tui_unhealthy_provider(tmp_path: Path) -> None:
             tts_voice="voice-a",
         ).to_record()
     )
+    timestamp = format_timestamp(service.clock.now())
+    episode_id = str(new_episode_id())
+    service.hosts(project.id).create_episode(
+        EpisodeRecord(
+            id=episode_id,
+            project_id=project.id,
+            title="Episode",
+            created_at=timestamp,
+            modified_at=timestamp,
+        ),
+        ["host-1"],
+    )
     ffmpeg = tmp_path / "ffmpeg"
     ffmpeg.write_text("fake", encoding="utf-8")
     config_store = UserConfigStore(tmp_path / "config.json")
@@ -203,6 +215,7 @@ async def _preflight_tui_unhealthy_provider(tmp_path: Path) -> None:
     async with app.run_test(size=(100, 30)) as pilot:
         app.current_project_id = project.id
         app.current_project_name = project.name
+        app.current_episode_id = episode_id
         app.action_navigate("generate")
         await pilot.pause()
         screen = _preflight(app)
