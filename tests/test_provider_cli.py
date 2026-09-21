@@ -57,7 +57,8 @@ def test_provider_router_preserves_existing_cli(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     result = _call(
-        ["--data-dir", str(tmp_path), "--json", "project", "create", "Router"], capsys
+        ["--data-dir", str(tmp_path), "--json", "project", "create", "Router"],
+        capsys,
     )
     assert result["name"] == "Router"
 
@@ -66,7 +67,8 @@ def test_router_rewrites_delegated_cli_errors(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     project = _call(
-        ["--data-dir", str(tmp_path), "--json", "project", "create", "Errors"], capsys
+        ["--data-dir", str(tmp_path), "--json", "project", "create", "Errors"],
+        capsys,
     )
 
     assert main(["--data-dir", str(tmp_path), "research", "run", str(project["id"])]) == 2
