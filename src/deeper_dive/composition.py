@@ -16,8 +16,8 @@ from deeper_dive.export import EpisodeExporter
 from deeper_dive.generation_monitor import GenerationMonitorController
 from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
 from deeper_dive.model_roles import (
-    ModelRoleAssignments,
     effective_model_role_assignments as resolve_model_role_assignments,
+    ModelRoleAssignments,
     project_model_defaults_from_instructions,
 )
 from deeper_dive.pipeline import DEFAULT_STAGES, PipelineContext, PipelineOrchestrator, StageHandler
