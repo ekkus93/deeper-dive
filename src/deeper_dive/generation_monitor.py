@@ -247,10 +247,6 @@ class GenerationMonitorScreen(Screen[None]):
         run = self._run()
         if run is None or self._app.generation_monitor_controller.runner is None:
             return
-        if run.state not in {"pending", "running"}:
-            return
-        if self._task is not None and not self._task.done():
-            return
         self._task = asyncio.create_task(self._background_run(run.id))
 
     async def _background_run(self, run_id: str) -> None:
