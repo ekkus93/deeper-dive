@@ -50,9 +50,7 @@ def test_multiple_changes_union_without_over_invalidating() -> None:
         Artifact.TTS,
         Artifact.AUDIO,
     }
-    assert Artifact.CHUNKS not in invalidated_artifacts(
-        Change.HOST_VOICE, Change.SOURCE_INCLUSION
-    )
+    assert Artifact.CHUNKS not in invalidated_artifacts(Change.HOST_VOICE, Change.SOURCE_INCLUSION)
 
 
 def test_cache_format_version_prevents_silent_incompatible_reuse() -> None:
