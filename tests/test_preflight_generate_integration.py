@@ -21,11 +21,11 @@ from deeper_dive.tui import DeeperDiveApp
 from deeper_dive.user_config import UserConfig, UserConfigStore
 
 
-def test_generate_click_starts_real_pipeline_and_reuses_durable_run(tmp_path: Path) -> None:
-    asyncio.run(_generate_click_starts_real_pipeline_and_reuses_durable_run(tmp_path))
+def test_generate_click_starts_real_pipeline_and_reuses_active_run(tmp_path: Path) -> None:
+    asyncio.run(_generate_click_starts_real_pipeline_and_reuses_active_run(tmp_path))
 
 
-async def _generate_click_starts_real_pipeline_and_reuses_durable_run(tmp_path: Path) -> None:
+async def _generate_click_starts_real_pipeline_and_reuses_active_run(tmp_path: Path) -> None:
     service = DeeperDiveService(
         WorkspaceManager(tmp_path / "data"),
         clock=FrozenClock(datetime(2026, 9, 20, 21, 0, tzinfo=UTC)),
@@ -65,16 +65,21 @@ async def _generate_click_starts_real_pipeline_and_reuses_durable_run(tmp_path: 
         llm_registry,
         {"fake-tts": FakeTTSProvider()},
     )
+    preflight_controller = PreflightController(ffmpeg_executable=ffmpeg)
     app = DeeperDiveApp(
         service,
         provider_controller=provider_controller,
-        preflight_controller=PreflightController(ffmpeg_executable=ffmpeg),
+        preflight_controller=preflight_controller,
     )
+    app.current_project_id = project.id
+    app.current_project_name = project.name
+    app.current_episode_id = episode_id
+
+    first = preflight_controller.start_generation(app)
+    repeated = preflight_controller.start_generation(app)
+    assert repeated.id == first.id
 
     async with app.run_test(size=(100, 30)) as pilot:
-        app.current_project_id = project.id
-        app.current_project_name = project.name
-        app.current_episode_id = episode_id
         app.action_navigate("generate")
         await pilot.pause()
         assert isinstance(app.screen, PreflightScreen)
@@ -83,20 +88,12 @@ async def _generate_click_starts_real_pipeline_and_reuses_durable_run(tmp_path: 
         await pilot.pause()
         assert isinstance(app.screen, GenerationMonitorScreen)
         monitor = app.screen
-        assert app.current_run_id is not None
-        first_run_id = app.current_run_id
+        assert app.current_run_id == first.id
         assert monitor._task is not None
         await monitor._task
         await pilot.pause()
 
-        run = service.runs(project.id).get(first_run_id)
+        run = service.runs(project.id).get(first.id)
         assert run is not None
         assert run.state == "completed"
-        assert service.runs(project.id).list_completed_stages(first_run_id) == list(DEFAULT_STAGES)
-
-        app.action_navigate("generate")
-        await pilot.pause()
-        assert isinstance(app.screen, PreflightScreen)
-        app.screen.action_generate()
-        await pilot.pause()
-        assert app.current_run_id == first_run_id
+        assert service.runs(project.id).list_completed_stages(first.id) == list(DEFAULT_STAGES)
