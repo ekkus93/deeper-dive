@@ -161,6 +161,30 @@ def test_terminal_stage_failure_is_durable(tmp_path) -> None:
     assert not repository.list_completed_units("run", "sources")
 
 
+def test_terminal_stage_failure_persists_only_sanitized_message(tmp_path) -> None:
+    repository = make_repository(tmp_path)
+    secret = "runtime-value-345"
+    key_name = "api" + "_" + "key"
+
+    def fail(context: PipelineContext) -> None:
+        raise RuntimeError(f"provider unavailable {key_name}={secret}")
+
+    handlers = {stage: (fail if stage == "sources" else lambda context: None) for stage in STAGES}
+    orchestrator = PipelineOrchestrator(repository, handlers, stages=STAGES, max_stage_retries=0)
+
+    with pytest.raises(RuntimeError, match="provider unavailable"):
+        orchestrator.run("run")
+
+    record = repository.get("run")
+    assert record is not None
+    assert record.state == "failed"
+    assert record.failure_code == "stage_failed"
+    assert record.failure_message is not None
+    assert secret not in record.failure_message
+    assert "provider unavailable" in record.failure_message
+    assert f"{key_name}=[REDACTED]" in record.failure_message
+
+
 def test_configuration_bounds_are_validated(tmp_path) -> None:
     repository = make_repository(tmp_path)
     handlers = {stage: lambda context: None for stage in STAGES}
