@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 
+from deeper_dive.llm import LLMRequest
 from deeper_dive.provider_factory import ProviderConfigurationError, ProviderFactory
 from deeper_dive.user_config import ProviderConfig, UserConfig
 
@@ -21,6 +24,18 @@ def test_factory_registers_configured_names_for_deterministic_providers() -> Non
     assert result.llm_registry.get("planner").models()[0].model == "fake-v2"
     assert result.tts_registry.provider_ids() == ("speech",)
     assert result.tts_providers["speech"].provider_id == "speech"
+
+
+def test_factory_fake_llm_can_drive_deterministic_episode_planning() -> None:
+    result = ProviderFactory(environ={}).build(
+        UserConfig(providers={"planner": ProviderConfig(provider_type="fake")})
+    )
+
+    response = result.llm_registry.get("planner").generate(LLMRequest(messages=()))
+    payload = json.loads(response.text)
+
+    assert payload["segments"][0]["title"] == "Overview"
+    assert payload["segments"][0]["target_duration_seconds"] == 1200
 
 
 def test_factory_builds_local_llm_adapters_without_contacting_network() -> None:
