@@ -14,6 +14,7 @@ from uuid import uuid4
 
 from deeper_dive import __version__
 from deeper_dive.application.service import DeeperDiveService, SourceImportSummary
+from deeper_dive.composition import ProductionComposition
 from deeper_dive.domain.clock import SystemClock, format_timestamp
 from deeper_dive.domain.ids import parse_project_id
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
@@ -24,7 +25,6 @@ from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.repositories import SourceRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord, GenerationRunRepository
-from deeper_dive.storage.workspace import WorkspaceManager
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -169,7 +169,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command is None:
         parser.print_help()
         return 0
-    service = DeeperDiveService(WorkspaceManager(args.data_dir))
+    composition = ProductionComposition.build(data_dir=args.data_dir)
+    service = composition.service
     try:
         if args.command == "project":
             return _project_command(service, args)
