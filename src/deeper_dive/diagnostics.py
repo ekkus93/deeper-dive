@@ -15,11 +15,20 @@ _ASSIGNMENT = re.compile(
     r"(?i)\b([A-Za-z0-9_-]*(?:authorization|api[-_]?key|token|secret|password|cookie)"
     r"[A-Za-z0-9_-]*)(\s*[:=]\s*)([^\s,;]+)"
 )
+_QUOTED_MAPPING_ASSIGNMENT = re.compile(
+    r"(?i)(['\"])([A-Za-z0-9_-]*(?:authorization|api[-_]?key|token|secret|password|cookie)"
+    r"[A-Za-z0-9_-]*)\1(\s*:\s*)(['\"])([^'\"]+)\4"
+)
 _CREDENTIAL_URL = re.compile(r"(?i)(https?://)([^/@\s:]+):([^/@\s]+)@")
 
 
 def _redact_text(value: str) -> str:
     value = _BEARER.sub("Bearer [REDACTED]", value)
+    value = _QUOTED_MAPPING_ASSIGNMENT.sub(
+        lambda match: f"{match.group(1)}{match.group(2)}{match.group(1)}"
+        f"{match.group(3)}{match.group(4)}[REDACTED]{match.group(4)}",
+        value,
+    )
     value = _ASSIGNMENT.sub(lambda match: f"{match.group(1)}{match.group(2)}[REDACTED]", value)
     return _CREDENTIAL_URL.sub(r"\1[REDACTED]@", value)
 
