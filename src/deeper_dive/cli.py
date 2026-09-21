@@ -21,6 +21,7 @@ from deeper_dive.hosts import HostProfile, create_host_from_preset, preset_names
 from deeper_dive.research_controller import PersistentResearchController
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.repositories import SourceRecord
+from deeper_dive.storage.run_repositories import GenerationRunRecord
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -476,7 +477,7 @@ def _episode_payload(
 
 def _status_payload(
     episode: EpisodeRecord,
-    run: object | None,
+    run: GenerationRunRecord | None,
 ) -> dict[str, object]:
     return {"episode": asdict(episode), "run": None if run is None else asdict(run)}
 
