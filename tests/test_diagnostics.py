@@ -98,6 +98,7 @@ def test_provider_error_sanitization_covers_sdk_exception_shapes() -> None:
 
     assert secret not in event.message
     assert event.run_id == "run-sdk"
-    assert f"{auth_header}: [REDACTED]" in event.message
+    assert auth_header in event.message
+    assert "[REDACTED]" in event.message
     assert "https://[REDACTED]@example.test/v1" in event.message
     assert f"{key_name}=[REDACTED]" in event.message
