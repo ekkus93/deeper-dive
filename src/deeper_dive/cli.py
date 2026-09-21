@@ -15,6 +15,7 @@ from uuid import uuid4
 from deeper_dive import __version__
 from deeper_dive.application.service import DeeperDiveService, SourceImportSummary
 from deeper_dive.composition import ProductionComposition
+from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.domain.clock import SystemClock, format_timestamp
 from deeper_dive.domain.ids import parse_project_id
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
@@ -184,7 +185,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _episode_command(service, args)
         return 2
     except (KeyError, OSError, RuntimeError, ValueError) as exc:
-        print(str(exc), file=sys.stderr)
+        print(sanitize_exception_message(exc), file=sys.stderr)
         return 2
 
 
