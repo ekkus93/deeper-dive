@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import suppress
+
 from deeper_dive.pipeline import PipelineContext, PipelineOrchestrator
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.run_repositories import GenerationRunRecord, GenerationRunRepository
@@ -43,10 +45,8 @@ def test_terminal_pipeline_failure_persists_only_sanitized_secret_text(tmp_path)
         max_stage_retries=0,
     )
 
-    try:
+    with suppress(RuntimeError):
         orchestrator.run("run")
-    except RuntimeError:
-        pass
 
     record = repository.get("run")
     assert record is not None
