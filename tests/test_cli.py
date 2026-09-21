@@ -119,10 +119,7 @@ def test_cli_source_file_directory_lifecycle_json(
     assert len(added["imported"]) == 2
     assert {item["disposition"] for item in added["candidates"]} == {"import"}
 
-    assert (
-        main(["--data-dir", str(tmp_path), "--json", "source", "list", project_id])
-        == 0
-    )
+    assert main(["--data-dir", str(tmp_path), "--json", "source", "list", project_id]) == 0
     sources = json.loads(capsys.readouterr().out)
     assert len(sources) == 2
     source_id = sources[0]["id"]
