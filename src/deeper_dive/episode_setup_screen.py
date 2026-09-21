@@ -9,9 +9,10 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
-from deeper_dive.composition import LLMEpisodePlanGenerator, ProductionComposition
+from deeper_dive.composition import LLMEpisodePlanGenerator
 from deeper_dive.diagnostics import sanitize_provider_error
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
+from deeper_dive.episode_planner import EpisodePlannerService
 from deeper_dive.model_roles import (
     ModelAssignment,
     ModelRole,
@@ -121,9 +122,9 @@ class EpisodeSetupScreen(Screen[None]):
             self._app.current_episode_id = episode.id
         try:
             provider = self._app.provider_controller.llm_registry.get(assignment.provider)
-            composition = ProductionComposition.build(service=self._app.service)
-            planner = composition.planning_service(
-                project_id, LLMEpisodePlanGenerator(provider, assignment.model)
+            planner = EpisodePlannerService(
+                Database(self._app.service.workspaces.project_root(project_id) / "project.db"),
+                LLMEpisodePlanGenerator(provider, assignment.model),
             )
             plan = planner.build_plan(episode.id)
         except (KeyError, ValueError, RuntimeError) as exc:
