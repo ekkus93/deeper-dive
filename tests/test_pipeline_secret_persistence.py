@@ -49,8 +49,9 @@ def test_pipeline_failure_never_persists_provider_secret(tmp_path) -> None:
     assert secret not in record.failure_message
     assert "[REDACTED]" in record.failure_message
 
-    row = database.connection.execute(
-        "SELECT failure_code, failure_message FROM generation_runs WHERE id = ?", ("run",)
-    ).fetchone()
+    with database.connection() as connection:
+        row = connection.execute(
+            "SELECT failure_code, failure_message FROM generation_runs WHERE id = ?", ("run",)
+        ).fetchone()
     assert row is not None
     assert secret not in str(tuple(row))
