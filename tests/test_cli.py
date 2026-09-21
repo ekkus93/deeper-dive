@@ -6,7 +6,10 @@ from pathlib import Path
 import pytest
 
 from deeper_dive import __version__
+from deeper_dive import cli as cli_module
 from deeper_dive.cli import main
+from deeper_dive.composition import ProductionComposition
+from deeper_dive.research_gaps import ResearchGap, ResearchGapCategory
 
 
 def test_cli_help_exits_successfully(capsys: pytest.CaptureFixture[str]) -> None:
@@ -179,3 +182,57 @@ def test_cli_source_add_url_is_supported_without_network_in_help(
     output = capsys.readouterr().out
     assert "--url" in output
     assert "HTTP/HTTPS" in output
+
+
+def test_cli_research_uses_production_composition_controller(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project = _create_project(tmp_path, capsys)
+    project_id = str(project["id"])
+    composition = ProductionComposition.build(data_dir=tmp_path)
+
+    class FakeResearchController:
+        def __init__(self) -> None:
+            self.analyzed: list[tuple[str, str]] = []
+
+        def analyze(self, requested_project_id: str, focus: str) -> tuple[ResearchGap, ...]:
+            self.analyzed.append((requested_project_id, focus))
+            return (
+                ResearchGap(
+                    id="gap-from-composition",
+                    project_id=requested_project_id,
+                    category=ResearchGapCategory.OTHER,
+                    rationale="created by composition controller",
+                    priority=3,
+                ),
+            )
+
+    controller = FakeResearchController()
+    composition.research_controller = controller  # type: ignore[assignment]
+    monkeypatch.setattr(
+        cli_module.ProductionComposition,
+        "build",
+        staticmethod(lambda data_dir=None: composition),
+    )
+
+    assert (
+        main(
+            [
+                "--data-dir",
+                str(tmp_path),
+                "--json",
+                "research",
+                "analyze",
+                project_id,
+                "--focus",
+                "missing context",
+            ]
+        )
+        == 0
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload[0]["id"] == "gap-from-composition"
+    assert controller.analyzed == [(project_id, "missing context")]
