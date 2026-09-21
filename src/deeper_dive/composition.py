@@ -12,17 +12,26 @@ from deeper_dive import model_roles
 from deeper_dive.application.events import ProgressSink
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.audio_playback import AudioPlaybackBackend, AudioPlaybackController
+from deeper_dive.domain.clock import SystemClock, format_timestamp
+from deeper_dive.domain.ids import new_run_id
 from deeper_dive.episode_planner import EpisodePlanGenerator, EpisodePlannerService
 from deeper_dive.export import EpisodeExporter
 from deeper_dive.generation_monitor import GenerationMonitorController
 from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
-from deeper_dive.pipeline import DEFAULT_STAGES, PipelineContext, PipelineOrchestrator, StageHandler
+from deeper_dive.pipeline import (
+    DEFAULT_STAGES,
+    PipelineContext,
+    PipelineOrchestrator,
+    PipelineResult,
+    StageHandler,
+)
+from deeper_dive.preflight import PreflightService
 from deeper_dive.preflight_screen import PreflightController
 from deeper_dive.provider_factory import ProviderBuildResult, ProviderFactory
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.research_controller import PersistentResearchController
 from deeper_dive.storage.database import Database
-from deeper_dive.storage.run_repositories import GenerationRunRepository
+from deeper_dive.storage.run_repositories import GenerationRunRecord, GenerationRunRepository
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.targeted_repair import (
     RepairRechecker,
@@ -72,6 +81,7 @@ class ProductionComposition:
     providers: ProviderBuildResult
     provider_controller: ProviderController
     research_controller: PersistentResearchController
+    preflight_service: PreflightService
     preflight_controller: PreflightController
     generation_monitor_controller: GenerationMonitorController
     benchmark_service: TTSBenchmarkService
@@ -113,6 +123,10 @@ class ProductionComposition:
             providers=providers,
             provider_controller=provider_controller,
             research_controller=research_controller,
+            preflight_service=PreflightService(
+                providers.llm_registry,
+                providers.tts_registry,
+            ),
             preflight_controller=PreflightController(),
             generation_monitor_controller=monitor_controller,
             benchmark_service=TTSBenchmarkService(),
@@ -161,6 +175,26 @@ class ProductionComposition:
             episode_overrides=episode_overrides or {},
         )
 
+    def generation_run_repository(self, project_id: str) -> GenerationRunRepository:
+        """Construct the production run-state repository for one project."""
+
+        return GenerationRunRepository(self.database_for_project(project_id))
+
+    def create_generation_run(self, project_id: str, episode_id: str) -> GenerationRunRecord:
+        """Create a durable pending generation run through the production composition path."""
+
+        timestamp = format_timestamp(SystemClock().now())
+        run = GenerationRunRecord(
+            id=str(new_run_id()),
+            episode_id=episode_id,
+            stage=DEFAULT_STAGES[0],
+            state="pending",
+            created_at=timestamp,
+            modified_at=timestamp,
+        )
+        self.generation_run_repository(project_id).create(run)
+        return run
+
     def pipeline_service(
         self,
         project_id: str,
@@ -170,8 +204,37 @@ class ProductionComposition:
     ) -> PipelineOrchestrator:
         """Construct durable orchestration with injectable idempotent stage handlers."""
 
-        repository = GenerationRunRepository(self.database_for_project(project_id))
-        return PipelineOrchestrator(repository, handlers, progress=progress)
+        return PipelineOrchestrator(
+            self.generation_run_repository(project_id),
+            handlers,
+            progress=progress,
+        )
+
+    def generation_pipeline(
+        self,
+        project_id: str,
+        *,
+        progress: ProgressSink | None = None,
+        handlers: Mapping[str, StageHandler] | None = None,
+    ) -> PipelineOrchestrator:
+        """Construct the production generation pipeline for one project."""
+
+        return self.pipeline_service(
+            project_id,
+            handlers or _production_stage_handlers(),
+            progress=progress,
+        )
+
+    def run_generation(
+        self,
+        project_id: str,
+        run_id: str,
+        *,
+        progress: ProgressSink | None = None,
+    ) -> PipelineResult:
+        """Execute a production-composed generation run to a terminal/control state."""
+
+        return self.generation_pipeline(project_id, progress=progress).run(run_id)
 
     def exporter(self, project_id: str) -> EpisodeExporter:
         """Construct the exporter rooted in the selected project workspace."""
