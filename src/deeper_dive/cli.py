@@ -326,11 +326,13 @@ def _episode_command(composition: ProductionComposition, args: argparse.Namespac
         return _output(_episode_payload(config_service, repository, episode), args.json_output)
     if args.episode_command == "plan":
         return _output(
-            asdict(_planner(composition, project_id).build_plan(episode.id)), args.json_output
+            asdict(_planner(composition, project_id).build_plan(episode.id)),
+            args.json_output,
         )
     if args.episode_command == "show-plan":
         return _output(
-            asdict(_planner(composition, project_id).load_plan(episode.id)), args.json_output
+            asdict(_planner(composition, project_id).load_plan(episode.id)),
+            args.json_output,
         )
     if args.episode_command == "generate":
         run = composition.create_generation_run(project_id, episode.id)
@@ -339,7 +341,10 @@ def _episode_command(composition: ProductionComposition, args: argparse.Namespac
     if args.episode_command in {"pause", "cancel", "resume", "status"}:
         return _episode_run_command(composition, episode, args)
     if args.episode_command == "export":
-        return _output(_export_episode(composition, project_id, episode, args.output_dir), args.json_output)
+        return _output(
+            _export_episode(composition, project_id, episode, args.output_dir),
+            args.json_output,
+        )
     return 2
 
 
