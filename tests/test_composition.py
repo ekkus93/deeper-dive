@@ -2,9 +2,14 @@ from __future__ import annotations
 
 import json
 
+from deeper_dive.application.events import ProgressEvent
 from deeper_dive.composition import LLMEpisodePlanGenerator, ProductionComposition
+from deeper_dive.domain.ids import new_episode_id, new_run_id
 from deeper_dive.llm import FakeLLMProvider
+from deeper_dive.pipeline import DEFAULT_STAGES
 from deeper_dive.provider_factory import ProviderFactory
+from deeper_dive.storage.episode_repositories import EpisodeRecord
+from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
@@ -82,3 +87,40 @@ def test_configured_planning_service_resolves_persisted_provider(tmp_path) -> No
     assert isinstance(planner.generator, LLMEpisodePlanGenerator)
     assert planner.generator.provider.provider_id == "planner"
     assert planner.generator.model == "fake-v1"
+
+
+def test_production_composition_monitor_runner_executes_durable_pipeline(tmp_path) -> None:
+    composition = ProductionComposition.build(
+        tmp_path / "data",
+        provider_factory=ProviderFactory(environ={}),
+    )
+    project = composition.service.create_project("Monitor runner")
+    timestamp = "2026-09-20T00:00:00.000000Z"
+    episode_id = str(new_episode_id())
+    composition.service.hosts(project.id).create_episode(
+        EpisodeRecord(
+            id=episode_id,
+            project_id=project.id,
+            title="Episode",
+            created_at=timestamp,
+            modified_at=timestamp,
+        ),
+        [],
+    )
+    run_id = str(new_run_id())
+    repository = composition.service.runs(project.id)
+    repository.create(
+        GenerationRunRecord(run_id, episode_id, "sources", "pending", timestamp, timestamp)
+    )
+    runner = composition.generation_monitor_controller.runner
+    events: list[ProgressEvent] = []
+
+    assert runner is not None
+    runner(run_id, events.append)
+
+    run = repository.get(run_id)
+    assert run is not None
+    assert run.state == "completed"
+    assert repository.list_completed_stages(run_id) == list(DEFAULT_STAGES)
+    assert events[-1].operation == "pipeline"
+    assert events[-1].state == "completed"
