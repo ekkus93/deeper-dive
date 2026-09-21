@@ -40,23 +40,17 @@ class PlaybackState:
 
 class AudioPlaybackBackend(Protocol):
     @property
-    def capabilities(self) -> PlaybackCapabilities:
-        ...
+    def capabilities(self) -> PlaybackCapabilities: ...
 
-    def play(self, audio_path: Path, *, start_seconds: float = 0.0) -> PlaybackState:
-        ...
+    def play(self, audio_path: Path, *, start_seconds: float = 0.0) -> PlaybackState: ...
 
-    def pause(self) -> PlaybackState:
-        ...
+    def pause(self) -> PlaybackState: ...
 
-    def resume(self) -> PlaybackState:
-        ...
+    def resume(self) -> PlaybackState: ...
 
-    def stop(self) -> PlaybackState:
-        ...
+    def stop(self) -> PlaybackState: ...
 
-    def is_running(self) -> bool:
-        ...
+    def is_running(self) -> bool: ...
 
 
 class NoAudioPlayerBackend:
@@ -118,6 +112,7 @@ class LocalProcessAudioPlayer:
     """Best-effort local playback through an installed terminal-capable player."""
 
     _CANDIDATES = ("mpv", "ffplay", "cvlc", "vlc")
+    _STOP_TIMEOUT_SECONDS = 2.0
 
     def __init__(self, executable: Path, *, strategy: str) -> None:
         self.executable = executable
@@ -214,6 +209,11 @@ class LocalProcessAudioPlayer:
         process = self._process
         if process is not None and process.poll() is None:
             process.terminate()
+            try:
+                process.wait(timeout=self._STOP_TIMEOUT_SECONDS)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=self._STOP_TIMEOUT_SECONDS)
         self._process = None
         return PlaybackState(
             available=True,

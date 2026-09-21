@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 from deeper_dive.audio_playback import (
     AudioPlaybackController,
+    LocalProcessAudioPlayer,
     NoAudioPlayerBackend,
     PlaybackCapabilities,
     PlaybackState,
@@ -50,6 +52,29 @@ class FakePlaybackBackend:
         return self.running
 
 
+class FakeProcess:
+    def __init__(self, *, time_out_once: bool = False) -> None:
+        self.time_out_once = time_out_once
+        self.terminated = False
+        self.killed = False
+        self.wait_timeouts: list[float] = []
+
+    def poll(self) -> None:
+        return None
+
+    def terminate(self) -> None:
+        self.terminated = True
+
+    def kill(self) -> None:
+        self.killed = True
+
+    def wait(self, timeout: float) -> int:
+        self.wait_timeouts.append(timeout)
+        if self.time_out_once and len(self.wait_timeouts) == 1:
+            raise subprocess.TimeoutExpired("fake-player", timeout)
+        return 0
+
+
 def test_missing_player_is_nonfatal(tmp_path: Path) -> None:
     audio_path = tmp_path / "episode.mp3"
     controller = AudioPlaybackController(NoAudioPlayerBackend())
@@ -74,3 +99,34 @@ def test_play_pause_resume_seek_with_capable_backend(tmp_path: Path) -> None:
     assert controller.seek(audio_path, start_seconds=42.25).position_seconds == 42.25
     assert controller.stop().message == "stopped"
     assert backend.calls == [(audio_path, 3.0), (audio_path, 42.25)]
+
+
+def test_local_player_stop_waits_after_terminate() -> None:
+    player = LocalProcessAudioPlayer(Path("/fake/mpv"), strategy="mpv")
+    process = FakeProcess()
+    player._process = process  # type: ignore[assignment]
+
+    state = player.stop()
+
+    assert process.terminated
+    assert not process.killed
+    assert process.wait_timeouts == [player._STOP_TIMEOUT_SECONDS]
+    assert not state.playing
+    assert player._process is None
+
+
+def test_local_player_stop_escalates_to_kill_after_timeout() -> None:
+    player = LocalProcessAudioPlayer(Path("/fake/mpv"), strategy="mpv")
+    process = FakeProcess(time_out_once=True)
+    player._process = process  # type: ignore[assignment]
+
+    state = player.stop()
+
+    assert process.terminated
+    assert process.killed
+    assert process.wait_timeouts == [
+        player._STOP_TIMEOUT_SECONDS,
+        player._STOP_TIMEOUT_SECONDS,
+    ]
+    assert not state.playing
+    assert player._process is None
