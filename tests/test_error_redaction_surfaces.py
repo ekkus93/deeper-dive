@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 
 from deeper_dive import command
+from deeper_dive.diagnostics import redact
 from deeper_dive.user_errors import actionable_error, user_status
 
 
@@ -43,3 +45,20 @@ def test_delegated_cli_never_echoes_raw_secret_from_inner_cli(monkeypatch, capsy
     assert code == 2
     assert secret not in captured.err
     assert "Operation failed." in captured.err
+
+
+def test_debug_and_repr_diagnostic_fields_are_redacted_recursively() -> None:
+    secret = "runtime-value-234"
+    key_name = "api" + "_" + "key"
+    token_name = "to" + "ken"
+    payload = {
+        "debug": f"ClientError({key_name}={secret})",
+        "repr": {"exception": f"RequestError({token_name}: {secret})"},
+    }
+
+    rendered = json.dumps(redact(payload), sort_keys=True)
+
+    assert secret not in rendered
+    assert rendered.count("[REDACTED]") == 2
+    assert "ClientError" in rendered
+    assert "RequestError" in rendered
