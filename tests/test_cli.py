@@ -72,6 +72,27 @@ def test_cli_missing_project_uses_stderr_and_nonzero(
     assert "project not found" in captured.err
 
 
+def test_cli_visible_errors_are_sanitized(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    secret = "cli-runtime-value-321"
+    key_name = "api" + "_" + "key"
+
+    def fail_command(service: object, args: object) -> int:
+        raise RuntimeError(f"provider failed {key_name}={secret}")
+
+    monkeypatch.setattr(cli_module, "_project_command", fail_command)
+
+    assert main(["--data-dir", str(tmp_path), "project", "list"]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert secret not in captured.err
+    assert "provider failed" in captured.err
+    assert f"{key_name}=[REDACTED]" in captured.err
+
+
 def test_cli_source_file_directory_lifecycle_json(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
