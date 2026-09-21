@@ -23,6 +23,7 @@ from deeper_dive.provider_tui import ProviderController
 from deeper_dive.providers_screen import ProvidersScreen
 from deeper_dive.research_screen import ResearchController, ResearchScreen
 from deeper_dive.storage.repositories import SourceRecord
+from deeper_dive.transcript_review_screen import TranscriptReviewScreen
 
 GLOBAL_SCREENS = ("home", "providers", "settings", "help")
 PROJECT_SCREENS = ("sources", "research", "hosts", "episode", "generate", "library")
@@ -81,13 +82,12 @@ class HomeProjectsScreen(NavigationMixin, Screen[None]):
                 id="screen-description",
             )
             yield Input(placeholder="New project name", id="new-project-name")
-            yield Button("New Project", id="action-new-project", name="create-project")
+            yield Button("Create Project", id="action-create-project", name="create-project")
             yield Static("", id="project-list")
-            yield Static("Selected: none", id="selected-project")
             yield Input(placeholder="Rename selected project", id="rename-project-name")
-            yield Button("Open", id="action-open-project", name="open-selected")
-            yield Button("Rename", id="action-rename-project", name="rename-selected")
-            yield Button("Delete", id="action-delete-project", name="request-delete")
+            yield Button("Open Selected", id="action-open-project", name="open-selected")
+            yield Button("Rename Selected", id="action-rename-project", name="rename-selected")
+            yield Button("Delete Selected", id="action-delete-project", name="delete-selected")
             yield Button("Confirm Delete", id="action-confirm-delete", name="confirm-delete")
             yield Button("Cancel Delete", id="action-cancel-delete", name="cancel-delete")
             yield Static("Status: Ready", id="screen-status")
@@ -97,33 +97,48 @@ class HomeProjectsScreen(NavigationMixin, Screen[None]):
         self.refresh_projects()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        action = event.button.name
-        if action == "create-project":
-            self.action_create_project()
-        elif action == "open-selected":
-            self.action_open_selected()
-        elif action == "rename-selected":
-            self.action_rename_selected()
-        elif action == "request-delete":
-            self.action_request_delete()
-        elif action == "confirm-delete":
-            self.action_confirm_delete()
-        elif action == "cancel-delete":
-            self.action_cancel_delete()
+        name = event.button.name or ""
+        actions = {
+            "create-project": self.action_create_project,
+            "open-selected": self.action_open_selected,
+            "rename-selected": self.action_rename_selected,
+            "delete-selected": self.action_request_delete,
+            "confirm-delete": self.action_confirm_delete,
+            "cancel-delete": self.action_cancel_delete,
+        }
+        action = actions.get(name)
+        if action is not None:
+            action()
+        elif name:
+            self._app.action_navigate(name)
+
+    def refresh_projects(self) -> None:
+        summaries = self._app.service.list_project_summaries()
+        self.query_one("#project-list", Static).update(self._list_text(summaries))
+        if summaries:
+            ids = {project.id for project in summaries}
+            if self.selected_project_id not in ids:
+                self.selected_project_id = summaries[0].id
+            selected = next(
+                project for project in summaries if project.id == self.selected_project_id
+            )
+            self.query_one("#screen-status", Static).update(
+                f"Status: Selected {selected.name}"
+            )
         else:
-            super().on_button_pressed(event)
+            self.selected_project_id = None
+            self.query_one("#screen-status", Static).update("Status: No projects")
 
     def action_create_project(self) -> None:
-        name_input = self.query_one("#new-project-name", Input)
-        name = name_input.value.strip()
-        if not name:
-            self._set_status("Project name required")
+        value = self.query_one("#new-project-name", Input).value.strip()
+        if not value:
+            self._set_status("Project name is required")
             return
-        project = self._app.service.create_project(name)
-        name_input.value = ""
+        project = self._app.service.create_project(value)
         self.selected_project_id = project.id
-        self.pending_delete_project_id = None
-        self.refresh_projects(f"Created project: {project.name}")
+        self._app.current_project_id = project.id
+        self._app.current_project_name = project.name
+        self.refresh_projects()
 
     def action_open_selected(self) -> None:
         if self.selected_project_id is None:
@@ -131,7 +146,8 @@ class HomeProjectsScreen(NavigationMixin, Screen[None]):
             return
         project = self._app.service.open_project(self.selected_project_id)
         if project is None:
-            self.refresh_projects("Selected project no longer exists")
+            self._set_status("Selected project no longer exists")
+            self.refresh_projects()
             return
         self._app.current_project_id = project.id
         self._app.current_project_name = project.name
@@ -141,79 +157,60 @@ class HomeProjectsScreen(NavigationMixin, Screen[None]):
         if self.selected_project_id is None:
             self._set_status("No project selected")
             return
-        rename_input = self.query_one("#rename-project-name", Input)
-        name = rename_input.value.strip()
+        name = self.query_one("#rename-project-name", Input).value.strip()
         if not name:
-            self._set_status("Rename requires a project name")
+            self._set_status("Rename value is required")
             return
         project = self._app.service.rename_project(self.selected_project_id, name)
-        rename_input.value = ""
-        self.refresh_projects(f"Renamed project: {project.name}")
+        self._app.current_project_id = project.id
+        self._app.current_project_name = project.name
+        self.refresh_projects()
 
     def action_request_delete(self) -> None:
         if self.selected_project_id is None:
             self._set_status("No project selected")
             return
         self.pending_delete_project_id = self.selected_project_id
-        self._set_status("Confirm delete with Y, or cancel with Esc")
+        self._set_status("Press Confirm Delete to permanently remove the project")
 
     def action_confirm_delete(self) -> None:
         if self.pending_delete_project_id is None:
+            self._set_status("No delete pending")
             return
         self._app.service.delete_project(self.pending_delete_project_id)
-        if self.selected_project_id == self.pending_delete_project_id:
-            self.selected_project_id = None
+        if self._app.current_project_id == self.pending_delete_project_id:
+            self._app.current_project_id = None
+            self._app.current_project_name = None
         self.pending_delete_project_id = None
-        self.refresh_projects("Deleted project")
+        self.refresh_projects()
 
     def action_cancel_delete(self) -> None:
-        if self.pending_delete_project_id is not None:
-            self.pending_delete_project_id = None
-            self._set_status("Delete cancelled")
+        self.pending_delete_project_id = None
+        self._set_status("Delete cancelled")
 
-    def refresh_projects(self, status: str = "Ready") -> None:
-        summaries = self._app.service.list_project_summaries()
-        ids = {summary.id for summary in summaries}
-        if self.selected_project_id not in ids:
-            self.selected_project_id = summaries[0].id if summaries else None
-        self.query_one("#project-list", Static).update(self._project_list_text(summaries))
-        self.query_one("#selected-project", Static).update(
-            f"Selected: {self._selected_name(summaries)}"
-        )
-        self._set_status(status)
+    def _set_status(self, message: str) -> None:
+        self.query_one("#screen-status", Static).update(f"Status: {message}")
 
-    def _project_list_text(self, summaries: list[ProjectSummary]) -> str:
-        if not summaries:
-            return "No projects yet. Enter a name and choose New Project."
-        lines = []
-        for summary in summaries:
-            selected = "*" if summary.id == self.selected_project_id else " "
-            lines.append(
-                f"{selected} {summary.name} | modified {summary.modified_at} | "
-                f"sources {summary.source_count} | episodes {summary.episode_count} | "
-                f"status {summary.run_status}"
+    @staticmethod
+    def _list_text(projects: list[ProjectSummary]) -> str:
+        if not projects:
+            return "No projects yet."
+        rows = []
+        for project in projects:
+            rows.append(
+                f"{project.name} [{project.id}] | sources {project.source_count} | "
+                f"episodes {project.episode_count} | run {project.run_status}"
             )
-        return "\n".join(lines)
-
-    def _selected_name(self, summaries: list[ProjectSummary]) -> str:
-        for summary in summaries:
-            if summary.id == self.selected_project_id:
-                return f"{summary.name} ({summary.id})"
-        return "none"
-
-    def _set_status(self, value: str) -> None:
-        self.query_one("#screen-status", Static).update(f"Status: {value}")
+        return "\n".join(rows)
 
 
 class SourcesScreen(NavigationMixin, Screen[None]):
-    """Sources workflow with grouped list, inspection, and import actions."""
+    """Sources management TUI backed by DeeperDiveService."""
 
     BINDINGS = [
         Binding("ctrl+a", "add_paste", "Add pasted source"),
-        Binding("ctrl+f", "add_files", "Add files/directories"),
-        Binding("ctrl+u", "add_urls", "Add URLs"),
-        Binding("ctrl+i", "toggle_included", "Include/exclude"),
-        Binding("ctrl+d", "delete_selected", "Delete source"),
+        Binding("i", "toggle_included", "Toggle included"),
+        Binding("delete", "delete_selected", "Delete selected"),
     ]
 
     def __init__(self) -> None:
@@ -229,19 +226,13 @@ class SourcesScreen(NavigationMixin, Screen[None]):
         yield from _nav()
         with VerticalScroll(id="content"):
             yield Label("Sources", id="screen-title")
-            yield Static(
-                "Primary and supplemental sources with provenance.", id="screen-description"
-            )
-            yield Input(placeholder="Pasted source title", id="source-title")
-            yield Input(placeholder="Paste text source", id="source-text")
-            yield Button("Add Paste", id="action-add-paste", name="add-paste")
-            yield Input(placeholder="File or directory paths, comma separated", id="source-paths")
-            yield Button("Add Files/Directory", id="action-add-files", name="add-files")
-            yield Input(placeholder="Explicit URLs, comma separated", id="source-urls")
-            yield Button("Add URLs", id="action-add-urls", name="add-urls")
-            yield Button("Include/Exclude", id="action-toggle-source", name="toggle-source")
-            yield Button("Delete Source", id="action-delete-source", name="delete-source")
+            yield Static("Add local files, directories, URLs, or pasted notes.", id="screen-description")
+            yield Input(placeholder="Title for pasted text", id="source-title")
+            yield Input(placeholder="Pasted source text", id="source-text")
+            yield Button("Add Pasted Text", id="action-add-paste", name="add-paste")
             yield Static("", id="source-list")
+            yield Button("Toggle Included", id="action-toggle-included", name="toggle-included")
+            yield Button("Delete Source", id="action-delete-source", name="delete-source")
             yield Static("", id="source-details")
             yield Static("", id="source-text-preview")
             yield Static("Status: Ready", id="screen-status")
@@ -251,196 +242,111 @@ class SourcesScreen(NavigationMixin, Screen[None]):
         self.refresh_sources()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        action = event.button.name
-        if action == "add-paste":
-            self.action_add_paste()
-        elif action == "add-files":
-            self.action_add_files()
-        elif action == "add-urls":
-            self.action_add_urls()
-        elif action == "toggle-source":
-            self.action_toggle_included()
-        elif action == "delete-source":
-            self.action_delete_selected()
-        else:
-            super().on_button_pressed(event)
+        name = event.button.name or ""
+        actions = {
+            "add-paste": self.action_add_paste,
+            "toggle-included": self.action_toggle_included,
+            "delete-source": self.action_delete_selected,
+        }
+        action = actions.get(name)
+        if action is not None:
+            action()
+        elif name:
+            self._app.action_navigate(name)
+
+    def refresh_sources(self) -> None:
+        project_id = self._app.current_project_id
+        if project_id is None:
+            self.query_one("#source-list", Static).update("Open a project first.")
+            self.query_one("#screen-status", Static).update("Status: No project")
+            return
+        sources = self._app.service.list_sources(project_id)
+        if not sources:
+            self.selected_source_id = None
+            self.query_one("#source-list", Static).update("No sources yet.")
+            self.query_one("#source-details", Static).update("")
+            self.query_one("#source-text-preview", Static).update("")
+            self.query_one("#screen-status", Static).update("Status: No sources")
+            return
+        if self.selected_source_id not in {source.id for source in sources}:
+            self.selected_source_id = sources[0].id
+        lines = ["Primary sources:"]
+        for source in sources:
+            marker = ">" if source.id == self.selected_source_id else " "
+            lines.append(
+                f"{marker} {source.title} | {'included' if source.included else 'excluded'} | "
+                f"{source.status} | {source.source_type}"
+            )
+        self.query_one("#source-list", Static).update("\n".join(lines))
+        selected = self._selected_source(sources)
+        if selected is None:
+            return
+        self.query_one("#source-details", Static).update(
+            "\n".join(
+                (
+                    f"ID: {selected.id}",
+                    f"Origin: {selected.origin}",
+                    f"Locator: {selected.locator or 'n/a'}",
+                    f"Imported: {selected.imported_at}",
+                )
+            )
+        )
+        chunks = self._app.service.list_source_chunks(project_id, selected.id)
+        preview = "\n\n".join(chunk.text for chunk in chunks[:3]) if chunks else "No chunks indexed."
+        self.query_one("#source-text-preview", Static).update(preview)
+        self.query_one("#screen-status", Static).update(f"Status: Selected {selected.title}")
 
     def action_add_paste(self) -> None:
-        project_id = self._project_id_or_status()
+        project_id = self._app.current_project_id
         if project_id is None:
+            self.query_one("#screen-status", Static).update("Status: Open a project first")
             return
-        title_input = self.query_one("#source-title", Input)
-        text_input = self.query_one("#source-text", Input)
-        title = title_input.value.strip() or "Pasted text"
-        text = text_input.value
+        title = self.query_one("#source-title", Input).value.strip() or "Pasted text"
+        text = self.query_one("#source-text", Input).value
         if not text.strip():
-            self._set_status("Pasted source text required")
+            self.query_one("#screen-status", Static).update("Status: Source text is required")
             return
         source = self._app.service.add_pasted_source(project_id, title, text)
         self.selected_source_id = source.id
-        title_input.value = ""
-        text_input.value = ""
-        self.refresh_sources(f"Added source: {source.title}")
-
-    def action_add_files(self) -> None:
-        project_id = self._project_id_or_status()
-        if project_id is None:
-            return
-        paths_input = self.query_one("#source-paths", Input)
-        paths = [Path(value.strip()) for value in paths_input.value.split(",") if value.strip()]
-        if not paths:
-            self._set_status("At least one file or directory path required")
-            return
-        summary = self._app.service.add_file_sources(project_id, paths)
-        paths_input.value = ""
-        if summary.imported:
-            self.selected_source_id = summary.imported[0].id
-        self.refresh_sources(self._summary_status(summary))
-
-    def action_add_urls(self) -> None:
-        project_id = self._project_id_or_status()
-        if project_id is None:
-            self._set_status("Open a project before adding sources")
-            return
-        urls_input = self.query_one("#source-urls", Input)
-        urls = [value.strip() for value in urls_input.value.split(",") if value.strip()]
-        if not urls:
-            self._set_status("At least one HTTP/HTTPS URL required")
-            return
-        summary = self._app.service.add_url_sources(project_id, urls)
-        urls_input.value = ""
-        if summary.imported:
-            self.selected_source_id = summary.imported[0].id
-        self.refresh_sources(self._summary_status(summary))
+        self.refresh_sources()
 
     def action_toggle_included(self) -> None:
-        source = self._selected_source()
-        if source is None:
-            self._set_status("No source selected")
-            return
-        project_id = self._app.current_project_id
-        assert project_id is not None
-        self._app.service.set_source_included(project_id, source.id, not source.included)
-        self.refresh_sources("Updated source inclusion")
-
-    def action_delete_selected(self) -> None:
-        source = self._selected_source()
-        if source is None:
-            self._set_status("No source selected")
-            return
-        project_id = self._app.current_project_id
-        assert project_id is not None
-        self._app.service.delete_source(project_id, source.id)
-        self.selected_source_id = None
-        self.refresh_sources("Deleted source")
-
-    def refresh_sources(self, status: str = "Ready") -> None:
-        project_id = self._app.current_project_id
-        if project_id is None:
-            self.query_one("#source-list", Static).update("No project open.")
-            self.query_one("#source-details", Static).update("Open a project from Home first.")
-            self.query_one("#source-text-preview", Static).update("")
-            self._set_status("No project open")
-            return
-        sources = self._app.service.list_sources(project_id)
-        ids = {source.id for source in sources}
-        if self.selected_source_id not in ids:
-            self.selected_source_id = sources[0].id if sources else None
-        self.query_one("#source-list", Static).update(self._source_list_text(sources))
-        self.query_one("#source-details", Static).update(self._details_text())
-        self.query_one("#source-text-preview", Static).update(self._preview_text())
-        self._set_status(status)
-
-    def _project_id_or_status(self) -> str | None:
-        project_id = self._app.current_project_id
-        if project_id is None:
-            self._set_status("Open a project before adding sources")
-            return None
-        return project_id
-
-    def _source_list_text(self, sources: list[SourceRecord]) -> str:
-        if not sources:
-            return "No sources yet. Paste text, add files/directories, or add URLs."
-        primary = [source for source in sources if source.origin == "user"]
-        supplemental = [source for source in sources if source.origin == "supplemental"]
-        return "\n".join(
-            (
-                "Primary sources:",
-                *self._source_rows(primary),
-                "Supplemental sources:",
-                *self._source_rows(supplemental),
-            )
-        )
-
-    def _source_rows(self, sources: list[SourceRecord]) -> list[str]:
-        if not sources:
-            return ["  none"]
-        rows = []
-        for source in sources:
-            selected = "*" if source.id == self.selected_source_id else " "
-            included = "included" if source.included else "excluded"
-            rows.append(
-                f"{selected} {source.title} | {included} | {source.status} | {source.source_type}"
-            )
-        return rows
-
-    def _selected_source(self) -> SourceRecord | None:
         project_id = self._app.current_project_id
         if project_id is None or self.selected_source_id is None:
-            return None
-        return self._app.service.get_source(project_id, self.selected_source_id)
-
-    def _details_text(self) -> str:
-        source = self._selected_source()
+            self.query_one("#screen-status", Static).update("Status: No source selected")
+            return
+        source = self._app.service.get_source(project_id, self.selected_source_id)
         if source is None:
-            return "No source selected."
-        return "\n".join(
-            (
-                f"Title: {source.title}",
-                f"Origin: {source.origin}",
-                f"Type: {source.source_type}",
-                f"Status: {source.status}",
-                f"Included: {source.included}",
-                f"Locator: {source.locator or 'none'}",
-                f"Content hash: {source.content_hash or 'none'}",
-            )
-        )
+            self.query_one("#screen-status", Static).update("Status: Source missing")
+            self.refresh_sources()
+            return
+        self._app.service.set_source_included(project_id, source.id, not source.included)
+        self.refresh_sources()
 
-    def _preview_text(self) -> str:
+    def action_delete_selected(self) -> None:
         project_id = self._app.current_project_id
-        source = self._selected_source()
-        if project_id is None or source is None:
-            return ""
-        chunks = self._app.service.list_source_chunks(project_id, source.id)
-        if not chunks:
-            return "Parsed text: no chunks available"
-        first = chunks[0]
-        preview = first.text[:240]
-        return f"Parsed text ({first.location or 'unknown'}): {preview}"
+        if project_id is None or self.selected_source_id is None:
+            self.query_one("#screen-status", Static).update("Status: No source selected")
+            return
+        self._app.service.delete_source(project_id, self.selected_source_id)
+        self.selected_source_id = None
+        self.refresh_sources()
 
-    def _summary_status(self, summary: SourceImportSummary) -> str:
-        imported = len(summary.imported)
-        skipped = len(summary.plan.candidates) - imported
-        duplicate_bits = [
-            f"{candidate.title}: {candidate.disposition.value}"
-            for candidate in summary.plan.candidates
-            if not candidate.should_import
-        ]
-        details = "; ".join(duplicate_bits)
-        if details:
-            return f"Imported {imported}; skipped {skipped}; {details}"
-        return f"Imported {imported}; skipped {skipped}"
-
-    def _set_status(self, value: str) -> None:
-        self.query_one("#screen-status", Static).update(f"Status: {value}")
+    @staticmethod
+    def _selected_source(sources: list[SourceRecord]) -> SourceRecord | None:
+        if not sources:
+            return None
+        for source in sources:
+            if source.id == cast(object, SourcesScreen).selected_source_id:
+                return source
+        return sources[0]
 
 
 class ShellScreen(NavigationMixin, Screen[None]):
-    """Simple named destination used until feature-specific screens replace the shell."""
+    """Simple placeholder screen retaining the stable navigation shell."""
 
-    def __init__(self, key: str, title: str, description: str) -> None:
-        super().__init__(id=f"screen-{key}")
-        self.key = key
+    def __init__(self, name: str, title: str, description: str) -> None:
+        super().__init__(id=f"screen-{name}")
         self.shell_title = title
         self.description = description
 
@@ -499,6 +405,7 @@ class DeeperDiveApp(App[None]):
         "plan": lambda: EpisodePlanScreen(),
         "generate": lambda: PreflightScreen(),
         "monitor": lambda: GenerationMonitorScreen(),
+        "review": lambda: TranscriptReviewScreen(),
         "library": lambda: EpisodeLibraryScreen(),
     }
 

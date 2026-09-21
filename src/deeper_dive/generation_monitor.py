@@ -219,13 +219,10 @@ class GenerationMonitorScreen(Screen[None]):
         self.refresh_monitor("Cancel requested; current provider call may finish first")
 
     def action_view_transcript(self) -> None:
-        snapshot = self._app.generation_monitor_controller.snapshot(self._app)
-        text = (
-            "\n".join(snapshot.recent_turns)
-            if snapshot.recent_turns
-            else "Transcript not available yet."
-        )
-        self.query_one("#diagnostics-summary", Static).update("Transcript preview:\n" + text)
+        if self._app.current_episode_id is None:
+            self._status("No episode selected")
+            return
+        self._app.action_navigate("review")
 
     def action_diagnostics(self) -> None:
         run = self._run()
