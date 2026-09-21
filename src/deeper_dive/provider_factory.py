@@ -44,6 +44,11 @@ TTS_PROVIDER_TYPES = frozenset(
     }
 )
 LEGACY_PROVIDER_TYPES = frozenset({"llm", "tts"})
+FAKE_PLAN_RESPONSE = (
+    '{"segments":[{"title":"Overview","purpose":"Summarize the configured episode",'
+    '"target_duration_seconds":1200,"questions":["What should listeners understand first?"],'
+    '"evidence_ids":[],"lead_host_ids":[]}]}'
+)
 
 
 class ProviderConfigurationError(ValueError):
@@ -172,7 +177,7 @@ class ProviderFactory:
     def _llm(self, kind: str, config: ProviderConfig) -> LLMProvider:
         model = self._model(config, kind)
         if kind == "fake":
-            return FakeLLMProvider(model=model)
+            return FakeLLMProvider(model=model, response=FAKE_PLAN_RESPONSE)
         if kind == "ollama":
             return OllamaLLMProvider(
                 model=model,
