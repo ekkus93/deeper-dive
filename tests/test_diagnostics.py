@@ -64,14 +64,14 @@ def test_redact_covers_assignment_forms_and_credential_bearing_urls() -> None:
     secret = "runtime-value-789"
     key_name = "api" + "_" + "key"
     token_name = "to" + "ken"
-    auth_scheme = "Bear" + "er"
+    auth_scheme = "Author" + "ization"
     payload = redact(
         {
             "message": (
                 f"{key_name}={secret}; {token_name}: {secret}; "
                 f"download=https://user:{secret}@example.test/private"
             ),
-            "nested": [f"SERVICE_{token_name.upper()}={secret}", f"Authorization: {auth_scheme} {secret}"],
+            "nested": [f"SERVICE_{token_name.upper()}={secret}", f"{auth_scheme}: Bearer {secret}"],
         }
     )
     text = json.dumps(payload, sort_keys=True)
@@ -80,4 +80,4 @@ def test_redact_covers_assignment_forms_and_credential_bearing_urls() -> None:
     assert f"{key_name}=[REDACTED]" in text
     assert f"{token_name}: [REDACTED]" in text
     assert "https://[REDACTED]@example.test/private" in text
-    assert f"{auth_scheme} [REDACTED]" in text
+    assert f"{auth_scheme}: [REDACTED]" in text
