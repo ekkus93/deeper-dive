@@ -16,7 +16,9 @@ def _service() -> PreflightService:
 
 
 def _assignments() -> ModelRoleAssignments:
-    return ModelRoleAssignments(user={role: ModelAssignment("fake", "fake-v1") for role in ModelRole})
+    return ModelRoleAssignments(
+        user={role: ModelAssignment("fake", "fake-v1") for role in ModelRole}
+    )
 
 
 def _host() -> HostProfile:
