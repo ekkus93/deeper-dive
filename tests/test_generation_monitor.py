@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -53,6 +54,32 @@ async def _monitor_renders_durable_progress_and_controls(tmp_path: Path) -> None
         screen.action_view_transcript()
         await pilot.pause()
         assert isinstance(app.screen, TranscriptReviewScreen)
+
+
+def test_monitor_rejects_resume_when_run_is_not_paused(tmp_path: Path) -> None:
+    asyncio.run(_monitor_rejects_resume_when_run_is_not_paused(tmp_path))
+
+
+async def _monitor_rejects_resume_when_run_is_not_paused(tmp_path: Path) -> None:
+    service, project_id, episode_id, run_id = _fixture(tmp_path)
+    repository = service.runs(project_id)
+    run = repository.get(run_id)
+    assert run is not None
+    repository.update(replace(run, state="completed", pause_requested=False))
+    app = DeeperDiveApp(service, generation_monitor_controller=GenerationMonitorController())
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.current_project_id = project_id
+        app.current_episode_id = episode_id
+        app.current_run_id = run_id
+        app.action_navigate("monitor")
+        await pilot.pause()
+        screen = _monitor(app)
+        screen.action_resume()
+        await pilot.pause()
+        assert "Only paused or pause-requested runs can resume" in _text(
+            screen, "#screen-status"
+        )
+        assert repository.get(run_id).state == "completed"  # type: ignore[union-attr]
 
 
 def test_long_running_fake_provider_does_not_block_tui(tmp_path: Path) -> None:
