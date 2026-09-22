@@ -36,6 +36,8 @@ class EpisodeLibraryExportService:
         project_id: str,
         episode: EpisodeRecord,
         run: GenerationRunRecord | None,
+        *,
+        output_dir: Path | None = None,
     ) -> EpisodeExportResult:
         if episode.project_id != project_id:
             raise ValueError("selected episode does not belong to the open project")
@@ -48,7 +50,7 @@ class EpisodeLibraryExportService:
 
         root = self.workspaces.project_root(project_id)
         database = Database(root / "project.db")
-        exporter = EpisodeExporter(root / "exports")
+        exporter = EpisodeExporter(output_dir or root / "exports")
         stem = exporter.reserve_stem(f"{episode.title}-{episode.id}")
         turns = self._turns(database, episode.id)
         if not turns:
