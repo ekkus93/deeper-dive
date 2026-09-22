@@ -119,7 +119,7 @@ async def _monitor_binds_conversation_state_and_recent_turns(tmp_path: Path) -> 
         app.action_navigate("monitor")
         await pilot.pause()
         screen = _monitor(app)
-        assert "segment 2 / turn 3" in _text(screen, "#current-work")
+        assert "Current section/turn: 2 / 3" in _text(screen, "#current-work")
         recent = _text(screen, "#recent-turns")
         assert "turn-1: First durable monitor turn." in recent
         assert "turn-2: Second durable monitor turn." in recent
