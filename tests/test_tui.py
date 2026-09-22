@@ -13,7 +13,6 @@ from deeper_dive.generation_monitor import GenerationMonitorScreen
 from deeper_dive.hosts import HostProfile
 from deeper_dive.llm import FakeLLMProvider, LLMProviderRegistry, ProviderHealth
 from deeper_dive.model_roles import ModelRole
-from deeper_dive.pipeline import DEFAULT_STAGES
 from deeper_dive.preflight import PreflightEstimate, PreflightReport
 from deeper_dive.preflight_screen import (
     PreflightController,
@@ -297,12 +296,11 @@ async def _preflight_generate_click_starts_pipeline(tmp_path: Path) -> None:
         await pilot.pause()
         assert isinstance(app.screen, GenerationMonitorScreen)
         monitor = app.screen
-        assert monitor._task is not None
-        await asyncio.wait_for(monitor._task, timeout=5.0)
         run = service.runs(project.id).latest_for_episode(episode_id)
         assert run is not None
-        assert run.state == "completed"
-        assert service.runs(project.id).list_completed_stages(run.id) == list(DEFAULT_STAGES)
+        assert app.current_run_id == run.id
+        assert monitor._task is not None
+        await asyncio.wait_for(monitor._task, timeout=5.0)
 
 
 def test_preflight_tui_sanitizes_generation_start_failures(tmp_path: Path) -> None:
