@@ -9,9 +9,11 @@ from textual.widgets import Input, Static
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.domain.clock import FrozenClock, format_timestamp
 from deeper_dive.domain.ids import new_episode_id, new_run_id
+from deeper_dive.generation_monitor import GenerationMonitorScreen
 from deeper_dive.hosts import HostProfile
 from deeper_dive.llm import FakeLLMProvider, LLMProviderRegistry, ProviderHealth
 from deeper_dive.model_roles import ModelRole
+from deeper_dive.pipeline import DEFAULT_STAGES
 from deeper_dive.preflight import PreflightEstimate, PreflightReport
 from deeper_dive.preflight_screen import (
     PreflightController,
@@ -236,6 +238,70 @@ async def _preflight_tui_unhealthy_provider(tmp_path: Path) -> None:
         assert "Generation blocked: LLM provider 'fake' is unhealthy: offline" in _text(
             screen, "#screen-status"
         )
+
+
+def test_preflight_generate_click_starts_pipeline(tmp_path: Path) -> None:
+    asyncio.run(_preflight_generate_click_starts_pipeline(tmp_path))
+
+
+async def _preflight_generate_click_starts_pipeline(tmp_path: Path) -> None:
+    service = _service(tmp_path)
+    project = service.create_project("Generate")
+    service.add_pasted_source(project.id, "Notes", "Grounded evidence for generation.")
+    service.hosts(project.id).create_host(
+        HostProfile(
+            id="host-1",
+            project_id=project.id,
+            display_name="Host One",
+            tts_provider="fake-tts",
+            tts_voice="voice-a",
+        ).to_record()
+    )
+    timestamp = format_timestamp(service.clock.now())
+    episode_id = str(new_episode_id())
+    service.hosts(project.id).create_episode(
+        EpisodeRecord(
+            id=episode_id,
+            project_id=project.id,
+            title="Episode",
+            target_duration_seconds=1200,
+            created_at=timestamp,
+            modified_at=timestamp,
+        ),
+        ["host-1"],
+    )
+    ffmpeg = tmp_path / "ffmpeg"
+    ffmpeg.write_text("fake", encoding="utf-8")
+    config_store = UserConfigStore(tmp_path / "config.json")
+    config_store.save(UserConfig(defaults={role.value: "fake:fake-v1" for role in ModelRole}))
+    llm_registry = LLMProviderRegistry()
+    llm_registry.register(FakeLLMProvider())
+    app = DeeperDiveApp(
+        service,
+        provider_controller=ProviderController(
+            config_store,
+            llm_registry,
+            {"fake-tts": FakeTTSProvider()},
+        ),
+        preflight_controller=PreflightController(ffmpeg_executable=ffmpeg),
+    )
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.current_project_id = project.id
+        app.current_project_name = project.name
+        app.current_episode_id = episode_id
+        app.action_navigate("generate")
+        await pilot.pause()
+        preflight = _preflight(app)
+        assert "Ready to generate" in _text(preflight, "#screen-status")
+        preflight.action_generate()
+        for _ in range(8):
+            await pilot.pause()
+        assert isinstance(app.screen, GenerationMonitorScreen)
+        run = service.runs(project.id).latest_for_episode(episode_id)
+        assert run is not None
+        assert run.state == "completed"
+        assert service.runs(project.id).list_completed_stages(run.id) == list(DEFAULT_STAGES)
+        assert "completed" in str(app.screen.query_one("#generation-state", Static).render())
 
 
 def test_preflight_tui_sanitizes_generation_start_failures(tmp_path: Path) -> None:
