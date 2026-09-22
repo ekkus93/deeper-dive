@@ -70,17 +70,17 @@
 
 ## DDR-010 — Replace placeholder Settings screen
 
-- [ ] Implement durable provider configuration UI.
-- [ ] Implement role/model default configuration.
-- [ ] Implement relevant TTS/voice defaults.
-- [ ] Implement research/network-policy defaults.
-- [ ] Implement Quick Deep Dive defaults/overrides.
-- [ ] Surface FFmpeg/readiness status where appropriate.
-- [ ] Surface KittenTTS management/status entry points where appropriate.
-- [ ] Surface supported logging/diagnostic preferences.
-- [ ] Persist settings through the production configuration service.
-- [ ] Reload persisted settings on application start.
-- [ ] Add direct Settings-screen tests.
+- [x] Implement durable provider configuration UI.
+- [x] Implement role/model default configuration.
+- [x] Implement relevant TTS/voice defaults.
+- [x] Implement research/network-policy defaults.
+- [x] Implement Quick Deep Dive defaults/overrides.
+- [x] Surface FFmpeg/readiness status where appropriate.
+- [x] Surface KittenTTS management/status entry points where appropriate.
+- [x] Surface supported logging/diagnostic preferences.
+- [x] Persist settings through the production configuration service.
+- [x] Reload persisted settings on application start.
+- [x] Add direct Settings-screen tests.
 
 **Acceptance criteria**
 
@@ -88,11 +88,11 @@
 
 ## DDR-011 — Provider management integration
 
-- [ ] Ensure provider UI stores concrete adapter identity.
-- [ ] Validate required fields without persisting secret material into diagnostics.
-- [ ] Instantiate/reload configured providers after save as appropriate.
-- [ ] Show actionable health/configuration state.
-- [ ] Test add/edit/reload for representative LLM and TTS providers.
+- [x] Ensure provider UI stores concrete adapter identity.
+- [x] Validate required fields without persisting secret material into diagnostics.
+- [x] Instantiate/reload configured providers after save as appropriate.
+- [x] Show actionable health/configuration state.
+- [x] Test add/edit/reload for representative LLM and TTS providers.
 
 ---
 
