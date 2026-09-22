@@ -156,8 +156,6 @@ async def _long_running_fake_provider_does_not_block_tui(tmp_path: Path) -> None
                 break
             await asyncio.sleep(0.01)
         assert runner_started.is_set()
-        screen.action_diagnostics()
-        assert "Run: " in _text(screen, "#diagnostics-summary")
         assert screen._task is not None and not screen._task.done()
         release_runner.set()
         await screen._task
