@@ -15,41 +15,31 @@ def test_production_pipeline_persists_reviewable_and_exportable_quick_episode(
     tmp_path: Path,
 ) -> None:
     data_dir = tmp_path / "data"
-    UserConfigStore(data_dir / "config.json").save(
-        UserConfig(
-            providers={
-                "planner": ProviderConfig(
-                    provider_type="fake",
-                    default_model="fake-v1",
-                ),
-                "speech": ProviderConfig(provider_type="fake-tts"),
-            }
-        )
-    )
+    config_store = UserConfigStore(data_dir / "config.json")
+    planner = ProviderConfig(provider_type="fake", default_model="fake-v1")
+    speech = ProviderConfig(provider_type="fake-tts")
+    config_store.save(UserConfig(providers={"planner": planner, "speech": speech}))
     composition = ProductionComposition.build(
         data_dir,
         provider_factory=ProviderFactory(environ={}),
     )
     project = composition.service.create_project("Quick durable workflow")
+    root = composition.service.workspaces.project_root(project.id)
+    database = composition.database_for_project(project.id)
     hosts = composition.service.hosts(project.id)
     hosts.create_host(HostProfileRecord("h1", project.id, "Host One"))
 
-    episode = EpisodeConfigurationService(
-        composition.database_for_project(project.id)
-    ).create(
-        project.id,
-        EpisodeConfiguration(
-            title="Quick Deep Dive",
-            focus="Exercise the normal durable workflow",
-            target_duration_seconds=1200,
-            host_ids=("h1",),
-        ),
+    config = EpisodeConfiguration(
+        title="Quick Deep Dive",
+        focus="Exercise the normal durable workflow",
+        target_duration_seconds=1200,
+        host_ids=("h1",),
     )
+    episode = EpisodeConfigurationService(database).create(project.id, config)
     run = composition.create_generation_run(project.id, episode.id)
 
     result = composition.run_generation(project.id, run.id)
 
-    database = composition.database_for_project(project.id)
     with database.connection() as connection:
         turns = connection.execute(
             "SELECT id,text FROM conversation_turns WHERE episode_id=?",
@@ -58,17 +48,10 @@ def test_production_pipeline_persists_reviewable_and_exportable_quick_episode(
         artifacts = connection.execute(
             "SELECT turn_id,status,path FROM tts_artifacts ORDER BY turn_id"
         ).fetchall()
-    output_audio = (
-        composition.service.workspaces.project_root(project.id)
-        / "output"
-        / f"{episode.id}.wav"
-    )
+    output_audio = root / "output" / f"{episode.id}.wav"
     timeline = AudioTimelineRepository(database).get(episode.id)
-    export = EpisodeLibraryExportService(composition.service.workspaces).export(
-        project.id,
-        episode,
-        result.run,
-    )
+    export_service = EpisodeLibraryExportService(composition.service.workspaces)
+    export = export_service.export(project.id, episode, result.run)
 
     assert result.run.state == "completed"
     assert turns
