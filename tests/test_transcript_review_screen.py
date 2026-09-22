@@ -59,7 +59,7 @@ def test_transcript_review_resolves_audio_by_selected_episode_identity(
         EpisodeConfiguration(title="Episode Two", focus="Other", host_ids=("h1",)),
     )
     output = service.workspaces.project_root(project_id) / "output"
-    output.mkdir(parents=True)
+    output.mkdir(parents=True, exist_ok=True)
     expected = output / f"{episode_id}.wav"
     wrong = output / f"{other.id}.wav"
     expected.write_bytes(b"episode-one")
