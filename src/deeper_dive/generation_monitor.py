@@ -91,7 +91,7 @@ class GenerationMonitorController:
             raise ValueError("cancelled runs cannot resume")
         if run.state != "paused":
             raise ValueError("only durably paused runs can resume")
-        return self._pipeline(app).resume(run.id)
+        return cast(GenerationRunRecord, self._pipeline(app).resume(run.id))
 
     @staticmethod
     def _pipeline(app: MonitorApp) -> Any:
