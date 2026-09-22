@@ -45,7 +45,7 @@ def test_shared_episode_export_supports_cli_selected_output_directory(tmp_path: 
 
     assert {path.parent for path in exported.paths} == {output_dir}
     assert "deterministic production turn" in exported.transcript.read_text(encoding="utf-8")
-    assert json.loads(exported.manifest.read_text(encoding="utf-8")) == []
+    assert json.loads(exported.manifest.read_text(encoding="utf-8")) == {"sources": []}
     metadata = json.loads(exported.metadata.read_text(encoding="utf-8"))
     assert metadata["episode_id"] == episode.id
     assert metadata["run_id"] == result.run.id
