@@ -54,10 +54,10 @@
 ## DDR-003 — Enforce effective configuration precedence
 
 - [x] Centralize effective assignment resolution.
-- [ ] Apply episode overrides before project defaults.
-- [ ] Apply project defaults before user defaults.
-- [ ] Use documented built-in fallback only where explicitly allowed.
-- [ ] Make preflight and generation consume the same resolved assignments.
+- [x] Apply episode overrides before project defaults.
+- [x] Apply project defaults before user defaults.
+- [x] Use documented built-in fallback only where explicitly allowed.
+- [x] Make preflight and generation consume the same resolved assignments.
 - [x] Add precedence tests covering conflicting episode/project/user values.
 
 **Acceptance criteria**
