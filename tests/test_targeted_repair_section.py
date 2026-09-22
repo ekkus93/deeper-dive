@@ -15,7 +15,9 @@ from deeper_dive.targeted_repair import TargetedRepairService
 
 
 class Provider:
-    def repair_turn(self, turn: HostTurn, feedback: str, evidence_ids: tuple[str, ...]) -> str:
+    def repair_turn(
+        self, turn: HostTurn, feedback: str, evidence_ids: tuple[str, ...]
+    ) -> str:
         return f"repaired {turn.id}"
 
 
@@ -29,7 +31,9 @@ class Summaries:
         pass
 
 
-def test_section_repair_changes_only_repair_worthy_turns_in_selected_section(tmp_path: Path) -> None:
+def test_section_repair_changes_only_repair_worthy_turns_in_selected_section(
+    tmp_path: Path,
+) -> None:
     database = Database(tmp_path / "project.db")
     database.initialize()
     CorpusRepository(database).create_project(ProjectRecord("p", "Repair", "t", "t"))
@@ -67,7 +71,14 @@ def test_section_repair_changes_only_repair_worthy_turns_in_selected_section(tmp
             )
             db.execute(
                 "INSERT INTO claim_verifications VALUES (?,?,?,?,?,?)",
-                (claim_id, VerificationState.CONTRADICTED.value, "wrong", 1.0, "[]", "[]"),
+                (
+                    claim_id,
+                    VerificationState.CONTRADICTED.value,
+                    "wrong",
+                    1.0,
+                    "[]",
+                    "[]",
+                ),
             )
 
     repaired = TargetedRepairService(
