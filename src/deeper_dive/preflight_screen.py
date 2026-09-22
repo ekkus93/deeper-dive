@@ -74,7 +74,7 @@ class PreflightController:
                 host_count=0,
                 target_minutes=self.default_target_minutes,
                 llm_rows=("No project open.",),
-                tts_rows=("No project open."),
+                tts_rows=("No project open.",),
                 report=report,
             )
 
