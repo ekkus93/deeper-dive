@@ -101,9 +101,7 @@ async def _exercise_repair_screen(tmp_path: Path) -> None:
     async with app.run_test(size=(100, 40)) as pilot:
         app.current_project_id = project_id
         app.current_episode_id = episode_id
-        await app.push_screen(
-            TranscriptReviewScreen(TranscriptReviewController(repair=repair))
-        )
+        await app.push_screen(TranscriptReviewScreen(TranscriptReviewController(repair=repair)))
         await pilot.pause()
         screen = app.screen
         assert isinstance(screen, TranscriptReviewScreen)
