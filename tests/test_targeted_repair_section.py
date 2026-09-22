@@ -16,7 +16,10 @@ from deeper_dive.targeted_repair import TargetedRepairService
 
 class Provider:
     def repair_turn(
-        self, turn: HostTurn, feedback: str, evidence_ids: tuple[str, ...]
+        self,
+        turn: HostTurn,
+        feedback: str,
+        evidence_ids: tuple[str, ...],
     ) -> str:
         return f"repaired {turn.id}"
 
@@ -31,9 +34,7 @@ class Summaries:
         pass
 
 
-def test_section_repair_changes_only_repair_worthy_turns_in_selected_section(
-    tmp_path: Path,
-) -> None:
+def test_section_repair_is_scoped(tmp_path: Path) -> None:
     database = Database(tmp_path / "project.db")
     database.initialize()
     CorpusRepository(database).create_project(ProjectRecord("p", "Repair", "t", "t"))
@@ -69,21 +70,18 @@ def test_section_repair_changes_only_repair_worthy_turns_in_selected_section(
                 "INSERT INTO material_claims VALUES (?,?,?,?,?,?,?,?)",
                 (claim_id, "p", "e", turn_id, "bad", 0, 3, "t"),
             )
-            db.execute(
-                "INSERT INTO claim_verifications VALUES (?,?,?,?,?,?)",
-                (
-                    claim_id,
-                    VerificationState.CONTRADICTED.value,
-                    "wrong",
-                    1.0,
-                    "[]",
-                    "[]",
-                ),
+            verification = (
+                claim_id,
+                VerificationState.CONTRADICTED.value,
+                "wrong",
+                1.0,
+                "[]",
+                "[]",
             )
+            db.execute("INSERT INTO claim_verifications VALUES (?,?,?,?,?,?)", verification)
 
-    repaired = TargetedRepairService(
-        database, Provider(), Rechecker(), Summaries()
-    ).repair_section("e", 1)
+    service = TargetedRepairService(database, Provider(), Rechecker(), Summaries())
+    repaired = service.repair_section("e", 1)
     assert [turn.id for turn in repaired] == ["t1"]
     with database.connection() as db:
         rows = db.execute("SELECT id,text FROM conversation_turns ORDER BY id").fetchall()
