@@ -15,7 +15,9 @@ from deeper_dive.tui import DeeperDiveApp
 from deeper_dive.user_config import UserConfig, UserConfigStore
 
 
-def _episode_host_presets(service: DeeperDiveService, project_id: str, host_ids: tuple[str, ...]) -> tuple[str | None, ...]:
+def _episode_host_presets(
+    service: DeeperDiveService, project_id: str, host_ids: tuple[str, ...]
+) -> tuple[str | None, ...]:
     hosts = {host.id: host for host in service.hosts(project_id).list_hosts(project_id)}
     return tuple(hosts[host_id].preset_origin for host_id in host_ids)
 
