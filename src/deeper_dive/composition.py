@@ -354,9 +354,11 @@ def _planning_stage(
     provider = composition.provider_controller.llm_registry.get(provider_id)
     models = provider.models()
     model = models[0].model if models else None
-    composition.configured_planning_service(project_id, provider_id, model).build_plan(
-        context.episode_id
-    )
+    planner = composition.configured_planning_service(project_id, provider_id, model)
+    try:
+        planner.build_plan(context.episode_id)
+    except ValueError:
+        return
 
 
 def _conversation_stage(
