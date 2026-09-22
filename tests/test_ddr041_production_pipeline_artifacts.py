@@ -18,7 +18,10 @@ def test_production_pipeline_persists_reviewable_and_exportable_quick_episode(
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
             providers={
-                "planner": ProviderConfig(provider_type="fake", default_model="fake-v1"),
+                "planner": ProviderConfig(
+                    provider_type="fake",
+                    default_model="fake-v1",
+                ),
                 "speech": ProviderConfig(provider_type="fake-tts"),
             }
         )
@@ -76,6 +79,7 @@ def test_production_pipeline_persists_reviewable_and_exportable_quick_episode(
     assert timeline is not None
     assert timeline.placements
     assert export.transcript.is_file()
-    assert "deterministic production turn" in export.transcript.read_text(encoding="utf-8")
+    transcript = export.transcript.read_text(encoding="utf-8")
+    assert "deterministic production turn" in transcript
     assert export.audio is not None
     assert export.audio.is_file()
