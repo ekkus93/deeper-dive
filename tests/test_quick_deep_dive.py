@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 
 from deeper_dive.application.service import DeeperDiveService
@@ -11,6 +12,14 @@ from deeper_dive.research_policy import ResearchMode, ResearchPolicyStore
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.tui import DeeperDiveApp
+from deeper_dive.user_config import UserConfig, UserConfigStore
+
+
+def _episode_host_presets(
+    service: DeeperDiveService, project_id: str, host_ids: tuple[str, ...]
+) -> tuple[str | None, ...]:
+    hosts = {host.id: host for host in service.hosts(project_id).list_hosts(project_id)}
+    return tuple(hosts[host_id].preset_origin for host_id in host_ids)
 
 
 def test_quick_deep_dive_creates_normal_episode_with_default_hosts_and_useful_policy(
@@ -23,13 +32,14 @@ def test_quick_deep_dive_creates_normal_episode_with_default_hosts_and_useful_po
 
     database = Database(service.workspaces.project_root(project.id) / "project.db")
     config = EpisodeConfigurationService(database).load_configuration(episode.id)
-    hosts = service.hosts(project.id).list_hosts(project.id)
     policy = ResearchPolicyStore(database).episode(project.id, episode.id)
     assert config.title == "Quick Deep Dive"
     assert config.target_duration_seconds == 1200
     assert config.research_overrides["policy"] == "useful"
-    assert tuple(host.preset_origin for host in hosts) == ("curious_explainer", "skeptic")
-    assert config.host_ids == tuple(host.id for host in hosts)
+    assert _episode_host_presets(service, project.id, config.host_ids) == (
+        "curious_explainer",
+        "skeptic",
+    )
     assert policy.mode is ResearchMode.USEFUL
 
 
@@ -48,6 +58,65 @@ def test_quick_deep_dive_uses_existing_project_hosts_as_defaults(tmp_path: Path)
     config = EpisodeConfigurationService(database).load_configuration(episode.id)
     assert config.host_ids == ("h1", "h3")
     assert len(service.hosts(project.id).list_hosts(project.id)) == 3
+
+
+def test_quick_deep_dive_user_defaults_override_builtins(tmp_path: Path) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    project = service.create_project("Quick configured")
+    UserConfigStore(service.workspaces.data_dir / "config.json").save(
+        UserConfig(
+            defaults={
+                "quick_deep_dive_duration_minutes": "12",
+                "quick_deep_dive_host_presets": "skeptic,curious_explainer",
+                "quick_deep_dive_research_policy": "off",
+            }
+        )
+    )
+
+    episode = service.quick_deep_dive(project.id)
+    database = Database(service.workspaces.project_root(project.id) / "project.db")
+    config = EpisodeConfigurationService(database).load_configuration(episode.id)
+    assert config.target_duration_seconds == 720
+    assert config.research_overrides["policy"] == "off"
+    assert _episode_host_presets(service, project.id, config.host_ids) == (
+        "skeptic",
+        "curious_explainer",
+    )
+
+
+def test_quick_deep_dive_project_overrides_take_precedence(tmp_path: Path) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    project = service.create_project(
+        "Quick project override",
+        instructions=json.dumps(
+            {
+                "quick_deep_dive": {
+                    "duration_minutes": 7,
+                    "host_presets": "curious_explainer,skeptic",
+                    "research_policy": "useful",
+                }
+            }
+        ),
+    )
+    UserConfigStore(service.workspaces.data_dir / "config.json").save(
+        UserConfig(
+            defaults={
+                "quick_deep_dive_duration_minutes": "12",
+                "quick_deep_dive_host_presets": "skeptic,curious_explainer",
+                "quick_deep_dive_research_policy": "off",
+            }
+        )
+    )
+
+    episode = service.quick_deep_dive(project.id)
+    database = Database(service.workspaces.project_root(project.id) / "project.db")
+    config = EpisodeConfigurationService(database).load_configuration(episode.id)
+    assert config.target_duration_seconds == 420
+    assert config.research_overrides["policy"] == "useful"
+    assert _episode_host_presets(service, project.id, config.host_ids) == (
+        "curious_explainer",
+        "skeptic",
+    )
 
 
 def test_quick_deep_dive_tui_action_reaches_preflight(tmp_path: Path) -> None:
