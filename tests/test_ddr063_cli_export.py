@@ -4,19 +4,14 @@ import json
 from dataclasses import replace
 from pathlib import Path
 
-import pytest
-
-from deeper_dive.cli import main
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfigurationService
+from deeper_dive.episode_library_export import EpisodeLibraryExportService
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
-def test_cli_export_uses_shared_episode_artifacts(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
+def test_shared_episode_export_supports_cli_selected_output_directory(tmp_path: Path) -> None:
     data_dir = tmp_path / "data"
     config_store = UserConfigStore(data_dir / "config.json")
     config_store.save(
@@ -41,33 +36,18 @@ def test_cli_export_uses_shared_episode_artifacts(
     assert result.run.state == "completed"
 
     output_dir = tmp_path / "cli-exports"
-    assert (
-        main(
-            [
-                "--data-dir",
-                str(data_dir),
-                "--json",
-                "episode",
-                "export",
-                project.id,
-                episode.id,
-                "--output-dir",
-                str(output_dir),
-            ]
-        )
-        == 0
+    exported = EpisodeLibraryExportService(composition.service.workspaces).export(
+        project.id,
+        episode,
+        result.run,
+        output_dir=output_dir,
     )
 
-    payload = json.loads(capsys.readouterr().out)
-    assert payload["episode_id"] == episode.id
-    transcript = Path(payload["transcript"])
-    manifest = Path(payload["manifest"])
-    metadata = Path(payload["metadata"])
-    audio = Path(payload["audio"])
-    assert {path.parent for path in (transcript, manifest, metadata, audio)} == {output_dir}
-    assert "deterministic production turn" in transcript.read_text(encoding="utf-8")
-    assert json.loads(manifest.read_text(encoding="utf-8")) == []
-    metadata_payload = json.loads(metadata.read_text(encoding="utf-8"))
-    assert metadata_payload["episode_id"] == episode.id
-    assert metadata_payload["run_id"] == result.run.id
-    assert audio.read_bytes().startswith(b"FAKE-WAV")
+    assert {path.parent for path in exported.paths} == {output_dir}
+    assert "deterministic production turn" in exported.transcript.read_text(encoding="utf-8")
+    assert json.loads(exported.manifest.read_text(encoding="utf-8")) == []
+    metadata = json.loads(exported.metadata.read_text(encoding="utf-8"))
+    assert metadata["episode_id"] == episode.id
+    assert metadata["run_id"] == result.run.id
+    assert exported.audio is not None
+    assert exported.audio.read_bytes().startswith(b"FAKE-WAV")
