@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from unittest.mock import patch
 
 from textual.widgets import Input, Static
 
@@ -63,6 +64,21 @@ def test_settings_controller_validates_model_default(tmp_path: Path) -> None:
         raise AssertionError("expected invalid model default to fail")
 
 
+def test_settings_controller_reports_runtime_readiness(tmp_path: Path) -> None:
+    controller = SettingsController(_provider_controller(tmp_path))
+    controller.save_runtime_defaults("custom-ffmpeg", "", "normal")
+
+    with (
+        patch("deeper_dive.settings_screen.shutil.which", return_value="/opt/bin/custom-ffmpeg"),
+        patch("deeper_dive.settings_screen.importlib.util.find_spec", return_value=object()),
+    ):
+        summary = controller.readiness_summary()
+
+    assert "FFmpeg: /opt/bin/custom-ffmpeg" in summary
+    assert "KittenTTS: runtime installed" in summary
+    assert any("KittenML/kitten-tts-micro-0.8" in row for row in summary)
+
+
 def test_settings_screen_persists_default_from_tui_action(tmp_path: Path) -> None:
     asyncio.run(_settings_screen_persists_default_from_tui_action(tmp_path))
 
@@ -80,3 +96,7 @@ async def _settings_screen_persists_default_from_tui_action(tmp_path: Path) -> N
         await pilot.pause()
         assert "Saved default" in str(app.screen.query_one("#screen-status", Static).render())
         assert app.provider_controller.config().defaults["local_only"] == "true"
+        readiness = str(app.screen.query_one("#readiness-status", Static).render())
+        assert "Runtime readiness" in readiness
+        assert "FFmpeg:" in readiness
+        assert "KittenTTS:" in readiness

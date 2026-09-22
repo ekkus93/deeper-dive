@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import importlib.util
+import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol, cast
@@ -11,6 +13,7 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
+from deeper_dive.kitten_tts import MICRO_MODEL_ID
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.provider_tui import ProviderController
 
@@ -77,6 +80,21 @@ class SettingsController:
         self.set_default("kitten_model_dir", kitten_model_dir)
         self.set_default("diagnostic_logging", diagnostic_logging)
 
+    def readiness_summary(self) -> tuple[str, ...]:
+        """Report non-mutating runtime readiness for optional production dependencies."""
+        defaults = self.provider_controller.config().defaults
+        configured_ffmpeg = defaults.get("ffmpeg_executable", "").strip()
+        ffmpeg = shutil.which(configured_ffmpeg or "ffmpeg")
+        ffmpeg_label = ffmpeg or f"not found ({configured_ffmpeg or 'ffmpeg'})"
+        kitten_installed = importlib.util.find_spec("kittentts") is not None
+        kitten_state = "runtime installed" if kitten_installed else "runtime not installed"
+        return (
+            f"FFmpeg: {ffmpeg_label}",
+            f"KittenTTS: {kitten_state}",
+            f"KittenTTS model: {MICRO_MODEL_ID}",
+            "KittenTTS model loads on first synthesis; manage provider configuration in Providers.",
+        )
+
     def summary(self) -> tuple[str, ...]:
         defaults = self.provider_controller.config().defaults
         quick_duration = defaults.get("quick_deep_dive_duration_minutes", "20")
@@ -140,6 +158,9 @@ class SettingsScreen(Screen[None]):
                 id="screen-description",
             )
             yield Static("", id="settings-summary")
+            yield Static("", id="readiness-status")
+            yield Button("Refresh Readiness", id="action-refresh-readiness", name="readiness")
+            yield Button("Manage Providers / KittenTTS", id="action-manage-kitten", name="kitten")
             yield Input(placeholder="Default key", id="settings-key")
             yield Input(placeholder="Default value; blank removes key", id="settings-value")
             yield Button("Save Default", id="action-save-default", name="save-default")
@@ -170,6 +191,10 @@ class SettingsScreen(Screen[None]):
         action = event.button.name or ""
         if action.startswith("nav:"):
             self.settings_app.action_navigate(action.split(":", 1)[1])
+        elif action == "readiness":
+            self.refresh_readiness()
+        elif action == "kitten":
+            self.settings_app.action_navigate("providers")
         elif action == "save-default":
             self.action_save_default()
         elif action == "save-model":
@@ -243,7 +268,15 @@ class SettingsScreen(Screen[None]):
         self.query_one("#settings-summary", Static).update(
             "Current settings:\n" + "\n".join(self.controller.summary())
         )
+        self.refresh_readiness(update_status=False)
         self._status(status)
+
+    def refresh_readiness(self, *, update_status: bool = True) -> None:
+        self.query_one("#readiness-status", Static).update(
+            "Runtime readiness:\n" + "\n".join(self.controller.readiness_summary())
+        )
+        if update_status:
+            self._status("Refreshed runtime readiness")
 
     def _save(self, operation: Callable[[], None], success: str) -> None:
         try:
