@@ -72,7 +72,10 @@ async def _library_workflow(tmp_path: Path) -> None:
         assert len(service.hosts(project.id).list_episodes(project.id)) == 4
 
         screen.action_export_selected()
-        assert "output" in str(screen.query_one("#screen-status", Static).render())
+        assert (
+            "no generation run to export"
+            in str(screen.query_one("#screen-status", Static).render()).lower()
+        )
 
         screen.action_request_delete()
         screen.action_cancel_delete()

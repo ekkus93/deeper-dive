@@ -12,6 +12,7 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Label, Static
 
 from deeper_dive.episode_config import EpisodeConfigurationService
+from deeper_dive.episode_library_export import EpisodeExportResult, EpisodeLibraryExportService
 from deeper_dive.generation_monitor import GenerationMonitorScreen
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import EpisodeRecord
@@ -67,6 +68,13 @@ class EpisodeLibraryController:
         return app.generation_monitor_controller.resume(app, item.run)
 
     @staticmethod
+    def export(app: DeeperDiveApp, item: EpisodeLibraryItem) -> EpisodeExportResult:
+        project_id = EpisodeLibraryController._project_id(app)
+        return EpisodeLibraryExportService(app.service.workspaces).export(
+            project_id, item.episode, item.run
+        )
+
+    @staticmethod
     def delete(app: DeeperDiveApp, episode_id: str) -> None:
         project_id = EpisodeLibraryController._project_id(app)
         database = Database(app.service.workspaces.project_root(project_id) / "project.db")
@@ -77,11 +85,6 @@ class EpisodeLibraryController:
             if row is None or str(row["project_id"]) != project_id:
                 raise KeyError(episode_id)
             connection.execute("DELETE FROM episodes WHERE id=?", (episode_id,))
-
-    @staticmethod
-    def export_location(app: DeeperDiveApp) -> str:
-        project_id = EpisodeLibraryController._project_id(app)
-        return str(app.service.workspaces.project_root(project_id) / "output")
 
     @staticmethod
     def _project_id(app: DeeperDiveApp) -> str:
@@ -201,10 +204,19 @@ class EpisodeLibraryScreen(Screen[None]):
         self.refresh_library(f"Duplicated configuration as {duplicate.title}")
 
     def action_export_selected(self) -> None:
-        if self._selected() is None:
+        item = self._selected()
+        if item is None:
             self._status("No episode selected")
             return
-        self._status(f"Episode exports: {EpisodeLibraryController.export_location(self._app)}")
+        try:
+            result = EpisodeLibraryController.export(self._app, item)
+        except ValueError as exc:
+            self._status(str(exc).capitalize())
+            return
+        except Exception as exc:
+            self._status(user_status("export", exc))
+            return
+        self._status("Exported: " + ", ".join(str(path) for path in result.paths))
 
     def action_request_delete(self) -> None:
         if self._selected() is None:
