@@ -36,7 +36,7 @@ def test_library_export_writes_selected_episode_artifacts(tmp_path: Path) -> Non
     )
     service.runs(project.id).create(run)
     output = service.workspaces.project_root(project.id) / "output"
-    output.mkdir(parents=True)
+    output.mkdir(parents=True, exist_ok=True)
     (output / f"{episode.id}.wav").write_bytes(b"selected-audio")
 
     app = DeeperDiveApp(service)
