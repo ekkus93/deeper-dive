@@ -153,7 +153,7 @@ class ProductionComposition:
     ) -> EpisodePlannerService:
         """Construct planning from the same configured provider registry used in production."""
 
-        provider = self.providers.llm_registry.get(provider_id)
+        provider = self.provider_controller.llm_registry.get(provider_id)
         return self.planning_service(project_id, LLMEpisodePlanGenerator(provider, model))
 
     def effective_model_role_assignments(
