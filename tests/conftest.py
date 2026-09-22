@@ -28,4 +28,8 @@ def pytest_collection_modifyitems(items: list[object]) -> None:
     failure-surface case is being replaced with a deterministic no-Pilot-drain variant
     before DDR-023 reconciliation; this hook must not remain in the merged result.
     """
-    items[:] = [item for item in items if getattr(item, "name", "") not in _SUPERSEDED_MONITOR_TESTS]
+    items[:] = [
+        item
+        for item in items
+        if getattr(item, "name", "") not in _SUPERSEDED_MONITOR_TESTS
+    ]
