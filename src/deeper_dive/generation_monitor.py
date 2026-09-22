@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from typing import Protocol, cast
 
 from textual.app import ComposeResult
@@ -15,8 +15,9 @@ from textual.widgets import Button, Footer, Header, Label, Static
 
 from deeper_dive.application.events import ProgressEvent, ProgressSink
 from deeper_dive.application.service import DeeperDiveService
+from deeper_dive.composition import ProductionComposition
 from deeper_dive.conversation_state import ConversationStateRepository
-from deeper_dive.pipeline import DEFAULT_STAGES
+from deeper_dive.pipeline import DEFAULT_STAGES, PipelineOrchestrator
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.transcript_review_screen import TranscriptReviewScreen
@@ -187,7 +188,7 @@ class GenerationMonitorScreen(Screen[None]):
         if run is None:
             self._status("No generation run")
             return
-        self._app.service.runs(self._project_id()).request_pause(run.id, self._now())
+        self._pipeline().request_pause(run.id)
         self.refresh_monitor("Pause requested; current provider call may finish first")
 
     def action_resume(self) -> None:
@@ -202,17 +203,7 @@ class GenerationMonitorScreen(Screen[None]):
         if not was_paused and not run.pause_requested:
             self._status("Only paused or pause-requested runs can resume")
             return
-        repository = self._app.service.runs(self._project_id())
-        repository.update(
-            replace(
-                run,
-                state="pending",
-                pause_requested=False,
-                failure_code=None,
-                failure_message=None,
-                modified_at=self._now(),
-            )
-        )
+        self._pipeline().resume(run.id)
         self.refresh_monitor("Run ready to resume")
         if was_paused:
             self.start_background_generation()
@@ -222,7 +213,7 @@ class GenerationMonitorScreen(Screen[None]):
         if run is None:
             self._status("No generation run")
             return
-        self._app.service.runs(self._project_id()).request_cancel(run.id, self._now())
+        self._pipeline().request_cancel(run.id)
         self.refresh_monitor("Cancel requested; current provider call may finish first")
 
     def action_view_transcript(self) -> None:
@@ -304,16 +295,18 @@ class GenerationMonitorScreen(Screen[None]):
     def _run(self) -> GenerationRunRecord | None:
         return self._app.generation_monitor_controller.snapshot(self._app).run
 
+    def _pipeline(self) -> PipelineOrchestrator:
+        composition = cast(
+            ProductionComposition,
+            getattr(self._app.service, "_production_composition"),  # noqa: B009
+        )
+        return composition.generation_pipeline(self._project_id())
+
     def _project_id(self) -> str:
         project_id = self._app.current_project_id
         if project_id is None:
             raise RuntimeError("no project open")
         return project_id
-
-    def _now(self) -> str:
-        from deeper_dive.domain.clock import format_timestamp
-
-        return format_timestamp(self._app.service.clock.now())
 
     def _status(self, message: str) -> None:
         self.query_one("#screen-status", Static).update(f"Status: {message}")
