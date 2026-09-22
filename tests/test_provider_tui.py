@@ -8,14 +8,17 @@ from deeper_dive.provider_tui import ProviderController
 from deeper_dive.user_config import UserConfigStore
 
 
-def test_save_concrete_adapter_reloads_runtime_registry(tmp_path) -> None:
-    store = UserConfigStore(tmp_path / "config.json")
-    controller = ProviderController(
-        store,
+def _controller(tmp_path) -> ProviderController:
+    return ProviderController(
+        UserConfigStore(tmp_path / "config.json"),
         LLMProviderRegistry(),
         {},
         provider_factory=ProviderFactory(environ={}),
     )
+
+
+def test_save_concrete_adapter_reloads_runtime_registry(tmp_path) -> None:
+    controller = _controller(tmp_path)
 
     controller.save_provider("planner", "fake", default_model="fake-v2")
 
@@ -24,14 +27,18 @@ def test_save_concrete_adapter_reloads_runtime_registry(tmp_path) -> None:
     assert controller.llm("planner").models()[0].model == "fake-v2"
 
 
+def test_edit_concrete_adapter_reloads_updated_runtime_registry(tmp_path) -> None:
+    controller = _controller(tmp_path)
+    controller.save_provider("planner", "fake", default_model="fake-v1")
+
+    controller.save_provider("planner", "fake", default_model="fake-v2")
+
+    assert controller.config().providers["planner"].default_model == "fake-v2"
+    assert controller.llm("planner").models()[0].model == "fake-v2"
+
+
 def test_save_tts_adapter_reloads_runtime_provider(tmp_path) -> None:
-    store = UserConfigStore(tmp_path / "config.json")
-    controller = ProviderController(
-        store,
-        LLMProviderRegistry(),
-        {},
-        provider_factory=ProviderFactory(environ={}),
-    )
+    controller = _controller(tmp_path)
 
     controller.save_provider("speech", "fake_tts")
 
@@ -40,13 +47,17 @@ def test_save_tts_adapter_reloads_runtime_provider(tmp_path) -> None:
     assert controller.tts("speech").provider_id == "speech"
 
 
+def test_invalid_provider_configuration_is_not_persisted(tmp_path) -> None:
+    controller = _controller(tmp_path)
+
+    with pytest.raises(ValueError, match="base_url"):
+        controller.save_provider("planner", "fake", base_url="not-a-url")
+
+    assert "planner" not in controller.config().providers
+
+
 def test_save_rejects_generic_legacy_capability(tmp_path) -> None:
-    controller = ProviderController(
-        UserConfigStore(tmp_path / "config.json"),
-        LLMProviderRegistry(),
-        {},
-        provider_factory=ProviderFactory(environ={}),
-    )
+    controller = _controller(tmp_path)
 
     with pytest.raises(ValueError, match="unsupported provider adapter"):
         controller.save_provider("legacy", "llm")
