@@ -50,5 +50,5 @@ module = "deeper_dive.transcript_review_screen"
 disable_error_code = ["index"]
 
 [tool.pytest.ini_options]
-addopts = "-ra --strict-config --strict-markers"
+addopts = "-ra -vv --strict-config --strict-markers"
 testpaths = ["tests"]
