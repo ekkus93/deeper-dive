@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-import time
+import threading
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -94,11 +94,7 @@ def test_monitor_binds_conversation_state_and_recent_turns(tmp_path: Path) -> No
 async def _monitor_binds_conversation_state_and_recent_turns(tmp_path: Path) -> None:
     service, project_id, episode_id, run_id = _fixture(tmp_path)
     database = Database(service.workspaces.project_root(project_id) / "project.db")
-    ConversationStateRepository(database).update(
-        episode_id,
-        segment_ordinal=2,
-        segment_turn=3,
-    )
+    ConversationStateRepository(database).update(episode_id, segment_ordinal=2, segment_turn=3)
     with database.transaction() as connection:
         connection.execute(
             """CREATE TABLE conversation_turns(
@@ -135,11 +131,15 @@ def test_long_running_fake_provider_does_not_block_tui(tmp_path: Path) -> None:
 
 async def _long_running_fake_provider_does_not_block_tui(tmp_path: Path) -> None:
     service, project_id, episode_id, run_id = _fixture(tmp_path)
+    runner_started = threading.Event()
+    release_runner = threading.Event()
 
     def slow_runner(selected_run_id: str, progress) -> None:
         assert selected_run_id == run_id
         progress(type("Event", (), {"operation": "conversation", "state": "running"})())
-        time.sleep(0.25)
+        runner_started.set()
+        if not release_runner.wait(timeout=5.0):
+            raise TimeoutError("test runner was not released")
 
     controller = GenerationMonitorController(runner=slow_runner)
     app = DeeperDiveApp(service, generation_monitor_controller=controller)
@@ -151,11 +151,15 @@ async def _long_running_fake_provider_does_not_block_tui(tmp_path: Path) -> None
         await pilot.pause()
         screen = _monitor(app)
         screen.start_background_generation()
-        await asyncio.sleep(0.02)
+        for _ in range(100):
+            if runner_started.is_set():
+                break
+            await asyncio.sleep(0.01)
+        assert runner_started.is_set()
         screen.action_diagnostics()
-        await pilot.pause()
         assert "Run: " in _text(screen, "#diagnostics-summary")
         assert screen._task is not None and not screen._task.done()
+        release_runner.set()
         await screen._task
 
 
