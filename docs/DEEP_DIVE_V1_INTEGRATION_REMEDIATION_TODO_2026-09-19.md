@@ -24,11 +24,11 @@
 
 - [x] Identify and document the production object graph for TUI and CLI.
 - [x] Construct shared configuration repositories/services in one composition layer.
-- [ ] Construct planning, preflight, pipeline, export, benchmark, transcript-repair, and playback services there.
-- [ ] Supply TUI controllers from that composition root.
-- [ ] Supply CLI command handlers from the same underlying services.
-- [ ] Keep test fakes injectable at provider/service boundaries.
-- [ ] Add integration tests that use the production composition path with deterministic providers.
+- [x] Construct planning, preflight, pipeline, export, benchmark, transcript-repair, and playback services there.
+- [x] Supply TUI controllers from that composition root.
+- [x] Supply CLI command handlers from the same underlying services.
+- [x] Keep test fakes injectable at provider/service boundaries.
+- [x] Add integration tests that use the production composition path with deterministic providers.
 
 **Acceptance criteria**
 
