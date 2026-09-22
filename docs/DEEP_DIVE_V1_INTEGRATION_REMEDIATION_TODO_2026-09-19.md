@@ -158,12 +158,12 @@
 
 ## DDR-030 — Episode Library real Resume
 
-- [ ] Resolve selected episode/run.
-- [ ] Validate resumability.
-- [ ] Invoke production orchestration from checkpoint.
-- [ ] Navigate to Generation Monitor with the resumed run.
-- [ ] Surface sanitized non-resumable/failure messages.
-- [ ] Add integration test proving work continues after resume.
+- [x] Resolve selected episode/run.
+- [x] Validate resumability.
+- [x] Invoke production orchestration from checkpoint.
+- [x] Navigate to Generation Monitor with the resumed run.
+- [x] Surface sanitized non-resumable/failure messages.
+- [x] Add integration test proving work continues after resume.
 
 ## DDR-031 — Episode Library real Export
 
