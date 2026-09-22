@@ -5,6 +5,7 @@ import json
 from deeper_dive.application.events import ProgressEvent
 from deeper_dive.composition import LLMEpisodePlanGenerator, ProductionComposition
 from deeper_dive.domain.ids import new_episode_id, new_run_id
+from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.llm import FakeLLMProvider
 from deeper_dive.pipeline import DEFAULT_STAGES, PipelineContext
 from deeper_dive.provider_factory import ProviderFactory
@@ -91,6 +92,41 @@ def test_configured_planning_service_resolves_persisted_provider(tmp_path) -> No
     assert isinstance(planner.generator, LLMEpisodePlanGenerator)
     assert planner.generator.provider.provider_id == "planner"
     assert planner.generator.model == "fake-v1"
+
+
+def test_production_composition_can_plan_and_generate_with_deterministic_provider(tmp_path) -> None:
+    data_dir = tmp_path / "data"
+    UserConfigStore(data_dir / "config.json").save(
+        UserConfig(
+            providers={"planner": ProviderConfig(provider_type="fake", default_model="fake-v1")}
+        )
+    )
+    composition = ProductionComposition.build(
+        data_dir,
+        provider_factory=ProviderFactory(environ={}),
+    )
+    project = composition.service.create_project("Composed deterministic application")
+    episode = EpisodeConfigurationService(composition.database_for_project(project.id)).create(
+        project.id,
+        EpisodeConfiguration(
+            title="Composed episode",
+            focus="Exercise production composition",
+            target_duration_seconds=1200,
+        ),
+    )
+
+    plan = composition.configured_planning_service(project.id, "planner", "fake-v1").build_plan(
+        episode.id
+    )
+    run = composition.create_generation_run(project.id, episode.id)
+    result = composition.run_generation(project.id, run.id)
+
+    assert plan.episode_id == episode.id
+    assert plan.segments
+    assert result.run.state == "completed"
+    assert composition.generation_run_repository(project.id).list_completed_stages(run.id) == list(
+        DEFAULT_STAGES
+    )
 
 
 def test_production_composition_constructs_generation_run_and_pipeline(tmp_path) -> None:
