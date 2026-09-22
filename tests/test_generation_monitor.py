@@ -12,6 +12,7 @@ from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.domain.clock import FrozenClock, format_timestamp
 from deeper_dive.domain.ids import new_episode_id, new_run_id
 from deeper_dive.generation_monitor import GenerationMonitorController, GenerationMonitorScreen
+from deeper_dive.pipeline import DEFAULT_STAGES
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.run_repositories import CompletedUnitRecord, GenerationRunRecord
 from deeper_dive.storage.workspace import WorkspaceManager
@@ -108,6 +109,35 @@ async def _long_running_fake_provider_does_not_block_tui(tmp_path: Path) -> None
         assert "Run: " in _text(screen, "#diagnostics-summary")
         assert screen._task is not None and not screen._task.done()
         await screen._task
+
+
+def test_production_monitor_runner_executes_pipeline_from_tui(tmp_path: Path) -> None:
+    asyncio.run(_production_monitor_runner_executes_pipeline_from_tui(tmp_path))
+
+
+async def _production_monitor_runner_executes_pipeline_from_tui(tmp_path: Path) -> None:
+    service, project_id, episode_id, run_id = _fixture(tmp_path)
+    repository = service.runs(project_id)
+    run = repository.get(run_id)
+    assert run is not None
+    repository.update(replace(run, state="pending", stage=DEFAULT_STAGES[0]))
+    app = DeeperDiveApp(service)
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.current_project_id = project_id
+        app.current_episode_id = episode_id
+        app.current_run_id = run_id
+        app.action_navigate("monitor")
+        await pilot.pause()
+        screen = _monitor(app)
+        screen.start_background_generation()
+        assert screen._task is not None
+        await screen._task
+        await pilot.pause()
+        completed = repository.get(run_id)
+        assert completed is not None
+        assert completed.state == "completed"
+        assert repository.list_completed_stages(run_id) == list(DEFAULT_STAGES)
+        assert "completed" in _text(screen, "#generation-state")
 
 
 def test_background_generation_failure_uses_actionable_status(tmp_path: Path) -> None:
