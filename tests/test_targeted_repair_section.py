@@ -5,7 +5,11 @@ from pathlib import Path
 from deeper_dive.claim_verification import VerificationState
 from deeper_dive.host_turn import HostTurn
 from deeper_dive.storage.database import Database
-from deeper_dive.storage.episode_repositories import EpisodeRecord, HostEpisodeRepository, HostProfileRecord
+from deeper_dive.storage.episode_repositories import (
+    EpisodeRecord,
+    HostEpisodeRepository,
+    HostProfileRecord,
+)
 from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord
 from deeper_dive.targeted_repair import TargetedRepairService
 
@@ -66,9 +70,9 @@ def test_section_repair_changes_only_repair_worthy_turns_in_selected_section(tmp
                 (claim_id, VerificationState.CONTRADICTED.value, "wrong", 1.0, "[]", "[]"),
             )
 
-    repaired = TargetedRepairService(database, Provider(), Rechecker(), Summaries()).repair_section(
-        "e", 1
-    )
+    repaired = TargetedRepairService(
+        database, Provider(), Rechecker(), Summaries()
+    ).repair_section("e", 1)
     assert [turn.id for turn in repaired] == ["t1"]
     with database.connection() as db:
         rows = db.execute("SELECT id,text FROM conversation_turns ORDER BY id").fetchall()
