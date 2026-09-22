@@ -12,10 +12,12 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Label, Static
 
 from deeper_dive.episode_config import EpisodeConfigurationService
+from deeper_dive.generation_monitor import GenerationMonitorScreen
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.transcript_review_screen import TranscriptReviewScreen
+from deeper_dive.user_errors import user_status
 
 if TYPE_CHECKING:
     from deeper_dive.tui import DeeperDiveApp
@@ -52,6 +54,17 @@ class EpisodeLibraryController:
         service = EpisodeConfigurationService(database, clock=app.service.clock)
         config = service.load_configuration(episode_id)
         return service.create(project_id, replace(config, title=f"{config.title} Copy"))
+
+    @staticmethod
+    def resume(app: DeeperDiveApp, item: EpisodeLibraryItem) -> GenerationRunRecord:
+        EpisodeLibraryController._project_id(app)
+        if item.run is None:
+            raise ValueError("selected episode has no generation run to resume")
+        if item.run.state != "paused":
+            raise ValueError(f"run state {item.run.state} is not resumable")
+        app.current_episode_id = item.episode.id
+        app.current_run_id = item.run.id
+        return app.generation_monitor_controller.resume(app, item.run)
 
     @staticmethod
     def delete(app: DeeperDiveApp, episode_id: str) -> None:
@@ -158,15 +171,25 @@ class EpisodeLibraryScreen(Screen[None]):
 
     def action_resume_selected(self) -> None:
         item = self._selected()
-        if item is None or item.run is None:
-            self._status("Selected episode has no generation run to resume")
+        if item is None:
+            self._status("No episode selected")
             return
-        if item.run.state not in {"paused", "failed", "pending"}:
-            self._status(f"Run state {item.run.state} is not resumable")
+        try:
+            run = EpisodeLibraryController.resume(self._app, item)
+        except ValueError as exc:
+            self._status(str(exc).capitalize())
             return
-        self._app.current_episode_id = item.episode.id
-        self._app.current_run_id = item.run.id
+        except Exception as exc:
+            self._status(user_status("resume", exc))
+            return
+        self._app.current_run_id = run.id
         self._app.action_navigate("monitor")
+        self.call_after_refresh(self._start_monitor_generation)
+
+    def _start_monitor_generation(self) -> None:
+        screen = self.app.screen
+        if isinstance(screen, GenerationMonitorScreen):
+            screen.start_background_generation()
 
     def action_duplicate_selected(self) -> None:
         item = self._selected()

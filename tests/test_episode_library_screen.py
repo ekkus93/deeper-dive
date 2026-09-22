@@ -11,8 +11,10 @@ from deeper_dive.domain.clock import FrozenClock, format_timestamp
 from deeper_dive.domain.ids import new_run_id
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.episode_library_screen import EpisodeLibraryScreen
+from deeper_dive.generation_monitor import GenerationMonitorScreen
+from deeper_dive.pipeline import DEFAULT_STAGES
 from deeper_dive.storage.database import Database
-from deeper_dive.storage.run_repositories import GenerationRunRecord
+from deeper_dive.storage.run_repositories import CompletedUnitRecord, GenerationRunRecord
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.tui import DeeperDiveApp
 
@@ -56,6 +58,12 @@ async def _library_workflow(tmp_path: Path) -> None:
         assert "Failed episode | failed" in listing
         assert "Complete episode | completed" in listing
 
+        screen.selected_episode_id = failed.id
+        screen.action_resume_selected()
+        assert "Run state failed is not resumable" in str(
+            screen.query_one("#screen-status", Static).render()
+        )
+
         screen.selected_episode_id = paused.id
         screen.action_duplicate_selected()
         await pilot.pause()
@@ -79,6 +87,57 @@ async def _library_workflow(tmp_path: Path) -> None:
         assert app.screen.id == "screen-episode"
         assert app.current_episode_id is None
         assert app.current_run_id is None
+
+
+def test_library_resume_invokes_orchestration_from_checkpoint(tmp_path: Path) -> None:
+    asyncio.run(_library_resume_invokes_orchestration_from_checkpoint(tmp_path))
+
+
+async def _library_resume_invokes_orchestration_from_checkpoint(tmp_path: Path) -> None:
+    service = _service(tmp_path)
+    project = service.create_project("Library resume")
+    database = Database(service.workspaces.project_root(project.id) / "project.db")
+    episode = EpisodeConfigurationService(database, clock=service.clock).create(
+        project.id,
+        EpisodeConfiguration(title="Paused episode"),
+    )
+    timestamp = format_timestamp(service.clock.now())
+    run_id = str(new_run_id())
+    runs = service.runs(project.id)
+    runs.create(
+        GenerationRunRecord(
+            id=run_id,
+            episode_id=episode.id,
+            stage="research",
+            state="paused",
+            created_at=timestamp,
+            modified_at=timestamp,
+            pause_requested=True,
+        )
+    )
+    runs.complete_unit(CompletedUnitRecord(run_id, "sources", "stage", timestamp))
+
+    app = DeeperDiveApp(service)
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.current_project_id = project.id
+        app.current_project_name = project.name
+        screen = EpisodeLibraryScreen()
+        app.push_screen(screen)
+        await pilot.pause()
+        screen.selected_episode_id = episode.id
+        screen.action_resume_selected()
+        await pilot.pause()
+        assert isinstance(app.screen, GenerationMonitorScreen)
+        monitor = app.screen
+        assert app.current_episode_id == episode.id
+        assert app.current_run_id == run_id
+        assert monitor._task is not None
+        await asyncio.wait_for(monitor._task, timeout=5.0)
+
+    resumed = runs.get(run_id)
+    assert resumed is not None
+    assert resumed.state == "completed"
+    assert runs.list_completed_stages(run_id) == list(DEFAULT_STAGES)
 
 
 def _service(tmp_path: Path) -> DeeperDiveService:
