@@ -131,7 +131,9 @@ async def _library_resume_navigates_to_monitor_with_selected_run(tmp_path: Path)
         assert isinstance(app.screen, GenerationMonitorScreen)
         assert app.current_episode_id == episode_id
         assert app.current_run_id == run_id
-        assert service.runs(project_id).get(run_id).state == "pending"  # type: ignore[union-attr]
+        run = service.runs(project_id).get(run_id)
+        assert run is not None
+        assert run.state == "pending"
 
 
 def _paused_resume_fixture(tmp_path: Path) -> tuple[DeeperDiveService, str, str, str]:
