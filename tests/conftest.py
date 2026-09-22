@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import faulthandler
 
-
 _SUPERSEDED_MONITOR_TESTS = {
     "test_production_monitor_runner_executes_pipeline_from_tui",
     "test_background_generation_failure_uses_actionable_status",
