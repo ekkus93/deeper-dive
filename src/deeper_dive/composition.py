@@ -111,13 +111,7 @@ class ProductionComposition:
         research_controller = PersistentResearchController(
             lambda project_id: (app_service.workspaces.project_root(project_id) / "project.db")
         )
-        monitor_controller = GenerationMonitorController(
-            runner=lambda run_id, progress: cls._run_generation_pipeline(
-                app_service,
-                run_id,
-                progress,
-            )
-        )
+        monitor_controller = GenerationMonitorController()
         composition = cls(
             service=app_service,
             config_store=config_store,
@@ -132,6 +126,9 @@ class ProductionComposition:
             generation_monitor_controller=monitor_controller,
             benchmark_service=TTSBenchmarkService(),
             playback_controller=AudioPlaybackController(playback_backend),
+        )
+        monitor_controller.runner = lambda run_id, progress: composition._run_generation_pipeline(
+            run_id, progress
         )
         app_service._production_composition = composition  # type: ignore[attr-defined]
         return composition
@@ -248,9 +245,22 @@ class ProductionComposition:
         *,
         progress: ProgressSink | None = None,
     ) -> PipelineResult:
-        """Execute a production-composed generation run to a terminal/control state."""
+        """Execute generation only after resolving the episode's effective assignments."""
 
-        return self.generation_pipeline(project_id, progress=progress).run(run_id)
+        repository = self.generation_run_repository(project_id)
+        run = repository.get(run_id)
+        if run is None:
+            raise KeyError(f"unknown generation run: {run_id}")
+        assignments, errors = self.effective_model_role_assignments_for_episode(
+            project_id, run.episode_id
+        )
+        if errors:
+            raise ValueError("invalid effective model assignments: " + "; ".join(errors))
+        return self.generation_pipeline(
+            project_id,
+            progress=progress,
+            handlers=_production_stage_handlers(assignments.resolved()),
+        ).run(run_id)
 
     def exporter(self, project_id: str) -> EpisodeExporter:
         """Construct the exporter rooted in the selected project workspace."""
@@ -271,19 +281,13 @@ class ProductionComposition:
             self.database_for_project(project_id), provider, rechecker, summary_updater
         )
 
-    @staticmethod
     def _run_generation_pipeline(
-        service: DeeperDiveService,
+        self,
         run_id: str,
         progress: ProgressSink,
     ) -> None:
-        project_id = _project_id_for_run(service, run_id)
-        repository = service.runs(project_id)
-        PipelineOrchestrator(
-            repository,
-            _production_stage_handlers(),
-            progress=progress,
-        ).run(run_id)
+        project_id = _project_id_for_run(self.service, run_id)
+        self.run_generation(project_id, run_id, progress=progress)
 
 
 def _project_id_for_run(service: DeeperDiveService, run_id: str) -> str:
@@ -293,16 +297,26 @@ def _project_id_for_run(service: DeeperDiveService, run_id: str) -> str:
     raise KeyError(f"unknown generation run: {run_id}")
 
 
-def _production_stage_handlers() -> dict[str, StageHandler]:
-    return {stage: _durable_stage_boundary for stage in DEFAULT_STAGES}
+def _production_stage_handlers(
+    assignments: Mapping[model_roles.ModelRole, model_roles.ModelAssignment] | None = None,
+) -> dict[str, StageHandler]:
+    resolved = dict(assignments or {})
+
+    def handler(context: PipelineContext) -> None:
+        _durable_stage_boundary(context, resolved)
+
+    return {stage: handler for stage in DEFAULT_STAGES}
 
 
-def _durable_stage_boundary(context: PipelineContext) -> None:
+def _durable_stage_boundary(
+    context: PipelineContext,
+    assignments: Mapping[model_roles.ModelRole, model_roles.ModelAssignment] | None = None,
+) -> None:
     """Production-safe stage boundary until richer stage services own the work.
 
-    The orchestrator still owns durable state transitions, retries, checkpoints,
-    pause/cancel boundaries, and progress events. Stage-specific content generation
-    can replace these handlers incrementally without changing TUI/CLI wiring.
+    Effective assignments are resolved before orchestration and captured here so
+    stage-specific generation can consume the same immutable routing decision that
+    preflight reports. Richer stage services can replace this boundary incrementally.
     """
 
-    _ = context
+    _ = context, assignments
