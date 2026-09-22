@@ -31,7 +31,9 @@ def test_production_pipeline_persists_reviewable_and_exportable_quick_episode(
     hosts = composition.service.hosts(project.id)
     hosts.create_host(HostProfileRecord("h1", project.id, "Host One"))
 
-    episode = EpisodeConfigurationService(composition.database_for_project(project.id)).create(
+    episode = EpisodeConfigurationService(
+        composition.database_for_project(project.id)
+    ).create(
         project.id,
         EpisodeConfiguration(
             title="Quick Deep Dive",
@@ -53,8 +55,10 @@ def test_production_pipeline_persists_reviewable_and_exportable_quick_episode(
         artifacts = connection.execute(
             "SELECT turn_id,status,path FROM tts_artifacts ORDER BY turn_id"
         ).fetchall()
-    output_audio = composition.service.workspaces.project_root(project.id) / "output" / (
-        f"{episode.id}.wav"
+    output_audio = (
+        composition.service.workspaces.project_root(project.id)
+        / "output"
+        / f"{episode.id}.wav"
     )
     timeline = AudioTimelineRepository(database).get(episode.id)
     export = EpisodeLibraryExportService(composition.service.workspaces).export(
