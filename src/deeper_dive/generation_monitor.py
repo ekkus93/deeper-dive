@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from dataclasses import dataclass, field, replace
-from typing import Protocol, cast
+from dataclasses import dataclass, field
+from typing import Any, Protocol, cast
 
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -39,7 +39,7 @@ class MonitorSnapshot:
 
 @dataclass(slots=True)
 class GenerationMonitorController:
-    """Read durable monitor state and optionally execute an injected pipeline runner."""
+    """Read durable monitor state and execute/control the production pipeline."""
 
     runner: Callable[[str, ProgressSink], None] | None = None
     events: list[ProgressEvent] = field(default_factory=list)
@@ -58,20 +58,14 @@ class GenerationMonitorController:
         conversation = ConversationStateRepository(database).get(episode_id)
         units = repository.list_completed_units_all(run.id)
         tts_units = [unit for unit in units if unit.stage == "tts" and unit.unit_id != "stage"]
-        research_units = [
-            unit for unit in units if unit.stage == "research" and unit.unit_id != "stage"
-        ]
+        research_units = [unit for unit in units if unit.stage == "research" and unit.unit_id != "stage"]
         return MonitorSnapshot(
-            run,
-            DEFAULT_STAGES,
-            completed,
+            run, DEFAULT_STAGES, completed,
             None if conversation is None else conversation.segment_ordinal,
             None if conversation is None else conversation.segment_turn,
             self._recent_turns(app, episode_id),
-            len(tts_units) if tts_units else None,
-            None,
-            len(research_units) if research_units else None,
-            None,
+            len(tts_units) if tts_units else None, None,
+            len(research_units) if research_units else None, None,
         )
 
     async def run(self, run_id: str) -> None:
@@ -80,6 +74,29 @@ class GenerationMonitorController:
         sink = cast(ProgressSink, self.events.append)
         await asyncio.to_thread(self.runner, run_id, sink)
 
+    def request_pause(self, app: MonitorApp, run_id: str) -> None:
+        self._pipeline(app).request_pause(run_id)
+
+    def request_cancel(self, app: MonitorApp, run_id: str) -> None:
+        self._pipeline(app).request_cancel(run_id)
+
+    def resume(self, app: MonitorApp, run: GenerationRunRecord) -> GenerationRunRecord:
+        if run.cancel_requested or run.state == "cancelled":
+            raise ValueError("cancelled runs cannot resume")
+        if run.state != "paused":
+            raise ValueError("only durably paused runs can resume")
+        return self._pipeline(app).resume(run.id)
+
+    @staticmethod
+    def _pipeline(app: MonitorApp) -> Any:
+        project_id = app.current_project_id
+        if project_id is None:
+            raise RuntimeError("no project open")
+        composition = getattr(app.service, "_production_composition", None)
+        if composition is None:
+            raise RuntimeError("production generation pipeline is not configured")
+        return composition.generation_pipeline(project_id)
+
     @staticmethod
     def _recent_turns(app: MonitorApp, episode_id: str) -> tuple[str, ...]:
         project_id = app.current_project_id
@@ -87,24 +104,17 @@ class GenerationMonitorController:
             return ()
         database = Database(app.service.workspaces.project_root(project_id) / "project.db")
         with database.connection() as connection:
-            table = connection.execute(
-                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversation_turns'"
-            ).fetchone()
+            table = connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversation_turns'").fetchone()
             if table is None:
                 return ()
-            columns = {
-                str(row[1]) for row in connection.execute("PRAGMA table_info(conversation_turns)")
-            }
+            columns = {str(row[1]) for row in connection.execute("PRAGMA table_info(conversation_turns)")}
             if not {"episode_id", "id"}.issubset(columns):
                 return ()
-            text_column = (
-                "text" if "text" in columns else "content" if "content" in columns else None
-            )
+            text_column = "text" if "text" in columns else "content" if "content" in columns else None
             if text_column is None:
                 return ()
             rows = connection.execute(
-                f"SELECT id,{text_column} AS body FROM conversation_turns "
-                "WHERE episode_id=? ORDER BY rowid DESC LIMIT 5",
+                f"SELECT id,{text_column} AS body FROM conversation_turns WHERE episode_id=? ORDER BY rowid DESC LIMIT 5",
                 (episode_id,),
             ).fetchall()
         return tuple(f"{row['id']}: {str(row['body'])[:160]}" for row in reversed(rows))
@@ -116,20 +126,13 @@ class MonitorApp(Protocol):
     current_project_id: str | None
     current_episode_id: str | None
     current_run_id: str | None
-
     def action_navigate(self, destination: str) -> None: ...
 
 
 class GenerationMonitorScreen(Screen[None]):
     """Live, non-blocking view of durable generation progress."""
 
-    BINDINGS = [
-        Binding("p", "pause", "Pause"),
-        Binding("r", "resume", "Resume"),
-        Binding("c", "cancel", "Cancel"),
-        Binding("t", "view_transcript", "Transcript"),
-        Binding("d", "diagnostics", "Diagnostics"),
-    ]
+    BINDINGS = [Binding("p", "pause", "Pause"), Binding("r", "resume", "Resume"), Binding("c", "cancel", "Cancel"), Binding("t", "view_transcript", "Transcript"), Binding("d", "diagnostics", "Diagnostics")]
 
     def __init__(self) -> None:
         super().__init__(id="screen-monitor")
@@ -169,13 +172,7 @@ class GenerationMonitorScreen(Screen[None]):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         name = event.button.name or ""
-        actions = {
-            "pause-generation": self.action_pause,
-            "resume-generation": self.action_resume,
-            "cancel-generation": self.action_cancel,
-            "view-transcript": self.action_view_transcript,
-            "diagnostics": self.action_diagnostics,
-        }
+        actions = {"pause-generation": self.action_pause, "resume-generation": self.action_resume, "cancel-generation": self.action_cancel, "view-transcript": self.action_view_transcript, "diagnostics": self.action_diagnostics}
         action = actions.get(name)
         if action is not None:
             action()
@@ -187,43 +184,40 @@ class GenerationMonitorScreen(Screen[None]):
         if run is None:
             self._status("No generation run")
             return
-        self._app.service.runs(self._project_id()).request_pause(run.id, self._now())
-        self.refresh_monitor("Pause requested; current provider call may finish first")
+        try:
+            self._app.generation_monitor_controller.request_pause(self._app, run.id)
+        except Exception as exc:
+            self._status(user_status("pause", exc))
+            return
+        self.refresh_monitor("Pause requested; waiting for a safe pipeline boundary")
 
     def action_resume(self) -> None:
         run = self._run()
         if run is None:
             self._status("No generation run")
             return
-        if run.cancel_requested or run.state == "cancelled":
-            self._status("Cancelled runs cannot resume")
+        try:
+            self._app.generation_monitor_controller.resume(self._app, run)
+        except ValueError as exc:
+            self._status(str(exc).capitalize())
             return
-        was_paused = run.state == "paused"
-        if not was_paused and not run.pause_requested:
-            self._status("Only paused or pause-requested runs can resume")
+        except Exception as exc:
+            self._status(user_status("resume", exc))
             return
-        repository = self._app.service.runs(self._project_id())
-        repository.update(
-            replace(
-                run,
-                state="pending",
-                pause_requested=False,
-                failure_code=None,
-                failure_message=None,
-                modified_at=self._now(),
-            )
-        )
-        self.refresh_monitor("Run ready to resume")
-        if was_paused:
-            self.start_background_generation()
+        self.refresh_monitor("Run resumed from durable checkpoint")
+        self.start_background_generation()
 
     def action_cancel(self) -> None:
         run = self._run()
         if run is None:
             self._status("No generation run")
             return
-        self._app.service.runs(self._project_id()).request_cancel(run.id, self._now())
-        self.refresh_monitor("Cancel requested; current provider call may finish first")
+        try:
+            self._app.generation_monitor_controller.request_cancel(self._app, run.id)
+        except Exception as exc:
+            self._status(user_status("cancel", exc))
+            return
+        self.refresh_monitor("Cancel requested; waiting for a safe pipeline boundary")
 
     def action_view_transcript(self) -> None:
         if self._app.current_episode_id is None:
@@ -236,20 +230,14 @@ class GenerationMonitorScreen(Screen[None]):
         if run is None:
             text = "No run diagnostics available."
         else:
-            text = "\n".join(
-                (
-                    f"Run: {run.id}",
-                    f"State: {run.state}",
-                    f"Stage: {run.stage}",
-                    f"Retries: {run.retry_count}",
-                    f"Failure: {run.failure_code or 'none'} - {run.failure_message or 'none'}",
-                )
-            )
+            text = "\n".join((f"Run: {run.id}", f"State: {run.state}", f"Stage: {run.stage}", f"Retries: {run.retry_count}", f"Failure: {run.failure_code or 'none'} - {run.failure_message or 'none'}"))
         self.query_one("#diagnostics-summary", Static).update(text)
 
     def start_background_generation(self) -> None:
         run = self._run()
         if run is None or self._app.generation_monitor_controller.runner is None:
+            return
+        if self._task is not None and not self._task.done():
             return
         self._task = asyncio.create_task(self._background_run(run.id))
 
@@ -266,30 +254,15 @@ class GenerationMonitorScreen(Screen[None]):
     def refresh_monitor(self, status: str | None = None) -> None:
         snapshot = self._app.generation_monitor_controller.snapshot(self._app)
         run = snapshot.run
-        self.query_one("#generation-state", Static).update(
-            "Run: none" if run is None else f"Run: {run.id} | {run.state} | stage {run.stage}"
-        )
-        self.query_one("#stage-checklist", Static).update(
-            "Stages:\n"
-            + "\n".join(
-                f"{'✓' if stage in snapshot.completed_stages else '○'} {stage}"
-                for stage in snapshot.stages
-            )
-        )
+        self.query_one("#generation-state", Static).update("Run: none" if run is None else f"Run: {run.id} | {run.state} | stage {run.stage}")
+        self.query_one("#stage-checklist", Static).update("Stages:\n" + "\n".join(f"{'✓' if stage in snapshot.completed_stages else '○'} {stage}" for stage in snapshot.stages))
         current = "Current section/turn: not available yet"
         if snapshot.section is not None or snapshot.turn is not None:
             current = f"Current section/turn: {snapshot.section or 0} / {snapshot.turn or 0}"
         self.query_one("#current-work", Static).update(current)
-        self.query_one("#recent-turns", Static).update(
-            "Recent turns:\n"
-            + ("\n".join(snapshot.recent_turns) if snapshot.recent_turns else "none yet")
-        )
-        self.query_one("#tts-progress", Static).update(
-            self._progress("TTS", snapshot.tts_completed, snapshot.tts_total)
-        )
-        self.query_one("#research-progress", Static).update(
-            self._progress("Research", snapshot.research_completed, snapshot.research_total)
-        )
+        self.query_one("#recent-turns", Static).update("Recent turns:\n" + ("\n".join(snapshot.recent_turns) if snapshot.recent_turns else "none yet"))
+        self.query_one("#tts-progress", Static).update(self._progress("TTS", snapshot.tts_completed, snapshot.tts_total))
+        self.query_one("#research-progress", Static).update(self._progress("Research", snapshot.research_completed, snapshot.research_total))
         if status is not None:
             self._status(status)
 
@@ -303,17 +276,6 @@ class GenerationMonitorScreen(Screen[None]):
 
     def _run(self) -> GenerationRunRecord | None:
         return self._app.generation_monitor_controller.snapshot(self._app).run
-
-    def _project_id(self) -> str:
-        project_id = self._app.current_project_id
-        if project_id is None:
-            raise RuntimeError("no project open")
-        return project_id
-
-    def _now(self) -> str:
-        from deeper_dive.domain.clock import format_timestamp
-
-        return format_timestamp(self._app.service.clock.now())
 
     def _status(self, message: str) -> None:
         self.query_one("#screen-status", Static).update(f"Status: {message}")
