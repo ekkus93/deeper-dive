@@ -4,10 +4,8 @@ from pathlib import Path
 
 from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.composition import ProductionComposition
-from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.episode_library_export import EpisodeLibraryExportService
 from deeper_dive.provider_factory import ProviderFactory
-from deeper_dive.storage.episode_repositories import HostProfileRecord
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
@@ -26,16 +24,8 @@ def test_production_pipeline_persists_reviewable_and_exportable_quick_episode(
     project = composition.service.create_project("Quick durable workflow")
     root = composition.service.workspaces.project_root(project.id)
     database = composition.database_for_project(project.id)
-    hosts = composition.service.hosts(project.id)
-    hosts.create_host(HostProfileRecord("h1", project.id, "Host One"))
 
-    config = EpisodeConfiguration(
-        title="Quick Deep Dive",
-        focus="Exercise the normal durable workflow",
-        target_duration_seconds=1200,
-        host_ids=("h1",),
-    )
-    episode = EpisodeConfigurationService(database).create(project.id, config)
+    episode = composition.service.quick_deep_dive(project.id)
     run = composition.create_generation_run(project.id, episode.id)
 
     result = composition.run_generation(project.id, run.id)
