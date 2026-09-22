@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol, cast
 
@@ -241,9 +242,9 @@ class SettingsScreen(Screen[None]):
         )
         self._status(status)
 
-    def _save(self, operation: object, success: str) -> None:
+    def _save(self, operation: Callable[[], None], success: str) -> None:
         try:
-            cast("callable[[], None]", operation)()
+            operation()
         except (TypeError, ValueError) as exc:
             self._status(str(exc))
             return
