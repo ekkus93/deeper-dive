@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections.abc import Mapping
 
 from deeper_dive.llm import LLMProvider, LLMProviderRegistry
 from deeper_dive.provider_factory import (
@@ -56,6 +57,18 @@ class ProviderController:
         )
         self.config_store.save(config)
         self.reload()
+
+    def save_defaults(self, values: Mapping[str, str]) -> None:
+        """Persist non-secret application defaults, removing fields cleared in the UI."""
+
+        config = self.config()
+        for key, value in values.items():
+            normalized = value.strip()
+            if normalized:
+                config.defaults[key] = normalized
+            else:
+                config.defaults.pop(key, None)
+        self.config_store.save(config)
 
     def remove_provider(self, name: str) -> None:
         config = self.config()
