@@ -21,6 +21,7 @@ from deeper_dive.model_roles import (
     ModelRole,
     ModelRoleAssignments,
     effective_model_role_assignments,
+    project_model_defaults_from_instructions,
 )
 from deeper_dive.preflight import (
     PreflightEstimate,
@@ -183,8 +184,15 @@ class PreflightController:
     ) -> tuple[ModelRoleAssignments, tuple[PreflightIssue, ...]]:
         composition = getattr(app.service, "_production_composition", None)
         if composition is None:
+            project = app.service.open_project(project_id)
+            project_defaults = (
+                project_model_defaults_from_instructions(project.instructions)
+                if project is not None
+                else {}
+            )
             assignments, errors = effective_model_role_assignments(
-                user_defaults=app.provider_controller.config().defaults
+                user_defaults=app.provider_controller.config().defaults,
+                project_defaults=project_defaults,
             )
         else:
             composition.provider_controller = app.provider_controller
