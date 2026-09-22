@@ -7,6 +7,7 @@ export blocker.
 
 from __future__ import annotations
 
+import contextlib
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -214,7 +215,9 @@ class LocalProcessAudioPlayer:
                 process.wait(timeout=self._STOP_TIMEOUT_SECONDS)
             except subprocess.TimeoutExpired:
                 process.kill()
-                process.wait(timeout=self._STOP_TIMEOUT_SECONDS)
+                # Kill has been requested; do not let a stuck reap block the TUI forever.
+                with contextlib.suppress(subprocess.TimeoutExpired):
+                    process.wait(timeout=self._STOP_TIMEOUT_SECONDS)
         self._process = None
         return PlaybackState(
             available=True,

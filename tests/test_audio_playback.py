@@ -53,8 +53,9 @@ class FakePlaybackBackend:
 
 
 class FakeProcess:
-    def __init__(self, *, time_out_once: bool = False) -> None:
+    def __init__(self, *, time_out_once: bool = False, always_time_out: bool = False) -> None:
         self.time_out_once = time_out_once
+        self.always_time_out = always_time_out
         self.terminated = False
         self.killed = False
         self.wait_timeouts: list[float] = []
@@ -70,7 +71,7 @@ class FakeProcess:
 
     def wait(self, timeout: float) -> int:
         self.wait_timeouts.append(timeout)
-        if self.time_out_once and len(self.wait_timeouts) == 1:
+        if self.always_time_out or (self.time_out_once and len(self.wait_timeouts) == 1):
             raise subprocess.TimeoutExpired("fake-player", timeout)
         return 0
 
@@ -118,6 +119,23 @@ def test_local_player_stop_waits_after_terminate() -> None:
 def test_local_player_stop_escalates_to_kill_after_timeout() -> None:
     player = LocalProcessAudioPlayer(Path("/fake/mpv"), strategy="mpv")
     process = FakeProcess(time_out_once=True)
+    player._process = process  # type: ignore[assignment]
+
+    state = player.stop()
+
+    assert process.terminated
+    assert process.killed
+    assert process.wait_timeouts == [
+        player._STOP_TIMEOUT_SECONDS,
+        player._STOP_TIMEOUT_SECONDS,
+    ]
+    assert not state.playing
+    assert player._process is None
+
+
+def test_local_player_stop_remains_bounded_when_reap_stalls_after_kill() -> None:
+    player = LocalProcessAudioPlayer(Path("/fake/mpv"), strategy="mpv")
+    process = FakeProcess(always_time_out=True)
     player._process = process  # type: ignore[assignment]
 
     state = player.stop()
