@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.composition import ProductionComposition
+from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.episode_library_export import EpisodeLibraryExportService
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
@@ -26,6 +28,9 @@ def test_production_pipeline_persists_reviewable_and_exportable_quick_episode(
     database = composition.database_for_project(project.id)
 
     episode = composition.service.quick_deep_dive(project.id)
+    configs = EpisodeConfigurationService(database)
+    quick_config = configs.load_configuration(episode.id)
+    episode = configs.edit(episode.id, replace(quick_config, focus="indexed corpus"))
     run = composition.create_generation_run(project.id, episode.id)
 
     result = composition.run_generation(project.id, run.id)
