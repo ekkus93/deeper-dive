@@ -12,7 +12,7 @@ def test_audio_resolution_never_crosses_episode_identity(tmp_path: Path) -> None
     service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
     project = service.create_project("Audio isolation")
     output = service.workspaces.project_root(project.id) / "output"
-    output.mkdir(parents=True)
+    output.mkdir(parents=True, exist_ok=True)
     episode_a = "episode-a"
     episode_b = "episode-b"
     audio_a = output / f"{episode_a}.wav"
