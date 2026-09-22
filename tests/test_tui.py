@@ -114,11 +114,27 @@ async def _home_projects_interrupted_run_state(tmp_path: Path) -> None:
     timestamp = format_timestamp(service.clock.now())
     episode_id = str(new_episode_id())
     service.hosts(project.id).create_episode(
-        EpisodeRecord(id=episode_id, project_id=project.id, title="Episode", created_at=timestamp, modified_at=timestamp), []
+        EpisodeRecord(
+            id=episode_id,
+            project_id=project.id,
+            title="Episode",
+            created_at=timestamp,
+            modified_at=timestamp,
+        ),
+        [],
     )
     service.runs(project.id).create(
-        GenerationRunRecord(id=str(new_run_id()), episode_id=episode_id, stage="conversation", state="paused", created_at=timestamp, modified_at=timestamp, pause_requested=True)
+        GenerationRunRecord(
+            id=str(new_run_id()),
+            episode_id=episode_id,
+            stage="conversation",
+            state="paused",
+            created_at=timestamp,
+            modified_at=timestamp,
+            pause_requested=True,
+        )
     )
+
     app = DeeperDiveApp(service)
     async with app.run_test(size=(100, 30)):
         assert "pause requested" in _text(_home(app), "#project-list")
@@ -142,15 +158,18 @@ async def _sources_tui_workflow(tmp_path: Path) -> None:
         sources.query_one("#source-text", Input).value = "First line about evidence."
         sources.action_add_paste()
         await pilot.pause()
+
         assert "Primary sources:" in _text(sources, "#source-list")
         assert "Notes | included | parsed | pasted-text" in _text(sources, "#source-list")
         assert "Origin: user" in _text(sources, "#source-details")
         assert "Locator: paste://text" in _text(sources, "#source-details")
         assert "Parsed text" in _text(sources, "#source-text-preview")
         assert "First line about evidence." in _text(sources, "#source-text-preview")
+
         sources.action_toggle_included()
         await pilot.pause()
         assert "Notes | excluded | parsed | pasted-text" in _text(sources, "#source-list")
+
         sources.action_delete_selected()
         await pilot.pause()
         assert "No sources yet" in _text(sources, "#source-list")
@@ -164,17 +183,42 @@ async def _preflight_tui_unhealthy_provider(tmp_path: Path) -> None:
     service = _service(tmp_path)
     project = service.create_project("Preflight")
     service.add_pasted_source(project.id, "Notes", "Grounded evidence for generation.")
-    service.hosts(project.id).create_host(HostProfile(id="host-1", project_id=project.id, display_name="Host One", tts_provider="fake-tts", tts_voice="voice-a").to_record())
+    service.hosts(project.id).create_host(
+        HostProfile(
+            id="host-1",
+            project_id=project.id,
+            display_name="Host One",
+            tts_provider="fake-tts",
+            tts_voice="voice-a",
+        ).to_record()
+    )
     timestamp = format_timestamp(service.clock.now())
     episode_id = str(new_episode_id())
-    service.hosts(project.id).create_episode(EpisodeRecord(id=episode_id, project_id=project.id, title="Episode", created_at=timestamp, modified_at=timestamp), ["host-1"])
+    service.hosts(project.id).create_episode(
+        EpisodeRecord(
+            id=episode_id,
+            project_id=project.id,
+            title="Episode",
+            created_at=timestamp,
+            modified_at=timestamp,
+        ),
+        ["host-1"],
+    )
     ffmpeg = tmp_path / "ffmpeg"
     ffmpeg.write_text("fake", encoding="utf-8")
     config_store = UserConfigStore(tmp_path / "config.json")
     config_store.save(UserConfig(defaults={role.value: "fake:fake-v1" for role in ModelRole}))
     llm_registry = LLMProviderRegistry()
     llm_registry.register(UnhealthyLLM())
-    app = DeeperDiveApp(service, provider_controller=ProviderController(config_store, llm_registry, {"fake-tts": FakeTTSProvider()}), preflight_controller=PreflightController(ffmpeg_executable=ffmpeg))
+    app = DeeperDiveApp(
+        service,
+        provider_controller=ProviderController(
+            config_store,
+            llm_registry,
+            {"fake-tts": FakeTTSProvider()},
+        ),
+        preflight_controller=PreflightController(ffmpeg_executable=ffmpeg),
+    )
     async with app.run_test(size=(100, 30)) as pilot:
         app.current_project_id = project.id
         app.current_project_name = project.name
@@ -191,7 +235,9 @@ async def _preflight_tui_unhealthy_provider(tmp_path: Path) -> None:
         assert "LLM provider 'fake' is unhealthy: offline" in _text(screen, "#preflight-issues")
         screen.action_generate()
         await pilot.pause()
-        assert "Generation blocked: LLM provider 'fake' is unhealthy: offline" in _text(screen, "#screen-status")
+        assert "Generation blocked: LLM provider 'fake' is unhealthy: offline" in _text(
+            screen, "#screen-status"
+        )
 
 
 def test_preflight_generate_click_starts_pipeline(tmp_path: Path) -> None:
@@ -202,17 +248,43 @@ async def _preflight_generate_click_starts_pipeline(tmp_path: Path) -> None:
     service = _service(tmp_path)
     project = service.create_project("Generate")
     service.add_pasted_source(project.id, "Notes", "Grounded evidence for generation.")
-    service.hosts(project.id).create_host(HostProfile(id="host-1", project_id=project.id, display_name="Host One", tts_provider="fake-tts", tts_voice="voice-a").to_record())
+    service.hosts(project.id).create_host(
+        HostProfile(
+            id="host-1",
+            project_id=project.id,
+            display_name="Host One",
+            tts_provider="fake-tts",
+            tts_voice="voice-a",
+        ).to_record()
+    )
     timestamp = format_timestamp(service.clock.now())
     episode_id = str(new_episode_id())
-    service.hosts(project.id).create_episode(EpisodeRecord(id=episode_id, project_id=project.id, title="Episode", target_duration_seconds=1200, created_at=timestamp, modified_at=timestamp), ["host-1"])
+    service.hosts(project.id).create_episode(
+        EpisodeRecord(
+            id=episode_id,
+            project_id=project.id,
+            title="Episode",
+            target_duration_seconds=1200,
+            created_at=timestamp,
+            modified_at=timestamp,
+        ),
+        ["host-1"],
+    )
     ffmpeg = tmp_path / "ffmpeg"
     ffmpeg.write_text("fake", encoding="utf-8")
     config_store = UserConfigStore(tmp_path / "config.json")
     config_store.save(UserConfig(defaults={role.value: "fake:fake-v1" for role in ModelRole}))
     llm_registry = LLMProviderRegistry()
     llm_registry.register(FakeLLMProvider())
-    app = DeeperDiveApp(service, provider_controller=ProviderController(config_store, llm_registry, {"fake-tts": FakeTTSProvider()}), preflight_controller=PreflightController(ffmpeg_executable=ffmpeg))
+    app = DeeperDiveApp(
+        service,
+        provider_controller=ProviderController(
+            config_store,
+            llm_registry,
+            {"fake-tts": FakeTTSProvider()},
+        ),
+        preflight_controller=PreflightController(ffmpeg_executable=ffmpeg),
+    )
     async with app.run_test(size=(100, 30)) as pilot:
         app.current_project_id = project.id
         app.current_project_name = project.name
@@ -232,7 +304,7 @@ async def _preflight_generate_click_starts_pipeline(tmp_path: Path) -> None:
         assert run is not None
         assert run.state == "completed"
         assert service.runs(project.id).list_completed_stages(run.id) == list(DEFAULT_STAGES)
-        assert "completed" in str(app.screen.query_one("#generation-state", Static).render())
+        assert "completed" in str(monitor.query_one("#generation-state", Static).render())
 
 
 def test_preflight_tui_sanitizes_generation_start_failures(tmp_path: Path) -> None:
@@ -242,11 +314,23 @@ def test_preflight_tui_sanitizes_generation_start_failures(tmp_path: Path) -> No
 async def _preflight_tui_sanitizes_generation_start_failures(tmp_path: Path) -> None:
     secret = "tui-runtime-value-654"
     key_name = "api" + "_" + "key"
+
     class FailingPreflightController:
         def build(self, app: object) -> PreflightPresentation:
-            return PreflightPresentation(project_name="Project", source_count=1, indexed_source_count=1, host_count=1, target_minutes=20.0, llm_rows=("episode_planning: fake:fake-v1",), tts_rows=("Host One: fake-tts / voice-a",), report=PreflightReport((), PreflightEstimate(20.0, 1000, 500, None)))
+            return PreflightPresentation(
+                project_name="Project",
+                source_count=1,
+                indexed_source_count=1,
+                host_count=1,
+                target_minutes=20.0,
+                llm_rows=("episode_planning: fake:fake-v1",),
+                tts_rows=("Host One: fake-tts / voice-a",),
+                report=PreflightReport((), PreflightEstimate(20.0, 1000, 500, None)),
+            )
+
         def start_generation(self, app: object) -> GenerationRunRecord:
             raise RuntimeError(f"provider failed {key_name}={secret}")
+
     app = DeeperDiveApp(_service(tmp_path), preflight_controller=FailingPreflightController())  # type: ignore[arg-type]
     async with app.run_test(size=(100, 30)) as pilot:
         app.action_navigate("generate")
@@ -266,7 +350,10 @@ class UnhealthyLLM(FakeLLMProvider):
 
 
 def _service(tmp_path: Path) -> DeeperDiveService:
-    return DeeperDiveService(WorkspaceManager(tmp_path / "data"), clock=FrozenClock(datetime(2026, 9, 17, 12, 0, 0, tzinfo=UTC)))
+    return DeeperDiveService(
+        WorkspaceManager(tmp_path / "data"),
+        clock=FrozenClock(datetime(2026, 9, 17, 12, 0, 0, tzinfo=UTC)),
+    )
 
 
 def _home(app: DeeperDiveApp) -> HomeProjectsScreen:
@@ -289,4 +376,14 @@ def _text(screen: HomeProjectsScreen | SourcesScreen | PreflightScreen, selector
 
 
 def _shortcut(destination: str) -> tuple[str, ...]:
-    return {"providers": ("p",), "settings": ("s",), "help": ("?",), "sources": ("1",), "research": ("2",), "hosts": ("3",), "episode": ("4",), "generate": ("5",), "library": ("6",)}[destination]
+    return {
+        "providers": ("p",),
+        "settings": ("s",),
+        "help": ("?",),
+        "sources": ("1",),
+        "research": ("2",),
+        "hosts": ("3",),
+        "episode": ("4",),
+        "generate": ("5",),
+        "library": ("6",),
+    }[destination]
