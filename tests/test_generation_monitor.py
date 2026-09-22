@@ -22,8 +22,15 @@ from deeper_dive.transcript_review_screen import TranscriptReviewScreen
 from deeper_dive.tui import DeeperDiveApp
 
 
+_TEST_TIMEOUT_SECONDS = 10.0
+
+
+def _run_bounded(coro) -> None:
+    asyncio.run(asyncio.wait_for(coro, timeout=_TEST_TIMEOUT_SECONDS))
+
+
 def test_monitor_renders_durable_progress_and_controls(tmp_path: Path) -> None:
-    asyncio.run(_monitor_renders_durable_progress_and_controls(tmp_path))
+    _run_bounded(_monitor_renders_durable_progress_and_controls(tmp_path))
 
 
 async def _monitor_renders_durable_progress_and_controls(tmp_path: Path) -> None:
@@ -64,7 +71,7 @@ async def _monitor_renders_durable_progress_and_controls(tmp_path: Path) -> None
 
 
 def test_monitor_rejects_resume_when_run_is_not_paused(tmp_path: Path) -> None:
-    asyncio.run(_monitor_rejects_resume_when_run_is_not_paused(tmp_path))
+    _run_bounded(_monitor_rejects_resume_when_run_is_not_paused(tmp_path))
 
 
 async def _monitor_rejects_resume_when_run_is_not_paused(tmp_path: Path) -> None:
@@ -88,7 +95,7 @@ async def _monitor_rejects_resume_when_run_is_not_paused(tmp_path: Path) -> None
 
 
 def test_monitor_binds_conversation_state_and_recent_turns(tmp_path: Path) -> None:
-    asyncio.run(_monitor_binds_conversation_state_and_recent_turns(tmp_path))
+    _run_bounded(_monitor_binds_conversation_state_and_recent_turns(tmp_path))
 
 
 async def _monitor_binds_conversation_state_and_recent_turns(tmp_path: Path) -> None:
@@ -130,7 +137,7 @@ async def _monitor_binds_conversation_state_and_recent_turns(tmp_path: Path) -> 
 
 
 def test_long_running_fake_provider_does_not_block_tui(tmp_path: Path) -> None:
-    asyncio.run(_long_running_fake_provider_does_not_block_tui(tmp_path))
+    _run_bounded(_long_running_fake_provider_does_not_block_tui(tmp_path))
 
 
 async def _long_running_fake_provider_does_not_block_tui(tmp_path: Path) -> None:
@@ -160,7 +167,7 @@ async def _long_running_fake_provider_does_not_block_tui(tmp_path: Path) -> None
 
 
 def test_production_monitor_runner_executes_pipeline_from_tui(tmp_path: Path) -> None:
-    asyncio.run(_production_monitor_runner_executes_pipeline_from_tui(tmp_path))
+    _run_bounded(_production_monitor_runner_executes_pipeline_from_tui(tmp_path))
 
 
 async def _production_monitor_runner_executes_pipeline_from_tui(tmp_path: Path) -> None:
@@ -189,7 +196,7 @@ async def _production_monitor_runner_executes_pipeline_from_tui(tmp_path: Path) 
 
 
 def test_background_generation_failure_uses_actionable_status(tmp_path: Path) -> None:
-    asyncio.run(_background_generation_failure_uses_actionable_status(tmp_path))
+    _run_bounded(_background_generation_failure_uses_actionable_status(tmp_path))
 
 
 async def _background_generation_failure_uses_actionable_status(tmp_path: Path) -> None:
