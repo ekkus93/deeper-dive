@@ -14,6 +14,7 @@ from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.audio_playback import AudioPlaybackBackend, AudioPlaybackController
 from deeper_dive.domain.clock import SystemClock, format_timestamp
 from deeper_dive.domain.ids import new_run_id
+from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.episode_planner import EpisodePlanGenerator, EpisodePlannerService
 from deeper_dive.export import EpisodeExporter
 from deeper_dive.generation_monitor import GenerationMonitorController
@@ -173,6 +174,21 @@ class ProductionComposition:
             user_defaults=self.provider_controller.config().defaults,
             project_defaults=project_defaults,
             episode_overrides=episode_overrides or {},
+        )
+
+    def effective_model_role_assignments_for_episode(
+        self,
+        project_id: str,
+        episode_id: str,
+    ) -> tuple[model_roles.ModelRoleAssignments, tuple[str, ...]]:
+        """Resolve model roles for one durable episode using episode > project > user order."""
+
+        config = EpisodeConfigurationService(
+            self.database_for_project(project_id)
+        ).load_configuration(episode_id)
+        return self.effective_model_role_assignments(
+            project_id,
+            episode_overrides=config.model_overrides,
         )
 
     def generation_run_repository(self, project_id: str) -> GenerationRunRepository:
