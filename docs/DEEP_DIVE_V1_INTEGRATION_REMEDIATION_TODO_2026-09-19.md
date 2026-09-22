@@ -115,14 +115,14 @@
 
 ## DDR-021 — Make Preflight Generate start generation
 
-- [ ] Keep existing source/host/duration/provider/FFmpeg checks.
-- [ ] Apply episode-level model/provider overrides.
-- [ ] On blockers, prevent generation.
-- [ ] On success, create/select the proper run according to the pipeline contract.
-- [ ] Invoke actual generation.
-- [ ] Navigate to/activate Generation Monitor.
-- [ ] Ensure repeated clicks cannot accidentally start duplicate runs.
-- [ ] Add integration test that clicks Generate and observes real run progress.
+- [x] Keep existing source/host/duration/provider/FFmpeg checks.
+- [x] Apply episode-level model/provider overrides.
+- [x] On blockers, prevent generation.
+- [x] On success, create/select the proper run according to the pipeline contract.
+- [x] Invoke actual generation.
+- [x] Navigate to/activate Generation Monitor.
+- [x] Ensure repeated clicks cannot accidentally start duplicate runs.
+- [x] Add integration test that clicks Generate and observes real run progress.
 
 **Acceptance criteria**
 
