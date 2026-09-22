@@ -79,6 +79,12 @@ class SettingsController:
 
     def summary(self) -> tuple[str, ...]:
         defaults = self.provider_controller.config().defaults
+        quick_duration = defaults.get("quick_deep_dive_duration_minutes", "20")
+        quick_hosts = defaults.get(
+            "quick_deep_dive_host_presets",
+            "curious_explainer,skeptic",
+        )
+        quick_research = defaults.get("quick_deep_dive_research_policy", "useful")
         rows = ["Model role defaults:"]
         for role in ModelRole:
             rows.append(f"  {role.value}: {defaults.get(role.value, 'unassigned')}")
@@ -92,12 +98,9 @@ class SettingsController:
                 f"  network_policy: {defaults.get('network_policy', 'configured providers')}",
                 f"  local_only: {defaults.get('local_only', 'false')}",
                 "Quick Deep Dive defaults:",
-                "  duration_minutes: "
-                f"{defaults.get('quick_deep_dive_duration_minutes', '20')}",
-                "  host_presets: "
-                f"{defaults.get('quick_deep_dive_host_presets', 'curious_explainer,skeptic')}",
-                "  research_policy: "
-                f"{defaults.get('quick_deep_dive_research_policy', 'useful')}",
+                f"  duration_minutes: {quick_duration}",
+                f"  host_presets: {quick_hosts}",
+                f"  research_policy: {quick_research}",
                 "Runtime/readiness defaults:",
                 f"  ffmpeg_executable: {defaults.get('ffmpeg_executable', 'auto-detect')}",
                 f"  kitten_model_dir: {defaults.get('kitten_model_dir', 'default models dir')}",
