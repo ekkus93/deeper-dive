@@ -9,10 +9,12 @@ from pathlib import Path
 from textual.widgets import Static
 
 from deeper_dive.application.service import DeeperDiveService
+from deeper_dive.conversation_state import ConversationStateRepository
 from deeper_dive.domain.clock import FrozenClock, format_timestamp
 from deeper_dive.domain.ids import new_episode_id, new_run_id
 from deeper_dive.generation_monitor import GenerationMonitorController, GenerationMonitorScreen
 from deeper_dive.pipeline import DEFAULT_STAGES
+from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.run_repositories import CompletedUnitRecord, GenerationRunRecord
 from deeper_dive.storage.workspace import WorkspaceManager
@@ -79,6 +81,48 @@ async def _monitor_rejects_resume_when_run_is_not_paused(tmp_path: Path) -> None
         await pilot.pause()
         assert "Only paused or pause-requested runs can resume" in _text(screen, "#screen-status")
         assert repository.get(run_id).state == "completed"  # type: ignore[union-attr]
+
+
+def test_monitor_binds_conversation_state_and_recent_turns(tmp_path: Path) -> None:
+    asyncio.run(_monitor_binds_conversation_state_and_recent_turns(tmp_path))
+
+
+async def _monitor_binds_conversation_state_and_recent_turns(tmp_path: Path) -> None:
+    service, project_id, episode_id, run_id = _fixture(tmp_path)
+    database = Database(service.workspaces.project_root(project_id) / "project.db")
+    ConversationStateRepository(database).update(
+        episode_id,
+        segment_ordinal=2,
+        segment_turn=3,
+    )
+    with database.transaction() as connection:
+        connection.execute(
+            """CREATE TABLE conversation_turns(
+                id TEXT PRIMARY KEY,
+                episode_id TEXT NOT NULL,
+                text TEXT NOT NULL
+            )"""
+        )
+        connection.execute(
+            "INSERT INTO conversation_turns(id, episode_id, text) VALUES (?, ?, ?)",
+            ("turn-1", episode_id, "First durable monitor turn."),
+        )
+        connection.execute(
+            "INSERT INTO conversation_turns(id, episode_id, text) VALUES (?, ?, ?)",
+            ("turn-2", episode_id, "Second durable monitor turn."),
+        )
+    app = DeeperDiveApp(service, generation_monitor_controller=GenerationMonitorController())
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.current_project_id = project_id
+        app.current_episode_id = episode_id
+        app.current_run_id = run_id
+        app.action_navigate("monitor")
+        await pilot.pause()
+        screen = _monitor(app)
+        assert "segment 2 / turn 3" in _text(screen, "#current-work")
+        recent = _text(screen, "#recent-turns")
+        assert "turn-1: First durable monitor turn." in recent
+        assert "turn-2: Second durable monitor turn." in recent
 
 
 def test_long_running_fake_provider_does_not_block_tui(tmp_path: Path) -> None:
