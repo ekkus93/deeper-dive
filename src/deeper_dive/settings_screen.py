@@ -53,8 +53,12 @@ class SettingsScreen(Screen[None]):
                 yield Button(key.title(), id=f"nav-{key}", name=f"nav:{key}")
         with VerticalScroll(id="content"):
             yield Label("Settings", id="screen-title")
-            yield Static("Application defaults used by production composition.", id="screen-description")
-            yield Button("Manage Providers", id="action-manage-providers", name="nav:providers")
+            yield Static(
+                "Application defaults used by production composition.", id="screen-description"
+            )
+            yield Button(
+                "Manage Providers", id="action-manage-providers", name="nav:providers"
+            )
             yield Label("Model role defaults (provider:model)")
             for role in ModelRole:
                 yield Input(placeholder=role.value, id=self.ROLE_IDS[role])
