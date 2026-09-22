@@ -67,6 +67,17 @@ def test_effective_assignment_parser_applies_episode_project_user_precedence() -
     )
 
 
+def test_effective_assignment_parser_does_not_invent_builtin_model_fallbacks() -> None:
+    assignments, errors = effective_model_role_assignments(
+        user_defaults={},
+        project_defaults={},
+        episode_overrides={},
+    )
+
+    assert not errors
+    assert all(assignments.resolve(role) is None for role in REQUIRED_MODEL_ROLES)
+
+
 def test_effective_assignment_parser_reports_actionable_errors() -> None:
     assignments, errors = effective_model_role_assignments(
         user_defaults={"episode_planning": "missing-separator"},
