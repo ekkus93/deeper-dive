@@ -58,14 +58,20 @@ class GenerationMonitorController:
         conversation = ConversationStateRepository(database).get(episode_id)
         units = repository.list_completed_units_all(run.id)
         tts_units = [unit for unit in units if unit.stage == "tts" and unit.unit_id != "stage"]
-        research_units = [unit for unit in units if unit.stage == "research" and unit.unit_id != "stage"]
+        research_units = [
+            unit for unit in units if unit.stage == "research" and unit.unit_id != "stage"
+        ]
         return MonitorSnapshot(
-            run, DEFAULT_STAGES, completed,
+            run,
+            DEFAULT_STAGES,
+            completed,
             None if conversation is None else conversation.segment_ordinal,
             None if conversation is None else conversation.segment_turn,
             self._recent_turns(app, episode_id),
-            len(tts_units) if tts_units else None, None,
-            len(research_units) if research_units else None, None,
+            len(tts_units) if tts_units else None,
+            None,
+            len(research_units) if research_units else None,
+            None,
         )
 
     async def run(self, run_id: str) -> None:
@@ -104,17 +110,24 @@ class GenerationMonitorController:
             return ()
         database = Database(app.service.workspaces.project_root(project_id) / "project.db")
         with database.connection() as connection:
-            table = connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversation_turns'").fetchone()
+            table = connection.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversation_turns'"
+            ).fetchone()
             if table is None:
                 return ()
-            columns = {str(row[1]) for row in connection.execute("PRAGMA table_info(conversation_turns)")}
+            columns = {
+                str(row[1]) for row in connection.execute("PRAGMA table_info(conversation_turns)")
+            }
             if not {"episode_id", "id"}.issubset(columns):
                 return ()
-            text_column = "text" if "text" in columns else "content" if "content" in columns else None
+            text_column = (
+                "text" if "text" in columns else "content" if "content" in columns else None
+            )
             if text_column is None:
                 return ()
             rows = connection.execute(
-                f"SELECT id,{text_column} AS body FROM conversation_turns WHERE episode_id=? ORDER BY rowid DESC LIMIT 5",
+                f"SELECT id,{text_column} AS body FROM conversation_turns "
+                "WHERE episode_id=? ORDER BY rowid DESC LIMIT 5",
                 (episode_id,),
             ).fetchall()
         return tuple(f"{row['id']}: {str(row['body'])[:160]}" for row in reversed(rows))
@@ -126,13 +139,20 @@ class MonitorApp(Protocol):
     current_project_id: str | None
     current_episode_id: str | None
     current_run_id: str | None
+
     def action_navigate(self, destination: str) -> None: ...
 
 
 class GenerationMonitorScreen(Screen[None]):
     """Live, non-blocking view of durable generation progress."""
 
-    BINDINGS = [Binding("p", "pause", "Pause"), Binding("r", "resume", "Resume"), Binding("c", "cancel", "Cancel"), Binding("t", "view_transcript", "Transcript"), Binding("d", "diagnostics", "Diagnostics")]
+    BINDINGS = [
+        Binding("p", "pause", "Pause"),
+        Binding("r", "resume", "Resume"),
+        Binding("c", "cancel", "Cancel"),
+        Binding("t", "view_transcript", "Transcript"),
+        Binding("d", "diagnostics", "Diagnostics"),
+    ]
 
     def __init__(self) -> None:
         super().__init__(id="screen-monitor")
@@ -172,7 +192,13 @@ class GenerationMonitorScreen(Screen[None]):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         name = event.button.name or ""
-        actions = {"pause-generation": self.action_pause, "resume-generation": self.action_resume, "cancel-generation": self.action_cancel, "view-transcript": self.action_view_transcript, "diagnostics": self.action_diagnostics}
+        actions = {
+            "pause-generation": self.action_pause,
+            "resume-generation": self.action_resume,
+            "cancel-generation": self.action_cancel,
+            "view-transcript": self.action_view_transcript,
+            "diagnostics": self.action_diagnostics,
+        }
         action = actions.get(name)
         if action is not None:
             action()
@@ -230,7 +256,15 @@ class GenerationMonitorScreen(Screen[None]):
         if run is None:
             text = "No run diagnostics available."
         else:
-            text = "\n".join((f"Run: {run.id}", f"State: {run.state}", f"Stage: {run.stage}", f"Retries: {run.retry_count}", f"Failure: {run.failure_code or 'none'} - {run.failure_message or 'none'}"))
+            text = "\n".join(
+                (
+                    f"Run: {run.id}",
+                    f"State: {run.state}",
+                    f"Stage: {run.stage}",
+                    f"Retries: {run.retry_count}",
+                    f"Failure: {run.failure_code or 'none'} - {run.failure_message or 'none'}",
+                )
+            )
         self.query_one("#diagnostics-summary", Static).update(text)
 
     def start_background_generation(self) -> None:
@@ -254,15 +288,30 @@ class GenerationMonitorScreen(Screen[None]):
     def refresh_monitor(self, status: str | None = None) -> None:
         snapshot = self._app.generation_monitor_controller.snapshot(self._app)
         run = snapshot.run
-        self.query_one("#generation-state", Static).update("Run: none" if run is None else f"Run: {run.id} | {run.state} | stage {run.stage}")
-        self.query_one("#stage-checklist", Static).update("Stages:\n" + "\n".join(f"{'✓' if stage in snapshot.completed_stages else '○'} {stage}" for stage in snapshot.stages))
+        self.query_one("#generation-state", Static).update(
+            "Run: none" if run is None else f"Run: {run.id} | {run.state} | stage {run.stage}"
+        )
+        self.query_one("#stage-checklist", Static).update(
+            "Stages:\n"
+            + "\n".join(
+                f"{'✓' if stage in snapshot.completed_stages else '○'} {stage}"
+                for stage in snapshot.stages
+            )
+        )
         current = "Current section/turn: not available yet"
         if snapshot.section is not None or snapshot.turn is not None:
             current = f"Current section/turn: {snapshot.section or 0} / {snapshot.turn or 0}"
         self.query_one("#current-work", Static).update(current)
-        self.query_one("#recent-turns", Static).update("Recent turns:\n" + ("\n".join(snapshot.recent_turns) if snapshot.recent_turns else "none yet"))
-        self.query_one("#tts-progress", Static).update(self._progress("TTS", snapshot.tts_completed, snapshot.tts_total))
-        self.query_one("#research-progress", Static).update(self._progress("Research", snapshot.research_completed, snapshot.research_total))
+        self.query_one("#recent-turns", Static).update(
+            "Recent turns:\n"
+            + ("\n".join(snapshot.recent_turns) if snapshot.recent_turns else "none yet")
+        )
+        self.query_one("#tts-progress", Static).update(
+            self._progress("TTS", snapshot.tts_completed, snapshot.tts_total)
+        )
+        self.query_one("#research-progress", Static).update(
+            self._progress("Research", snapshot.research_completed, snapshot.research_total)
+        )
         if status is not None:
             self._status(status)
 
