@@ -22,6 +22,7 @@ from deeper_dive.preflight_screen import PreflightController, PreflightScreen
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.providers_screen import ProvidersScreen
 from deeper_dive.research_screen import ResearchController, ResearchScreen
+from deeper_dive.settings_screen import SettingsScreen
 from deeper_dive.storage.repositories import SourceRecord
 
 GLOBAL_SCREENS = ("home", "providers", "settings", "help")
@@ -488,7 +489,7 @@ class DeeperDiveApp(App[None]):
     ]
     SCREENS = {
         "providers": lambda: ProvidersScreen(),
-        "settings": lambda: ShellScreen("settings", "Settings", "Application preferences."),
+        "settings": lambda: SettingsScreen(),
         "help": lambda: ShellScreen(
             "help", "Help", "Use the footer, keyboard shortcuts, or command palette to navigate."
         ),
