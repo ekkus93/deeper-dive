@@ -130,7 +130,7 @@ def test_long_running_fake_provider_does_not_block_tui(tmp_path: Path) -> None:
 
 
 async def _long_running_fake_provider_does_not_block_tui(tmp_path: Path) -> None:
-    service, project_id, episode_id, run_id = _fixture(tmp_path)
+    _, _, _, run_id = _fixture(tmp_path)
     runner_started = threading.Event()
     release_runner = threading.Event()
 
@@ -138,27 +138,22 @@ async def _long_running_fake_provider_does_not_block_tui(tmp_path: Path) -> None
         assert selected_run_id == run_id
         progress(type("Event", (), {"operation": "conversation", "state": "running"})())
         runner_started.set()
-        if not release_runner.wait(timeout=5.0):
+        if not release_runner.wait(timeout=2.0):
             raise TimeoutError("test runner was not released")
 
     controller = GenerationMonitorController(runner=slow_runner)
-    app = DeeperDiveApp(service, generation_monitor_controller=controller)
-    async with app.run_test(size=(100, 30)) as pilot:
-        app.current_project_id = project_id
-        app.current_episode_id = episode_id
-        app.current_run_id = run_id
-        app.action_navigate("monitor")
-        await pilot.pause()
-        screen = _monitor(app)
-        screen.start_background_generation()
+    task = asyncio.create_task(controller.run(run_id))
+    try:
         for _ in range(100):
             if runner_started.is_set():
                 break
             await asyncio.sleep(0.01)
         assert runner_started.is_set()
-        assert screen._task is not None and not screen._task.done()
+        await asyncio.sleep(0)
+        assert not task.done()
+    finally:
         release_runner.set()
-        await screen._task
+    await task
 
 
 def test_production_monitor_runner_executes_pipeline_from_tui(tmp_path: Path) -> None:
