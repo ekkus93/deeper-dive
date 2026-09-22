@@ -5,14 +5,14 @@ from pathlib import Path
 
 from textual.widgets import Input, Static
 
+from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.llm import LLMProviderRegistry
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.settings_screen import SettingsController, SettingsScreen
 from deeper_dive.storage.workspace import WorkspaceManager
-from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.tts import FakeTTSProvider
-from deeper_dive.user_config import UserConfigStore
 from deeper_dive.tui import DeeperDiveApp
+from deeper_dive.user_config import UserConfigStore
 
 
 def _provider_controller(tmp_path: Path) -> ProviderController:
