@@ -97,7 +97,8 @@ async def _library_resume_invokes_orchestration_from_checkpoint(tmp_path: Path) 
     service, project_id, episode_id, run_id = _paused_resume_fixture(tmp_path)
     app = DeeperDiveApp(service)
     app.current_project_id = project_id
-    item = next(item for item in EpisodeLibraryController.items(app) if item.episode.id == episode_id)
+    items = EpisodeLibraryController.items(app)
+    item = next(item for item in items if item.episode.id == episode_id)
 
     resumed = EpisodeLibraryController.resume(app, item)
     assert resumed.id == run_id
