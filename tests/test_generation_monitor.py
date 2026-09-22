@@ -153,17 +153,21 @@ async def _long_running_fake_provider_does_not_block_tui(tmp_path: Path) -> None
         assert not task.done()
     finally:
         release_runner.set()
-    await task
+    await asyncio.wait_for(task, timeout=5.0)
 
 
 def test_production_monitor_runner_executes_pipeline_from_tui(tmp_path: Path) -> None:
+    asyncio.run(_production_monitor_runner_executes_pipeline_from_tui(tmp_path))
+
+
+async def _production_monitor_runner_executes_pipeline_from_tui(tmp_path: Path) -> None:
     service, project_id, _, run_id = _fixture(tmp_path)
     repository = service.runs(project_id)
     run = repository.get(run_id)
     assert run is not None
     repository.update(replace(run, state="pending", stage=DEFAULT_STAGES[0]))
     controller = service._production_composition.generation_monitor_controller  # type: ignore[attr-defined]
-    asyncio.run(controller.run(run_id))
+    await asyncio.wait_for(controller.run(run_id), timeout=10.0)
     completed = repository.get(run_id)
     assert completed is not None
     assert completed.state == "completed"
