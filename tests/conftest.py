@@ -3,17 +3,28 @@
 from __future__ import annotations
 
 import signal
+import sys
+from types import FrameType
+from typing import Any
 
 
 def _monitor_timeout(signum: int, frame: object) -> None:
     raise TimeoutError("generation monitor responsiveness test exceeded 20 seconds")
 
 
+def _trace_monitor(frame: FrameType, event: str, arg: Any):
+    if frame.f_code.co_name == "_long_running_fake_provider_does_not_block_tui" and event == "line":
+        print(f"MONITOR_TRACE line={frame.f_lineno}", flush=True)
+    return _trace_monitor
+
+
 def pytest_runtest_setup(item: object) -> None:
     if getattr(item, "name", "") == "test_long_running_fake_provider_does_not_block_tui":
         signal.signal(signal.SIGALRM, _monitor_timeout)
         signal.alarm(20)
+        sys.settrace(_trace_monitor)
 
 
 def pytest_runtest_teardown(item: object, nextitem: object | None) -> None:
     signal.alarm(0)
+    sys.settrace(None)
