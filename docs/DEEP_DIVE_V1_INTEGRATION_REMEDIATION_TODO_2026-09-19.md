@@ -130,13 +130,13 @@
 
 ## DDR-022 — Production-wire Generation Monitor
 
-- [ ] Supply a real runner backed by `PipelineOrchestrator`.
-- [ ] Start work asynchronously with Textual remaining responsive.
-- [ ] Bind stage/current-turn/recent-turn views to durable run state.
-- [ ] Preserve meaningful-progress-only behavior.
-- [ ] Open full transcript/review from the monitor.
-- [ ] Show sanitized diagnostic/failure information.
-- [ ] Add production-wiring tests rather than runner-only component tests.
+- [x] Supply a real runner backed by `PipelineOrchestrator`.
+- [x] Start work asynchronously with Textual remaining responsive.
+- [x] Bind stage/current-turn/recent-turn views to durable run state.
+- [x] Preserve meaningful-progress-only behavior.
+- [x] Open full transcript/review from the monitor.
+- [x] Show sanitized diagnostic/failure information.
+- [x] Add production-wiring tests rather than runner-only component tests.
 
 ## DDR-023 — Implement real pause/cancel/resume semantics
 
