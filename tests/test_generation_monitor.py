@@ -47,9 +47,13 @@ async def _monitor_renders_durable_progress_and_controls(tmp_path: Path) -> None
         assert "Research progress: 1 completed unit(s)" in _text(screen, "#research-progress")
         screen.action_pause()
         assert service.runs(project_id).get(run_id).pause_requested is True  # type: ignore[union-attr]
+        composition = service._production_composition  # type: ignore[attr-defined]
+        paused = composition.generation_pipeline(project_id).run(run_id)
+        assert paused.run.state == "paused"
         screen.action_resume()
         resumed = service.runs(project_id).get(run_id)
-        assert resumed is not None and resumed.pause_requested is False
+        assert resumed is not None and resumed.state == "pending"
+        assert resumed.pause_requested is False
         screen.action_cancel()
         assert service.runs(project_id).get(run_id).cancel_requested is True  # type: ignore[union-attr]
         screen.action_diagnostics()
@@ -79,7 +83,7 @@ async def _monitor_rejects_resume_when_run_is_not_paused(tmp_path: Path) -> None
         screen = _monitor(app)
         screen.action_resume()
         await pilot.pause()
-        assert "Only paused or pause-requested runs can resume" in _text(screen, "#screen-status")
+        assert "Only durably paused runs can resume" in _text(screen, "#screen-status")
         assert repository.get(run_id).state == "completed"  # type: ignore[union-attr]
 
 
