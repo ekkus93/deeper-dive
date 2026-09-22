@@ -5,7 +5,9 @@ from pathlib import Path
 
 import pytest
 
+from deeper_dive import command as command_module
 from deeper_dive.command import main
+from deeper_dive.tts import FakeTTSProvider
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
@@ -48,9 +50,25 @@ def test_provider_cli_list_health_discovery_and_kitten_status(
     status = _call([*base, "kitten-status"], capsys)
     assert status["installed"] is False
 
-    benchmark = _call([*base, "kitten-benchmark"], capsys)
-    assert benchmark["voice_count"] == 8
-    assert benchmark["sample_rate_hz"] == 24000
+
+def test_kitten_benchmark_runs_timed_synthesis_and_reports_metrics(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(command_module, "KittenTTSMicroProvider", FakeTTSProvider)
+    benchmark = _call(
+        ["--data-dir", str(tmp_path), "--json", "provider", "kitten-benchmark"],
+        capsys,
+    )
+    assert benchmark["provider"] == "fake-tts"
+    assert benchmark["voice"] == "voice-a"
+    assert benchmark["audio_seconds"] > 0
+    assert benchmark["wall_seconds"] > 0
+    assert benchmark["realtime_factor"] > 0
+    assert benchmark["x_realtime"] > 0
+    assert benchmark["runtime"].startswith("Python ")
+    assert benchmark["cpu"]
 
 
 def test_provider_router_preserves_existing_cli(
