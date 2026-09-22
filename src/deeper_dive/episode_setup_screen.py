@@ -9,16 +9,10 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
-from deeper_dive.composition import LLMEpisodePlanGenerator, ProductionComposition
+from deeper_dive.composition import ProductionComposition
 from deeper_dive.diagnostics import sanitize_provider_error
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
-from deeper_dive.model_roles import (
-    ModelAssignment,
-    ModelRole,
-    effective_model_role_assignments,
-    preflight_model_roles,
-    project_model_defaults_from_instructions,
-)
+from deeper_dive.model_roles import ModelAssignment, ModelRole, preflight_model_roles
 from deeper_dive.storage.database import Database
 
 if TYPE_CHECKING:
@@ -120,13 +114,10 @@ class EpisodeSetupScreen(Screen[None]):
             episode = service.edit(self.current_episode_id, config)
             self._app.current_episode_id = episode.id
         try:
-            provider = self._app.provider_controller.llm_registry.get(assignment.provider)
-            composition = cast(
-                ProductionComposition,
-                getattr(self._app.service, "_production_composition"),  # noqa: B009
-            )
-            planner = composition.planning_service(
-                project_id, LLMEpisodePlanGenerator(provider, assignment.model)
+            planner = self._composition().configured_planning_service(
+                project_id,
+                assignment.provider,
+                assignment.model,
             )
             plan = planner.build_plan(episode.id)
         except (KeyError, ValueError, RuntimeError) as exc:
@@ -195,10 +186,8 @@ class EpisodeSetupScreen(Screen[None]):
     def _planning_assignment(
         self, project_id: str, config: EpisodeConfiguration
     ) -> ModelAssignment | str:
-        user_config = self._app.provider_controller.config()
-        assignments, issues = effective_model_role_assignments(
-            user_defaults=user_config.defaults,
-            project_defaults=self._project_model_defaults(project_id),
+        assignments, issues = self._composition().effective_model_role_assignments(
+            project_id,
             episode_overrides=config.model_overrides,
         )
         if issues:
@@ -215,12 +204,6 @@ class EpisodeSetupScreen(Screen[None]):
             return preflight.blockers[0].message
         return assignment
 
-    def _project_model_defaults(self, project_id: str) -> dict[str, str]:
-        project = self._app.service.open_project(project_id)
-        if project is None:
-            return {}
-        return project_model_defaults_from_instructions(project.instructions)
-
     def _existing_model_overrides(self, project_id: str) -> dict[str, dict[str, str]]:
         if self.current_episode_id is None:
             return {}
@@ -235,6 +218,12 @@ class EpisodeSetupScreen(Screen[None]):
     def _configuration_service(self, project_id: str) -> EpisodeConfigurationService:
         database = Database(self._app.service.workspaces.project_root(project_id) / "project.db")
         return EpisodeConfigurationService(database)
+
+    def _composition(self) -> ProductionComposition:
+        return cast(
+            ProductionComposition,
+            getattr(self._app.service, "_production_composition"),  # noqa: B009
+        )
 
     def _csv(self, selector: str) -> tuple[str, ...]:
         raw = self.query_one(selector, Input).value
