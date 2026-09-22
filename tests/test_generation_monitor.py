@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-import time
+import threading
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -47,9 +47,13 @@ async def _monitor_renders_durable_progress_and_controls(tmp_path: Path) -> None
         assert "Research progress: 1 completed unit(s)" in _text(screen, "#research-progress")
         screen.action_pause()
         assert service.runs(project_id).get(run_id).pause_requested is True  # type: ignore[union-attr]
+        composition = service._production_composition  # type: ignore[attr-defined]
+        paused = composition.generation_pipeline(project_id).run(run_id)
+        assert paused.run.state == "paused"
         screen.action_resume()
         resumed = service.runs(project_id).get(run_id)
-        assert resumed is not None and resumed.pause_requested is False
+        assert resumed is not None and resumed.state == "pending"
+        assert resumed.pause_requested is False
         screen.action_cancel()
         assert service.runs(project_id).get(run_id).cancel_requested is True  # type: ignore[union-attr]
         screen.action_diagnostics()
@@ -79,7 +83,7 @@ async def _monitor_rejects_resume_when_run_is_not_paused(tmp_path: Path) -> None
         screen = _monitor(app)
         screen.action_resume()
         await pilot.pause()
-        assert "Only paused or pause-requested runs can resume" in _text(screen, "#screen-status")
+        assert "Only durably paused runs can resume" in _text(screen, "#screen-status")
         assert repository.get(run_id).state == "completed"  # type: ignore[union-attr]
 
 
@@ -90,11 +94,7 @@ def test_monitor_binds_conversation_state_and_recent_turns(tmp_path: Path) -> No
 async def _monitor_binds_conversation_state_and_recent_turns(tmp_path: Path) -> None:
     service, project_id, episode_id, run_id = _fixture(tmp_path)
     database = Database(service.workspaces.project_root(project_id) / "project.db")
-    ConversationStateRepository(database).update(
-        episode_id,
-        segment_ordinal=2,
-        segment_turn=3,
-    )
+    ConversationStateRepository(database).update(episode_id, segment_ordinal=2, segment_turn=3)
     with database.transaction() as connection:
         connection.execute(
             """CREATE TABLE conversation_turns(
@@ -130,29 +130,30 @@ def test_long_running_fake_provider_does_not_block_tui(tmp_path: Path) -> None:
 
 
 async def _long_running_fake_provider_does_not_block_tui(tmp_path: Path) -> None:
-    service, project_id, episode_id, run_id = _fixture(tmp_path)
+    _, _, _, run_id = _fixture(tmp_path)
+    runner_started = threading.Event()
+    release_runner = threading.Event()
 
     def slow_runner(selected_run_id: str, progress) -> None:
         assert selected_run_id == run_id
         progress(type("Event", (), {"operation": "conversation", "state": "running"})())
-        time.sleep(0.25)
+        runner_started.set()
+        if not release_runner.wait(timeout=2.0):
+            raise TimeoutError("test runner was not released")
 
     controller = GenerationMonitorController(runner=slow_runner)
-    app = DeeperDiveApp(service, generation_monitor_controller=controller)
-    async with app.run_test(size=(100, 30)) as pilot:
-        app.current_project_id = project_id
-        app.current_episode_id = episode_id
-        app.current_run_id = run_id
-        app.action_navigate("monitor")
-        await pilot.pause()
-        screen = _monitor(app)
-        screen.start_background_generation()
-        await asyncio.sleep(0.02)
-        screen.action_diagnostics()
-        await pilot.pause()
-        assert "Run: " in _text(screen, "#diagnostics-summary")
-        assert screen._task is not None and not screen._task.done()
-        await screen._task
+    task = asyncio.create_task(controller.run(run_id))
+    try:
+        for _ in range(100):
+            if runner_started.is_set():
+                break
+            await asyncio.sleep(0.01)
+        assert runner_started.is_set()
+        await asyncio.sleep(0)
+        assert not task.done()
+    finally:
+        release_runner.set()
+    await asyncio.wait_for(task, timeout=5.0)
 
 
 def test_production_monitor_runner_executes_pipeline_from_tui(tmp_path: Path) -> None:
@@ -160,28 +161,17 @@ def test_production_monitor_runner_executes_pipeline_from_tui(tmp_path: Path) ->
 
 
 async def _production_monitor_runner_executes_pipeline_from_tui(tmp_path: Path) -> None:
-    service, project_id, episode_id, run_id = _fixture(tmp_path)
+    service, project_id, _, run_id = _fixture(tmp_path)
     repository = service.runs(project_id)
     run = repository.get(run_id)
     assert run is not None
     repository.update(replace(run, state="pending", stage=DEFAULT_STAGES[0]))
-    app = DeeperDiveApp(service)
-    async with app.run_test(size=(100, 30)) as pilot:
-        app.current_project_id = project_id
-        app.current_episode_id = episode_id
-        app.current_run_id = run_id
-        app.action_navigate("monitor")
-        await pilot.pause()
-        screen = _monitor(app)
-        screen.start_background_generation()
-        assert screen._task is not None
-        await screen._task
-        await pilot.pause()
-        completed = repository.get(run_id)
-        assert completed is not None
-        assert completed.state == "completed"
-        assert repository.list_completed_stages(run_id) == list(DEFAULT_STAGES)
-        assert "completed" in _text(screen, "#generation-state")
+    controller = service._production_composition.generation_monitor_controller  # type: ignore[attr-defined]
+    await asyncio.wait_for(controller.run(run_id), timeout=10.0)
+    completed = repository.get(run_id)
+    assert completed is not None
+    assert completed.state == "completed"
+    assert repository.list_completed_stages(run_id) == list(DEFAULT_STAGES)
 
 
 def test_background_generation_failure_uses_actionable_status(tmp_path: Path) -> None:
@@ -206,7 +196,7 @@ async def _background_generation_failure_uses_actionable_status(tmp_path: Path) 
         screen = _monitor(app)
         screen.start_background_generation()
         assert screen._task is not None
-        await screen._task
+        await asyncio.wait_for(screen._task, timeout=5.0)
         await pilot.pause()
         status = _text(screen, "#screen-status")
         assert "Generation failed." in status

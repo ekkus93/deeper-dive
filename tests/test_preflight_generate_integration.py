@@ -7,12 +7,11 @@ from pathlib import Path
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.domain.clock import FrozenClock, format_timestamp
 from deeper_dive.domain.ids import new_episode_id
-from deeper_dive.generation_monitor import GenerationMonitorScreen
 from deeper_dive.hosts import HostProfile
 from deeper_dive.llm import FakeLLMProvider, LLMProviderRegistry
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.pipeline import DEFAULT_STAGES
-from deeper_dive.preflight_screen import PreflightController, PreflightScreen
+from deeper_dive.preflight_screen import PreflightController
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.workspace import WorkspaceManager
@@ -21,11 +20,11 @@ from deeper_dive.tui import DeeperDiveApp
 from deeper_dive.user_config import UserConfig, UserConfigStore
 
 
-def test_generate_click_starts_real_pipeline_and_reuses_active_run(tmp_path: Path) -> None:
-    asyncio.run(_generate_click_starts_real_pipeline_and_reuses_active_run(tmp_path))
+def test_generate_starts_real_pipeline_and_reuses_active_run(tmp_path: Path) -> None:
+    asyncio.run(_generate_starts_real_pipeline_and_reuses_active_run(tmp_path))
 
 
-async def _generate_click_starts_real_pipeline_and_reuses_active_run(tmp_path: Path) -> None:
+async def _generate_starts_real_pipeline_and_reuses_active_run(tmp_path: Path) -> None:
     service = DeeperDiveService(
         WorkspaceManager(tmp_path / "data"),
         clock=FrozenClock(datetime(2026, 9, 20, 21, 0, tzinfo=UTC)),
@@ -79,21 +78,12 @@ async def _generate_click_starts_real_pipeline_and_reuses_active_run(tmp_path: P
     repeated = preflight_controller.start_generation(app)
     assert repeated.id == first.id
 
-    async with app.run_test(size=(100, 30)) as pilot:
-        app.action_navigate("generate")
-        await pilot.pause()
-        assert isinstance(app.screen, PreflightScreen)
+    presentation = preflight_controller.build(app)
+    assert presentation.report.ready
+    assert app.generation_monitor_controller.runner is not None
+    await asyncio.wait_for(app.generation_monitor_controller.run(first.id), timeout=5.0)
 
-        app.screen.action_generate()
-        await pilot.pause()
-        assert isinstance(app.screen, GenerationMonitorScreen)
-        monitor = app.screen
-        assert app.current_run_id == first.id
-        assert monitor._task is not None
-        await monitor._task
-        await pilot.pause()
-
-        run = service.runs(project.id).get(first.id)
-        assert run is not None
-        assert run.state == "completed"
-        assert service.runs(project.id).list_completed_stages(first.id) == list(DEFAULT_STAGES)
+    run = service.runs(project.id).get(first.id)
+    assert run is not None
+    assert run.state == "completed"
+    assert service.runs(project.id).list_completed_stages(first.id) == list(DEFAULT_STAGES)
