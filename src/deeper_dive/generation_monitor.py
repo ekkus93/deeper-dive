@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from dataclasses import dataclass, field, replace
-from typing import Protocol, cast
+from dataclasses import dataclass, field
+from typing import Any, Protocol, cast
 
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -39,7 +39,7 @@ class MonitorSnapshot:
 
 @dataclass(slots=True)
 class GenerationMonitorController:
-    """Read durable monitor state and optionally execute an injected pipeline runner."""
+    """Read durable monitor state and execute/control the production pipeline."""
 
     runner: Callable[[str, ProgressSink], None] | None = None
     events: list[ProgressEvent] = field(default_factory=list)
@@ -79,6 +79,29 @@ class GenerationMonitorController:
             raise RuntimeError("generation runner is not configured")
         sink = cast(ProgressSink, self.events.append)
         await asyncio.to_thread(self.runner, run_id, sink)
+
+    def request_pause(self, app: MonitorApp, run_id: str) -> None:
+        self._pipeline(app).request_pause(run_id)
+
+    def request_cancel(self, app: MonitorApp, run_id: str) -> None:
+        self._pipeline(app).request_cancel(run_id)
+
+    def resume(self, app: MonitorApp, run: GenerationRunRecord) -> GenerationRunRecord:
+        if run.cancel_requested or run.state == "cancelled":
+            raise ValueError("cancelled runs cannot resume")
+        if run.state != "paused":
+            raise ValueError("only durably paused runs can resume")
+        return cast(GenerationRunRecord, self._pipeline(app).resume(run.id))
+
+    @staticmethod
+    def _pipeline(app: MonitorApp) -> Any:
+        project_id = app.current_project_id
+        if project_id is None:
+            raise RuntimeError("no project open")
+        composition = getattr(app.service, "_production_composition", None)
+        if composition is None:
+            raise RuntimeError("production generation pipeline is not configured")
+        return composition.generation_pipeline(project_id)
 
     @staticmethod
     def _recent_turns(app: MonitorApp, episode_id: str) -> tuple[str, ...]:
@@ -187,43 +210,40 @@ class GenerationMonitorScreen(Screen[None]):
         if run is None:
             self._status("No generation run")
             return
-        self._app.service.runs(self._project_id()).request_pause(run.id, self._now())
-        self.refresh_monitor("Pause requested; current provider call may finish first")
+        try:
+            self._app.generation_monitor_controller.request_pause(self._app, run.id)
+        except Exception as exc:
+            self._status(user_status("pause", exc))
+            return
+        self.refresh_monitor("Pause requested; waiting for a safe pipeline boundary")
 
     def action_resume(self) -> None:
         run = self._run()
         if run is None:
             self._status("No generation run")
             return
-        if run.cancel_requested or run.state == "cancelled":
-            self._status("Cancelled runs cannot resume")
+        try:
+            self._app.generation_monitor_controller.resume(self._app, run)
+        except ValueError as exc:
+            self._status(str(exc).capitalize())
             return
-        was_paused = run.state == "paused"
-        if not was_paused and not run.pause_requested:
-            self._status("Only paused or pause-requested runs can resume")
+        except Exception as exc:
+            self._status(user_status("resume", exc))
             return
-        repository = self._app.service.runs(self._project_id())
-        repository.update(
-            replace(
-                run,
-                state="pending",
-                pause_requested=False,
-                failure_code=None,
-                failure_message=None,
-                modified_at=self._now(),
-            )
-        )
-        self.refresh_monitor("Run ready to resume")
-        if was_paused:
-            self.start_background_generation()
+        self.refresh_monitor("Run resumed from durable checkpoint")
+        self.start_background_generation()
 
     def action_cancel(self) -> None:
         run = self._run()
         if run is None:
             self._status("No generation run")
             return
-        self._app.service.runs(self._project_id()).request_cancel(run.id, self._now())
-        self.refresh_monitor("Cancel requested; current provider call may finish first")
+        try:
+            self._app.generation_monitor_controller.request_cancel(self._app, run.id)
+        except Exception as exc:
+            self._status(user_status("cancel", exc))
+            return
+        self.refresh_monitor("Cancel requested; waiting for a safe pipeline boundary")
 
     def action_view_transcript(self) -> None:
         if self._app.current_episode_id is None:
@@ -250,6 +270,8 @@ class GenerationMonitorScreen(Screen[None]):
     def start_background_generation(self) -> None:
         run = self._run()
         if run is None or self._app.generation_monitor_controller.runner is None:
+            return
+        if self._task is not None and not self._task.done():
             return
         self._task = asyncio.create_task(self._background_run(run.id))
 
@@ -303,17 +325,6 @@ class GenerationMonitorScreen(Screen[None]):
 
     def _run(self) -> GenerationRunRecord | None:
         return self._app.generation_monitor_controller.snapshot(self._app).run
-
-    def _project_id(self) -> str:
-        project_id = self._app.current_project_id
-        if project_id is None:
-            raise RuntimeError("no project open")
-        return project_id
-
-    def _now(self) -> str:
-        from deeper_dive.domain.clock import format_timestamp
-
-        return format_timestamp(self._app.service.clock.now())
 
     def _status(self, message: str) -> None:
         self.query_one("#screen-status", Static).update(f"Status: {message}")
