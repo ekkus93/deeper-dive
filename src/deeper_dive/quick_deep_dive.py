@@ -99,20 +99,27 @@ class QuickDeepDiveService:
         duration = values.get("quick_deep_dive_duration_minutes", "").strip()
         presets = values.get("quick_deep_dive_host_presets", "").strip()
         research = values.get("quick_deep_dive_research_policy", "").strip()
-        updates: dict[str, object] = {}
+        target_duration_seconds = defaults.target_duration_seconds
+        fallback_presets = defaults.fallback_presets
+        research_mode = defaults.research_mode
         if duration:
             minutes = int(duration)
             if minutes <= 0:
                 raise ValueError("Quick Deep Dive duration must be positive")
-            updates["target_duration_seconds"] = minutes * 60
+            target_duration_seconds = minutes * 60
         if presets:
             parsed = tuple(item.strip() for item in presets.split(",") if item.strip())
             if len(parsed) != 2:
                 raise ValueError("Quick Deep Dive requires exactly two host presets")
-            updates["fallback_presets"] = parsed
+            fallback_presets = parsed
         if research:
-            updates["research_mode"] = ResearchMode(research)
-        return replace(defaults, **updates)
+            research_mode = ResearchMode(research)
+        return replace(
+            defaults,
+            target_duration_seconds=target_duration_seconds,
+            fallback_presets=fallback_presets,
+            research_mode=research_mode,
+        )
 
     def _host_ids(self, project_id: str, presets: tuple[str, str]) -> tuple[str, ...]:
         existing = self.hosts.list_hosts(project_id)
