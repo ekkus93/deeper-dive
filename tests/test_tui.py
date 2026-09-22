@@ -299,7 +299,7 @@ async def _preflight_generate_click_starts_pipeline(tmp_path: Path) -> None:
         monitor = app.screen
         assert monitor._task is not None
         await asyncio.wait_for(monitor._task, timeout=5.0)
-        await pilot.pause()
+        monitor.refresh_monitor()
         run = service.runs(project.id).latest_for_episode(episode_id)
         assert run is not None
         assert run.state == "completed"
