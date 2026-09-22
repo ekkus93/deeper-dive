@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 from rich.text import Text
 from textual.app import ComposeResult
@@ -16,7 +16,6 @@ from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.generation_monitor import GenerationMonitorScreen
-from deeper_dive.generation_start import select_or_create_generation_run
 from deeper_dive.hosts import HostProfile
 from deeper_dive.model_roles import (
     ModelRole,
@@ -31,7 +30,6 @@ from deeper_dive.preflight import (
     PreflightService,
 )
 from deeper_dive.provider_tui import ProviderController
-from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import (
     EpisodeRecord,
     HostEpisodeRepository,
@@ -40,6 +38,9 @@ from deeper_dive.storage.episode_repositories import (
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.tts import TTSProviderRegistry
 from deeper_dive.user_config import ProviderConfig
+
+if TYPE_CHECKING:
+    from deeper_dive.composition import ProductionComposition
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,21 +92,14 @@ class PreflightController:
         host_records = self._selected_host_records(host_repository, project_id, episode)
         hosts = tuple(HostProfile.from_record(host) for host in host_records)
         config = app.provider_controller.config()
-        project_defaults = self._project_model_defaults(app, project_id)
         episode_overrides = self._episode_model_overrides(app, project_id, episode)
         assignments, assignment_issues = self._assignments(
-            config.defaults,
-            project_defaults,
+            app,
+            project_id,
             episode_overrides,
         )
 
-        tts_registry = TTSProviderRegistry()
-        for provider in app.provider_controller.tts_providers.values():
-            tts_registry.register(provider)
-        report = PreflightService(
-            app.provider_controller.llm_registry,
-            tts_registry,
-        ).check(
+        report = self._preflight_service(app).check(
             assignments=assignments,
             hosts=hosts,
             source_count=len(sources),
@@ -148,7 +142,7 @@ class PreflightController:
         episode = self._selected_episode(repository, project_id, app.current_episode_id)
         if episode is None:
             raise ValueError("create/build an episode before generation")
-        result = select_or_create_generation_run(app.service, project_id, episode.id)
+        result = _composition(app).select_or_create_generation_run(project_id, episode.id)
         app.current_episode_id = episode.id
         app.current_run_id = result.run.id
         return result.run
@@ -199,7 +193,7 @@ class PreflightController:
     ) -> dict[str, dict[str, str]]:
         if episode is None:
             return {}
-        database = Database(app.service.workspaces.project_root(project_id) / "project.db")
+        database = _composition(app).database_for_project(project_id)
         try:
             config = EpisodeConfigurationService(database).load_configuration(episode.id)
         except KeyError:
@@ -208,17 +202,39 @@ class PreflightController:
 
     @staticmethod
     def _assignments(
-        defaults: dict[str, str],
-        project_defaults: dict[str, str] | None = None,
+        app: PreflightApp,
+        project_id: str,
         episode_overrides: dict[str, dict[str, str]] | None = None,
     ) -> tuple[ModelRoleAssignments, tuple[PreflightIssue, ...]]:
-        assignments, errors = effective_model_role_assignments(
-            user_defaults=defaults,
-            project_defaults=project_defaults or {},
-            episode_overrides=episode_overrides or {},
-        )
+        composition = _composition(app)
+        if app.provider_controller is composition.provider_controller:
+            assignments, errors = composition.effective_model_role_assignments(
+                project_id,
+                episode_overrides=episode_overrides or {},
+            )
+        else:
+            config = app.provider_controller.config()
+            project_defaults = PreflightController._project_model_defaults(app, project_id)
+            assignments, errors = effective_model_role_assignments(
+                user_defaults=config.defaults,
+                project_defaults=project_defaults,
+                episode_overrides=episode_overrides or {},
+            )
         issues = tuple(PreflightIssue("llm_assignment", error) for error in errors)
         return assignments, issues
+
+    @staticmethod
+    def _preflight_service(app: PreflightApp) -> PreflightService:
+        composition = _composition(app)
+        if app.provider_controller is composition.provider_controller:
+            return composition.preflight_service
+        tts_registry = TTSProviderRegistry()
+        for provider in app.provider_controller.tts_providers.values():
+            tts_registry.register(provider)
+        return PreflightService(
+            app.provider_controller.llm_registry,
+            tts_registry,
+        )
 
     @staticmethod
     def _local_provider_ids(
@@ -271,6 +287,13 @@ class PreflightApp(Protocol):
     current_run_id: str | None
 
     def action_navigate(self, destination: str) -> None: ...
+
+
+def _composition(app: PreflightApp) -> ProductionComposition:
+    composition = getattr(app.service, "_production_composition", None)
+    if composition is None:
+        raise RuntimeError("production composition is not available")
+    return cast("ProductionComposition", composition)
 
 
 class PreflightScreen(Screen[None]):

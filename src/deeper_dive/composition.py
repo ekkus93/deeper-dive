@@ -17,6 +17,10 @@ from deeper_dive.domain.ids import new_run_id
 from deeper_dive.episode_planner import EpisodePlanGenerator, EpisodePlannerService
 from deeper_dive.export import EpisodeExporter
 from deeper_dive.generation_monitor import GenerationMonitorController
+from deeper_dive.generation_start import (
+    GenerationStartResult,
+    select_or_create_generation_run as select_or_create_generation_run_record,
+)
 from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
 from deeper_dive.pipeline import (
     DEFAULT_STAGES,
@@ -194,6 +198,13 @@ class ProductionComposition:
         )
         self.generation_run_repository(project_id).create(run)
         return run
+
+    def select_or_create_generation_run(
+        self, project_id: str, episode_id: str
+    ) -> GenerationStartResult:
+        """Select the active run or create one through the production composition path."""
+
+        return select_or_create_generation_run_record(self.service, project_id, episode_id)
 
     def pipeline_service(
         self,
