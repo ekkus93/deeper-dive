@@ -14,7 +14,6 @@ from textual.widgets import Button, Footer, Header, Label, Static
 
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.diagnostics import sanitize_exception_message
-from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.generation_monitor import GenerationMonitorScreen
 from deeper_dive.generation_start import select_or_create_generation_run
 from deeper_dive.hosts import HostProfile
@@ -22,7 +21,6 @@ from deeper_dive.model_roles import (
     ModelRole,
     ModelRoleAssignments,
     effective_model_role_assignments,
-    project_model_defaults_from_instructions,
 )
 from deeper_dive.preflight import (
     PreflightEstimate,
@@ -31,7 +29,6 @@ from deeper_dive.preflight import (
     PreflightService,
 )
 from deeper_dive.provider_tui import ProviderController
-from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import (
     EpisodeRecord,
     HostEpisodeRepository,
@@ -77,7 +74,7 @@ class PreflightController:
                 host_count=0,
                 target_minutes=self.default_target_minutes,
                 llm_rows=("No project open.",),
-                tts_rows=("No project open.",),
+                tts_rows=("No project open."),
                 report=report,
             )
 
@@ -91,13 +88,7 @@ class PreflightController:
         host_records = self._selected_host_records(host_repository, project_id, episode)
         hosts = tuple(HostProfile.from_record(host) for host in host_records)
         config = app.provider_controller.config()
-        project_defaults = self._project_model_defaults(app, project_id)
-        episode_overrides = self._episode_model_overrides(app, project_id, episode)
-        assignments, assignment_issues = self._assignments(
-            config.defaults,
-            project_defaults,
-            episode_overrides,
-        )
+        assignments, assignment_issues = self._assignments(app, project_id, episode)
 
         tts_registry = TTSProviderRegistry()
         for provider in app.provider_controller.tts_providers.values():
@@ -185,38 +176,25 @@ class PreflightController:
         return tuple(by_id[host_id] for host_id in host_ids if host_id in by_id)
 
     @staticmethod
-    def _project_model_defaults(app: PreflightApp, project_id: str) -> dict[str, str]:
-        project = app.service.open_project(project_id)
-        if project is None:
-            return {}
-        return project_model_defaults_from_instructions(project.instructions)
-
-    @staticmethod
-    def _episode_model_overrides(
+    def _assignments(
         app: PreflightApp,
         project_id: str,
         episode: EpisodeRecord | None,
-    ) -> dict[str, dict[str, str]]:
-        if episode is None:
-            return {}
-        database = Database(app.service.workspaces.project_root(project_id) / "project.db")
-        try:
-            config = EpisodeConfigurationService(database).load_configuration(episode.id)
-        except KeyError:
-            return {}
-        return {role: dict(assignment) for role, assignment in config.model_overrides.items()}
-
-    @staticmethod
-    def _assignments(
-        defaults: dict[str, str],
-        project_defaults: dict[str, str] | None = None,
-        episode_overrides: dict[str, dict[str, str]] | None = None,
     ) -> tuple[ModelRoleAssignments, tuple[PreflightIssue, ...]]:
-        assignments, errors = effective_model_role_assignments(
-            user_defaults=defaults,
-            project_defaults=project_defaults or {},
-            episode_overrides=episode_overrides or {},
-        )
+        composition = getattr(app.service, "_production_composition", None)
+        if composition is None:
+            assignments, errors = effective_model_role_assignments(
+                user_defaults=app.provider_controller.config().defaults
+            )
+        else:
+            composition.provider_controller = app.provider_controller
+            if episode is None:
+                assignments, errors = composition.effective_model_role_assignments(project_id)
+            else:
+                assignments, errors = composition.effective_model_role_assignments_for_episode(
+                    project_id,
+                    episode.id,
+                )
         issues = tuple(PreflightIssue("llm_assignment", error) for error in errors)
         return assignments, issues
 
