@@ -7,9 +7,15 @@ from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.host_turn import HostTurnService
 from deeper_dive.storage.database import Database
-from deeper_dive.storage.episode_repositories import HostEpisodeRepository, HostProfileRecord
+from deeper_dive.storage.episode_repositories import (
+    HostEpisodeRepository,
+    HostProfileRecord,
+)
 from deeper_dive.storage.workspace import WorkspaceManager
-from deeper_dive.transcript_review_screen import TranscriptReviewController, TranscriptReviewScreen
+from deeper_dive.transcript_review_screen import (
+    TranscriptReviewController,
+    TranscriptReviewScreen,
+)
 from deeper_dive.tui import DeeperDiveApp
 
 
@@ -43,7 +49,9 @@ def _project_with_episode(tmp_path: Path) -> tuple[DeeperDiveService, str, str]:
     return service, project.id, episode.id
 
 
-def test_transcript_review_resolves_audio_by_selected_episode_identity(tmp_path: Path) -> None:
+def test_transcript_review_resolves_audio_by_selected_episode_identity(
+    tmp_path: Path,
+) -> None:
     service, project_id, episode_id = _project_with_episode(tmp_path)
     database = Database(service.workspaces.project_root(project_id) / "project.db")
     other = EpisodeConfigurationService(database).create(
