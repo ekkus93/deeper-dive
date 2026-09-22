@@ -12,12 +12,15 @@ from deeper_dive import model_roles
 from deeper_dive.application.events import ProgressSink
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.audio_playback import AudioPlaybackBackend, AudioPlaybackController
+from deeper_dive.audio_timeline import AudioTimeline, AudioTimelineRepository, TimelineItem
+from deeper_dive.director_decision import DirectorDecision
 from deeper_dive.domain.clock import SystemClock, format_timestamp
 from deeper_dive.domain.ids import new_run_id
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.episode_planner import EpisodePlanGenerator, EpisodePlannerService
 from deeper_dive.export import EpisodeExporter
 from deeper_dive.generation_monitor import GenerationMonitorController
+from deeper_dive.host_turn import HostTurn, HostTurnService
 from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
 from deeper_dive.pipeline import (
     DEFAULT_STAGES,
@@ -32,6 +35,7 @@ from deeper_dive.provider_factory import ProviderBuildResult, ProviderFactory
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.research_controller import PersistentResearchController
 from deeper_dive.storage.database import Database
+from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 from deeper_dive.storage.run_repositories import GenerationRunRecord, GenerationRunRepository
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.targeted_repair import (
@@ -249,7 +253,7 @@ class ProductionComposition:
 
         return self.pipeline_service(
             project_id,
-            handlers or _production_stage_handlers(),
+            handlers or _production_stage_handlers(self.service, project_id),
             progress=progress,
         )
 
@@ -294,7 +298,7 @@ class ProductionComposition:
         repository = service.runs(project_id)
         PipelineOrchestrator(
             repository,
-            _production_stage_handlers(),
+            _production_stage_handlers(service, project_id),
             progress=progress,
         ).run(run_id)
 
@@ -306,12 +310,161 @@ def _project_id_for_run(service: DeeperDiveService, run_id: str) -> str:
     raise KeyError(f"unknown generation run: {run_id}")
 
 
-def _production_stage_handlers() -> dict[str, StageHandler]:
-    return {stage: _durable_stage_boundary for stage in DEFAULT_STAGES}
+class _DeterministicHostTurnProvider:
+    """Bounded local turn provider used by the deterministic production pipeline path."""
+
+    def generate_turn(self, decision: DirectorDecision) -> dict[str, object]:
+        return {
+            "speaker_id": decision.speaker_id,
+            "text": (
+                f"{decision.intent} This deterministic production turn is persisted "
+                "through the shared generation pipeline."
+            ),
+            "evidence_ids": list(decision.evidence_ids),
+        }
+
+
+def _production_stage_handlers(
+    service: DeeperDiveService,
+    project_id: str,
+) -> dict[str, StageHandler]:
+    handlers = {stage: _durable_stage_boundary for stage in DEFAULT_STAGES}
+    handlers["planning"] = lambda context: _planning_stage(service, project_id, context)
+    handlers["conversation"] = lambda context: _conversation_stage(service, project_id, context)
+    handlers["tts"] = lambda context: _tts_stage(service, project_id, context)
+    handlers["composition"] = lambda context: _composition_stage(service, project_id, context)
+    return handlers
+
+
+def _planning_stage(
+    service: DeeperDiveService,
+    project_id: str,
+    context: PipelineContext,
+) -> None:
+    database = Database(service.workspaces.project_root(project_id) / "project.db")
+    if HostEpisodeRepository(database).get_plan(context.episode_id) is not None:
+        return
+    composition = getattr(service, "_production_composition", None)
+    if composition is None:
+        return
+    provider_ids = composition.provider_controller.llm_registry.provider_ids()
+    if not provider_ids:
+        return
+    provider_id = provider_ids[0]
+    provider = composition.provider_controller.llm_registry.get(provider_id)
+    models = provider.models()
+    model = models[0].model if models else None
+    planner = composition.configured_planning_service(project_id, provider_id, model)
+    try:
+        planner.build_plan(context.episode_id)
+    except ValueError:
+        return
+
+
+def _conversation_stage(
+    service: DeeperDiveService,
+    project_id: str,
+    context: PipelineContext,
+) -> None:
+    database = Database(service.workspaces.project_root(project_id) / "project.db")
+    turns = HostTurnService(database, _DeterministicHostTurnProvider())
+    if turns.list_turns(context.episode_id):
+        return
+    repository = HostEpisodeRepository(database)
+    host_ids = tuple(repository.list_episode_host_ids(context.episode_id))
+    if not host_ids:
+        return
+    episode = repository.get_episode(context.episode_id)
+    if episode is None:
+        raise KeyError(context.episode_id)
+    decision = DirectorDecision(
+        speaker_id=host_ids[0],
+        intent=f"Discuss {episode.title}",
+        target_duration_seconds=45,
+        target_words=80,
+    )
+    turns.generate(context.run_id, context.episode_id, decision)
+
+
+def _tts_stage(
+    service: DeeperDiveService,
+    project_id: str,
+    context: PipelineContext,
+) -> None:
+    root = service.workspaces.project_root(project_id)
+    database = Database(root / "project.db")
+    turns = HostTurnService(database, _DeterministicHostTurnProvider()).list_turns(
+        context.episode_id
+    )
+    if not turns:
+        return
+    output = root / "output" / "tts"
+    output.mkdir(parents=True, exist_ok=True)
+    with database.transaction() as connection:
+        for turn in turns:
+            artifact_id = f"{turn.id}-deterministic"
+            path = output / f"{artifact_id}.wav"
+            path.write_bytes(_deterministic_audio_bytes(turn))
+            connection.execute(
+                """INSERT INTO tts_artifacts(
+                    turn_id,artifact_id,cache_key,status,path,provider_id,voice,model
+                ) VALUES (?,?,?,?,?,?,?,?)
+                ON CONFLICT(turn_id) DO UPDATE SET
+                    artifact_id=excluded.artifact_id,
+                    cache_key=excluded.cache_key,
+                    status=excluded.status,
+                    path=excluded.path,
+                    provider_id=excluded.provider_id,
+                    voice=excluded.voice,
+                    model=excluded.model""",
+                (
+                    turn.id,
+                    artifact_id,
+                    f"{context.episode_id}:{turn.id}:deterministic",
+                    "completed",
+                    str(path),
+                    "deterministic-tts",
+                    turn.speaker_id,
+                    "deterministic-v1",
+                ),
+            )
+
+
+def _composition_stage(
+    service: DeeperDiveService,
+    project_id: str,
+    context: PipelineContext,
+) -> None:
+    root = service.workspaces.project_root(project_id)
+    database = Database(root / "project.db")
+    turns = HostTurnService(database, _DeterministicHostTurnProvider()).list_turns(
+        context.episode_id
+    )
+    if not turns:
+        return
+    items = tuple(
+        TimelineItem.clip(
+            turn_id=turn.id,
+            host_id=turn.speaker_id,
+            artifact_id=f"{turn.id}-deterministic",
+            duration_seconds=max(0.1, len(turn.text.split()) / 150 * 60),
+            metadata={"chapter_title": f"Turn {turn.turn_ordinal + 1}"},
+        )
+        for turn in turns
+    )
+    AudioTimelineRepository(database).save(AudioTimeline.build(context.episode_id, items))
+    output = root / "output"
+    output.mkdir(parents=True, exist_ok=True)
+    episode_audio = output / f"{context.episode_id}.wav"
+    episode_audio.write_bytes(b"".join(_deterministic_audio_bytes(turn) for turn in turns))
+
+
+def _deterministic_audio_bytes(turn: HostTurn) -> bytes:
+    return f"FAKE-WAV\n{turn.speaker_id}\n{turn.text}\n".encode()
 
 
 def _durable_stage_boundary(context: PipelineContext) -> None:
-    """Production-safe stage boundary until richer stage services own the work.
+    """Production-safe no-op for stages that do not yet need richer work.
 
     The orchestrator still owns durable state transitions, retries, checkpoints,
     pause/cancel boundaries, and progress events. Stage-specific content generation
