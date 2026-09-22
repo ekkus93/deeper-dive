@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+from textual.widgets import Static
+
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.host_turn import HostTurnService
@@ -108,4 +110,5 @@ async def _exercise_repair_screen(tmp_path: Path) -> None:
         screen.action_regenerate_turn()
         await pilot.pause()
         assert repaired == ["turn-1"]
-        assert "Repaired turn" in screen.query_one("#transcript-turn").renderable
+        transcript = screen.query_one("#transcript-turn", Static)
+        assert "Repaired turn" in str(transcript.render())
