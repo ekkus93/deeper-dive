@@ -90,6 +90,23 @@ class TargetedRepairService:
         self.summary_updater.update_after_repair(repaired.episode_id, repaired.id)
         return repaired
 
+    def repair_section(self, episode_id: str, segment_ordinal: int) -> tuple[HostTurn, ...]:
+        """Repair every repair-worthy turn in one section, leaving other sections untouched."""
+
+        if segment_ordinal < 0:
+            raise ValueError("segment ordinal cannot be negative")
+        with self.database.connection() as db:
+            rows = db.execute(
+                """SELECT id FROM conversation_turns
+                WHERE episode_id=? AND segment_ordinal=? ORDER BY turn_ordinal,id""",
+                (episode_id, segment_ordinal),
+            ).fetchall()
+        candidate_ids = {candidate.turn_id for candidate in self.candidates(episode_id)}
+        turn_ids = [str(row["id"]) for row in rows if str(row["id"]) in candidate_ids]
+        if not turn_ids:
+            raise ValueError("section has no claims requiring repair")
+        return tuple(self.repair(turn_id) for turn_id in turn_ids)
+
     def _turn(self, turn_id: str) -> HostTurn:
         with self.database.connection() as db:
             row = db.execute("SELECT * FROM conversation_turns WHERE id=?", (turn_id,)).fetchone()
