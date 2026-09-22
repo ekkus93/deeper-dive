@@ -191,6 +191,18 @@ class ProductionComposition:
             episode_overrides=config.model_overrides,
         )
 
+    def effective_model_role_assignments_for_run(
+        self,
+        project_id: str,
+        run_id: str,
+    ) -> tuple[model_roles.ModelRoleAssignments, tuple[str, ...]]:
+        """Resolve model roles for the durable episode attached to a generation run."""
+
+        run = self.generation_run_repository(project_id).get(run_id)
+        if run is None:
+            raise KeyError(f"unknown generation run: {run_id}")
+        return self.effective_model_role_assignments_for_episode(project_id, run.episode_id)
+
     def generation_run_repository(self, project_id: str) -> GenerationRunRepository:
         """Construct the production run-state repository for one project."""
 
@@ -250,6 +262,7 @@ class ProductionComposition:
     ) -> PipelineResult:
         """Execute a production-composed generation run to a terminal/control state."""
 
+        self.effective_model_role_assignments_for_run(project_id, run_id)
         return self.generation_pipeline(project_id, progress=progress).run(run_id)
 
     def exporter(self, project_id: str) -> EpisodeExporter:
