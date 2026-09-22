@@ -79,4 +79,5 @@ def test_cli_generate_reaches_completed_state_and_persists_episode_artifacts(
     assert artifacts
     assert all(str(row["status"]) == "completed" for row in artifacts)
     assert all(Path(str(row["path"])).is_file() for row in artifacts)
-    assert (composition.service.workspaces.project_root(project.id) / "output" / f"{episode.id}.wav").is_file()
+    root = composition.service.workspaces.project_root(project.id)
+    assert (root / "output" / f"{episode.id}.wav").is_file()
