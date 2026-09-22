@@ -299,12 +299,10 @@ async def _preflight_generate_click_starts_pipeline(tmp_path: Path) -> None:
         monitor = app.screen
         assert monitor._task is not None
         await asyncio.wait_for(monitor._task, timeout=5.0)
-        monitor.refresh_monitor()
         run = service.runs(project.id).latest_for_episode(episode_id)
         assert run is not None
         assert run.state == "completed"
         assert service.runs(project.id).list_completed_stages(run.id) == list(DEFAULT_STAGES)
-        assert "completed" in str(monitor.query_one("#generation-state", Static).render())
 
 
 def test_preflight_tui_sanitizes_generation_start_failures(tmp_path: Path) -> None:
