@@ -140,13 +140,13 @@
 
 ## DDR-023 — Implement real pause/cancel/resume semantics
 
-- [ ] Route pause through pipeline safe-boundary control.
-- [ ] Confirm durable paused state before claiming pause completed.
-- [ ] Route cancel through pipeline cancellation.
-- [ ] Resume by invoking orchestration from a durable checkpoint.
-- [ ] Reject resume when no valid checkpoint/state exists.
-- [ ] Cover pause during resumable and non-resumable boundaries.
-- [ ] Cover restart/recovery after process/application reconstruction.
+- [x] Route pause through pipeline safe-boundary control.
+- [x] Confirm durable paused state before claiming pause completed.
+- [x] Route cancel through pipeline cancellation.
+- [x] Resume by invoking orchestration from a durable checkpoint.
+- [x] Reject resume when no valid checkpoint/state exists.
+- [x] Cover pause during resumable and non-resumable boundaries.
+- [x] Cover restart/recovery after process/application reconstruction.
 
 **Acceptance criteria**
 
