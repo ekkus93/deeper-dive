@@ -264,6 +264,9 @@ def _research_analyze(
     project_id: str,
     focus: str,
 ) -> tuple[ResearchGap, ...]:
+    controller = composition.research_controller
+    if controller.analyze_callback is not None:
+        return controller.analyze(project_id, focus)
     assignments, errors = composition.effective_model_role_assignments(project_id)
     if errors:
         raise ValueError("; ".join(errors))
@@ -271,7 +274,6 @@ def _research_analyze(
     if assignment is None:
         raise ValueError("no provider/model assignment for corpus_analysis")
     provider = composition.provider_controller.llm_registry.get(assignment.provider)
-    controller = composition.research_controller
     controller.save_policy(project_id, controller.policy(project_id), focus)
     planner = ResearchGapPlanner(composition.database_for_project(project_id), provider)
     return planner.analyze(project_id, model=assignment.model)
