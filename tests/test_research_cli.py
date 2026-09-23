@@ -17,7 +17,9 @@ def _json_call(args: list[str], capsys: pytest.CaptureFixture[str]) -> object:
 def _configure_fake_corpus_analysis(data_dir: Path) -> None:
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
-            providers={"researcher": ProviderConfig(provider_type="fake", default_model="fake-v1")},
+            providers={
+                "researcher": ProviderConfig(provider_type="fake", default_model="fake-v1")
+            },
             defaults={"corpus_analysis": "researcher:fake-v1"},
         )
     )
@@ -29,14 +31,18 @@ def test_research_analyze_uses_configured_provider_and_persists_gaps(
 ) -> None:
     _configure_fake_corpus_analysis(tmp_path)
     source = tmp_path / "source.md"
-    source.write_text("# Source\n\nA deterministic corpus that needs corroborating context.\n", encoding="utf-8")
+    source.write_text(
+        "# Source\n\nA deterministic corpus that needs corroborating context.\n",
+        encoding="utf-8",
+    )
     base = ["--data-dir", str(tmp_path), "--json"]
     project = _json_call([*base, "project", "create", "Research CLI"], capsys)
     project_id = str(project["id"])
     _json_call([*base, "source", "add", project_id, str(source)], capsys)
 
     gaps = _json_call(
-        [*base, "research", "analyze", project_id, "--focus", "corroboration"], capsys
+        [*base, "research", "analyze", project_id, "--focus", "corroboration"],
+        capsys,
     )
 
     assert isinstance(gaps, list)
