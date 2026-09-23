@@ -182,7 +182,9 @@ class FakeLLMProvider:
                 "gaps": [
                     {
                         "category": "missing_context",
-                        "rationale": "Add corroborating context for the deterministic source corpus.",
+                        "rationale": (
+                            "Add corroborating context for the deterministic source corpus."
+                        ),
                         "priority": 4,
                         "source_ids": [source_id] if source_id else [],
                         "chunk_ids": [chunk_id] if chunk_id else [],
