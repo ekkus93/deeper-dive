@@ -7,6 +7,8 @@ import pytest
 
 from deeper_dive import command as command_module
 from deeper_dive.command import main
+from deeper_dive.llm import LLMModel, ProviderHealth
+from deeper_dive.ollama_llm import OllamaLLMProvider
 from deeper_dive.tts import FakeTTSProvider
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
@@ -49,6 +51,69 @@ def test_provider_cli_list_health_discovery_and_kitten_status(
 
     status = _call([*base, "kitten-status"], capsys)
     assert status["installed"] is False
+
+
+def test_provider_cli_uses_configured_ollama_adapter_for_health_and_models(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    UserConfigStore(tmp_path / "config.json").save(
+        UserConfig(
+            providers={
+                "local": ProviderConfig(
+                    provider_type="ollama",
+                    base_url="http://127.0.0.1:11434",
+                    default_model="qwen3",
+                )
+            }
+        )
+    )
+    monkeypatch.setattr(
+        OllamaLLMProvider,
+        "health",
+        lambda self: ProviderHealth(True, "configured ollama ready"),
+    )
+    monkeypatch.setattr(
+        OllamaLLMProvider,
+        "models",
+        lambda self: (LLMModel("ollama", "qwen3", ("chat",)),),
+    )
+    base = ["--data-dir", str(tmp_path), "--json", "provider"]
+
+    health = _call([*base, "health", "local"], capsys)
+    assert health == {"healthy": True, "id": "local", "message": "configured ollama ready"}
+
+    models = _call([*base, "models", "local"], capsys)
+    assert models == [{"capabilities": ["chat"], "model": "qwen3", "provider": "local"}]
+
+
+def test_provider_cli_discovers_fixed_configured_tts_voice_catalog(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("COMPAT_KEY", "fixture-secret")
+    UserConfigStore(tmp_path / "config.json").save(
+        UserConfig(
+            providers={
+                "speech": ProviderConfig(
+                    provider_type="openai-compatible-tts",
+                    base_url="https://tts.example.invalid/v1",
+                    credential_env="COMPAT_KEY",
+                    voices=("narrator", "expert"),
+                )
+            }
+        )
+    )
+
+    voices = _call(
+        ["--data-dir", str(tmp_path), "--json", "provider", "voices", "speech"],
+        capsys,
+    )
+
+    assert [voice["id"] for voice in voices] == ["narrator", "expert"]
+    assert "fixture-secret" not in capsys.readouterr().out
 
 
 def test_kitten_benchmark_runs_timed_synthesis_and_reports_metrics(
