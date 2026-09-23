@@ -20,6 +20,7 @@ from deeper_dive.episode_library_export import EpisodeLibraryExportService
 from deeper_dive.episode_planner import EpisodePlannerService
 from deeper_dive.hosts import HostProfile, create_host_from_preset, preset_names
 from deeper_dive.research_controller import PersistentResearchController
+from deeper_dive.research_gaps import ResearchGap, ResearchGapPlanner
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.repositories import SourceRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
@@ -175,7 +176,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "source":
             return _source_command(service, args)
         if args.command == "research":
-            return _research_command(service, composition.research_controller, args)
+            return _research_command(composition, args)
         if args.command == "host":
             return _host_command(service, args)
         if args.command == "episode":
@@ -227,18 +228,17 @@ def _source_command(service: DeeperDiveService, args: argparse.Namespace) -> int
     return _output({"id": source.id, "removed": True}, args.json_output)
 
 
-def _research_command(
-    service: DeeperDiveService,
-    controller: PersistentResearchController,
-    args: argparse.Namespace,
-) -> int:
+def _research_command(composition: ProductionComposition, args: argparse.Namespace) -> int:
+    service = composition.service
+    controller: PersistentResearchController = composition.research_controller
     project_id = args.project_id
     if service.open_project(project_id) is None:
         print(f"project not found: {project_id}", file=sys.stderr)
         return 2
     if args.research_command == "analyze":
         return _output(
-            [asdict(gap) for gap in controller.analyze(project_id, args.focus)], args.json_output
+            [asdict(gap) for gap in _research_analyze(composition, project_id, args.focus)],
+            args.json_output,
         )
     if args.research_command == "gaps":
         return _output([asdict(gap) for gap in controller.gaps(project_id)], args.json_output)
@@ -257,6 +257,27 @@ def _research_command(
     return _output(
         [asdict(outcome) for outcome in controller.research(project_id, gap_ids)], args.json_output
     )
+
+
+def _research_analyze(
+    composition: ProductionComposition,
+    project_id: str,
+    focus: str,
+) -> tuple[ResearchGap, ...]:
+    controller = composition.research_controller
+    has_injected_callback = getattr(controller, "analyze_callback", None) is not None
+    if not isinstance(controller, PersistentResearchController) or has_injected_callback:
+        return tuple(controller.analyze(project_id, focus))
+    assignments, errors = composition.effective_model_role_assignments(project_id)
+    if errors:
+        raise ValueError("; ".join(errors))
+    assignment = assignments.resolve(model_roles.ModelRole.CORPUS_ANALYSIS)
+    if assignment is None:
+        raise ValueError("no provider/model assignment for corpus_analysis")
+    provider = composition.provider_controller.llm_registry.get(assignment.provider)
+    controller.save_policy(project_id, controller.policy(project_id), focus)
+    planner = ResearchGapPlanner(composition.database_for_project(project_id), provider)
+    return planner.analyze(project_id, model=assignment.model)
 
 
 def _host_command(service: DeeperDiveService, args: argparse.Namespace) -> int:

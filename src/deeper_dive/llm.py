@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from typing import Protocol
@@ -122,8 +123,14 @@ class LLMProviderRegistry:
 class FakeLLMProvider:
     """Deterministic provider for orchestration and integration tests."""
 
+    DEFAULT_RESPONSE = "fake response"
+
     def __init__(
-        self, *, provider_id: str = "fake", model: str = "fake-v1", response: str = "fake response"
+        self,
+        *,
+        provider_id: str = "fake",
+        model: str = "fake-v1",
+        response: str = DEFAULT_RESPONSE,
     ) -> None:
         self._provider_id = provider_id
         self._model = LLMModel(
@@ -147,13 +154,54 @@ class FakeLLMProvider:
     def generate(self, request: LLMRequest) -> LLMResponse:
         self.requests.append(request)
         model = request.model or self._model.model
+        text = self._response_for(request)
         input_tokens = sum(len(message.content.split()) for message in request.messages)
-        output_tokens = len(self.response.split())
-        return LLMResponse(self.response, model, LLMUsage(input_tokens, output_tokens))
+        output_tokens = len(text.split())
+        return LLMResponse(text, model, LLMUsage(input_tokens, output_tokens))
 
     def stream(self, request: LLMRequest) -> Iterator[LLMStreamChunk]:
         self.requests.append(request)
-        words = self.response.split()
+        words = self._response_for(request).split()
         for index, word in enumerate(words):
             suffix = "" if index == len(words) - 1 else " "
             yield LLMStreamChunk(word + suffix, done=index == len(words) - 1)
+
+    def _response_for(self, request: LLMRequest) -> str:
+        prompt = "\n".join(message.content for message in request.messages).lower()
+        if "identify research gaps" in prompt and "gaps array" in prompt:
+            try:
+                payload = json.loads(self.response)
+            except json.JSONDecodeError:
+                payload = None
+            if isinstance(payload, dict) and isinstance(payload.get("gaps"), list):
+                return self.response
+            return self._research_gap_response(request)
+        return self.response
+
+    @staticmethod
+    def _research_gap_response(request: LLMRequest) -> str:
+        try:
+            payload = json.loads(request.messages[-1].content)
+        except (IndexError, json.JSONDecodeError):
+            payload = {}
+        sources = payload.get("sources", []) if isinstance(payload, dict) else []
+        first_source = sources[0] if sources and isinstance(sources[0], dict) else {}
+        source_id = str(first_source.get("source_id", ""))
+        chunk_ids = first_source.get("chunk_ids", [])
+        chunk_id = str(chunk_ids[0]) if chunk_ids else ""
+        return json.dumps(
+            {
+                "gaps": [
+                    {
+                        "category": "missing_context",
+                        "rationale": (
+                            "Add corroborating context for the deterministic source corpus."
+                        ),
+                        "priority": 4,
+                        "source_ids": [source_id] if source_id else [],
+                        "chunk_ids": [chunk_id] if chunk_id else [],
+                    }
+                ]
+            },
+            sort_keys=True,
+        )
