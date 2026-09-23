@@ -9,6 +9,7 @@ import pytest
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_library_export import EpisodeLibraryExportService
 from deeper_dive.provider_factory import ProviderFactory
+from deeper_dive.retrieval import LexicalIndex
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
@@ -60,7 +61,8 @@ def test_episode_library_export_writes_complete_episode_specific_artifact_set(
     manifest = json.loads(result.manifest.read_text(encoding="utf-8"))
     assert len(manifest["sources"]) == 1
     assert manifest["sources"][0]["title"] == "source.txt"
-    assert manifest["sources"][0]["origin"] == "file"
+    assert manifest["sources"][0]["origin"] == "user"
+    assert manifest["sources"][0]["locator"].endswith("source.txt")
 
     metadata = json.loads(result.metadata.read_text(encoding="utf-8"))
     assert metadata == {
@@ -81,3 +83,12 @@ def test_episode_library_export_rejects_missing_or_noncompleted_run(tmp_path: Pa
 
     with pytest.raises(ValueError, match="paused.*not exportable"):
         exporter.export(project.id, episode, replace(run, state="paused"))
+
+
+def test_natural_language_retrieval_query_with_punctuation_is_safe(tmp_path: Path) -> None:
+    composition, project, _, _ = _completed_episode(tmp_path)
+    index = LexicalIndex(composition.database_for_project(project.id))
+
+    hits = index.search(project.id, "Create a focused deep dive from the indexed project corpus.")
+
+    assert isinstance(hits, list)
