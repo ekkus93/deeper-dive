@@ -304,13 +304,13 @@
 
 ## DDR-063 — Replace metadata-only CLI export
 
-- [ ] Route `episode export` through shared EpisodeExporter.
-- [ ] Export transcript.
-- [ ] Export audio where present.
-- [ ] Export source/provenance manifest.
-- [ ] Export metadata.
-- [ ] Use episode-specific output identity.
-- [ ] Add artifact-content assertions.
+- [x] Route `episode export` through shared EpisodeExporter.
+- [x] Export transcript.
+- [x] Export audio where present.
+- [x] Export source/provenance manifest.
+- [x] Export metadata.
+- [x] Use episode-specific output identity.
+- [x] Add artifact-content assertions.
 
 ## DDR-064 — Requalify episode status/show-plan/configuration commands
 
@@ -698,25 +698,3 @@
 - [ ] Build succeeds.
 - [ ] Installed-wheel smoke passes.
 - [ ] Production-composition integration suite passes.
-- [ ] CLI end-to-end acceptance passes.
-- [ ] TUI deterministic acceptance passes.
-- [ ] Multi-episode isolation matrix passes.
-- [ ] Run-state/control matrix passes.
-- [ ] Provider-routing matrix passes.
-- [ ] Security/redaction matrix passes.
-- [ ] Fresh-machine actual generation/export gate passes.
-- [ ] Real KittenTTS CPU smoke remains green.
-- [ ] No normal-CI dependency on paid credentials/live external services.
-
-## DDR-151 — Documentation and TODO reconciliation
-
-- [ ] User documentation matches final behavior.
-- [ ] Developer architecture documentation matches final behavior.
-- [ ] Every remediation checkbox has evidence.
-- [ ] No known acceptance criterion is silently deferred.
-- [ ] Original affected TODO semantics have been requalified.
-- [ ] Exact remediation head CI passes.
-- [ ] Remediation PR is merged to `master`.
-- [ ] Reload this TODO from merged `master`.
-- [ ] Exact merged-master CI passes.
-- [ ] Only then mark V1 integration remediation complete.
