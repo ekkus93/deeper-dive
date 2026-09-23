@@ -207,7 +207,9 @@ class TranscriptReviewController:
         return path
 
     def claim_inspector(self, app: DeeperDiveApp, turn_id: str) -> ClaimInspectorScreen:
-        repair = self.repair_callback or (lambda repaired_turn_id: self.repair_turn(repaired_turn_id, app))
+        repair = self.repair_callback or (
+            lambda repaired_turn_id: self.repair_turn(repaired_turn_id, app)
+        )
         controller = ClaimInspectorController(self._database(app), repair)
         return ClaimInspectorScreen(controller, turn_id)
 
@@ -273,15 +275,17 @@ class TranscriptReviewController:
         )
 
     @staticmethod
-    def _repair_provider(composition: Any, project_id: str, episode_id: str) -> tuple[LLMProvider, str | None]:
+    def _repair_provider(
+        composition: Any, project_id: str, episode_id: str
+    ) -> tuple[LLMProvider, str | None]:
         assignments, errors = composition.effective_model_role_assignments_for_episode(
             project_id, episode_id
         )
         if errors:
             raise ValueError("; ".join(errors))
-        assignment = assignments.resolve(model_roles.ModelRole.HOST_GENERATION) or assignments.resolve(
-            model_roles.ModelRole.EPISODE_PLANNING
-        )
+        assignment = assignments.resolve(
+            model_roles.ModelRole.HOST_GENERATION
+        ) or assignments.resolve(model_roles.ModelRole.EPISODE_PLANNING)
         registry = composition.provider_controller.llm_registry
         if assignment is not None:
             return cast(LLMProvider, registry.get(assignment.provider)), assignment.model
