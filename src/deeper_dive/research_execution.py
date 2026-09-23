@@ -1,4 +1,4 @@
-"""Deterministic supplemental research execution through shared search/fetch contracts."""
+"""Deterministic supplemental research execution."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from deeper_dive.storage.repositories import CorpusRepository
 
 
 class DeterministicSupplementalFetcher:
-    """Offline fetcher used by normal CI and local deterministic research execution."""
+    """Offline fetcher for deterministic research execution."""
 
     def __init__(self, gap: ResearchGap, corpus: CorpusRepository) -> None:
         self.gap = gap
@@ -62,7 +62,7 @@ def execute_research_gaps(
     project_id: str,
     gap_ids: tuple[str, ...],
 ) -> tuple[CandidateOutcome, ...]:
-    """Research selected gaps without live network access in ordinary production/CI paths."""
+    """Research selected gaps without live network access."""
 
     if not gap_ids:
         raise ValueError("at least one research gap is required")
