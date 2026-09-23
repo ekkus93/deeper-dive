@@ -41,9 +41,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (KeyError, OSError, RuntimeError, ValueError) as exc:
         import sys
 
-        area = _provider_error_area(args.provider_command)
-        print(actionable_error(area, exc).message, file=sys.stderr)
+        error = actionable_error(_provider_error_area(args.provider_command), exc)
+        message = error.diagnostic if _is_unsupported_capability(exc) else error.message
+        print(message, file=sys.stderr)
         return 2
+
+
+def _is_unsupported_capability(exc: BaseException) -> bool:
+    detail = str(exc).lower()
+    return isinstance(exc, ValueError) and (
+        "does not support" in detail or "unsupported adapter capability" in detail
+    )
 
 
 def _delegated_cli(values: list[str] | None, args: argparse.Namespace) -> int:
@@ -114,17 +122,26 @@ def _inspect_provider(
 ) -> object:
     if provider_id is None:
         raise ValueError(f"provider id is required for {command}")
+    provider_config = controller.config().providers.get(provider_id)
+    if provider_config is None:
+        raise KeyError(f"unknown provider: {provider_id}")
+    capability = controller.capability(provider_config.provider_type)
     if command == "models":
+        if capability != "llm":
+            raise ValueError(f"provider {provider_id!r} does not support model discovery")
         return [asdict(model) for model in controller.llm(provider_id).models()]
     if command == "voices":
+        if capability != "tts":
+            raise ValueError(f"provider {provider_id!r} does not support voice discovery")
         return [asdict(voice) for voice in controller.tts(provider_id).voices()]
     if command in {"health", "test"}:
-        try:
+        if capability == "llm":
             llm = controller.llm(provider_id)
-        except KeyError:
+            return {"id": llm.provider_id, **asdict(llm.health())}
+        if capability == "tts":
             tts = controller.tts(provider_id)
             return {"id": tts.provider_id, **asdict(tts.health())}
-        return {"id": llm.provider_id, **asdict(llm.health())}
+        raise ValueError(f"provider {provider_id!r} has unsupported adapter capability")
     raise ValueError(f"provider {provider_id!r} does not support {command}")
 
 
