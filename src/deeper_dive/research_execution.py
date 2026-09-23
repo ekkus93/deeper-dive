@@ -31,11 +31,12 @@ class DeterministicSupplementalFetcher:
 
     def fetch(self, request: FetchRequest) -> FetchedDocument:
         self.requests.append(request)
+        wanted_chunks = set(self.gap.chunk_ids)
         excerpts: list[str] = []
-        for chunk_id in self.gap.chunk_ids:
-            chunk = self.corpus.get_chunk(chunk_id)
-            if chunk is not None:
-                excerpts.append(chunk.text)
+        for source_id in self.gap.source_ids:
+            for chunk in self.corpus.list_chunks(source_id):
+                if chunk.id in wanted_chunks:
+                    excerpts.append(chunk.text)
         if excerpts:
             excerpts_text = "\n".join(excerpts)
         else:
