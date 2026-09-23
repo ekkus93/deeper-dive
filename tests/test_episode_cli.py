@@ -84,7 +84,7 @@ def test_episode_cli_create_plan_generate_status_and_export(
 
     plan = _json_call([*base, "episode", "plan", project_id, episode_id], capsys)
     assert plan["episode_id"] == episode_id
-    assert plan["segments"][0]["target_duration_seconds"] == 1200
+    assert plan["segments"][0]["target_duration_seconds"] == 900
 
     shown_plan = _json_call([*base, "episode", "show-plan", project_id, episode_id], capsys)
     assert shown_plan["id"] == plan["id"]
