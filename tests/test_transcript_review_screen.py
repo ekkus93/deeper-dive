@@ -128,7 +128,9 @@ def test_transcript_review_default_repair_uses_production_service(
     service, project_id, episode_id = _project_with_episode(tmp_path)
     UserConfigStore(service.workspaces.data_dir / "config.json").save(
         UserConfig(
-            providers={"repair": ProviderConfig(provider_type="fake", default_model="fake-v1")},
+            providers={
+                "repair": ProviderConfig(provider_type="fake", default_model="fake-v1")
+            },
             defaults={"host_generation": "repair:fake-v1"},
         )
     )
@@ -151,13 +153,29 @@ def test_transcript_review_default_repair_uses_production_service(
                 claim_id,state,rationale,confidence,supporting_evidence_ids_json,
                 contradicting_evidence_ids_json
             ) VALUES (?,?,?,?,?,?)""",
-            ("claim-1", "contradicted", "Repair it", 0.8, '["chunk-a"]', '["chunk-b"]'),
+            (
+                "claim-1",
+                "contradicted",
+                "Repair it",
+                0.8,
+                '["chunk-a"]',
+                '["chunk-b"]',
+            ),
         )
         connection.execute(
             """INSERT INTO tts_artifacts(
                 turn_id,artifact_id,cache_key,status,path,provider_id,voice,model
             ) VALUES (?,?,?,?,?,?,?,?)""",
-            ("turn-1", "artifact-1", "cache-1", "completed", str(episode_audio), "tts", "h1", "m"),
+            (
+                "turn-1",
+                "artifact-1",
+                "cache-1",
+                "completed",
+                str(episode_audio),
+                "tts",
+                "h1",
+                "m",
+            ),
         )
 
     app = DeeperDiveApp(service)
@@ -167,9 +185,16 @@ def test_transcript_review_default_repair_uses_production_service(
     repaired = TranscriptReviewController().repair_turn("turn-1", app)
 
     with database.connection() as connection:
-        turn = connection.execute("SELECT text,evidence_ids_json FROM conversation_turns WHERE id=?", ("turn-1",)).fetchone()
-        stale_claim = connection.execute("SELECT 1 FROM material_claims WHERE id=?", ("claim-1",)).fetchone()
-        stale_audio = connection.execute("SELECT 1 FROM tts_artifacts WHERE turn_id=?", ("turn-1",)).fetchone()
+        turn = connection.execute(
+            "SELECT text,evidence_ids_json FROM conversation_turns WHERE id=?",
+            ("turn-1",),
+        ).fetchone()
+        stale_claim = connection.execute(
+            "SELECT 1 FROM material_claims WHERE id=?", ("claim-1",)
+        ).fetchone()
+        stale_audio = connection.execute(
+            "SELECT 1 FROM tts_artifacts WHERE turn_id=?", ("turn-1",)
+        ).fetchone()
     assert repaired is not None
     assert turn is not None
     assert "segments" in str(turn["text"])
