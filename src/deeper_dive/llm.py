@@ -167,10 +167,14 @@ class FakeLLMProvider:
             yield LLMStreamChunk(word + suffix, done=index == len(words) - 1)
 
     def _response_for(self, request: LLMRequest) -> str:
-        if self.response != self.DEFAULT_RESPONSE:
-            return self.response
         prompt = "\n".join(message.content for message in request.messages).lower()
         if "identify research gaps" in prompt and "gaps array" in prompt:
+            try:
+                payload = json.loads(self.response)
+            except json.JSONDecodeError:
+                payload = None
+            if isinstance(payload, dict) and isinstance(payload.get("gaps"), list):
+                return self.response
             return self._research_gap_response(request)
         return self.response
 
