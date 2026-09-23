@@ -83,19 +83,25 @@ class PipelineOrchestrator:
 
     def request_pause(self, run_id: str) -> None:
         """Request cooperative pause at the next safe stage boundary."""
+        record = self._refresh(run_id)
+        if record.state not in {"pending", "running"}:
+            raise ValueError(f"cannot pause generation run in {record.state} state")
         self.repository.request_pause(run_id, self._now())
 
     def request_cancel(self, run_id: str) -> None:
         """Request cooperative cancel at the next safe stage boundary."""
+        record = self._refresh(run_id)
+        if record.state not in {"pending", "running", "paused"}:
+            raise ValueError(f"cannot cancel generation run in {record.state} state")
         self.repository.request_cancel(run_id, self._now())
 
     def resume(self, run_id: str) -> GenerationRunRecord:
-        """Clear a durable pause request so a later process can continue the run."""
-        record = self.repository.get(run_id)
-        if record is None:
-            raise KeyError(f"unknown generation run: {run_id}")
+        """Clear a durable pause request so pipeline execution can continue."""
+        record = self._refresh(run_id)
         if record.cancel_requested or record.state == "cancelled":
             raise ValueError("cancelled runs cannot be resumed")
+        if record.state != "paused":
+            raise ValueError(f"cannot resume generation run in {record.state} state")
         resumed = replace(
             record,
             state="pending",
