@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from deeper_dive.storage.database import Database
@@ -64,6 +65,9 @@ class LexicalIndex:
 
         if limit <= 0 or not query.strip():
             return []
+        match_query = _fts5_query(query)
+        if not match_query:
+            return []
         with self.database.connection() as db:
             rows = db.execute(
                 """SELECT lc.chunk_id,lc.source_id,bm25(lexical_chunks) AS rank,
@@ -73,7 +77,7 @@ class LexicalIndex:
                    JOIN sources s ON s.id=lc.source_id
                    WHERE lexical_chunks MATCH ? AND s.project_id=? AND s.included=1
                    ORDER BY rank ASC, lc.chunk_id ASC LIMIT ?""",
-                (query, project_id, limit),
+                (match_query, project_id, limit),
             ).fetchall()
         return [
             LexicalHit(
@@ -85,3 +89,15 @@ class LexicalIndex:
             )
             for row in rows
         ]
+
+
+def _fts5_query(query: str) -> str:
+    """Convert arbitrary user prose into a safe FTS5 OR query.
+
+    Raw punctuation such as a trailing period is meaningful to the FTS5 query
+    parser and can raise ``OperationalError``.  Tokenizing user prose and quoting
+    each term keeps retrieval syntax-safe while retaining useful broad matching.
+    """
+
+    terms = re.findall(r"\w+", query, flags=re.UNICODE)
+    return " OR ".join(f'"{term.replace(chr(34), chr(34) * 2)}"' for term in terms)
