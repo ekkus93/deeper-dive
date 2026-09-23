@@ -41,9 +41,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (KeyError, OSError, RuntimeError, ValueError) as exc:
         import sys
 
-        area = _provider_error_area(args.provider_command)
-        print(actionable_error(area, exc).message, file=sys.stderr)
+        error = actionable_error(_provider_error_area(args.provider_command), exc)
+        message = error.diagnostic if _is_unsupported_capability(exc) else error.message
+        print(message, file=sys.stderr)
         return 2
+
+
+def _is_unsupported_capability(exc: BaseException) -> bool:
+    detail = str(exc).lower()
+    return isinstance(exc, ValueError) and (
+        "does not support" in detail or "unsupported adapter capability" in detail
+    )
 
 
 def _delegated_cli(values: list[str] | None, args: argparse.Namespace) -> int:
