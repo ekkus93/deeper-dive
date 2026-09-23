@@ -230,7 +230,7 @@ def _source_command(service: DeeperDiveService, args: argparse.Namespace) -> int
 
 def _research_command(composition: ProductionComposition, args: argparse.Namespace) -> int:
     service = composition.service
-    controller = composition.research_controller
+    controller: PersistentResearchController = composition.research_controller
     project_id = args.project_id
     if service.open_project(project_id) is None:
         print(f"project not found: {project_id}", file=sys.stderr)
