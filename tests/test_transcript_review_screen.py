@@ -59,6 +59,43 @@ def _project_with_episode(tmp_path: Path) -> tuple[DeeperDiveService, str, str]:
     return service, project.id, episode.id
 
 
+def _configure_fake_repair_provider(service: DeeperDiveService) -> None:
+    UserConfigStore(service.workspaces.data_dir / "config.json").save(
+        UserConfig(
+            providers={
+                "repair": ProviderConfig(provider_type="fake", default_model="fake-v1"),
+            },
+            defaults={"host_generation": "repair:fake-v1"},
+        )
+    )
+
+
+def _insert_repair_worthy_claim(database: Database, project_id: str, episode_id: str) -> None:
+    MaterialClaimService(database)
+    ClaimVerificationService(database, UnusedVerifier())
+    with database.transaction() as connection:
+        connection.execute(
+            """INSERT INTO material_claims(
+                id,project_id,episode_id,turn_id,text,span_start,span_end,created_at
+            ) VALUES (?,?,?,?,?,?,?,?)""",
+            ("claim-1", project_id, episode_id, "turn-1", "Original turn", 0, 13, "t"),
+        )
+        connection.execute(
+            """INSERT INTO claim_verifications(
+                claim_id,state,rationale,confidence,supporting_evidence_ids_json,
+                contradicting_evidence_ids_json
+            ) VALUES (?,?,?,?,?,?)""",
+            (
+                "claim-1",
+                "contradicted",
+                "Repair it",
+                0.8,
+                '["chunk-a"]',
+                '["chunk-b"]',
+            ),
+        )
+
+
 def test_transcript_review_resolves_audio_by_selected_episode_identity(
     tmp_path: Path,
 ) -> None:
@@ -126,42 +163,14 @@ def test_transcript_review_default_repair_uses_production_service(
     tmp_path: Path,
 ) -> None:
     service, project_id, episode_id = _project_with_episode(tmp_path)
-    UserConfigStore(service.workspaces.data_dir / "config.json").save(
-        UserConfig(
-            providers={
-                "repair": ProviderConfig(provider_type="fake", default_model="fake-v1"),
-            },
-            defaults={"host_generation": "repair:fake-v1"},
-        )
-    )
+    _configure_fake_repair_provider(service)
     database = Database(service.workspaces.project_root(project_id) / "project.db")
-    MaterialClaimService(database)
-    ClaimVerificationService(database, UnusedVerifier())
+    _insert_repair_worthy_claim(database, project_id, episode_id)
     output = service.workspaces.project_root(project_id) / "output"
     output.mkdir(parents=True, exist_ok=True)
     episode_audio = output / f"{episode_id}.wav"
     episode_audio.write_bytes(b"stale audio")
     with database.transaction() as connection:
-        connection.execute(
-            """INSERT INTO material_claims(
-                id,project_id,episode_id,turn_id,text,span_start,span_end,created_at
-            ) VALUES (?,?,?,?,?,?,?,?)""",
-            ("claim-1", project_id, episode_id, "turn-1", "Original turn", 0, 13, "t"),
-        )
-        connection.execute(
-            """INSERT INTO claim_verifications(
-                claim_id,state,rationale,confidence,supporting_evidence_ids_json,
-                contradicting_evidence_ids_json
-            ) VALUES (?,?,?,?,?,?)""",
-            (
-                "claim-1",
-                "contradicted",
-                "Repair it",
-                0.8,
-                '["chunk-a"]',
-                '["chunk-b"]',
-            ),
-        )
         connection.execute(
             """INSERT INTO tts_artifacts(
                 turn_id,artifact_id,cache_key,status,path,provider_id,voice,model
@@ -202,3 +211,37 @@ def test_transcript_review_default_repair_uses_production_service(
     assert stale_claim is None
     assert stale_audio is None
     assert not episode_audio.exists()
+
+
+def test_transcript_review_section_repair_uses_production_service(tmp_path: Path) -> None:
+    service, project_id, episode_id = _project_with_episode(tmp_path)
+    _configure_fake_repair_provider(service)
+    database = Database(service.workspaces.project_root(project_id) / "project.db")
+    _insert_repair_worthy_claim(database, project_id, episode_id)
+    app = DeeperDiveApp(service)
+    app.current_project_id = project_id
+    app.current_episode_id = episode_id
+
+    repaired = TranscriptReviewController().repair_section(app, 0)
+
+    assert [turn.id for turn in repaired] == ["turn-1"]
+    with database.connection() as connection:
+        turn = connection.execute(
+            "SELECT text FROM conversation_turns WHERE id=?", ("turn-1",)
+        ).fetchone()
+    assert turn is not None
+    assert "segments" in str(turn["text"])
+
+
+def test_transcript_review_repair_without_provider_is_actionable(tmp_path: Path) -> None:
+    service, project_id, episode_id = _project_with_episode(tmp_path)
+    app = DeeperDiveApp(service)
+    app.current_project_id = project_id
+    app.current_episode_id = episode_id
+
+    try:
+        TranscriptReviewController().repair_turn("turn-1", app)
+    except RuntimeError as error:
+        assert "no configured LLM provider" in str(error)
+    else:
+        raise AssertionError("expected missing provider to be actionable")
