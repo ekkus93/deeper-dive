@@ -11,10 +11,7 @@ from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
-def test_cli_episode_export_uses_shared_artifact_exporter(
-    tmp_path: Path,
-    capsys: object,
-) -> None:
+def test_cli_episode_export_uses_shared_artifact_exporter(tmp_path: Path, capsys: object) -> None:
     data_dir = tmp_path / "data"
     config_store = UserConfigStore(data_dir / "config.json")
     config_store.save(
