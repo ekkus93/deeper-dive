@@ -6,8 +6,11 @@ from pathlib import Path
 
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.episode_config import EpisodeConfigurationService
+from deeper_dive.episode_planner import EpisodePlannerService
 from deeper_dive.hosts import HostProfile
+from deeper_dive.llm import FakeLLMProvider, LLMProviderRegistry
 from deeper_dive.preflight_screen import PreflightScreen
+from deeper_dive.provider_tui import ProviderController
 from deeper_dive.research_policy import ResearchMode, ResearchPolicyStore
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.workspace import WorkspaceManager
@@ -119,14 +122,17 @@ def test_quick_deep_dive_project_overrides_take_precedence(tmp_path: Path) -> No
     )
 
 
-def test_quick_deep_dive_tui_action_reaches_preflight(tmp_path: Path) -> None:
+def test_quick_deep_dive_tui_action_builds_durable_plan_and_reaches_preflight(
+    tmp_path: Path,
+) -> None:
     asyncio.run(_exercise_quick_tui(tmp_path))
 
 
 async def _exercise_quick_tui(tmp_path: Path) -> None:
     service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
     project = service.create_project("Quick TUI")
-    app = DeeperDiveApp(service)
+    controller = _planning_provider_controller(service)
+    app = DeeperDiveApp(service, provider_controller=controller)
     async with app.run_test(size=(100, 40)) as pilot:
         app.current_project_id = project.id
         app.current_project_name = project.name
@@ -139,3 +145,33 @@ async def _exercise_quick_tui(tmp_path: Path) -> None:
 
     episode = service.hosts(project.id).list_episodes(project.id)[0]
     assert episode.title == "Quick Deep Dive"
+    database = Database(service.workspaces.project_root(project.id) / "project.db")
+    plan = EpisodePlannerService(database, _unused_generator()).load_plan(episode.id)
+    assert len(plan.segments) == 1
+    assert plan.segments[0].title == "Quick Opening"
+
+
+def _planning_provider_controller(service: DeeperDiveService) -> ProviderController:
+    registry = LLMProviderRegistry()
+    registry.register(
+        FakeLLMProvider(
+            model="fake-v1",
+            response=(
+                '{"segments":[{"title":"Quick Opening","purpose":"Explain evidence",'
+                '"target_duration_seconds":1200,"lead_host_ids":[]}]}'
+            ),
+        )
+    )
+    store = UserConfigStore(service.workspaces.data_dir / "config.json")
+    config = store.load()
+    config.defaults["episode_planning"] = "fake:fake-v1"
+    store.save(config)
+    return ProviderController(store, registry, {})
+
+
+def _unused_generator():
+    class UnusedGenerator:
+        def generate_plan(self, request):  # pragma: no cover
+            raise AssertionError("persisted Quick Deep Dive plan should be loaded")
+
+    return UnusedGenerator()
