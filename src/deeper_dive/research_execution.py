@@ -70,8 +70,14 @@ def execute_research_gaps(
     gaps = {gap.id: gap for gap in store.list_project(project_id)}
     corpus = CorpusRepository(database)
     evaluator = CandidateEvaluator(database)
-    known_urls = {source.locator for source in corpus.list_sources(project_id) if source.locator}
-    known_hashes = {source.content_hash for source in corpus.list_sources(project_id) if source.content_hash}
+    known_urls = {
+        source.locator for source in corpus.list_sources(project_id) if source.locator
+    }
+    known_hashes = {
+        source.content_hash
+        for source in corpus.list_sources(project_id)
+        if source.content_hash
+    }
     outcomes: list[CandidateOutcome] = []
     for gap_id in gap_ids:
         gap = gaps.get(gap_id)
@@ -119,4 +125,5 @@ def _project_database(service: DeeperDiveService, project_id: str) -> Path:
 
 
 def _candidate_url(project_id: str, gap: ResearchGap) -> str:
-    return "deeper-dive://supplemental-research/" + quote(f"{project_id}/{gap.id}", safe="/")
+    quoted_identity = quote(f"{project_id}/{gap.id}", safe="/")
+    return f"deeper-dive://supplemental-research/{quoted_identity}"
