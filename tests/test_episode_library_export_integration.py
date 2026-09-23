@@ -6,6 +6,7 @@ from pathlib import Path
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.episode_library_screen import EpisodeLibraryController, EpisodeLibraryItem
+from deeper_dive.hosts import create_host_from_preset
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.tui import DeeperDiveApp
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
@@ -23,12 +24,15 @@ def test_library_export_creates_episode_specific_artifacts(tmp_path: Path) -> No
         provider_factory=ProviderFactory(environ={}),
     )
     project = composition.service.create_project("Library export")
+    host = create_host_from_preset("curious_explainer", project.id)
+    composition.service.hosts(project.id).create_host(host.to_record())
     episode = EpisodeConfigurationService(composition.database_for_project(project.id)).create(
         project.id,
         EpisodeConfiguration(
             title="Exported episode",
             focus="Exercise library export",
             target_duration_seconds=900,
+            host_ids=(host.id,),
         ),
     )
     composition.configured_planning_service(project.id, "planner", "fake-v1").build_plan(episode.id)
