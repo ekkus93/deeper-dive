@@ -88,7 +88,24 @@ class EpisodeSetupScreen(Screen[None]):
         self.current_episode_id = episode.id
         self._app.current_episode_id = episode.id
         self._app.current_run_id = None
-        self._status(f"Quick Deep Dive ready: {episode.title}")
+        config = self._configuration_service(project_id).load_configuration(episode.id)
+        assignment = self._planning_assignment(project_id, config)
+        if isinstance(assignment, str):
+            self._status(f"Quick Deep Dive planning blocked: {assignment}")
+            return
+        try:
+            planner = self._composition().configured_planning_service(
+                project_id,
+                assignment.provider,
+                assignment.model,
+            )
+            plan = planner.build_plan(episode.id)
+        except (KeyError, ValueError, RuntimeError) as exc:
+            safe = sanitize_provider_error(assignment.provider, exc).message
+            self._status(f"Quick Deep Dive planning failed: {safe}")
+            return
+        self._app.episode_plan_controller = planner
+        self._status(f"Quick Deep Dive planned: {len(plan.segments)} segments")
         self._app.action_navigate("generate")
 
     def action_build_plan(self) -> None:
