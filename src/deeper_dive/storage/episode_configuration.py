@@ -41,3 +41,13 @@ class EpisodeConfigurationRepository:
                     "INSERT INTO episode_hosts(episode_id,host_id,ordinal) VALUES (?,?,?)",
                     (episode.id, host_id, ordinal),
                 )
+            # A persisted plan is a snapshot of the episode configuration. Keeping it after
+            # configuration changes would let show-plan/generate silently use stale hosts,
+            # duration, focus, or provider overrides. Runs remain historical records, but a
+            # new generation must rebuild the invalidated plan first.
+            db.execute(
+                """DELETE FROM segment_plans WHERE episode_plan_id IN
+                (SELECT id FROM episode_plans WHERE episode_id=?)""",
+                (episode.id,),
+            )
+            db.execute("DELETE FROM episode_plans WHERE episode_id=?", (episode.id,))

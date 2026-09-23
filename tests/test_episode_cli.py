@@ -157,6 +157,48 @@ def test_episode_cli_show_plan_reads_persisted_plan_without_configured_provider(
     assert shown_plan["id"] == plan["id"]
 
 
+def test_episode_cli_configuration_edit_invalidates_stale_plan(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _configure_fake_episode_planning(tmp_path)
+    base = ["--data-dir", str(tmp_path), "--json"]
+    project = _json_call([*base, "project", "create", "Episode CLI"], capsys)
+    project_id = str(project["id"])
+    host = _json_call([*base, "host", "create", project_id, "curious_explainer"], capsys)
+    episode = _json_call(
+        [
+            *base,
+            "episode",
+            "create",
+            project_id,
+            "--title",
+            "Mutable Episode",
+            "--duration",
+            "900",
+            "--hosts",
+            str(host["id"]),
+        ],
+        capsys,
+    )
+    episode_id = str(episode["id"])
+    original = _json_call([*base, "episode", "plan", project_id, episode_id], capsys)
+
+    configured = _json_call(
+        [*base, "episode", "configure", project_id, episode_id, "--duration", "1200"],
+        capsys,
+    )
+    assert configured["target_duration_seconds"] == 1200
+
+    assert main([*base, "episode", "show-plan", project_id, episode_id]) == 2
+    captured = capsys.readouterr()
+    assert episode_id in captured.err
+
+    rebuilt = _json_call([*base, "episode", "plan", project_id, episode_id], capsys)
+    assert rebuilt["id"] != original["id"]
+    assert rebuilt["segments"][0]["target_duration_seconds"] == 1200
+
+
 def test_episode_cli_plan_requires_configured_planning_provider(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
