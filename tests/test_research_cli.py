@@ -20,7 +20,7 @@ def _configure_fake_corpus_analysis(data_dir: Path) -> None:
             providers={
                 "researcher": ProviderConfig(
                     provider_type="fake", default_model="fake-v1"
-                )
+                ),
             },
             defaults={"corpus_analysis": "researcher:fake-v1"},
         )
