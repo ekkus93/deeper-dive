@@ -19,7 +19,6 @@ from deeper_dive import model_roles
 from deeper_dive.audio_playback import AudioPlaybackController, PlaybackState
 from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.claim_inspector_screen import ClaimInspectorController, ClaimInspectorScreen
-from deeper_dive.composition import _composition_stage, _tts_stage
 from deeper_dive.host_turn import HostTurn
 from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
 from deeper_dive.pipeline import PipelineContext
@@ -310,7 +309,9 @@ class TranscriptReviewController:
             ).fetchone()
             if table is not None:
                 for turn_id in turn_ids:
-                    cursor = connection.execute("DELETE FROM tts_artifacts WHERE turn_id=?", (turn_id,))
+                    cursor = connection.execute(
+                        "DELETE FROM tts_artifacts WHERE turn_id=?", (turn_id,)
+                    )
                     removed = removed or cursor.rowcount > 0
             timeline_table = connection.execute(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name='audio_timelines'"
@@ -335,9 +336,15 @@ class TranscriptReviewController:
         composition = getattr(app.service, "_production_composition", None)
         if composition is None:
             return
+        from deeper_dive.composition import _composition_stage, _tts_stage
+
         project_id = self._project_id(app)
         episode_id = self._episode_id(app)
-        _tts_stage(app.service, project_id, PipelineContext("transcript-repair", episode_id, "tts"))
+        _tts_stage(
+            app.service,
+            project_id,
+            PipelineContext("transcript-repair", episode_id, "tts"),
+        )
         _composition_stage(
             app.service,
             project_id,
