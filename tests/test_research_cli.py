@@ -15,16 +15,12 @@ def _json_call(args: list[str], capsys: pytest.CaptureFixture[str]) -> object:
 
 
 def _configure_fake_corpus_analysis(data_dir: Path) -> None:
-    UserConfigStore(data_dir / "config.json").save(
-        UserConfig(
-            providers={
-                "researcher": ProviderConfig(
-                    provider_type="fake", default_model="fake-v1"
-                ),
-            },
-            defaults={"corpus_analysis": "researcher:fake-v1"},
-        )
+    provider = ProviderConfig(provider_type="fake", default_model="fake-v1")
+    config = UserConfig(
+        providers={"researcher": provider},
+        defaults={"corpus_analysis": "researcher:fake-v1"},
     )
+    UserConfigStore(data_dir / "config.json").save(config)
 
 
 def test_research_analyze_uses_configured_provider_and_persists_gaps(
