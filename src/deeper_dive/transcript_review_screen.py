@@ -19,8 +19,10 @@ from deeper_dive import model_roles
 from deeper_dive.audio_playback import AudioPlaybackController, PlaybackState
 from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.claim_inspector_screen import ClaimInspectorController, ClaimInspectorScreen
+from deeper_dive.composition import _composition_stage, _tts_stage
 from deeper_dive.host_turn import HostTurn
 from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
+from deeper_dive.pipeline import PipelineContext
 from deeper_dive.storage.database import Database
 from deeper_dive.targeted_repair import TargetedRepairService
 
@@ -187,7 +189,8 @@ class TranscriptReviewController:
     def repair_section(self, app: DeeperDiveApp, segment_ordinal: int) -> tuple[HostTurn, ...]:
         service = self._production_repair_service(app)
         repaired = service.repair_section(self._episode_id(app), segment_ordinal)
-        self._invalidate_episode_audio(app, tuple(turn.id for turn in repaired))
+        had_audio = self._invalidate_episode_audio(app, tuple(turn.id for turn in repaired))
+        self._regenerate_episode_audio_if_required(app, had_audio)
         return repaired
 
     def export_markdown(self, app: DeeperDiveApp) -> Path:
@@ -257,7 +260,8 @@ class TranscriptReviewController:
     def _production_repair(self, app: DeeperDiveApp, turn_id: str) -> HostTurn:
         service = self._production_repair_service(app)
         repaired = service.repair(turn_id)
-        self._invalidate_episode_audio(app, (turn_id,))
+        had_audio = self._invalidate_episode_audio(app, (turn_id,))
+        self._regenerate_episode_audio_if_required(app, had_audio)
         return repaired
 
     def _production_repair_service(self, app: DeeperDiveApp) -> TargetedRepairService:
@@ -296,20 +300,49 @@ class TranscriptReviewController:
         models = provider.models()
         return provider, None if not models else models[0].model
 
-    def _invalidate_episode_audio(self, app: DeeperDiveApp, turn_ids: tuple[str, ...]) -> None:
+    def _invalidate_episode_audio(self, app: DeeperDiveApp, turn_ids: tuple[str, ...]) -> bool:
         database = self._database(app)
         episode_id = self._episode_id(app)
+        removed = False
         with database.transaction() as connection:
             table = connection.execute(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name='tts_artifacts'"
             ).fetchone()
             if table is not None:
                 for turn_id in turn_ids:
-                    connection.execute("DELETE FROM tts_artifacts WHERE turn_id=?", (turn_id,))
+                    cursor = connection.execute("DELETE FROM tts_artifacts WHERE turn_id=?", (turn_id,))
+                    removed = removed or cursor.rowcount > 0
+            timeline_table = connection.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='audio_timelines'"
+            ).fetchone()
+            if timeline_table is not None:
+                cursor = connection.execute(
+                    "DELETE FROM audio_timelines WHERE episode_id=?", (episode_id,)
+                )
+                removed = removed or cursor.rowcount > 0
         output = app.service.workspaces.project_root(self._project_id(app)) / "output"
         for suffix in (".mp3", ".wav"):
+            candidate = output / f"{episode_id}{suffix}"
+            if candidate.exists():
+                removed = True
             with contextlib.suppress(FileNotFoundError):
-                (output / f"{episode_id}{suffix}").unlink()
+                candidate.unlink()
+        return removed
+
+    def _regenerate_episode_audio_if_required(self, app: DeeperDiveApp, had_audio: bool) -> None:
+        if not had_audio:
+            return
+        composition = getattr(app.service, "_production_composition", None)
+        if composition is None:
+            return
+        project_id = self._project_id(app)
+        episode_id = self._episode_id(app)
+        _tts_stage(app.service, project_id, PipelineContext("transcript-repair", episode_id, "tts"))
+        _composition_stage(
+            app.service,
+            project_id,
+            PipelineContext("transcript-repair", episode_id, "composition"),
+        )
 
     def _database(self, app: DeeperDiveApp) -> Database:
         root = app.service.workspaces.project_root(self._project_id(app))
