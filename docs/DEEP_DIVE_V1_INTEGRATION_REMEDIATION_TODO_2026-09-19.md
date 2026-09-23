@@ -290,21 +290,33 @@
 
 ## DDR-051 — Wire research selected/all execution
 
-- [ ] Construct configured search/fetch/research dependencies.
-- [ ] Research one selected gap.
-- [ ] Research all eligible gaps.
-- [ ] Persist candidate outcomes and supplemental sources.
-- [ ] Preserve origin/provenance.
-- [ ] Honor network/research policy.
-- [ ] Add deterministic CLI integration tests.
-- [ ] Verify ordinary CI performs no live web access.
+- [x] Construct configured search/fetch/research dependencies.
+- [x] Research one selected gap.
+- [x] Research all eligible gaps.
+- [x] Persist candidate outcomes and supplemental sources.
+- [x] Preserve origin/provenance.
+- [x] Honor network/research policy.
+- [x] Add deterministic CLI integration tests.
+- [x] Verify ordinary CI performs no live web access.
+
+**Evidence**
+
+- Merged PRs #352 and #353 production-wire `research run` through the shared persistent controller and deterministic search/fetch/evaluator contracts, cover selected and all eligible gaps, skip ignored gaps, enforce the persisted research policy, persist candidate outcomes and accepted supplemental corpus sources with `supplemental` origin/provenance, and require no live web access in ordinary CI.
+- `tests/test_research_execution_cli.py` exercises records created by normal `research analyze`, selected/all execution, ignored-gap behavior, outcome listing, and durable supplemental-source persistence.
+- Exact merged-master CI passed: run `35897624963` on `28d65069519e4ef32fea21c766c6c18612ca52cb`.
 
 ## DDR-052 — Requalify research list/ignore/outcomes
 
-- [ ] Retain gap listing.
-- [ ] Retain ignore behavior.
-- [ ] Retain supplemental source/outcome listing.
-- [ ] Prove these commands operate on records created by DDR-050/051, not only hand-seeded fixtures.
+- [x] Retain gap listing.
+- [x] Retain ignore behavior.
+- [x] Retain supplemental source/outcome listing.
+- [x] Prove these commands operate on records created by DDR-050/051, not only hand-seeded fixtures.
+
+**Evidence**
+
+- `tests/test_research_cli.py` proves `research gaps` lists gaps produced by the configured DDR-050 analysis path.
+- `tests/test_research_execution_cli.py` proves ignore, supplemental-source listing through the normal source repository, and candidate-outcome listing against records created by DDR-050/051 rather than hand-seeded fixtures.
+- Exact merged-master CI passed: run `35897624963` on `28d65069519e4ef32fea21c766c6c18612ca52cb`.
 
 ---
 
