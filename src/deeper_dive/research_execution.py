@@ -36,12 +36,13 @@ class DeterministicSupplementalFetcher:
             chunk = self.corpus.get_chunk(chunk_id)
             if chunk is not None:
                 excerpts.append(chunk.text)
+        excerpts_text = "\n".join(excerpts) if excerpts else "No corpus excerpts were attached."
         text = "\n".join(
             (
                 f"Supplemental research candidate for gap {self.gap.id}.",
                 f"Gap rationale: {self.gap.rationale}",
                 "Corpus excerpts:",
-                "\n".join(excerpts) if excerpts else "No corpus excerpts were attached.",
+                excerpts_text,
             )
         )
         return FetchedDocument(
