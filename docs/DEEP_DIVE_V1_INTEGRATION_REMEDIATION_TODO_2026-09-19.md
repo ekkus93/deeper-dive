@@ -252,21 +252,22 @@
 - [x] Create normal episode configuration.
 - [x] Create/select normal host records.
 - [x] Build/persist plan through shared planner.
-- [ ] Run normal preflight.
-- [ ] Execute normal pipeline.
-- [ ] Persist run/checkpoints/turns/transcript/audio artifacts.
-- [ ] Make result reviewable/exportable through standard surfaces.
-- [ ] Add end-to-end Quick Deep Dive test through production composition.
+- [x] Run normal preflight.
+- [x] Execute normal pipeline.
+- [x] Persist run/checkpoints/turns/transcript/audio artifacts.
+- [x] Make result reviewable/exportable through standard surfaces.
+- [x] Add end-to-end Quick Deep Dive test through production composition.
 
 **Acceptance criteria**
 
 - Quick Deep Dive is a convenience entry point, not a separate placeholder implementation.
 
-**Partial evidence**
+**Evidence**
 
 - Merged PR #348 (`443f77f126d2d63ea0069817b8051ed33b91086a`) routes the TUI Quick Deep Dive action through normal durable episode configuration, normal host selection/creation, and the shared `EpisodePlannerService` before entering the preflight surface.
-- `tests/test_quick_deep_dive.py::test_quick_deep_dive_tui_action_builds_durable_plan_and_reaches_preflight` proves the TUI path persists a plan from a configured deterministic planning provider. Normal preflight execution, pipeline execution, generated artifacts, standard review/export, and full end-to-end production-composition coverage remain open.
-- Exact merged-master CI passed: run `35884189829` on `443f77f126d2d63ea0069817b8051ed33b91086a`.
+- Merged PR #350 (`0785659b06cec72fbb1c86800e5d2383709780e5`) added end-to-end Quick Deep Dive qualification through normal preflight, durable generation-run creation, production-composed pipeline execution, persisted conversation turns, TTS artifacts, audio timeline, episode audio, transcript review visibility, and Episode Library export.
+- `tests/test_quick_deep_dive.py::test_quick_deep_dive_tui_executes_pipeline_and_exports_artifacts` proves Quick Deep Dive is a convenience entry point into the normal durable workflow rather than a placeholder path.
+- Exact merged-master CI passed: run `35889664525` on `0785659b06cec72fbb1c86800e5d2383709780e5`.
 
 ---
 
