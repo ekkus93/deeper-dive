@@ -133,18 +133,21 @@ def test_provider_cli_distinguishes_unknown_provider_from_unsupported_capability
     assert main([*base, "voices", "text"]) == 2
     captured = capsys.readouterr()
     assert captured.out == ""
+    assert "Speech generation failed." in captured.err
     assert "does not support voice discovery" in captured.err
     assert "unknown provider" not in captured.err.lower()
 
     assert main([*base, "models", "speech"]) == 2
     captured = capsys.readouterr()
     assert captured.out == ""
+    assert "Provider request failed." in captured.err
     assert "does not support model discovery" in captured.err
     assert "unknown provider" not in captured.err.lower()
 
     assert main([*base, "models", "missing"]) == 2
     captured = capsys.readouterr()
     assert captured.out == ""
+    assert "Provider request failed." in captured.err
     assert "unknown provider" in captured.err.lower()
 
 
