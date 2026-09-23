@@ -123,8 +123,14 @@ class LLMProviderRegistry:
 class FakeLLMProvider:
     """Deterministic provider for orchestration and integration tests."""
 
+    DEFAULT_RESPONSE = "fake response"
+
     def __init__(
-        self, *, provider_id: str = "fake", model: str = "fake-v1", response: str = "fake response"
+        self,
+        *,
+        provider_id: str = "fake",
+        model: str = "fake-v1",
+        response: str = DEFAULT_RESPONSE,
     ) -> None:
         self._provider_id = provider_id
         self._model = LLMModel(
@@ -161,6 +167,8 @@ class FakeLLMProvider:
             yield LLMStreamChunk(word + suffix, done=index == len(words) - 1)
 
     def _response_for(self, request: LLMRequest) -> str:
+        if self.response != self.DEFAULT_RESPONSE:
+            return self.response
         prompt = "\n".join(message.content for message in request.messages).lower()
         if "identify research gaps" in prompt and "gaps array" in prompt:
             return self._research_gap_response(request)
