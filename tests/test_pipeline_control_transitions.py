@@ -6,7 +6,11 @@ import pytest
 
 from deeper_dive.pipeline import PipelineOrchestrator
 from deeper_dive.storage.database import Database
-from deeper_dive.storage.run_repositories import GenerationRunRecord, GenerationRunRepository
+from deeper_dive.storage.run_repositories import (
+    CompletedUnitRecord,
+    GenerationRunRecord,
+    GenerationRunRepository,
+)
 
 STAGES = ("sources", "conversation", "export")
 
@@ -54,7 +58,7 @@ def test_pending_run_rejects_resume(tmp_path) -> None:
 
 
 def test_paused_run_can_cancel_but_cancelled_run_cannot_resume(tmp_path) -> None:
-    repository, pipeline = _orchestrator(tmp_path)
+    _, pipeline = _orchestrator(tmp_path)
     pipeline.request_pause("run")
     paused = pipeline.run("run")
     assert paused.run.state == "paused"
@@ -70,9 +74,7 @@ def test_paused_run_can_cancel_but_cancelled_run_cannot_resume(tmp_path) -> None
 def test_paused_run_resumes_from_completed_checkpoint(tmp_path) -> None:
     repository, pipeline = _orchestrator(tmp_path)
     repository.complete_unit(
-        __import__(
-            "deeper_dive.storage.run_repositories", fromlist=["CompletedUnitRecord"]
-        ).CompletedUnitRecord("run", "sources", "stage", "2026-09-23T00:01:00.000000Z")
+        CompletedUnitRecord("run", "sources", "stage", "2026-09-23T00:01:00.000000Z")
     )
     current = repository.get("run")
     assert current is not None
