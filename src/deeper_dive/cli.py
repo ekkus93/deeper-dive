@@ -441,7 +441,11 @@ def _planner(
     assignment = assignments.resolve(model_roles.ModelRole.EPISODE_PLANNING)
     if assignment is None:
         raise ValueError("no provider/model assignment for episode_planning")
-    return composition.configured_planning_service(project_id, assignment.provider, assignment.model)
+    return composition.configured_planning_service(
+        project_id,
+        assignment.provider,
+        assignment.model,
+    )
 
 
 def _episode_record(
