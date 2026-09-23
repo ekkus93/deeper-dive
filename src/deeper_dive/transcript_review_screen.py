@@ -73,7 +73,7 @@ class _ProductionTurnRepairProvider:
                 messages=(
                     LLMMessage(
                         "system",
-                        "Repair the selected podcast transcript turn. Return only the repaired turn text.",
+                        "Repair the selected turn. Return only the repaired text.",
                     ),
                     LLMMessage(
                         "user",
