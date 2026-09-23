@@ -34,6 +34,7 @@ from deeper_dive.preflight_screen import PreflightController
 from deeper_dive.provider_factory import ProviderBuildResult, ProviderFactory
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.research_controller import PersistentResearchController
+from deeper_dive.research_execution import execute_research_gaps
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 from deeper_dive.storage.run_repositories import GenerationRunRecord, GenerationRunRepository
@@ -113,7 +114,12 @@ class ProductionComposition:
             provider_factory=factory,
         )
         research_controller = PersistentResearchController(
-            lambda project_id: (app_service.workspaces.project_root(project_id) / "project.db")
+            lambda project_id: (app_service.workspaces.project_root(project_id) / "project.db"),
+            research_callback=lambda project_id, gap_ids: execute_research_gaps(
+                app_service,
+                project_id,
+                gap_ids,
+            ),
         )
         monitor_controller = GenerationMonitorController(
             runner=lambda run_id, progress: cls._run_generation_pipeline(
