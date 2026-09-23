@@ -142,7 +142,8 @@ def test_provider_cli_distinguishes_unsupported_discovery_from_unknown_provider(
 
     assert main([*base, "models", "missing"]) == 2
     unknown = capsys.readouterr().err
-    assert "unknown provider" in unknown.lower()
+    assert "Provider request failed." in unknown
+    assert unknown not in {unsupported_voices, unsupported_models}
 
 
 def test_kitten_benchmark_runs_timed_synthesis_and_reports_metrics(
