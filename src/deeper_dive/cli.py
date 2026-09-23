@@ -381,13 +381,13 @@ def _episode_run_command(
     pipeline = composition.generation_pipeline(episode.project_id)
     if args.episode_command == "pause":
         pipeline.request_pause(run.id)
-        updated = runs.get(run.id)
+        updated = composition.run_generation(episode.project_id, run.id).run
     elif args.episode_command == "cancel":
         pipeline.request_cancel(run.id)
-        updated = runs.get(run.id)
+        updated = composition.run_generation(episode.project_id, run.id).run
     else:
-        updated = pipeline.resume(run.id)
-    assert updated is not None
+        resumed = pipeline.resume(run.id)
+        updated = composition.run_generation(episode.project_id, resumed.id).run
     return _output(asdict(updated), args.json_output)
 
 
