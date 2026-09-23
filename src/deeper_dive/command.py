@@ -42,7 +42,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         import sys
 
         area = _provider_error_area(args.provider_command)
-        print(actionable_error(area, exc).message, file=sys.stderr)
+        error = actionable_error(area, exc)
+        print(f"{error.message} {error.diagnostic}", file=sys.stderr)
         return 2
 
 
