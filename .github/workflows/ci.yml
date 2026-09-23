@@ -64,18 +64,32 @@ jobs:
         run: |
           export PATH="/tmp/deeper-dive-fresh/bin:$PATH"
           export DEEPER_DIVE_DATA_DIR=/tmp/deeper-dive-smoke
-          mkdir -p /tmp/fresh-corpus /tmp/fresh-exports
+          mkdir -p "$DEEPER_DIVE_DATA_DIR" /tmp/fresh-corpus /tmp/fresh-exports
+          cat > "$DEEPER_DIVE_DATA_DIR/config.json" <<'JSON'
+          {
+            "defaults": {
+              "episode_planning": "planner:fake-v1"
+            },
+            "providers": {
+              "planner": {
+                "default_model": "fake-v1",
+                "provider_type": "fake"
+              }
+            },
+            "schema_version": 1
+          }
+          JSON
           printf '# Fresh corpus\n\nA small synthetic source for fresh-machine qualification.\n' > /tmp/fresh-corpus/source.md
-          deeper-dive --json project create "Fresh machine smoke" > /tmp/project.json
+          deeper-dive --data-dir "$DEEPER_DIVE_DATA_DIR" --json project create "Fresh machine smoke" > /tmp/project.json
           PROJECT_ID="$(/tmp/deeper-dive-fresh/bin/python -c 'import json; print(json.load(open("/tmp/project.json"))["id"])')"
-          deeper-dive --json source add "$PROJECT_ID" /tmp/fresh-corpus > /tmp/sources.json
-          deeper-dive --json host create "$PROJECT_ID" curious_explainer > /tmp/host.json
+          deeper-dive --data-dir "$DEEPER_DIVE_DATA_DIR" --json source add "$PROJECT_ID" /tmp/fresh-corpus > /tmp/sources.json
+          deeper-dive --data-dir "$DEEPER_DIVE_DATA_DIR" --json host create "$PROJECT_ID" curious_explainer > /tmp/host.json
           HOST_ID="$(/tmp/deeper-dive-fresh/bin/python -c 'import json; print(json.load(open("/tmp/host.json"))["id"])')"
-          deeper-dive --json episode create "$PROJECT_ID" --title "Fresh smoke episode" --focus "Explain the synthetic source" --duration 60 --hosts "$HOST_ID" --research-policy off > /tmp/episode.json
+          deeper-dive --data-dir "$DEEPER_DIVE_DATA_DIR" --json episode create "$PROJECT_ID" --title "Fresh smoke episode" --focus "Explain the synthetic source" --duration 60 --hosts "$HOST_ID" --research-policy off > /tmp/episode.json
           EPISODE_ID="$(/tmp/deeper-dive-fresh/bin/python -c 'import json; print(json.load(open("/tmp/episode.json"))["id"])')"
-          deeper-dive --json episode plan "$PROJECT_ID" "$EPISODE_ID" > /tmp/plan.json
-          deeper-dive --json episode generate "$PROJECT_ID" "$EPISODE_ID" > /tmp/run.json
-          deeper-dive --json episode export "$PROJECT_ID" "$EPISODE_ID" --output-dir /tmp/fresh-exports > /tmp/export.json
+          deeper-dive --data-dir "$DEEPER_DIVE_DATA_DIR" --json episode plan "$PROJECT_ID" "$EPISODE_ID" > /tmp/plan.json
+          deeper-dive --data-dir "$DEEPER_DIVE_DATA_DIR" --json episode generate "$PROJECT_ID" "$EPISODE_ID" > /tmp/run.json
+          deeper-dive --data-dir "$DEEPER_DIVE_DATA_DIR" --json episode export "$PROJECT_ID" "$EPISODE_ID" --output-dir /tmp/fresh-exports > /tmp/export.json
           /tmp/deeper-dive-fresh/bin/python - <<'PY'
           import json
           from pathlib import Path

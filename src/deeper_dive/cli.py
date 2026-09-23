@@ -11,7 +11,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from deeper_dive import __version__
+from deeper_dive import __version__, model_roles
 from deeper_dive.application.service import DeeperDiveService, SourceImportSummary
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.diagnostics import sanitize_exception_message
@@ -130,7 +130,7 @@ def _add_episode_parser(commands: argparse._SubParsersAction[argparse.ArgumentPa
     show = episode_commands.add_parser("show", help="show episode configuration")
     show.add_argument("project_id")
     show.add_argument("episode_id")
-    plan = episode_commands.add_parser("plan", help="create or replace a deterministic plan")
+    plan = episode_commands.add_parser("plan", help="create or replace a production plan")
     plan.add_argument("project_id")
     plan.add_argument("episode_id")
     show_plan = episode_commands.add_parser("show-plan", help="show the current plan")
@@ -327,15 +327,11 @@ def _episode_command(composition: ProductionComposition, args: argparse.Namespac
     if args.episode_command == "show":
         return _output(_episode_payload(config_service, repository, episode), args.json_output)
     if args.episode_command == "plan":
-        return _output(
-            asdict(_planner(composition, project_id).build_plan(episode.id)),
-            args.json_output,
-        )
+        planner = _planner(composition, project_id, episode.id)
+        return _output(asdict(planner.build_plan(episode.id)), args.json_output)
     if args.episode_command == "show-plan":
-        return _output(
-            asdict(_planner(composition, project_id).load_plan(episode.id)),
-            args.json_output,
-        )
+        planner = _planner(composition, project_id, episode.id)
+        return _output(asdict(planner.load_plan(episode.id)), args.json_output)
     if args.episode_command == "generate":
         run = composition.create_generation_run(project_id, episode.id)
         result = composition.run_generation(project_id, run.id)
@@ -432,28 +428,24 @@ def _csv(value: str | None) -> tuple[str, ...]:
     return tuple(item.strip() for item in value.split(",") if item.strip())
 
 
-def _planner(composition: ProductionComposition, project_id: str) -> EpisodePlannerService:
-    return composition.planning_service(project_id, _DeterministicPlanGenerator())
-
-
-class _DeterministicPlanGenerator:
-    def generate_plan(self, request: dict[str, Any]) -> dict[str, Any]:
-        episode = request["episode"]
-        host_ids = tuple(str(item) for item in episode.get("host_ids", ()))
-        lead_hosts = list(host_ids[:1])
-        duration = int(episode.get("target_duration_seconds", 1200))
-        return {
-            "segments": [
-                {
-                    "title": "Overview",
-                    "purpose": str(episode.get("focus") or "Introduce the project corpus."),
-                    "target_duration_seconds": duration,
-                    "questions": ["What should listeners understand first?"],
-                    "evidence_ids": [],
-                    "lead_host_ids": lead_hosts,
-                }
-            ]
-        }
+def _planner(
+    composition: ProductionComposition,
+    project_id: str,
+    episode_id: str,
+) -> EpisodePlannerService:
+    assignments, errors = composition.effective_model_role_assignments_for_episode(
+        project_id, episode_id
+    )
+    if errors:
+        raise ValueError("; ".join(errors))
+    assignment = assignments.resolve(model_roles.ModelRole.EPISODE_PLANNING)
+    if assignment is None:
+        raise ValueError("no provider/model assignment for episode_planning")
+    return composition.configured_planning_service(
+        project_id,
+        assignment.provider,
+        assignment.model,
+    )
 
 
 def _episode_record(
