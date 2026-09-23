@@ -103,6 +103,13 @@ def execute_research_gaps(
         outcomes.append(outcome)
         known_urls.add(outcome.url)
         known_hashes.add(outcome.content_hash)
+        if outcome.accepted:
+            service.add_pasted_source(
+                project_id,
+                document.title or result.title,
+                document.text,
+                origin="supplemental",
+            )
     return tuple(outcomes)
 
 

@@ -61,6 +61,12 @@ def test_research_run_selected_gap_persists_candidate_outcomes_without_live_netw
     listed = _json_call([*base, "research", "outcomes", project_id], capsys)
     assert listed == outcomes
 
+    sources = _json_call([*base, "source", "list", project_id], capsys)
+    assert isinstance(sources, list)
+    supplemental = [source for source in sources if source["origin"] == "supplemental"]
+    assert len(supplemental) == 1
+    assert supplemental[0]["title"].startswith("Supplemental candidate for")
+
 
 def test_research_run_all_and_ignored_gap_behavior_and_selection_requirement(
     tmp_path: Path,
