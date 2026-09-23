@@ -6,6 +6,7 @@ from pathlib import Path
 from textual.widgets import Static
 
 from deeper_dive.application.service import DeeperDiveService
+from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.claim_verification import ClaimVerificationService
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.host_turn import HostTurnService
@@ -201,16 +202,22 @@ def test_transcript_review_default_repair_uses_production_service(
         stale_claim = connection.execute(
             "SELECT 1 FROM material_claims WHERE id=?", ("claim-1",)
         ).fetchone()
-        stale_audio = connection.execute(
-            "SELECT 1 FROM tts_artifacts WHERE turn_id=?", ("turn-1",)
+        regenerated_audio = connection.execute(
+            "SELECT artifact_id,path FROM tts_artifacts WHERE turn_id=?", ("turn-1",)
         ).fetchone()
     assert repaired is not None
     assert turn is not None
     assert "segments" in str(turn["text"])
     assert turn["evidence_ids_json"] == '["chunk-a", "chunk-b"]'
     assert stale_claim is None
-    assert stale_audio is None
-    assert not episode_audio.exists()
+    assert regenerated_audio is not None
+    assert regenerated_audio["artifact_id"] == "turn-1-deterministic"
+    assert Path(str(regenerated_audio["path"])).is_file()
+    assert episode_audio.exists()
+    assert b"segments" in episode_audio.read_bytes()
+    timeline = AudioTimelineRepository(database).get(episode_id)
+    assert timeline is not None
+    assert timeline.placements[0].item.turn_id == "turn-1"
 
 
 def test_transcript_review_section_repair_uses_production_service(tmp_path: Path) -> None:
