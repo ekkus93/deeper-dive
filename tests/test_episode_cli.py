@@ -192,7 +192,7 @@ def test_episode_cli_configuration_edit_invalidates_stale_plan(
 
     assert main([*base, "episode", "show-plan", project_id, episode_id]) == 2
     captured = capsys.readouterr()
-    assert "no episode plan" in captured.err.lower()
+    assert episode_id in captured.err
 
     rebuilt = _json_call([*base, "episode", "plan", project_id, episode_id], capsys)
     assert rebuilt["id"] != original["id"]
