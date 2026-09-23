@@ -23,7 +23,10 @@ def _configure_fake_corpus_analysis(data_dir: Path) -> None:
     UserConfigStore(data_dir / "config.json").save(config)
 
 
-def _project_with_gap(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> tuple[list[str], str, str]:
+def _project_with_gap(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> tuple[list[str], str, str]:
     _configure_fake_corpus_analysis(tmp_path)
     source = tmp_path / "source.md"
     source.write_text(
