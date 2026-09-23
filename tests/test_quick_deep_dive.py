@@ -208,7 +208,7 @@ async def _exercise_quick_generation_tui(tmp_path: Path) -> None:
         presentation = app.preflight_controller.build(app)
         assert presentation.report.ready
         run = app.preflight_controller.start_generation(app)
-        composition = getattr(app.service, "_production_composition")
+        composition = app.service._production_composition
         composition.run_generation(project.id, run.id)
         await pilot.pause()
 
