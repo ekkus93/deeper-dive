@@ -63,9 +63,7 @@ def test_cli_episode_export_uses_shared_artifact_exporter(tmp_path: Path, capsys
     assert {path.parent for path in exported_paths} == {output_dir}
     transcript = Path(payload["transcript"]).read_text(encoding="utf-8")
     assert "deterministic production turn" in transcript
-    assert json.loads(Path(payload["manifest"]).read_text(encoding="utf-8")) == {
-        "sources": []
-    }
+    assert json.loads(Path(payload["manifest"]).read_text(encoding="utf-8")) == {"sources": []}
     metadata = json.loads(Path(payload["metadata"]).read_text(encoding="utf-8"))
     assert metadata["episode_id"] == episode.id
     assert metadata["run_id"] == result.run.id
