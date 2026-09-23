@@ -62,16 +62,22 @@ def test_research_run_selected_gap_persists_candidate_outcomes_without_live_netw
     assert listed == outcomes
 
 
-def test_research_run_all_skips_ignored_gaps_and_requires_selection(
+def test_research_run_all_and_ignored_gap_behavior_and_selection_requirement(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     base, project_id, gap_id = _project_with_gap(tmp_path, capsys)
 
+    outcomes = _json_call([*base, "research", "run", project_id, "--all"], capsys)
+    assert isinstance(outcomes, list)
+    assert len(outcomes) == 1
+    assert outcomes[0]["gap_id"] == gap_id
+
     ignored = _json_call([*base, "research", "ignore", project_id, gap_id], capsys)
     assert ignored == {"id": gap_id, "status": "ignored"}
-    outcomes = _json_call([*base, "research", "run", project_id, "--all"], capsys)
-    assert outcomes == []
+    skipped = _json_call([*base, "research", "run", project_id, gap_id], capsys)
+    assert skipped == []
+
     assert main([*base, "research", "run", project_id]) == 2
     captured = capsys.readouterr()
     assert "research run requires one or more gap IDs or --all" in captured.err
