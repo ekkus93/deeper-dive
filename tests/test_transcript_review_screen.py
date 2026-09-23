@@ -226,7 +226,9 @@ def test_transcript_review_section_repair_uses_production_service(tmp_path: Path
 
     assert [turn.id for turn in repaired] == ["turn-1"]
     with database.connection() as connection:
-        turn = connection.execute("SELECT text FROM conversation_turns WHERE id=?", ("turn-1",)).fetchone()
+        turn = connection.execute(
+            "SELECT text FROM conversation_turns WHERE id=?", ("turn-1",)
+        ).fetchone()
     assert turn is not None
     assert "segments" in str(turn["text"])
 
