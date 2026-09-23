@@ -14,6 +14,7 @@ from deeper_dive.kitten_model_manager import KittenModelManager, KittenModelStat
 from deeper_dive.kitten_tts import KittenTTSMicroProvider
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.storage.workspace import WorkspaceManager
+from deeper_dive.tts_benchmark import TTSBenchmarkService
 from deeper_dive.user_errors import actionable_error
 
 
@@ -98,7 +99,10 @@ def _provider(args: argparse.Namespace) -> int:
             args.json_output,
         )
     if command in {"kitten-status", "kitten-install", "kitten-benchmark"}:
-        return _output(_kitten(command, workspace, args), args.json_output)
+        return _output(
+            _kitten(command, workspace, args, composition.benchmark_service),
+            args.json_output,
+        )
     raise ValueError(
         "provider command must be list, health, test, models, voices, "
         "kitten-status, kitten-install, or kitten-benchmark"
@@ -124,7 +128,12 @@ def _inspect_provider(
     raise ValueError(f"provider {provider_id!r} does not support {command}")
 
 
-def _kitten(command: str, workspace: WorkspaceManager, args: argparse.Namespace) -> object:
+def _kitten(
+    command: str,
+    workspace: WorkspaceManager,
+    args: argparse.Namespace,
+    benchmark_service: TTSBenchmarkService,
+) -> object:
     manager = KittenModelManager(workspace.models_dir / "kitten")
     if command == "kitten-install":
         if not args.url or not args.model_version:
@@ -135,14 +144,15 @@ def _kitten(command: str, workspace: WorkspaceManager, args: argparse.Namespace)
     if command == "kitten-status":
         return _state(state)
     provider = KittenTTSMicroProvider()
-    health = provider.health()
-    return {
-        "installed": state.installed,
-        "runtime_healthy": health.healthy,
-        "message": health.message,
-        "voice_count": len(provider.voices()),
-        "sample_rate_hz": 24000,
-    }
+    voices = provider.voices()
+    if not voices:
+        raise RuntimeError("KittenTTS provider has no benchmark voice")
+    result = benchmark_service.run(
+        provider,
+        voice=voices[0].id,
+        model=state.model_id if state.installed else None,
+    )
+    return {"installed": state.installed, **asdict(result)}
 
 
 def _state(state: KittenModelState) -> dict[str, object]:
