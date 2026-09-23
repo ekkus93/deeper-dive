@@ -196,19 +196,31 @@
 
 ## DDR-033 — Fix episode-specific audio resolution
 
-- [ ] Remove arbitrary first-audio-file fallback.
-- [ ] Resolve playback artifact from selected episode/run identity.
-- [ ] Return explicit unavailable state when matching audio does not exist.
-- [ ] Add two-episode regression test with distinct audio files.
-- [ ] Assert selecting episode A can never play episode B audio.
+- [x] Remove arbitrary first-audio-file fallback.
+- [x] Resolve playback artifact from selected episode/run identity.
+- [x] Return explicit unavailable state when matching audio does not exist.
+- [x] Add two-episode regression test with distinct audio files.
+- [x] Assert selecting episode A can never play episode B audio.
+
+**Evidence**
+
+- Current `master` resolves review playback via `TranscriptReviewController.audio_path()` using the selected episode ID and returns unavailable state when no matching file exists.
+- `tests/test_transcript_review_screen.py::test_transcript_review_resolves_audio_by_selected_episode_identity` covers two distinct episode audio files and verifies no arbitrary fallback occurs.
+- Exact merged-master CI passed: run `35874845589` on `a37f9aab658280fdd821f831dd199b36059959e8`.
 
 ## DDR-034 — Harden playback process lifecycle
 
-- [ ] Wait after terminate.
-- [ ] Add bounded escalation to kill where necessary.
-- [ ] Avoid orphaned player processes.
-- [ ] Preserve headless/no-player graceful behavior.
-- [ ] Add lifecycle tests using deterministic subprocess doubles.
+- [x] Wait after terminate.
+- [x] Add bounded escalation to kill where necessary.
+- [x] Avoid orphaned player processes.
+- [x] Preserve headless/no-player graceful behavior.
+- [x] Add lifecycle tests using deterministic subprocess doubles.
+
+**Evidence**
+
+- Current `master` has `LocalProcessAudioPlayer.stop()` terminate, wait, escalate to kill on timeout, and clear the process reference after bounded reap attempts.
+- `tests/test_audio_playback.py` covers terminate/wait, kill escalation, bounded stalled reaping, and nonfatal no-player behavior with deterministic doubles.
+- Exact merged-master CI passed: run `35874845589` on `a37f9aab658280fdd821f831dd199b36059959e8`.
 
 ---
 
