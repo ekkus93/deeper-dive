@@ -4,14 +4,17 @@ import json
 from dataclasses import replace
 from pathlib import Path
 
+from deeper_dive.cli import main
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfigurationService
-from deeper_dive.episode_library_export import EpisodeLibraryExportService
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
-def test_shared_episode_export_supports_cli_selected_output_directory(tmp_path: Path) -> None:
+def test_cli_episode_export_uses_shared_artifact_exporter(
+    tmp_path: Path,
+    capsys: object,
+) -> None:
     data_dir = tmp_path / "data"
     config_store = UserConfigStore(data_dir / "config.json")
     config_store.save(
@@ -36,18 +39,37 @@ def test_shared_episode_export_supports_cli_selected_output_directory(tmp_path: 
     assert result.run.state == "completed"
 
     output_dir = tmp_path / "cli-exports"
-    exported = EpisodeLibraryExportService(composition.service.workspaces).export(
-        project.id,
-        episode,
-        result.run,
-        output_dir=output_dir,
+    exit_code = main(
+        [
+            "--data-dir",
+            str(data_dir),
+            "--json",
+            "episode",
+            "export",
+            project.id,
+            episode.id,
+            "--output-dir",
+            str(output_dir),
+        ]
     )
 
-    assert {path.parent for path in exported.paths} == {output_dir}
-    assert "deterministic production turn" in exported.transcript.read_text(encoding="utf-8")
-    assert json.loads(exported.manifest.read_text(encoding="utf-8")) == {"sources": []}
-    metadata = json.loads(exported.metadata.read_text(encoding="utf-8"))
+    assert exit_code == 0
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    exported_paths = {Path(value) for value in payload["paths"]}
+    assert exported_paths == {
+        Path(payload["transcript"]),
+        Path(payload["manifest"]),
+        Path(payload["metadata"]),
+        Path(payload["audio"]),
+    }
+    assert {path.parent for path in exported_paths} == {output_dir}
+    transcript = Path(payload["transcript"]).read_text(encoding="utf-8")
+    assert "deterministic production turn" in transcript
+    assert json.loads(Path(payload["manifest"]).read_text(encoding="utf-8")) == {
+        "sources": []
+    }
+    metadata = json.loads(Path(payload["metadata"]).read_text(encoding="utf-8"))
     assert metadata["episode_id"] == episode.id
     assert metadata["run_id"] == result.run.id
-    assert exported.audio is not None
-    assert exported.audio.read_bytes().startswith(b"FAKE-WAV")
+    assert Path(payload["audio"]).read_bytes().startswith(b"FAKE-WAV")

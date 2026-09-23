@@ -16,6 +16,7 @@ from deeper_dive.application.service import DeeperDiveService, SourceImportSumma
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
+from deeper_dive.episode_library_export import EpisodeLibraryExportService
 from deeper_dive.episode_planner import EpisodePlannerService
 from deeper_dive.hosts import HostProfile, create_host_from_preset, preset_names
 from deeper_dive.research_controller import PersistentResearchController
@@ -43,106 +44,92 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _add_project_parser(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     project = commands.add_parser("project", help="manage projects")
-    project_commands = project.add_subparsers(dest="project_command", required=True)
-    create = project_commands.add_parser("create", help="create a project")
+    sub = project.add_subparsers(dest="project_command", required=True)
+    create = sub.add_parser("create", help="create a project")
     create.add_argument("name")
-    project_commands.add_parser("list", help="list projects")
-    info = project_commands.add_parser("info", help="show project metadata")
+    sub.add_parser("list", help="list projects")
+    info = sub.add_parser("info", help="show project metadata")
     info.add_argument("project_id")
 
 
 def _add_source_parser(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     source = commands.add_parser("source", help="manage project sources")
-    source_commands = source.add_subparsers(dest="source_command", required=True)
-    add = source_commands.add_parser("add", help="add files, directories, or explicit URLs")
+    sub = source.add_subparsers(dest="source_command", required=True)
+    add = sub.add_parser("add", help="add files, directories, or explicit URLs")
     add.add_argument("project_id")
     add.add_argument("inputs", nargs="+")
     add.add_argument("--url", action="store_true", help="treat inputs as explicit HTTP/HTTPS URLs")
-    list_sources = source_commands.add_parser("list", help="list project sources")
-    list_sources.add_argument("project_id")
-    show = source_commands.add_parser("show", help="show source metadata")
-    show.add_argument("project_id")
-    show.add_argument("source_id")
-    for action in ("include", "exclude", "remove"):
-        command = source_commands.add_parser(action, help=f"{action} a project source")
+    for name in ("list", "show", "include", "exclude", "remove"):
+        command = sub.add_parser(name, help=f"{name} project sources")
         command.add_argument("project_id")
-        command.add_argument("source_id")
+        if name != "list":
+            command.add_argument("source_id")
 
 
 def _add_research_parser(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     research = commands.add_parser("research", help="inspect and run supplemental research")
-    research_commands = research.add_subparsers(dest="research_command", required=True)
-    analyze = research_commands.add_parser("analyze", help="analyze the corpus for research gaps")
+    sub = research.add_subparsers(dest="research_command", required=True)
+    analyze = sub.add_parser("analyze", help="analyze the corpus for research gaps")
     analyze.add_argument("project_id")
     analyze.add_argument("--focus", default="")
-    gaps = research_commands.add_parser("gaps", help="list research gaps")
+    gaps = sub.add_parser("gaps", help="list research gaps")
     gaps.add_argument("project_id")
-    run_research = research_commands.add_parser("run", help="research selected gaps")
-    run_research.add_argument("project_id")
-    run_research.add_argument("gap_ids", nargs="*")
-    run_research.add_argument("--all", action="store_true", dest="all_gaps")
-    ignore = research_commands.add_parser("ignore", help="ignore a research gap")
+    run = sub.add_parser("run", help="research selected gaps")
+    run.add_argument("project_id")
+    run.add_argument("gap_ids", nargs="*")
+    run.add_argument("--all", action="store_true", dest="all_gaps")
+    ignore = sub.add_parser("ignore", help="ignore a research gap")
     ignore.add_argument("project_id")
     ignore.add_argument("gap_id")
-    outcomes = research_commands.add_parser(
-        "outcomes", help="list supplemental research candidate outcomes"
-    )
+    outcomes = sub.add_parser("outcomes", help="list supplemental research candidate outcomes")
     outcomes.add_argument("project_id")
 
 
 def _add_host_parser(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     host = commands.add_parser("host", help="manage project hosts")
-    host_commands = host.add_subparsers(dest="host_command", required=True)
-    host_commands.add_parser("presets", help="list host presets")
-    host_list = host_commands.add_parser("list", help="list project hosts")
-    host_list.add_argument("project_id")
-    host_create = host_commands.add_parser("create", help="create host from preset")
-    host_create.add_argument("project_id")
-    host_create.add_argument("preset")
-    host_create.add_argument("--name")
-    host_edit = host_commands.add_parser("edit", help="edit primary host fields")
-    host_edit.add_argument("project_id")
-    host_edit.add_argument("host_id")
-    host_edit.add_argument("--name")
-    host_edit.add_argument("--role")
-    host_edit.add_argument("--expertise")
-    host_edit.add_argument("--instructions")
-    host_voice = host_commands.add_parser("voice", help="assign host TTS provider and voice")
-    host_voice.add_argument("project_id")
-    host_voice.add_argument("host_id")
-    host_voice.add_argument("--provider", required=True)
-    host_voice.add_argument("--voice", required=True)
+    sub = host.add_subparsers(dest="host_command", required=True)
+    sub.add_parser("presets", help="list host presets")
+    list_hosts = sub.add_parser("list", help="list project hosts")
+    list_hosts.add_argument("project_id")
+    create = sub.add_parser("create", help="create host from preset")
+    create.add_argument("project_id")
+    create.add_argument("preset")
+    create.add_argument("--name")
+    edit = sub.add_parser("edit", help="edit primary host fields")
+    edit.add_argument("project_id")
+    edit.add_argument("host_id")
+    edit.add_argument("--name")
+    edit.add_argument("--role")
+    edit.add_argument("--expertise")
+    edit.add_argument("--instructions")
+    voice = sub.add_parser("voice", help="assign host TTS provider and voice")
+    voice.add_argument("project_id")
+    voice.add_argument("host_id")
+    voice.add_argument("--provider", required=True)
+    voice.add_argument("--voice", required=True)
 
 
 def _add_episode_parser(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     episode = commands.add_parser("episode", help="manage project episodes")
-    episode_commands = episode.add_subparsers(dest="episode_command", required=True)
-    episode_list = episode_commands.add_parser("list", help="list episodes")
-    episode_list.add_argument("project_id")
-    create = episode_commands.add_parser("create", help="create/configure an episode")
+    sub = episode.add_subparsers(dest="episode_command", required=True)
+    list_episodes = sub.add_parser("list", help="list episodes")
+    list_episodes.add_argument("project_id")
+    create = sub.add_parser("create", help="create/configure an episode")
     create.add_argument("project_id")
     _add_episode_config_args(create, require_title=True)
-    configure = episode_commands.add_parser("configure", help="edit an episode configuration")
+    configure = sub.add_parser("configure", help="edit an episode configuration")
     configure.add_argument("project_id")
     configure.add_argument("episode_id")
     _add_episode_config_args(configure, require_title=False)
-    show = episode_commands.add_parser("show", help="show episode configuration")
-    show.add_argument("project_id")
-    show.add_argument("episode_id")
-    plan = episode_commands.add_parser("plan", help="create or replace a deterministic plan")
-    plan.add_argument("project_id")
-    plan.add_argument("episode_id")
-    show_plan = episode_commands.add_parser("show-plan", help="show the current plan")
-    show_plan.add_argument("project_id")
-    show_plan.add_argument("episode_id")
-    generate = episode_commands.add_parser("generate", help="create a durable generation run")
-    generate.add_argument("project_id")
-    generate.add_argument("episode_id")
-    for action in ("pause", "cancel", "resume", "status", "export"):
-        command = episode_commands.add_parser(action, help=f"{action} episode generation")
+    for name in ("show", "plan", "show-plan", "generate"):
+        command = sub.add_parser(name, help=f"{name} episode")
         command.add_argument("project_id")
         command.add_argument("episode_id")
-        if action == "export":
+    for name in ("pause", "cancel", "resume", "status", "export"):
+        command = sub.add_parser(name, help=f"{name} episode generation")
+        command.add_argument("project_id")
+        command.add_argument("episode_id")
+        if name == "export":
             command.add_argument("--output-dir", type=Path)
 
 
@@ -203,11 +190,7 @@ def _source_command(service: DeeperDiveService, args: argparse.Namespace) -> int
         print(f"project not found: {project_id}", file=sys.stderr)
         return 2
     if args.source_command == "add":
-        summary = (
-            service.add_url_sources(project_id, list(args.inputs))
-            if args.url
-            else service.add_file_sources(project_id, [Path(value) for value in args.inputs])
-        )
+        summary = service.add_url_sources(project_id, list(args.inputs)) if args.url else service.add_file_sources(project_id, [Path(value) for value in args.inputs])
         return _output_import(summary, args.json_output)
     if args.source_command == "list":
         return _output_sources(service.list_sources(project_id), args.json_output)
@@ -226,36 +209,26 @@ def _source_command(service: DeeperDiveService, args: argparse.Namespace) -> int
     return _output({"id": source.id, "removed": True}, args.json_output)
 
 
-def _research_command(
-    service: DeeperDiveService,
-    controller: PersistentResearchController,
-    args: argparse.Namespace,
-) -> int:
+def _research_command(service: DeeperDiveService, controller: PersistentResearchController, args: argparse.Namespace) -> int:
     project_id = args.project_id
     if service.open_project(project_id) is None:
         print(f"project not found: {project_id}", file=sys.stderr)
         return 2
     if args.research_command == "analyze":
-        return _output(
-            [asdict(gap) for gap in controller.analyze(project_id, args.focus)], args.json_output
-        )
+        return _output([asdict(gap) for gap in controller.analyze(project_id, args.focus)], args.json_output)
     if args.research_command == "gaps":
         return _output([asdict(gap) for gap in controller.gaps(project_id)], args.json_output)
     if args.research_command == "ignore":
         controller.set_gap_status(project_id, args.gap_id, "ignored")
         return _output({"id": args.gap_id, "status": "ignored"}, args.json_output)
     if args.research_command == "outcomes":
-        return _output(
-            [asdict(outcome) for outcome in controller.outcomes(project_id)], args.json_output
-        )
+        return _output([asdict(outcome) for outcome in controller.outcomes(project_id)], args.json_output)
     gap_ids = tuple(args.gap_ids)
     if args.all_gaps:
         gap_ids = tuple(gap.id for gap in controller.gaps(project_id) if gap.status != "ignored")
     if not gap_ids:
         raise ValueError("research run requires one or more gap IDs or --all")
-    return _output(
-        [asdict(outcome) for outcome in controller.research(project_id, gap_ids)], args.json_output
-    )
+    return _output([asdict(outcome) for outcome in controller.research(project_id, gap_ids)], args.json_output)
 
 
 def _host_command(service: DeeperDiveService, args: argparse.Namespace) -> int:
@@ -267,13 +240,7 @@ def _host_command(service: DeeperDiveService, args: argparse.Namespace) -> int:
         return 2
     repository = service.hosts(project_id)
     if args.host_command == "list":
-        return _output(
-            [
-                HostProfile.from_record(record).as_dict()
-                for record in repository.list_hosts(project_id)
-            ],
-            args.json_output,
-        )
+        return _output([HostProfile.from_record(record).as_dict() for record in repository.list_hosts(project_id)], args.json_output)
     if args.host_command == "create":
         host = create_host_from_preset(args.preset, project_id)
         if args.name:
@@ -292,9 +259,7 @@ def _host_command(service: DeeperDiveService, args: argparse.Namespace) -> int:
             display_name=args.name if args.name is not None else record.display_name,
             role=args.role if args.role is not None else record.role,
             expertise=args.expertise if args.expertise is not None else record.expertise,
-            instructions=args.instructions
-            if args.instructions is not None
-            else record.instructions,
+            instructions=args.instructions if args.instructions is not None else record.instructions,
         )
         HostProfile.from_record(updated).validate()
     repository.update_host(updated)
@@ -311,49 +276,30 @@ def _episode_command(composition: ProductionComposition, args: argparse.Namespac
     repository = service.hosts(project_id)
     config_service = EpisodeConfigurationService(database)
     if args.episode_command == "list":
-        return _output(
-            [asdict(episode) for episode in repository.list_episodes(project_id)], args.json_output
-        )
+        return _output([asdict(episode) for episode in repository.list_episodes(project_id)], args.json_output)
     if args.episode_command == "create":
-        config = _episode_config_from_args(service, project_id, args)
-        return _output(asdict(config_service.create(project_id, config)), args.json_output)
-
+        return _output(asdict(config_service.create(project_id, _episode_config_from_args(service, project_id, args))), args.json_output)
     episode = _episode_record(repository.get_episode(args.episode_id), project_id, args.episode_id)
     if args.episode_command == "configure":
         existing = config_service.load_configuration(episode.id)
-        config = _episode_config_from_args(service, project_id, args, existing=existing)
-        return _output(asdict(config_service.edit(episode.id, config)), args.json_output)
+        return _output(asdict(config_service.edit(episode.id, _episode_config_from_args(service, project_id, args, existing=existing))), args.json_output)
     if args.episode_command == "show":
         return _output(_episode_payload(config_service, repository, episode), args.json_output)
     if args.episode_command == "plan":
-        return _output(
-            asdict(_planner(composition, project_id).build_plan(episode.id)),
-            args.json_output,
-        )
+        return _output(asdict(_planner(composition, project_id).build_plan(episode.id)), args.json_output)
     if args.episode_command == "show-plan":
-        return _output(
-            asdict(_planner(composition, project_id).load_plan(episode.id)),
-            args.json_output,
-        )
+        return _output(asdict(_planner(composition, project_id).load_plan(episode.id)), args.json_output)
     if args.episode_command == "generate":
         run = composition.create_generation_run(project_id, episode.id)
-        result = composition.run_generation(project_id, run.id)
-        return _output(asdict(result.run), args.json_output)
+        return _output(asdict(composition.run_generation(project_id, run.id).run), args.json_output)
     if args.episode_command in {"pause", "cancel", "resume", "status"}:
         return _episode_run_command(composition, episode, args)
     if args.episode_command == "export":
-        return _output(
-            _export_episode(composition, project_id, episode, args.output_dir),
-            args.json_output,
-        )
+        return _output(_export_episode(composition, project_id, episode, args.output_dir), args.json_output)
     return 2
 
 
-def _episode_run_command(
-    composition: ProductionComposition,
-    episode: EpisodeRecord,
-    args: argparse.Namespace,
-) -> int:
+def _episode_run_command(composition: ProductionComposition, episode: EpisodeRecord, args: argparse.Namespace) -> int:
     runs = composition.generation_run_repository(episode.project_id)
     run = runs.latest_for_episode(episode.id)
     if args.episode_command == "status":
@@ -373,13 +319,7 @@ def _episode_run_command(
     return _output(asdict(updated), args.json_output)
 
 
-def _episode_config_from_args(
-    service: DeeperDiveService,
-    project_id: str,
-    args: argparse.Namespace,
-    *,
-    existing: EpisodeConfiguration | None = None,
-) -> EpisodeConfiguration:
+def _episode_config_from_args(service: DeeperDiveService, project_id: str, args: argparse.Namespace, *, existing: EpisodeConfiguration | None = None) -> EpisodeConfiguration:
     hosts = _csv(getattr(args, "hosts", None))
     if not hosts and existing is None:
         hosts = tuple(host.id for host in service.hosts(project_id).list_hosts(project_id))
@@ -391,26 +331,13 @@ def _episode_config_from_args(
     return EpisodeConfiguration(
         title=_arg_or_existing(args.title, existing.title if existing else None, "title"),
         focus=_arg_or_existing(args.focus, existing.focus if existing else "", "focus"),
-        audience=_arg_or_existing(
-            args.audience, existing.audience if existing else "general", "audience"
-        ),
-        technical_depth=_arg_or_existing(
-            args.technical_depth,
-            existing.technical_depth if existing else "balanced",
-            "technical_depth",
-        ),
-        target_duration_seconds=int(
-            _arg_or_existing(
-                args.target_duration_seconds,
-                existing.target_duration_seconds if existing else 1800,
-                "target_duration_seconds",
-            )
-        ),
+        audience=_arg_or_existing(args.audience, existing.audience if existing else "general", "audience"),
+        technical_depth=_arg_or_existing(args.technical_depth, existing.technical_depth if existing else "balanced", "technical_depth"),
+        target_duration_seconds=int(_arg_or_existing(args.target_duration_seconds, existing.target_duration_seconds if existing else 1800, "target_duration_seconds")),
         style=_arg_or_existing(args.style, existing.style if existing else "discussion", "style"),
         host_ids=hosts or (existing.host_ids if existing is not None else ()),
         must_cover=_csv(args.must_cover) or (existing.must_cover if existing is not None else ()),
-        avoid_topics=_csv(args.avoid_topics)
-        or (existing.avoid_topics if existing is not None else ()),
+        avoid_topics=_csv(args.avoid_topics) or (existing.avoid_topics if existing is not None else ()),
         research_overrides=research_overrides,
         source_overrides=dict(existing.source_overrides) if existing is not None else {},
         model_overrides=dict(existing.model_overrides) if existing is not None else {},
@@ -439,35 +366,27 @@ class _DeterministicPlanGenerator:
     def generate_plan(self, request: dict[str, Any]) -> dict[str, Any]:
         episode = request["episode"]
         host_ids = tuple(str(item) for item in episode.get("host_ids", ()))
-        lead_hosts = list(host_ids[:1])
-        duration = int(episode.get("target_duration_seconds", 1200))
         return {
             "segments": [
                 {
                     "title": "Overview",
                     "purpose": str(episode.get("focus") or "Introduce the project corpus."),
-                    "target_duration_seconds": duration,
+                    "target_duration_seconds": int(episode.get("target_duration_seconds", 1200)),
                     "questions": ["What should listeners understand first?"],
                     "evidence_ids": [],
-                    "lead_host_ids": lead_hosts,
+                    "lead_host_ids": list(host_ids[:1]),
                 }
             ]
         }
 
 
-def _episode_record(
-    record: EpisodeRecord | None, project_id: str, episode_id: str
-) -> EpisodeRecord:
+def _episode_record(record: EpisodeRecord | None, project_id: str, episode_id: str) -> EpisodeRecord:
     if record is None or record.project_id != project_id:
         raise KeyError(f"episode not found: {episode_id}")
     return record
 
 
-def _episode_payload(
-    config_service: EpisodeConfigurationService,
-    repository: Any,
-    episode: EpisodeRecord,
-) -> dict[str, object]:
+def _episode_payload(config_service: EpisodeConfigurationService, repository: Any, episode: EpisodeRecord) -> dict[str, object]:
     return {
         "episode": asdict(episode),
         "configuration": asdict(config_service.load_configuration(episode.id)),
@@ -475,44 +394,31 @@ def _episode_payload(
     }
 
 
-def _status_payload(
-    episode: EpisodeRecord,
-    run: GenerationRunRecord | None,
-) -> dict[str, object]:
+def _status_payload(episode: EpisodeRecord, run: GenerationRunRecord | None) -> dict[str, object]:
     return {"episode": asdict(episode), "run": None if run is None else asdict(run)}
 
 
-def _export_episode(
-    composition: ProductionComposition,
-    project_id: str,
-    episode: EpisodeRecord,
-    output_dir: Path | None,
-) -> dict[str, object]:
-    service = composition.service
-    database = composition.database_for_project(project_id)
-    repository = service.hosts(project_id)
-    config_service = EpisodeConfigurationService(database)
+def _export_episode(composition: ProductionComposition, project_id: str, episode: EpisodeRecord, output_dir: Path | None) -> dict[str, object]:
     run = composition.generation_run_repository(project_id).latest_for_episode(episode.id)
-    payload = _episode_payload(config_service, repository, episode)
-    payload["run"] = None if run is None else asdict(run)
-    try:
-        payload["plan"] = asdict(_planner(composition, project_id).load_plan(episode.id))
-    except KeyError:
-        payload["plan"] = None
-    root = output_dir or composition.exporter(project_id).output_dir
-    root.mkdir(parents=True, exist_ok=True)
-    path = root / f"{episode.id}-episode-export.json"
-    path.write_text(
-        json.dumps(payload, indent=2, sort_keys=True, default=_json_default), encoding="utf-8"
+    export = EpisodeLibraryExportService(composition.service.workspaces).export(
+        project_id,
+        episode,
+        run,
+        output_dir=output_dir,
     )
-    return {"path": str(path), "episode_id": episode.id}
+    return {
+        "episode_id": episode.id,
+        "transcript": str(export.transcript),
+        "manifest": str(export.manifest),
+        "metadata": str(export.metadata),
+        "audio": None if export.audio is None else str(export.audio),
+        "paths": [str(path) for path in export.paths],
+        "path": str(export.metadata),
+    }
 
 
 def _output_import(summary: SourceImportSummary, json_output: bool) -> int:
-    value = {
-        "imported": [asdict(source) for source in summary.imported],
-        "candidates": [asdict(candidate) for candidate in summary.plan.candidates],
-    }
+    value = {"imported": [asdict(source) for source in summary.imported], "candidates": [asdict(candidate) for candidate in summary.plan.candidates]}
     if json_output:
         print(json.dumps(value, sort_keys=True))
     else:
@@ -549,11 +455,7 @@ def _output(value: object, json_output: bool) -> int:
         print(json.dumps(value, sort_keys=True, default=_json_default))
     elif isinstance(value, list):
         for item in value:
-            print(
-                json.dumps(item, sort_keys=True, default=_json_default)
-                if isinstance(item, dict)
-                else str(item)
-            )
+            print(json.dumps(item, sort_keys=True, default=_json_default) if isinstance(item, dict) else str(item))
     elif isinstance(value, dict) and "name" in value:
         print(f"{value.get('id', '')}\t{value['name']}")
     else:

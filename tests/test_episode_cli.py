@@ -99,10 +99,18 @@ def test_episode_cli_create_plan_generate_status_and_export(
         ],
         capsys,
     )
-    export_path = Path(str(export["path"]))
-    assert export_path.is_file()
-    exported = json.loads(export_path.read_text())
-    assert exported["episode"]["id"] == episode_id
-    assert exported["plan"]["id"] == plan["id"]
-    assert exported["run"]["id"] == run["id"]
-    assert exported["run"]["state"] == "completed"
+    exported_paths = {Path(str(path)) for path in export["paths"]}
+    assert exported_paths == {
+        Path(str(export["transcript"])),
+        Path(str(export["manifest"])),
+        Path(str(export["metadata"])),
+        Path(str(export["audio"])),
+    }
+    assert all(path.is_file() for path in exported_paths)
+    assert "deterministic production turn" in Path(str(export["transcript"])).read_text(
+        encoding="utf-8"
+    )
+    metadata = json.loads(Path(str(export["metadata"])).read_text(encoding="utf-8"))
+    assert metadata["episode_id"] == episode_id
+    assert metadata["run_id"] == run["id"]
+    assert Path(str(export["audio"])).read_bytes().startswith(b"FAKE-WAV")
