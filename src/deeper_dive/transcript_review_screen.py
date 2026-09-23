@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -14,10 +15,14 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
+from deeper_dive import model_roles
 from deeper_dive.audio_playback import AudioPlaybackController, PlaybackState
 from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.claim_inspector_screen import ClaimInspectorController, ClaimInspectorScreen
+from deeper_dive.host_turn import HostTurn
+from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
 from deeper_dive.storage.database import Database
+from deeper_dive.targeted_repair import TargetedRepairService
 
 if TYPE_CHECKING:
     from deeper_dive.tui import DeeperDiveApp
@@ -55,6 +60,48 @@ class SourcePassageSummary:
     origin: str
     location: str | None
     text: str
+
+
+@dataclass(frozen=True, slots=True)
+class _ProductionTurnRepairProvider:
+    provider: LLMProvider
+    model: str | None
+
+    def repair_turn(self, turn: HostTurn, feedback: str, evidence_ids: tuple[str, ...]) -> str:
+        response = self.provider.generate(
+            LLMRequest(
+                messages=(
+                    LLMMessage(
+                        "system",
+                        "Repair the selected turn. Return only the repaired text.",
+                    ),
+                    LLMMessage(
+                        "user",
+                        "\n".join(
+                            (
+                                f"Turn ID: {turn.id}",
+                                f"Speaker ID: {turn.speaker_id}",
+                                f"Original text: {turn.text}",
+                                f"Repair feedback: {feedback}",
+                                "Evidence IDs: " + ", ".join(evidence_ids),
+                            )
+                        ),
+                    ),
+                ),
+                model=self.model,
+            )
+        )
+        return response.text
+
+
+class _NoOpRepairRechecker:
+    def recheck_turn(self, turn: HostTurn) -> None:
+        _ = turn
+
+
+class _NoOpSummaryUpdater:
+    def update_after_repair(self, episode_id: str, turn_id: str) -> None:
+        _ = (episode_id, turn_id)
 
 
 class TranscriptReviewController:
@@ -130,10 +177,18 @@ class TranscriptReviewController:
             if chunk_id in by_id
         )
 
-    def repair_turn(self, turn_id: str) -> None:
-        if self.repair_callback is None:
+    def repair_turn(self, turn_id: str, app: DeeperDiveApp | None = None) -> object:
+        if self.repair_callback is not None:
+            return self.repair_callback(turn_id)
+        if app is None:
             raise RuntimeError("targeted transcript repair is not configured")
-        self.repair_callback(turn_id)
+        return self._production_repair(app, turn_id)
+
+    def repair_section(self, app: DeeperDiveApp, segment_ordinal: int) -> tuple[HostTurn, ...]:
+        service = self._production_repair_service(app)
+        repaired = service.repair_section(self._episode_id(app), segment_ordinal)
+        self._invalidate_episode_audio(app, tuple(turn.id for turn in repaired))
+        return repaired
 
     def export_markdown(self, app: DeeperDiveApp) -> Path:
         project_id = self._project_id(app)
@@ -152,7 +207,10 @@ class TranscriptReviewController:
         return path
 
     def claim_inspector(self, app: DeeperDiveApp, turn_id: str) -> ClaimInspectorScreen:
-        controller = ClaimInspectorController(self._database(app), self.repair_callback)
+        repair = self.repair_callback or (
+            lambda repaired_turn_id: self.repair_turn(repaired_turn_id, app)
+        )
+        controller = ClaimInspectorController(self._database(app), repair)
         return ClaimInspectorScreen(controller, turn_id)
 
     def play_turn(self, app: DeeperDiveApp, turn: TranscriptTurn) -> PlaybackState:
@@ -195,6 +253,63 @@ class TranscriptReviewController:
             if chapter.turn_id == turn_id:
                 return chapter.start_seconds
         return 0.0
+
+    def _production_repair(self, app: DeeperDiveApp, turn_id: str) -> HostTurn:
+        service = self._production_repair_service(app)
+        repaired = service.repair(turn_id)
+        self._invalidate_episode_audio(app, (turn_id,))
+        return repaired
+
+    def _production_repair_service(self, app: DeeperDiveApp) -> TargetedRepairService:
+        composition = getattr(app.service, "_production_composition", None)
+        if composition is None:
+            raise RuntimeError("production targeted transcript repair is not configured")
+        database = self._database(app)
+        episode_id = self._episode_id(app)
+        provider, model = self._repair_provider(composition, self._project_id(app), episode_id)
+        return TargetedRepairService(
+            database,
+            _ProductionTurnRepairProvider(provider, model),
+            _NoOpRepairRechecker(),
+            _NoOpSummaryUpdater(),
+        )
+
+    @staticmethod
+    def _repair_provider(
+        composition: Any, project_id: str, episode_id: str
+    ) -> tuple[LLMProvider, str | None]:
+        assignments, errors = composition.effective_model_role_assignments_for_episode(
+            project_id, episode_id
+        )
+        if errors:
+            raise ValueError("; ".join(errors))
+        assignment = assignments.resolve(
+            model_roles.ModelRole.HOST_GENERATION
+        ) or assignments.resolve(model_roles.ModelRole.EPISODE_PLANNING)
+        registry = composition.provider_controller.llm_registry
+        if assignment is not None:
+            return cast(LLMProvider, registry.get(assignment.provider)), assignment.model
+        provider_ids = registry.provider_ids()
+        if not provider_ids:
+            raise RuntimeError("no configured LLM provider is available for transcript repair")
+        provider = cast(LLMProvider, registry.get(provider_ids[0]))
+        models = provider.models()
+        return provider, None if not models else models[0].model
+
+    def _invalidate_episode_audio(self, app: DeeperDiveApp, turn_ids: tuple[str, ...]) -> None:
+        database = self._database(app)
+        episode_id = self._episode_id(app)
+        with database.transaction() as connection:
+            table = connection.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='tts_artifacts'"
+            ).fetchone()
+            if table is not None:
+                for turn_id in turn_ids:
+                    connection.execute("DELETE FROM tts_artifacts WHERE turn_id=?", (turn_id,))
+        output = app.service.workspaces.project_root(self._project_id(app)) / "output"
+        for suffix in (".mp3", ".wav"):
+            with contextlib.suppress(FileNotFoundError):
+                (output / f"{episode_id}{suffix}").unlink()
 
     def _database(self, app: DeeperDiveApp) -> Database:
         root = app.service.workspaces.project_root(self._project_id(app))
@@ -375,8 +490,8 @@ class TranscriptReviewScreen(Screen[None]):
             self._status("No turn selected")
             return
         try:
-            self.controller.repair_turn(turn.id)
-        except RuntimeError as exc:
+            self.controller.repair_turn(turn.id, self._app)
+        except (KeyError, RuntimeError, ValueError) as exc:
             self._status(str(exc))
             return
         self.refresh_review("Regenerated selected turn/section")
