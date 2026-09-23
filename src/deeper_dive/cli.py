@@ -265,9 +265,8 @@ def _research_analyze(
     focus: str,
 ) -> tuple[ResearchGap, ...]:
     controller = composition.research_controller
-    if not isinstance(controller, PersistentResearchController) or getattr(
-        controller, "analyze_callback", None
-    ) is not None:
+    has_injected_callback = getattr(controller, "analyze_callback", None) is not None
+    if not isinstance(controller, PersistentResearchController) or has_injected_callback:
         return tuple(controller.analyze(project_id, focus))
     assignments, errors = composition.effective_model_role_assignments(project_id)
     if errors:
