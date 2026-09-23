@@ -16,6 +16,7 @@ from deeper_dive.application.service import DeeperDiveService, SourceImportSumma
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
+from deeper_dive.episode_library_export import EpisodeLibraryExportService
 from deeper_dive.episode_planner import EpisodePlannerService
 from deeper_dive.hosts import HostProfile, create_host_from_preset, preset_names
 from deeper_dive.research_controller import PersistentResearchController
@@ -488,24 +489,22 @@ def _export_episode(
     episode: EpisodeRecord,
     output_dir: Path | None,
 ) -> dict[str, object]:
-    service = composition.service
-    database = composition.database_for_project(project_id)
-    repository = service.hosts(project_id)
-    config_service = EpisodeConfigurationService(database)
     run = composition.generation_run_repository(project_id).latest_for_episode(episode.id)
-    payload = _episode_payload(config_service, repository, episode)
-    payload["run"] = None if run is None else asdict(run)
-    try:
-        payload["plan"] = asdict(_planner(composition, project_id).load_plan(episode.id))
-    except KeyError:
-        payload["plan"] = None
-    root = output_dir or composition.exporter(project_id).output_dir
-    root.mkdir(parents=True, exist_ok=True)
-    path = root / f"{episode.id}-episode-export.json"
-    path.write_text(
-        json.dumps(payload, indent=2, sort_keys=True, default=_json_default), encoding="utf-8"
+    export = EpisodeLibraryExportService(composition.service.workspaces).export(
+        project_id,
+        episode,
+        run,
+        output_dir=output_dir,
     )
-    return {"path": str(path), "episode_id": episode.id}
+    return {
+        "episode_id": episode.id,
+        "transcript": str(export.transcript),
+        "manifest": str(export.manifest),
+        "metadata": str(export.metadata),
+        "audio": None if export.audio is None else str(export.audio),
+        "paths": [str(path) for path in export.paths],
+        "path": str(export.metadata),
+    }
 
 
 def _output_import(summary: SourceImportSummary, json_output: bool) -> int:
