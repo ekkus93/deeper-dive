@@ -5,15 +5,20 @@ import json
 from pathlib import Path
 
 from deeper_dive.application.service import DeeperDiveService
+from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.episode_config import EpisodeConfigurationService
+from deeper_dive.episode_library_screen import EpisodeLibraryController
 from deeper_dive.episode_planner import EpisodePlannerService
 from deeper_dive.hosts import HostProfile
 from deeper_dive.llm import FakeLLMProvider, LLMProviderRegistry
-from deeper_dive.preflight_screen import PreflightScreen
+from deeper_dive.model_roles import ModelRole
+from deeper_dive.preflight_screen import PreflightController, PreflightScreen
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.research_policy import ResearchMode, ResearchPolicyStore
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.workspace import WorkspaceManager
+from deeper_dive.transcript_review_screen import TranscriptReviewController
+from deeper_dive.tts import FakeTTSProvider
 from deeper_dive.tui import DeeperDiveApp
 from deeper_dive.user_config import UserConfig, UserConfigStore
 
@@ -151,6 +156,86 @@ async def _exercise_quick_tui(tmp_path: Path) -> None:
     assert plan.segments[0].title == "Quick Opening"
 
 
+def test_quick_deep_dive_preflight_executes_pipeline_and_exports_artifacts(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_exercise_quick_generation_tui(tmp_path))
+
+
+async def _exercise_quick_generation_tui(tmp_path: Path) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    project = service.create_project("Quick Generate")
+    service.add_pasted_source(
+        project.id,
+        "Corpus",
+        "Grounded source text that should be indexed before quick generation.",
+    )
+    hosts = service.hosts(project.id)
+    hosts.create_host(
+        HostProfile(
+            "h1",
+            project.id,
+            "Existing One",
+            tts_provider="fake-tts",
+            tts_voice="voice-a",
+        ).to_record()
+    )
+    hosts.create_host(
+        HostProfile(
+            "h2",
+            project.id,
+            "Existing Two",
+            tts_provider="fake-tts",
+            tts_voice="voice-a",
+        ).to_record()
+    )
+    fake_ffmpeg = tmp_path / "ffmpeg"
+    fake_ffmpeg.write_text("fake ffmpeg marker", encoding="utf-8")
+    app = DeeperDiveApp(
+        service,
+        provider_controller=_generation_provider_controller(service),
+        preflight_controller=PreflightController(ffmpeg_executable=fake_ffmpeg),
+    )
+
+    async with app.run_test(size=(120, 50)) as pilot:
+        app.current_project_id = project.id
+        app.current_project_name = project.name
+        app.action_navigate("episode")
+        await pilot.pause()
+        app.screen.action_quick_deep_dive()
+        await pilot.pause()
+        assert isinstance(app.screen, PreflightScreen)
+        presentation = app.preflight_controller.build(app)
+        assert presentation.report.ready
+        run = app.preflight_controller.start_generation(app)
+        composition = app.service._production_composition
+        composition.run_generation(project.id, run.id)
+        await pilot.pause()
+
+    episode = hosts.list_episodes(project.id)[0]
+    run = service.runs(project.id).latest_for_episode(episode.id)
+    assert run is not None
+    assert run.state == "completed"
+    database = Database(service.workspaces.project_root(project.id) / "project.db")
+    with database.connection() as connection:
+        turn_count = connection.execute(
+            "SELECT COUNT(*) FROM conversation_turns WHERE episode_id=?", (episode.id,)
+        ).fetchone()[0]
+        audio_count = connection.execute("SELECT COUNT(*) FROM tts_artifacts").fetchone()[0]
+    assert turn_count > 0
+    assert audio_count > 0
+    assert AudioTimelineRepository(database).get(episode.id) is not None
+    assert (service.workspaces.project_root(project.id) / "output" / f"{episode.id}.wav").is_file()
+    app.current_project_id = project.id
+    app.current_episode_id = episode.id
+    app.current_run_id = run.id
+    assert TranscriptReviewController().turns(app)
+    item = EpisodeLibraryController.items(app)[0]
+    export = EpisodeLibraryController.export(app, item)
+    assert export.paths
+    assert all(path.is_file() for path in export.paths)
+
+
 def _planning_provider_controller(service: DeeperDiveService) -> ProviderController:
     registry = LLMProviderRegistry()
     registry.register(
@@ -167,6 +252,16 @@ def _planning_provider_controller(service: DeeperDiveService) -> ProviderControl
     config.defaults["episode_planning"] = "fake:fake-v1"
     store.save(config)
     return ProviderController(store, registry, {})
+
+
+def _generation_provider_controller(service: DeeperDiveService) -> ProviderController:
+    controller = _planning_provider_controller(service)
+    config = controller.config()
+    for role in ModelRole:
+        config.defaults[role.value] = "fake:fake-v1"
+    controller.config_store.save(config)
+    controller.tts_providers["fake-tts"] = FakeTTSProvider(provider_id="fake-tts")
+    return controller
 
 
 def _unused_generator():
