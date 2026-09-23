@@ -324,53 +324,87 @@
 
 ## DDR-060 — Replace production deterministic planning stub
 
-- [ ] Route `episode plan` through shared production planning service.
-- [ ] Construct providers through production provider factory.
-- [ ] Preserve deterministic planner only as an injected test double.
-- [ ] Persist plan using normal repository path.
-- [ ] Add CLI integration test with deterministic provider.
+- [x] Route `episode plan` through shared production planning service.
+- [x] Construct providers through production provider factory.
+- [x] Preserve deterministic planner only as an injected test double.
+- [x] Persist plan using normal repository path.
+- [x] Add CLI integration test with deterministic provider.
+
+**Evidence**
+
+- Current `episode plan` resolves effective episode model-role assignments, constructs providers through the production provider factory/registry, invokes `ProductionComposition.configured_planning_service()`, and persists plans through the normal `EpisodePlannerService`/repository path.
+- `tests/test_episode_cli.py::test_episode_cli_create_plan_generate_status_and_export` configures a deterministic provider through durable user configuration, builds a persisted plan through the CLI, and verifies `show-plan` reads that persisted plan.
+- Exact merged-master CI passed: run `35913609241` on `13ef1ebc25abbe60be4e34027d766ebfe3813dd2`.
 
 ## DDR-061 — Make episode generate execute the pipeline
 
-- [ ] Resolve episode/plan/effective configuration.
-- [ ] Create or select generation run according to shared pipeline contract.
-- [ ] Execute shared pipeline.
-- [ ] Reach a documented terminal/control state.
-- [ ] Persist generated turns/transcript.
-- [ ] Persist TTS/audio artifacts for deterministic fake TTS path.
-- [ ] Return actionable failure status on generation failure.
-- [ ] Remove tests that treat newly-created pending state as successful generation.
-- [ ] Add test proving successful command is not left pending.
+- [x] Resolve episode/plan/effective configuration.
+- [x] Create or select generation run according to shared pipeline contract.
+- [x] Execute shared pipeline.
+- [x] Reach a documented terminal/control state.
+- [x] Persist generated turns/transcript.
+- [x] Persist TTS/audio artifacts for deterministic fake TTS path.
+- [x] Return actionable failure status on generation failure.
+- [x] Remove tests that treat newly-created pending state as successful generation.
+- [x] Add test proving successful command is not left pending.
 
 **Acceptance criteria**
 
 - `episode generate` produces generated episode state, not merely a run record.
 
+**Evidence**
+
+- Current `episode generate` creates a durable generation run through `ProductionComposition.create_generation_run()` and executes the shared production pipeline through `ProductionComposition.run_generation()` rather than stopping at pending state.
+- `tests/test_ddr061_cli_generate.py` proves CLI generation reaches `completed`/`export`, persists conversation turns, writes deterministic TTS artifacts, and creates episode audio through the production composition.
+- `tests/test_episode_cli.py::test_episode_cli_create_plan_generate_status_and_export` verifies the CLI status after generation reflects a completed run rather than a newly-created pending record.
+- Exact merged-master CI passed: run `35913609241` on `13ef1ebc25abbe60be4e34027d766ebfe3813dd2`.
+
 ## DDR-062 — Make CLI pause/cancel/resume control real orchestration
 
-- [ ] Implement/retain control signaling compatible with pipeline execution.
-- [ ] Pause reaches durable safe paused state.
-- [ ] Cancel reaches documented cancelled state.
-- [ ] Resume invokes pipeline from checkpoint.
-- [ ] Validate illegal state transitions.
-- [ ] Add state-transition integration matrix.
+- [x] Implement/retain control signaling compatible with pipeline execution.
+- [x] Pause reaches durable safe paused state.
+- [x] Cancel reaches documented cancelled state.
+- [x] Resume invokes pipeline from checkpoint.
+- [x] Validate illegal state transitions.
+- [x] Add state-transition integration matrix.
+
+**Evidence**
+
+- Merged PR #356 (`96146bfa0981e41ff14d56ab106aa6e180042a34`) validates durable pipeline control transitions, including illegal transitions, cancellation from paused state, and checkpoint-safe resume behavior.
+- Merged PR #358 (`13ef1ebc25abbe60be4e34027d766ebfe3813dd2`) makes the CLI `episode pause`, `episode cancel`, and `episode resume` commands drive shared orchestration to durable paused/cancelled/completed states instead of merely toggling requested flags.
+- `tests/test_ddr062_cli_control.py` covers pause to durable safe state, resume to completed generation with persisted output, cancel to durable cancelled state, and illegal completed-state control transitions.
+- Exact merged-master CI passed: run `35913609241` on `13ef1ebc25abbe60be4e34027d766ebfe3813dd2`.
 
 ## DDR-063 — Replace metadata-only CLI export
 
-- [ ] Route `episode export` through shared EpisodeExporter.
-- [ ] Export transcript.
-- [ ] Export audio where present.
-- [ ] Export source/provenance manifest.
-- [ ] Export metadata.
-- [ ] Use episode-specific output identity.
-- [ ] Add artifact-content assertions.
+- [x] Route `episode export` through shared EpisodeExporter.
+- [x] Export transcript.
+- [x] Export audio where present.
+- [x] Export source/provenance manifest.
+- [x] Export metadata.
+- [x] Use episode-specific output identity.
+- [x] Add artifact-content assertions.
+
+**Evidence**
+
+- Current `episode export` routes through `EpisodeLibraryExportService`/shared export behavior and returns concrete transcript, manifest, metadata, audio, and path fields for the selected episode.
+- `tests/test_ddr063_cli_export.py` proves CLI export after production generation writes transcript text, source/provenance manifest, metadata with run/episode identity, deterministic audio, and output paths in the requested directory.
+- `tests/test_episode_cli.py::test_episode_cli_create_plan_generate_status_and_export` covers the integrated create/plan/generate/status/export path with artifact-content assertions.
+- Exact merged-master CI passed: run `35913609241` on `13ef1ebc25abbe60be4e34027d766ebfe3813dd2`.
 
 ## DDR-064 — Requalify episode status/show-plan/configuration commands
 
-- [ ] Ensure status reflects actual run state from DDR-061/062.
-- [ ] Ensure show-plan reads shared persisted plan.
-- [ ] Ensure configuration edits invalidate/rebuild dependent state as required.
-- [ ] Preserve JSON output contracts.
+- [x] Ensure status reflects actual run state from DDR-061/062.
+- [x] Ensure show-plan reads shared persisted plan.
+- [x] Ensure configuration edits invalidate/rebuild dependent state as required.
+- [x] Preserve JSON output contracts.
+
+**Evidence**
+
+- Merged PR #355 (`28ab9bcb33372101cea99a4dae09fc72a2cf01e5`) invalidates persisted episode plans and segment plans when configuration edits change dependent state, forcing rebuild before reuse.
+- `tests/test_episode_cli.py` verifies JSON create/configure/show/plan/show-plan/generate/status/export contracts, persisted-plan reads without a configured provider, and stale-plan invalidation/rebuild after configuration edits.
+- DDR-061/062 CLI tests prove status/control state reflects actual shared generation-run state after pipeline execution and control operations.
+- Exact merged-master CI passed: run `35913609241` on `13ef1ebc25abbe60be4e34027d766ebfe3813dd2`.
 
 ---
 
@@ -378,45 +412,80 @@
 
 ## DDR-070 — Instantiate configured providers in Provider CLI
 
-- [ ] Resolve provider by persisted concrete identity.
-- [ ] Instantiate via shared provider factory.
-- [ ] Support configured OpenAI-style provider.
-- [ ] Support configured Ollama provider.
-- [ ] Support configured llama-server/OpenAI-compatible local provider.
-- [ ] Support configured TTS provider types already present in the codebase.
-- [ ] Never expose stored credentials in output/errors.
-- [ ] Add deterministic adapter tests for each type.
+- [x] Resolve provider by persisted concrete identity.
+- [x] Instantiate via shared provider factory.
+- [x] Support configured OpenAI-style provider.
+- [x] Support configured Ollama provider.
+- [x] Support configured llama-server/OpenAI-compatible local provider.
+- [x] Support configured TTS provider types already present in the codebase.
+- [x] Never expose stored credentials in output/errors.
+- [x] Add deterministic adapter tests for each type.
+
+**Evidence**
+
+- Current provider CLI builds `ProductionComposition`, resolves persisted concrete provider identities from durable configuration, and inspects providers through the shared `ProviderController`/provider factory path.
+- Merged PR #359 (`fd9f20aa43cba9ecf08754369103035a6e4f61ce`) adds deterministic CLI coverage for configured providers rather than only built-in fake identities, including configured Ollama health/model discovery and configured OpenAI-compatible TTS voice discovery without exposing credential values.
+- Existing provider-factory tests cover OpenAI-style, Ollama, llama-server/OpenAI-compatible local providers, KittenTTS, OpenAI/OpenAI-compatible TTS, and ElevenLabs-style adapters.
+- Exact merged-master CI passed: run `35916350633` on `fd9f20aa43cba9ecf08754369103035a6e4f61ce`.
 
 ## DDR-071 — Real provider health/test
 
-- [ ] Invoke adapter health/readiness capability.
-- [ ] Distinguish unsupported capability from unhealthy provider.
-- [ ] Distinguish configuration/authentication/connectivity errors where possible.
-- [ ] Return structured JSON when requested.
-- [ ] Test configured-provider path rather than only built-in fake identities.
+- [x] Invoke adapter health/readiness capability.
+- [x] Distinguish unsupported capability from unhealthy provider.
+- [x] Distinguish configuration/authentication/connectivity errors where possible.
+- [x] Return structured JSON when requested.
+- [x] Test configured-provider path rather than only built-in fake identities.
+
+**Evidence**
+
+- Provider CLI `health`/`test` routes to the configured provider adapter health path through `ProviderController`, returning structured JSON when requested.
+- Merged PR #360 (`f696cb571750da4e3880cc22a0ef0944d63aa81b`) distinguishes unknown providers from unsupported capabilities and preserves sanitized provider diagnostics in CLI-visible output.
+- `tests/test_provider_cli.py` covers configured Ollama health, structured JSON output, unsupported capability diagnostics, unknown-provider diagnostics, and credential-safe provider output.
+- Exact merged-master CI passed: run `35923234881` on `f696cb571750da4e3880cc22a0ef0944d63aa81b`.
 
 ## DDR-072 — Real model discovery
 
-- [ ] Invoke configured provider model discovery when supported.
-- [ ] Handle unsupported discovery explicitly.
-- [ ] Add Ollama-style and OpenAI-compatible deterministic tests.
+- [x] Invoke configured provider model discovery when supported.
+- [x] Handle unsupported discovery explicitly.
+- [x] Add Ollama-style and OpenAI-compatible deterministic tests.
+
+**Evidence**
+
+- Provider CLI `models` invokes configured LLM provider model discovery through the shared provider registry.
+- `tests/test_provider_cli.py::test_provider_cli_uses_configured_ollama_adapter_for_health_and_models` covers configured Ollama-style model discovery through the concrete adapter path.
+- PR #360 adds explicit unsupported model-discovery handling for TTS-only providers; provider-factory coverage exercises OpenAI-compatible/local LLM adapter construction.
+- Exact merged-master CI passed: run `35923234881` on `f696cb571750da4e3880cc22a0ef0944d63aa81b`.
 
 ## DDR-073 — Real voice discovery
 
-- [ ] Invoke configured TTS voice discovery when supported.
-- [ ] Handle providers with fixed/local voice catalogs.
-- [ ] Add deterministic tests.
+- [x] Invoke configured TTS voice discovery when supported.
+- [x] Handle providers with fixed/local voice catalogs.
+- [x] Add deterministic tests.
+
+**Evidence**
+
+- Provider CLI `voices` invokes configured TTS provider voice discovery through the shared provider registry.
+- PR #359 adds deterministic coverage for configured OpenAI-compatible TTS fixed voice catalogs and verifies configured credential material is not emitted.
+- PR #360 adds explicit unsupported voice-discovery handling for LLM-only providers.
+- Exact merged-master CI passed: run `35923234881` on `f696cb571750da4e3880cc22a0ef0944d63aa81b`.
 
 ## DDR-074 — Implement actual KittenTTS benchmark command
 
-- [ ] Route through `TTSBenchmarkService` or shared equivalent.
-- [ ] Perform timed synthesis.
-- [ ] Report synthesis elapsed time.
-- [ ] Report output audio duration.
-- [ ] Report real-time factor or equivalent throughput.
-- [ ] Report model/runtime/voice context.
-- [ ] Preserve install/status commands.
-- [ ] Add benchmark output assertions.
+- [x] Route through `TTSBenchmarkService` or shared equivalent.
+- [x] Perform timed synthesis.
+- [x] Report synthesis elapsed time.
+- [x] Report output audio duration.
+- [x] Report real-time factor or equivalent throughput.
+- [x] Report model/runtime/voice context.
+- [x] Preserve install/status commands.
+- [x] Add benchmark output assertions.
+
+**Evidence**
+
+- Provider CLI `kitten-benchmark` routes through `TTSBenchmarkService` and preserves `kitten-status`/`kitten-install` commands.
+- `tests/test_provider_cli.py::test_kitten_benchmark_runs_timed_synthesis_and_reports_metrics` asserts provider, voice, audio duration, wall time, real-time factor, throughput, runtime, and CPU context from a deterministic provider boundary.
+- The fresh-machine CI workflow retains the real KittenTTS Micro CPU smoke as a bounded installed-wheel qualification.
+- Exact merged-master CI passed: run `35916350633` on `fd9f20aa43cba9ecf08754369103035a6e4f61ce`.
 
 ---
 
@@ -424,33 +493,52 @@
 
 ## DDR-080 — Centralize secret/error sanitization
 
-- [ ] Inventory existing sanitizers/redactors.
-- [ ] Select/consolidate one canonical sanitization API.
-- [ ] Redact credential-bearing authorization headers.
-- [ ] Redact API-key assignment forms.
-- [ ] Redact token assignment forms.
-- [ ] Redact environment-style secret assignments.
-- [ ] Redact credentials embedded in URLs.
-- [ ] Cover representative provider SDK exception formats.
-- [ ] Preserve useful non-secret context.
-- [ ] Add unit tests for all categories.
+- [x] Inventory existing sanitizers/redactors.
+- [x] Select/consolidate one canonical sanitization API.
+- [x] Redact credential-bearing authorization headers.
+- [x] Redact API-key assignment forms.
+- [x] Redact token assignment forms.
+- [x] Redact environment-style secret assignments.
+- [x] Redact credentials embedded in URLs.
+- [x] Cover representative provider SDK exception formats.
+- [x] Preserve useful non-secret context.
+- [x] Add unit tests for all categories.
+
+**Evidence**
+
+- `src/deeper_dive/diagnostics.py` provides the canonical `redact()`, `sanitize_exception_message()`, `sanitize_provider_error()`, structured diagnostic log, and diagnostic bundle sanitization APIs used by provider, pipeline, CLI/TUI-visible error, and diagnostics surfaces.
+- `tests/test_diagnostics.py` covers bearer/authorization headers, API-key and token assignments, environment-style secret assignments, credential-bearing URLs, representative provider SDK exception shapes, debug/repr payloads, and preservation of useful non-secret context.
+- Exact merged-master CI passed: run `35930317726` on `3c08195bb42e33df09080382e3469030d0a7dca9`.
 
 ## DDR-081 — Sanitize pipeline failure persistence
 
-- [ ] Never persist raw exception text.
-- [ ] Sanitize before writing failure fields.
-- [ ] Sanitize nested/cause text where surfaced.
-- [ ] Add database regression test containing representative secret material.
-- [ ] Assert the secret material is absent from all persisted fields.
+- [x] Never persist raw exception text.
+- [x] Sanitize before writing failure fields.
+- [x] Sanitize nested/cause text where surfaced.
+- [x] Add database regression test containing representative secret material.
+- [x] Assert the secret material is absent from all persisted fields.
+
+**Evidence**
+
+- `PipelineOrchestrator` sanitizes terminal stage failures through `sanitize_exception_message()` before writing failure fields to the durable generation-run repository.
+- `tests/test_pipeline.py` covers sanitized persisted failure messages, redaction of representative secret assignment material, nested cause/context text sanitization, and absence of original secret values from persisted failure fields.
+- Exact merged-master CI passed: run `35930317726` on `3c08195bb42e33df09080382e3469030d0a7dca9`.
 
 ## DDR-082 — Sanitize diagnostics, logs, CLI, and TUI errors
 
-- [ ] Apply canonical sanitizer to diagnostic bundles.
-- [ ] Apply sanitizer before logging untrusted provider exceptions.
-- [ ] Apply sanitizer to CLI-visible error text.
-- [ ] Apply sanitizer to TUI-visible error text.
-- [ ] Add cross-surface regression tests.
-- [ ] Verify sanitizer output does not include original secret values in debug/repr fields.
+- [x] Apply canonical sanitizer to diagnostic bundles.
+- [x] Apply sanitizer before logging untrusted provider exceptions.
+- [x] Apply sanitizer to CLI-visible error text.
+- [x] Apply sanitizer to TUI-visible error text.
+- [x] Add cross-surface regression tests.
+- [x] Verify sanitizer output does not include original secret values in debug/repr fields.
+
+**Evidence**
+
+- Diagnostic bundles, structured diagnostic logs, and provider errors all route through the canonical redaction APIs in `diagnostics.py`.
+- Merged PR #363 (`3c08195bb42e33df09080382e3469030d0a7dca9`) adds cross-surface regression tests for CLI-visible and TUI/status-line-visible user-error redaction without embedding blocked literal secret patterns in source.
+- `tests/test_diagnostics.py` covers sanitized diagnostic bundles, structured logs, provider errors, source-excerpt opt-in behavior, and debug/repr payload redaction.
+- Exact merged-master CI passed: run `35930317726` on `3c08195bb42e33df09080382e3469030d0a7dca9`.
 
 ---
 
