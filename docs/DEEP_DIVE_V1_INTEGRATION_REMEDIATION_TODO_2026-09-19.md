@@ -184,15 +184,21 @@
 
 ## DDR-032 — Production-wire Transcript Review repair
 
-- [ ] Supply the production targeted repair/regeneration service.
-- [ ] Regenerate selected turn.
-- [ ] Regenerate selected section where supported.
-- [ ] Preserve unaffected content.
-- [ ] Update citations/provenance consistently.
-- [ ] Regenerate dependent audio where required.
-- [ ] Persist repaired state.
-- [ ] Add direct `TranscriptReviewScreen` tests.
-- [ ] Add failure/retry tests.
+- [x] Supply the production targeted repair/regeneration service.
+- [x] Regenerate selected turn.
+- [x] Regenerate selected section where supported.
+- [x] Preserve unaffected content.
+- [x] Update citations/provenance consistently.
+- [x] Regenerate dependent audio where required.
+- [x] Persist repaired state.
+- [x] Add direct `TranscriptReviewScreen` tests.
+- [x] Add failure/retry tests.
+
+**Evidence**
+
+- Merged PR #347 (`a0abdeb0e1356a9e2a4a8a84c46aa092469344ef`) production-wired `TranscriptReviewController` to `TargetedRepairService`, persisted selected-turn/section repairs, preserved evidence IDs/provenance from repair feedback, invalidated stale audio/timelines, regenerated dependent deterministic TTS/audio through the production composition path, and kept actionable failure behavior.
+- `tests/test_transcript_review_screen.py` covers injected screen repair, production default repair, section repair, missing-provider failure, regenerated TTS artifacts, regenerated episode audio, and refreshed timeline placement.
+- Exact merged-master CI passed: run `35881322893` on `a0abdeb0e1356a9e2a4a8a84c46aa092469344ef`.
 
 ## DDR-033 — Fix episode-specific audio resolution
 
@@ -228,18 +234,24 @@
 
 ## DDR-040 — Honor configured Quick Deep Dive defaults
 
-- [ ] Load user/application Quick Deep Dive defaults.
-- [ ] Apply project overrides where supported.
-- [ ] Retain Curious Explainer + Skeptic built-in fallback.
-- [ ] Retain approximately 20-minute built-in fallback.
-- [ ] Retain Useful research-policy built-in fallback.
-- [ ] Add override-precedence tests.
+- [x] Load user/application Quick Deep Dive defaults.
+- [x] Apply project overrides where supported.
+- [x] Retain Curious Explainer + Skeptic built-in fallback.
+- [x] Retain approximately 20-minute built-in fallback.
+- [x] Retain Useful research-policy built-in fallback.
+- [x] Add override-precedence tests.
+
+**Evidence**
+
+- Current `QuickDeepDiveService` resolves built-in, user, and project Quick Deep Dive defaults while preserving fallback hosts, 20-minute duration, and Useful research policy.
+- `tests/test_quick_deep_dive.py` covers built-in defaults, user defaults, project override precedence, existing project hosts, and durable research-policy/config persistence.
+- Exact merged-master CI passed: run `35884189829` on `443f77f126d2d63ea0069817b8051ed33b91086a`.
 
 ## DDR-041 — Route Quick Deep Dive through normal durable workflow
 
-- [ ] Create normal episode configuration.
-- [ ] Create/select normal host records.
-- [ ] Build/persist plan through shared planner.
+- [x] Create normal episode configuration.
+- [x] Create/select normal host records.
+- [x] Build/persist plan through shared planner.
 - [ ] Run normal preflight.
 - [ ] Execute normal pipeline.
 - [ ] Persist run/checkpoints/turns/transcript/audio artifacts.
@@ -249,6 +261,12 @@
 **Acceptance criteria**
 
 - Quick Deep Dive is a convenience entry point, not a separate placeholder implementation.
+
+**Partial evidence**
+
+- Merged PR #348 (`443f77f126d2d63ea0069817b8051ed33b91086a`) routes the TUI Quick Deep Dive action through normal durable episode configuration, normal host selection/creation, and the shared `EpisodePlannerService` before entering the preflight surface.
+- `tests/test_quick_deep_dive.py::test_quick_deep_dive_tui_action_builds_durable_plan_and_reaches_preflight` proves the TUI path persists a plan from a configured deterministic planning provider. Normal preflight execution, pipeline execution, generated artifacts, standard review/export, and full end-to-end production-composition coverage remain open.
+- Exact merged-master CI passed: run `35884189829` on `443f77f126d2d63ea0069817b8051ed33b91086a`.
 
 ---
 
