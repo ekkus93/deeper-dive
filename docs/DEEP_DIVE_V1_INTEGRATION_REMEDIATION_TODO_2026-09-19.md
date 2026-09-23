@@ -167,15 +167,20 @@
 
 ## DDR-031 — Episode Library real Export
 
-- [ ] Invoke shared EpisodeExporter.
-- [ ] Produce actual episode-specific artifacts.
-- [ ] Report concrete produced paths/artifacts.
-- [ ] Handle incomplete/unexportable episodes explicitly.
-- [ ] Replace status-text-only test with filesystem/artifact assertions.
+- [x] Invoke shared EpisodeExporter.
+- [x] Produce actual episode-specific artifacts.
+- [x] Report concrete produced paths/artifacts.
+- [x] Handle incomplete/unexportable episodes explicitly.
+- [x] Replace status-text-only test with filesystem/artifact assertions.
 
 **Acceptance criteria**
 
 - Export creates real output; displaying an output-directory name alone fails the test.
+
+**Evidence**
+
+- Merged PR #343 (`bd9cebd012afbe6c2b635de5646608c6279ab862`) added `tests/test_episode_library_export_integration.py`, covering production-composed Episode Library export through `EpisodeExporter`, transcript/manifest/metadata/audio filesystem assertions, concrete artifact paths, and incomplete-run rejection.
+- Exact merged-master CI passed: run `35868749352` on `bd9cebd012afbe6c2b635de5646608c6279ab862`.
 
 ## DDR-032 — Production-wire Transcript Review repair
 
@@ -239,13 +244,18 @@
 
 ## DDR-050 — Wire research analyze
 
-- [ ] Construct controller/service with configured LLM gap-analysis dependency.
-- [ ] Invoke real shared analysis service.
-- [ ] Persist generated gaps.
-- [ ] Preserve source provenance.
-- [ ] Return useful JSON/text output.
-- [ ] Add deterministic CLI integration test.
-- [ ] Add missing-provider/configuration failure test.
+- [x] Construct controller/service with configured LLM gap-analysis dependency.
+- [x] Invoke real shared analysis service.
+- [x] Persist generated gaps.
+- [x] Preserve source provenance.
+- [x] Return useful JSON/text output.
+- [x] Add deterministic CLI integration test.
+- [x] Add missing-provider/configuration failure test.
+
+**Evidence**
+
+- Merged PR #342 (`f601a15bb14bfffd7405693bfe90cd9c8bb0df59`) wired `research analyze` through the configured provider path and shared analysis controller/service, preserved generated gap provenance, and added deterministic CLI coverage in `tests/test_research_cli.py`.
+- Exact merged-master CI passed: run `35866307615` on `f601a15bb14bfffd7405693bfe90cd9c8bb0df59`.
 
 ## DDR-051 — Wire research selected/all execution
 
