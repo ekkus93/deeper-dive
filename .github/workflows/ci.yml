@@ -107,8 +107,7 @@ jobs:
           manifest_payload = json.loads(manifest.read_text(encoding="utf-8"))
           metadata_payload = json.loads(metadata.read_text(encoding="utf-8"))
           assert "deterministic production turn" in transcript_text
-          assert episode_id in metadata.read_text(encoding="utf-8")
-          assert episode_id in manifest.read_text(encoding="utf-8")
+          assert metadata_payload["episode_id"] == episode_id
           assert manifest_payload
           assert metadata_payload
           PY
