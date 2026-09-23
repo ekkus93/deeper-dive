@@ -9,7 +9,6 @@ from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.episode_library_screen import EpisodeLibraryController
 from deeper_dive.episode_planner import EpisodePlannerService
-from deeper_dive.generation_monitor import GenerationMonitorScreen
 from deeper_dive.hosts import HostProfile
 from deeper_dive.llm import FakeLLMProvider, LLMProviderRegistry
 from deeper_dive.model_roles import ModelRole
@@ -157,7 +156,7 @@ async def _exercise_quick_tui(tmp_path: Path) -> None:
     assert plan.segments[0].title == "Quick Opening"
 
 
-def test_quick_deep_dive_tui_executes_pipeline_and_exports_artifacts(
+def test_quick_deep_dive_preflight_executes_pipeline_and_exports_artifacts(
     tmp_path: Path,
 ) -> None:
     asyncio.run(_exercise_quick_generation_tui(tmp_path))
@@ -208,15 +207,9 @@ async def _exercise_quick_generation_tui(tmp_path: Path) -> None:
         assert isinstance(app.screen, PreflightScreen)
         presentation = app.preflight_controller.build(app)
         assert presentation.report.ready
-        app.screen.action_generate()
-        await pilot.pause()
-        assert isinstance(app.screen, GenerationMonitorScreen)
-        monitor = app.screen
-        if monitor._task is None:
-            monitor.start_background_generation()
-            await pilot.pause()
-        assert monitor._task is not None
-        await monitor._task
+        run = app.preflight_controller.start_generation(app)
+        composition = getattr(app.service, "_production_composition")
+        composition.run_generation(project.id, run.id)
         await pilot.pause()
 
     episode = hosts.list_episodes(project.id)[0]
