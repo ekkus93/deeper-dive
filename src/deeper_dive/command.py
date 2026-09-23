@@ -114,17 +114,25 @@ def _inspect_provider(
 ) -> object:
     if provider_id is None:
         raise ValueError(f"provider id is required for {command}")
+    config = controller.config().providers.get(provider_id)
+    if config is None:
+        raise KeyError(f"unknown provider: {provider_id}")
+    capability = ProviderController.capability(config.provider_type)
     if command == "models":
+        if capability != "llm":
+            raise ValueError(f"provider {provider_id!r} does not support model discovery")
         return [asdict(model) for model in controller.llm(provider_id).models()]
     if command == "voices":
+        if capability != "tts":
+            raise ValueError(f"provider {provider_id!r} does not support voice discovery")
         return [asdict(voice) for voice in controller.tts(provider_id).voices()]
     if command in {"health", "test"}:
-        try:
+        if capability == "llm":
             llm = controller.llm(provider_id)
-        except KeyError:
+            return {"id": llm.provider_id, **asdict(llm.health())}
+        if capability == "tts":
             tts = controller.tts(provider_id)
             return {"id": tts.provider_id, **asdict(tts.health())}
-        return {"id": llm.provider_id, **asdict(llm.health())}
     raise ValueError(f"provider {provider_id!r} does not support {command}")
 
 

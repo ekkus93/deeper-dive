@@ -116,6 +116,35 @@ def test_provider_cli_discovers_fixed_configured_tts_voice_catalog(
     assert "fixture-secret" not in capsys.readouterr().out
 
 
+def test_provider_cli_distinguishes_unknown_provider_from_unsupported_capability(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    UserConfigStore(tmp_path / "config.json").save(
+        UserConfig(
+            providers={
+                "text": ProviderConfig(provider_type="fake"),
+                "speech": ProviderConfig(provider_type="fake-tts"),
+            }
+        )
+    )
+    base = ["--data-dir", str(tmp_path), "--json", "provider"]
+
+    assert main([*base, "voices", "text"]) == 2
+    captured = capsys.readouterr()
+    assert "does not support voice discovery" in captured.err
+    assert "unknown provider" not in captured.err.lower()
+
+    assert main([*base, "models", "speech"]) == 2
+    captured = capsys.readouterr()
+    assert "does not support model discovery" in captured.err
+    assert "unknown provider" not in captured.err.lower()
+
+    assert main([*base, "models", "missing"]) == 2
+    captured = capsys.readouterr()
+    assert "unknown provider" in captured.err.lower()
+
+
 def test_kitten_benchmark_runs_timed_synthesis_and_reports_metrics(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
