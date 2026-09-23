@@ -483,7 +483,28 @@ def _status_payload(
     return {"episode": asdict(episode), "run": None if run is None else asdict(run)}
 
 
-def _export_episode(\n    composition: ProductionComposition,\n    project_id: str,\n    episode: EpisodeRecord,\n    output_dir: Path | None,\n) -> dict[str, object]:\n    run = composition.generation_run_repository(project_id).latest_for_episode(episode.id)\n    export = EpisodeLibraryExportService(composition.service.workspaces).export(\n        project_id,\n        episode,\n        run,\n        output_dir=output_dir,\n    )\n    return {\n        "episode_id": episode.id,\n        "transcript": str(export.transcript),\n        "manifest": str(export.manifest),\n        "metadata": str(export.metadata),\n        "audio": None if export.audio is None else str(export.audio),\n        "paths": [str(path) for path in export.paths],\n        "path": str(export.metadata),\n    }
+def _export_episode(
+    composition: ProductionComposition,
+    project_id: str,
+    episode: EpisodeRecord,
+    output_dir: Path | None,
+) -> dict[str, object]:
+    run = composition.generation_run_repository(project_id).latest_for_episode(episode.id)
+    export = EpisodeLibraryExportService(composition.service.workspaces).export(
+        project_id,
+        episode,
+        run,
+        output_dir=output_dir,
+    )
+    return {
+        "episode_id": episode.id,
+        "transcript": str(export.transcript),
+        "manifest": str(export.manifest),
+        "metadata": str(export.metadata),
+        "audio": None if export.audio is None else str(export.audio),
+        "paths": [str(path) for path in export.paths],
+        "path": str(export.metadata),
+    }
 
 def _output_import(summary: SourceImportSummary, json_output: bool) -> int:
     value = {
