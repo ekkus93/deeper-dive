@@ -1,4 +1,4 @@
-"""Deterministic supplemental research execution."""
+"""Deterministic supplemental research execution through shared search/fetch contracts."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from deeper_dive.storage.repositories import CorpusRepository
 
 
 class DeterministicSupplementalFetcher:
-    """Offline fetcher for deterministic research execution."""
+    """Offline fetcher used by normal CI and local deterministic research execution."""
 
     def __init__(self, gap: ResearchGap, corpus: CorpusRepository) -> None:
         self.gap = gap
@@ -36,9 +36,8 @@ class DeterministicSupplementalFetcher:
             chunk = self.corpus.get_chunk(chunk_id)
             if chunk is not None:
                 excerpts.append(chunk.text)
-        if excerpts:
-            excerpts_text = "\n".join(excerpts)
-        else:
+        excerpts_text = "\n".join(excerpts)
+        if not excerpts_text:
             excerpts_text = "No corpus excerpts were attached."
         text = "\n".join(
             (
@@ -62,7 +61,7 @@ def execute_research_gaps(
     project_id: str,
     gap_ids: tuple[str, ...],
 ) -> tuple[CandidateOutcome, ...]:
-    """Research selected gaps without live network access."""
+    """Research selected gaps without live network access in production/CI paths."""
 
     if not gap_ids:
         raise ValueError("at least one research gap is required")
@@ -74,14 +73,14 @@ def execute_research_gaps(
     gaps = {gap.id: gap for gap in store.list_project(project_id)}
     corpus = CorpusRepository(database)
     evaluator = CandidateEvaluator(database)
-    known_urls = {
-        source.locator for source in corpus.list_sources(project_id) if source.locator
-    }
-    known_hashes = {
-        source.content_hash
-        for source in corpus.list_sources(project_id)
-        if source.content_hash
-    }
+    sources = corpus.list_sources(project_id)
+    known_urls: set[str] = set()
+    known_hashes: set[str] = set()
+    for source in sources:
+        if source.locator:
+            known_urls.add(source.locator)
+        if source.content_hash:
+            known_hashes.add(source.content_hash)
     outcomes: list[CandidateOutcome] = []
     for gap_id in gap_ids:
         gap = gaps.get(gap_id)
@@ -96,19 +95,15 @@ def execute_research_gaps(
             max_results=1,
         )
         url = _candidate_url(project_id, gap)
-        result = ResearchSearchService(
-            FakeSearchProvider(
-                (
-                    SearchResult(
-                        url=url,
-                        title=f"Supplemental candidate for {gap.category.value}",
-                        snippet=gap.rationale,
-                        rank=1,
-                        provider_metadata=(("mode", policy.mode.value),),
-                    ),
-                )
-            )
-        ).search(query)[0]
+        result = SearchResult(
+            url=url,
+            title=f"Supplemental candidate for {gap.category.value}",
+            snippet=gap.rationale,
+            rank=1,
+            provider_metadata=(("mode", policy.mode.value),),
+        )
+        provider = FakeSearchProvider((result,))
+        result = ResearchSearchService(provider).search(query)[0]
         fetcher = DeterministicSupplementalFetcher(gap, corpus)
         document = fetcher.fetch(FetchRequest(result.url))
         outcome = evaluator.evaluate(
