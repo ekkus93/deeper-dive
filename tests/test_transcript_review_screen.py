@@ -129,7 +129,7 @@ def test_transcript_review_default_repair_uses_production_service(
     UserConfigStore(service.workspaces.data_dir / "config.json").save(
         UserConfig(
             providers={
-                "repair": ProviderConfig(provider_type="fake", default_model="fake-v1")
+                "repair": ProviderConfig(provider_type="fake", default_model="fake-v1"),
             },
             defaults={"host_generation": "repair:fake-v1"},
         )
