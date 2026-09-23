@@ -327,15 +327,11 @@ def _episode_command(composition: ProductionComposition, args: argparse.Namespac
     if args.episode_command == "show":
         return _output(_episode_payload(config_service, repository, episode), args.json_output)
     if args.episode_command == "plan":
-        return _output(
-            asdict(_planner(composition, project_id, episode.id).build_plan(episode.id)),
-            args.json_output,
-        )
+        planner = _planner(composition, project_id, episode.id)
+        return _output(asdict(planner.build_plan(episode.id)), args.json_output)
     if args.episode_command == "show-plan":
-        return _output(
-            asdict(_planner(composition, project_id, episode.id).load_plan(episode.id)),
-            args.json_output,
-        )
+        planner = _planner(composition, project_id, episode.id)
+        return _output(asdict(planner.load_plan(episode.id)), args.json_output)
     if args.episode_command == "generate":
         run = composition.create_generation_run(project_id, episode.id)
         result = composition.run_generation(project_id, run.id)
