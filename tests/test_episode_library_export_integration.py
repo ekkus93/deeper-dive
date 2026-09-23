@@ -7,6 +7,7 @@ from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.episode_library_screen import EpisodeLibraryController, EpisodeLibraryItem
 from deeper_dive.provider_factory import ProviderFactory
+from deeper_dive.tui import DeeperDiveApp
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
@@ -34,7 +35,7 @@ def test_library_export_creates_episode_specific_artifacts(tmp_path: Path) -> No
     run = composition.create_generation_run(project.id, episode.id)
     completed = composition.run_generation(project.id, run.id).run
 
-    app = composition.app
+    app = DeeperDiveApp(composition.service)
     app.current_project_id = project.id
     result = EpisodeLibraryController.export(app, EpisodeLibraryItem(episode, completed))
 
@@ -63,7 +64,7 @@ def test_library_export_rejects_incomplete_episode(tmp_path: Path) -> None:
         EpisodeConfiguration(title="Incomplete episode"),
     )
     run = composition.create_generation_run(project.id, episode.id)
-    app = composition.app
+    app = DeeperDiveApp(composition.service)
     app.current_project_id = project.id
 
     try:
