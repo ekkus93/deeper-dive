@@ -330,7 +330,7 @@ def _episode_command(composition: ProductionComposition, args: argparse.Namespac
         planner = _planner(composition, project_id, episode.id)
         return _output(asdict(planner.build_plan(episode.id)), args.json_output)
     if args.episode_command == "show-plan":
-        planner = _planner(composition, project_id, episode.id)
+        planner = _plan_reader(composition, project_id)
         return _output(asdict(planner.load_plan(episode.id)), args.json_output)
     if args.episode_command == "generate":
         run = composition.create_generation_run(project_id, episode.id)
@@ -446,6 +446,16 @@ def _planner(
         assignment.provider,
         assignment.model,
     )
+
+
+def _plan_reader(composition: ProductionComposition, project_id: str) -> EpisodePlannerService:
+    return composition.planning_service(project_id, _UnavailablePlanGenerator())
+
+
+class _UnavailablePlanGenerator:
+    def generate_plan(self, request: dict[str, Any]) -> dict[str, Any]:
+        _ = request
+        raise RuntimeError("episode plan generation is not configured")
 
 
 def _episode_record(
