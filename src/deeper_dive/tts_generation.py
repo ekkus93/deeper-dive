@@ -160,7 +160,6 @@ class TTSGenerationStage:
             cached = self.repository.get_by_cache_key(key)
             if cached is not None and cached.path.is_file() and cached.path.stat().st_size > 0:
                 artifact = self._artifact_for_current_turn(turn, key, cached)
-                self.repository.save(artifact)
                 resolved[turn.turn_id] = artifact
                 self.repository.mark_checkpoint(run_id, turn.turn_id)
             else:
