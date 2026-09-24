@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from deeper_dive.llm import LLMProvider, LLMProviderRegistry, ProviderHealth
+from deeper_dive.llm import (
+    LLMProvider,
+    LLMProviderRegistry,
+    ProviderHealth,
+)
 from deeper_dive.provider_factory import (
     LLM_PROVIDER_TYPES,
     TTS_PROVIDER_TYPES,
