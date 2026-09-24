@@ -8,6 +8,7 @@ from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.episode_library_export import EpisodeLibraryExportService
 from deeper_dive.provider_factory import ProviderFactory
+from deeper_dive.tts_generation import TTS_ARTIFACT_STATUS_COMPLETE
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
@@ -52,7 +53,7 @@ def test_production_pipeline_persists_reviewable_and_exportable_quick_episode(
     assert turns
     assert "deterministic production turn" in str(turns[0]["text"])
     assert artifacts
-    assert all(str(row["status"]) == "completed" for row in artifacts)
+    assert all(str(row["status"]) == TTS_ARTIFACT_STATUS_COMPLETE for row in artifacts)
     assert output_audio.is_file()
     assert timeline is not None
     assert timeline.placements

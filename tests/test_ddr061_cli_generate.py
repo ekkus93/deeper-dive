@@ -11,6 +11,7 @@ from deeper_dive.cli import main
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.provider_factory import ProviderFactory
+from deeper_dive.tts_generation import TTS_ARTIFACT_STATUS_COMPLETE
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
@@ -77,7 +78,7 @@ def test_cli_generate_reaches_completed_state_and_persists_episode_artifacts(
     assert turns
     assert "deterministic production turn" in str(turns[0]["text"])
     assert artifacts
-    assert all(str(row["status"]) == "completed" for row in artifacts)
+    assert all(str(row["status"]) == TTS_ARTIFACT_STATUS_COMPLETE for row in artifacts)
     assert all(Path(str(row["path"])).is_file() for row in artifacts)
     root = composition.service.workspaces.project_root(project.id)
     assert (root / "output" / f"{episode.id}.wav").is_file()

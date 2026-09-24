@@ -46,6 +46,7 @@ from deeper_dive.targeted_repair import (
     TurnRepairProvider,
 )
 from deeper_dive.tts_benchmark import TTSBenchmarkService
+from deeper_dive.tts_generation import TTS_ARTIFACT_STATUS_COMPLETE
 from deeper_dive.user_config import UserConfigStore
 
 
@@ -427,7 +428,7 @@ def _tts_stage(
                     turn.id,
                     artifact_id,
                     f"{context.episode_id}:{turn.id}:deterministic",
-                    "completed",
+                    TTS_ARTIFACT_STATUS_COMPLETE,
                     str(path),
                     "deterministic-tts",
                     turn.speaker_id,

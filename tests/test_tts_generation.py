@@ -1,7 +1,9 @@
+import inspect
 from pathlib import Path
 
 import pytest
 
+from deeper_dive import composition
 from deeper_dive.storage.database import Database
 from deeper_dive.tts import FakeTTSProvider, TTSProviderRegistry, TTSVoice
 from deeper_dive.tts_generation import (
@@ -148,3 +150,10 @@ def test_repository_saves_legacy_success_artifacts_with_canonical_status(tmp_pat
     assert row is not None
     assert row["status"] == TTS_ARTIFACT_STATUS_COMPLETE
     assert TTSArtifactRepository(database).get_by_cache_key("canonical-key") is not None
+
+
+def test_production_tts_stage_uses_canonical_success_status_constant() -> None:
+    source = inspect.getsource(composition._tts_stage)
+
+    assert "TTS_ARTIFACT_STATUS_COMPLETE" in source
+    assert '"completed"' not in source
