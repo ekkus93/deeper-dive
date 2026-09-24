@@ -17,7 +17,7 @@ from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.transcript_review_screen import TranscriptReviewController
 from deeper_dive.tts import FakeTTSProvider
 from deeper_dive.tui import DeeperDiveApp
-from deeper_dive.user_config import UserConfigStore
+from deeper_dive.user_config import ProviderConfig, UserConfigStore
 
 
 def test_tui_acceptance_click_generate_review_and_export(
@@ -113,6 +113,7 @@ def _provider_controller(service: DeeperDiveService) -> ProviderController:
     )
     store = UserConfigStore(service.workspaces.data_dir / "config.json")
     config = store.load()
+    config.providers["fake"] = ProviderConfig(provider_type="fake", default_model="fake-v1")
     for role in ModelRole:
         config.defaults[role.value] = "fake:fake-v1"
     store.save(config)
