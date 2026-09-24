@@ -18,7 +18,10 @@ def test_production_composed_deterministic_application_can_plan_and_generate(tmp
                 "planner": ProviderConfig(provider_type="fake", default_model="fake-v1"),
                 "speech": ProviderConfig(provider_type="fake-tts"),
             },
-            defaults={"episode_planning": "planner"},
+            defaults={
+                "episode_planning": "planner:fake-v1",
+                "host_generation": "planner:fake-v1",
+            },
         )
     )
     composition = ProductionComposition.build(
