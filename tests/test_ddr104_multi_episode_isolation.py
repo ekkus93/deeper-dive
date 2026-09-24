@@ -21,7 +21,10 @@ def test_multi_episode_review_playback_and_export_artifacts_are_isolated(tmp_pat
                 "planner": ProviderConfig(provider_type="fake", default_model="fake-v1"),
                 "speech": ProviderConfig(provider_type="fake-tts"),
             },
-            defaults={"episode_planning": "planner:fake-v1"},
+            defaults={
+                "episode_planning": "planner:fake-v1",
+                "host_generation": "planner:fake-v1",
+            },
         )
     )
     composition = ProductionComposition.build(
