@@ -8,12 +8,12 @@ from deeper_dive.provider_tui import ProviderController
 from deeper_dive.user_config import UserConfigStore
 
 
-def _controller(tmp_path) -> ProviderController:
+def _controller(tmp_path, *, environ: dict[str, str] | None = None) -> ProviderController:
     return ProviderController(
         UserConfigStore(tmp_path / "config.json"),
         LLMProviderRegistry(),
         {},
-        provider_factory=ProviderFactory(environ={}),
+        provider_factory=ProviderFactory(environ={} if environ is None else environ),
     )
 
 
@@ -83,6 +83,94 @@ def test_save_provider_validates_extended_configuration_fields(tmp_path) -> None
         controller.save_provider("planner", "fake", network_scope="internet")
 
     assert "planner" not in controller.config().providers
+
+
+@pytest.mark.parametrize(
+    ("name", "provider_type", "kwargs", "capability"),
+    (
+        (
+            "openai-main",
+            "openai",
+            {"default_model": "gpt-test", "credential_env": "OPENAI_TEST_KEY"},
+            "llm",
+        ),
+        (
+            "ollama-local",
+            "ollama",
+            {"default_model": "qwen-test", "base_url": "http://127.0.0.1:11434"},
+            "llm",
+        ),
+        (
+            "compatible-local",
+            "llama-server",
+            {"default_model": "local-test", "base_url": "http://127.0.0.1:8080"},
+            "llm",
+        ),
+        ("kitten-local", "kitten", {}, "tts"),
+        (
+            "openai-speech",
+            "openai-tts",
+            {"default_model": "tts-test", "credential_env": "OPENAI_TEST_KEY"},
+            "tts",
+        ),
+        (
+            "compatible-speech",
+            "openai-compatible-tts",
+            {
+                "base_url": "http://127.0.0.1:9000/v1",
+                "default_model": "local-tts",
+                "voices": ("voice-a",),
+                "credential_env": "LOCAL_TTS_KEY",
+            },
+            "tts",
+        ),
+        (
+            "eleven-speech",
+            "elevenlabs",
+            {"default_model": "eleven-test", "credential_env": "ELEVEN_TEST_KEY"},
+            "tts",
+        ),
+    ),
+)
+def test_supported_adapter_classes_save_reload_through_controller(
+    tmp_path, name: str, provider_type: str, kwargs: dict[str, object], capability: str
+) -> None:
+    secrets = {
+        "OPENAI_TEST_KEY": "openai-secret-value",
+        "LOCAL_TTS_KEY": "local-secret-value",
+        "ELEVEN_TEST_KEY": "eleven-secret-value",
+    }
+    controller = _controller(tmp_path, environ=secrets)
+
+    controller.save_provider(name, provider_type, **kwargs)  # type: ignore[arg-type]
+    reloaded = controller.reload()
+
+    assert reloaded is not None
+    saved = controller.config().providers[name]
+    assert saved.provider_type == provider_type
+    assert controller.capability(provider_type) == capability
+    if capability == "llm":
+        assert controller.llm(name).provider_id == name
+    else:
+        assert controller.tts(name).provider_id == name
+
+    persisted = (tmp_path / "config.json").read_text(encoding="utf-8")
+    assert all(secret not in persisted for secret in secrets.values())
+
+
+def test_provider_controller_diagnostics_do_not_emit_credential_value(tmp_path) -> None:
+    secret = "do-not-leak-this-provider-secret"
+    controller = _controller(tmp_path, environ={"PRIVATE_PROVIDER_KEY": secret})
+
+    controller.save_provider(
+        "remote",
+        "openai",
+        default_model="gpt-test",
+        credential_env="PRIVATE_PROVIDER_KEY",
+    )
+
+    assert secret not in repr(controller.config())
+    assert secret not in (tmp_path / "config.json").read_text(encoding="utf-8")
 
 
 def test_invalid_provider_configuration_is_not_persisted(tmp_path) -> None:
