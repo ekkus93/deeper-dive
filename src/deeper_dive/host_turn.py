@@ -33,7 +33,7 @@ class HostTurnService:
 
     STAGE = "conversation"
 
-    def __init__(self, database: Database, provider: HostTurnProvider) -> None:
+    def __init__(self, database: Database, provider: HostTurnProvider | None = None) -> None:
         self.database = database
         self.database.initialize()
         self.provider = provider
@@ -46,6 +46,8 @@ class HostTurnService:
         existing = self._checkpointed_turn(run_id, unit_id)
         if existing is not None:
             return existing
+        if self.provider is None:
+            raise RuntimeError("host-turn generation requires a configured provider")
         payload = self.provider.generate_turn(decision)
         speaker_id = str(payload.get("speaker_id", ""))
         if speaker_id != decision.speaker_id:
