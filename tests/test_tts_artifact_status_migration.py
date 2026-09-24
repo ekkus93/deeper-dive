@@ -1,10 +1,15 @@
 from pathlib import Path
 
 from deeper_dive.storage.database import Database
-from deeper_dive.tts_generation import TTS_ARTIFACT_STATUS_COMPLETE, TTSArtifactRepository
+from deeper_dive.tts_generation import (
+    TTS_ARTIFACT_STATUS_COMPLETE,
+    TTSArtifactRepository,
+)
 
 
-def test_repository_initialization_normalizes_persisted_legacy_success_status(tmp_path: Path) -> None:
+def test_repository_initialization_normalizes_persisted_legacy_success_status(
+    tmp_path: Path,
+) -> None:
     database = Database(tmp_path / "project.db")
     database.initialize()
     with database.transaction() as db:
