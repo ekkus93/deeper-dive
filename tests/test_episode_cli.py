@@ -22,7 +22,9 @@ def _json_list(args: list[str], capsys: pytest.CaptureFixture[str]) -> list[dict
 def _configure_fake_episode_planning(data_dir: Path) -> None:
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
-            providers={"planner": ProviderConfig(provider_type="fake", default_model="fake-v1")},
+            providers={
+                "planner": ProviderConfig(provider_type="fake", default_model="fake-v1")
+            },
             defaults={
                 "episode_planning": "planner:fake-v1",
                 "host_generation": "planner:fake-v1",
@@ -121,10 +123,8 @@ def test_episode_cli_create_plan_generate_status_and_export(
         Path(str(export["audio"])),
     }
     assert all(path.is_file() for path in exported_paths)
-    assert (
-        "Configured fake provider host turn marker"
-        in Path(str(export["transcript"])).read_text(encoding="utf-8")
-    )
+    transcript_text = Path(str(export["transcript"])).read_text(encoding="utf-8")
+    assert "Configured fake provider host turn marker" in transcript_text
     metadata = json.loads(Path(str(export["metadata"])).read_text(encoding="utf-8"))
     assert metadata["episode_id"] == episode_id
     assert metadata["run_id"] == run["id"]
