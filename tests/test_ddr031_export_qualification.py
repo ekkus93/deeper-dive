@@ -57,7 +57,7 @@ def test_episode_library_export_writes_complete_episode_specific_artifact_set(
     assert result.audio is not None
     assert episode.id in result.audio.name
     assert result.audio.read_bytes().startswith(b"FAKE-WAV")
-    assert "Configured fake provider host turn marker" in result.transcript.read_text(encoding="utf-8")
+    assert "Configured fake provider host turn marker" in result.transcript.read_text(\n        encoding="utf-8"\n    )
 
     manifest = json.loads(result.manifest.read_text(encoding="utf-8"))
     assert len(manifest["sources"]) == 1
