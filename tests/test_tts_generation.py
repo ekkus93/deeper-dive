@@ -4,7 +4,13 @@ from pathlib import Path
 import pytest
 
 from deeper_dive import composition
+from deeper_dive.application.service import DeeperDiveService
+from deeper_dive.audio_timeline import AudioTimeline, AudioTimelineRepository, TimelineItem
+from deeper_dive.episode_library_export import EpisodeLibraryExportService
 from deeper_dive.storage.database import Database
+from deeper_dive.storage.episode_repositories import HostEpisodeRepository
+from deeper_dive.storage.run_repositories import GenerationRunRecord, GenerationRunRepository
+from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.tts import FakeTTSProvider, TTSProviderRegistry, TTSVoice
 from deeper_dive.tts_generation import (
     TTS_ARTIFACT_STATUS_COMPLETE,
@@ -150,6 +156,74 @@ def test_repository_saves_legacy_success_artifacts_with_canonical_status(tmp_pat
     assert row is not None
     assert row["status"] == TTS_ARTIFACT_STATUS_COMPLETE
     assert TTSArtifactRepository(database).get_by_cache_key("canonical-key") is not None
+
+
+def test_legacy_success_artifacts_remain_exportable_and_timeline_visible(
+    tmp_path: Path,
+) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    service.workspaces.initialize()
+    project = service.create_project("Legacy artifact compatibility")
+    episode = service.quick_deep_dive(project.id)
+    root = service.workspaces.project_root(project.id)
+    database = Database(root / "project.db")
+    host_id = HostEpisodeRepository(database).list_episode_host_ids(episode.id)[0]
+    turn_id = "turn-legacy"
+    legacy_audio = root / "output" / "tts" / "legacy-artifact.wav"
+    legacy_audio.parent.mkdir(parents=True, exist_ok=True)
+    legacy_audio.write_bytes(b"legacy turn audio")
+    episode_audio = root / "output" / f"{episode.id}.wav"
+    episode_audio.write_bytes(b"legacy episode audio")
+
+    with database.transaction() as db:
+        db.execute(
+            """INSERT INTO conversation_turns(
+                id,episode_id,segment_ordinal,turn_ordinal,speaker_id,text,evidence_ids_json
+            ) VALUES (?,?,?,?,?,?,?)""",
+            (turn_id, episode.id, 0, 0, host_id, "legacy artifact transcript", "[]"),
+        )
+        db.execute(
+            """INSERT INTO tts_artifacts(
+                turn_id,artifact_id,cache_key,status,path,provider_id,voice,model
+            ) VALUES (?,?,?,?,?,?,?,?)""",
+            (
+                turn_id,
+                "legacy-artifact",
+                "legacy-key",
+                "completed",
+                str(legacy_audio),
+                "fake-tts",
+                "voice-a",
+                None,
+            ),
+        )
+    run = GenerationRunRecord("run-legacy", episode.id, "export", "completed", "t", "t")
+    GenerationRunRepository(database).create(run)
+    AudioTimelineRepository(database).save(
+        AudioTimeline.build(
+            episode.id,
+            (
+                TimelineItem.clip(
+                    turn_id=turn_id,
+                    host_id=host_id,
+                    artifact_id="legacy-artifact",
+                    duration_seconds=1.0,
+                ),
+            ),
+        )
+    )
+
+    artifact = TTSArtifactRepository(database).get_by_cache_key("legacy-key")
+    timeline = AudioTimelineRepository(database).get(episode.id)
+    exported = EpisodeLibraryExportService(service.workspaces).export(project.id, episode, run)
+
+    assert artifact is not None
+    assert artifact.status == TTS_ARTIFACT_STATUS_COMPLETE
+    assert timeline is not None
+    assert timeline.placements[0].item.artifact_id == "legacy-artifact"
+    assert exported.transcript.read_text(encoding="utf-8").count("legacy artifact transcript") == 1
+    assert exported.audio is not None
+    assert exported.audio.read_bytes() == b"legacy episode audio"
 
 
 def test_production_tts_stage_uses_canonical_success_status_constant() -> None:
