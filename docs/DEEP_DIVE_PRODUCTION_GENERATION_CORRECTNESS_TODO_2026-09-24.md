@@ -136,17 +136,19 @@
 
 ## PCG-050 — Choose canonical TTS artifact success status
 
-- [ ] Choose one canonical terminal success value for TTS artifacts.
-- [ ] Update repositories, cache lookups, tests, export, timeline rendering, and docs to use it.
-- [ ] Add compatibility reads for legacy success values.
-- [ ] Add a migration or normalization path if persisted data requires it.
+- [x] Choose one canonical terminal success value for TTS artifacts.
+- [x] Update repositories, cache lookups, tests, export, timeline rendering, and docs to use it.
+- [x] Add compatibility reads for legacy success values.
+- [x] Add a migration or normalization path if persisted data requires it.
 
 ## PCG-051 — Add artifact-status compatibility tests
 
-- [ ] Test cache lookup for canonical success status.
-- [ ] Test lookup/normalization for legacy success status values.
-- [ ] Test export and timeline behavior with migrated/legacy artifacts.
-- [ ] Ensure no code path writes a noncanonical success status after remediation.
+- [x] Test cache lookup for canonical success status.
+- [x] Test lookup/normalization for legacy success status values.
+- [x] Test export and timeline behavior with migrated/legacy artifacts.
+- [x] Ensure no code path writes a noncanonical success status after remediation.
+
+**Evidence:** PR #383 added the canonical `TTS_ARTIFACT_STATUS_COMPLETE` contract, legacy success read compatibility, save-time normalization, and repository tests; exact-head CI passed on `95196214841e3204ac041001ecb642cf44d830a5`, and merged-master CI passed on `4fd33e7c83e12587491bd9c637d594b4a83d8304`. PR #384 replaced the production composition writer, CLI and production-pipeline assertions, and fresh-machine installed-wheel query with the canonical status; exact-head CI passed on `5dcccf2503ab357f4f52842492362ffc841663a6`, and merged-master CI passed on `629db8dfc2ada3150089dedd26e5dba1bc433702`. PR #385 added persisted legacy-status normalization on repository construction, with merged-master CI passing on `071b74d19f0fb02da2627a3bf7c599f6e9dc2d18`. PR #388 added the workspace-level legacy export/timeline compatibility regression and canonical production-writer guard, with merged-master CI passing on `f3dafdc0096d25a662fb8fc7e589ed58e1adcf85`.
 
 ---
 
