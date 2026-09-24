@@ -19,7 +19,10 @@ def test_production_pipeline_persists_reviewable_and_exportable_quick_episode(
     config_store = UserConfigStore(data_dir / "config.json")
     planner = ProviderConfig(provider_type="fake", default_model="fake-v1")
     speech = ProviderConfig(provider_type="fake-tts")
-    config_store.save(UserConfig(providers={"planner": planner, "speech": speech}))
+    config_store.save(UserConfig(
+            providers={"planner": planner, "speech": speech},
+            defaults={"host_generation": "planner:fake-v1"},
+        ))
     composition = ProductionComposition.build(
         data_dir,
         provider_factory=ProviderFactory(environ={}),
@@ -51,7 +54,7 @@ def test_production_pipeline_persists_reviewable_and_exportable_quick_episode(
 
     assert result.run.state == "completed"
     assert turns
-    assert "deterministic production turn" in str(turns[0]["text"])
+    assert "provider-backed deterministic host turn" in str(turns[0]["text"])
     assert artifacts
     assert all(str(row["status"]) == TTS_ARTIFACT_STATUS_COMPLETE for row in artifacts)
     assert output_audio.is_file()
@@ -59,6 +62,6 @@ def test_production_pipeline_persists_reviewable_and_exportable_quick_episode(
     assert timeline.placements
     assert export.transcript.is_file()
     transcript = export.transcript.read_text(encoding="utf-8")
-    assert "deterministic production turn" in transcript
+    assert "provider-backed deterministic host turn" in transcript
     assert export.audio is not None
     assert export.audio.is_file()

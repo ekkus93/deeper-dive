@@ -26,7 +26,8 @@ def test_cli_generate_reaches_completed_state_and_persists_episode_artifacts(
             providers={
                 "planner": ProviderConfig(provider_type="fake", default_model="fake-v1"),
                 "speech": ProviderConfig(provider_type="fake-tts"),
-            }
+            },
+            defaults={"host_generation": "planner:fake-v1"},
         )
     )
     composition = ProductionComposition.build(
@@ -76,7 +77,7 @@ def test_cli_generate_reaches_completed_state_and_persists_episode_artifacts(
             "SELECT status,path FROM tts_artifacts ORDER BY turn_id"
         ).fetchall()
     assert turns
-    assert "deterministic production turn" in str(turns[0]["text"])
+    assert "provider-backed deterministic host turn" in str(turns[0]["text"])
     assert artifacts
     assert all(str(row["status"]) == TTS_ARTIFACT_STATUS_COMPLETE for row in artifacts)
     assert all(Path(str(row["path"])).is_file() for row in artifacts)

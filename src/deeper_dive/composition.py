@@ -318,6 +318,14 @@ def _project_id_for_run(service: DeeperDiveService, run_id: str) -> str:
     raise KeyError(f"unknown generation run: {run_id}")
 
 
+class _ReadOnlyHostTurnProvider:
+    """Guard provider for HostTurnService instances used only to read persisted turns."""
+
+    def generate_turn(self, decision: DirectorDecision) -> dict[str, object]:
+        _ = decision
+        raise RuntimeError("read-only host-turn service cannot generate turns")
+
+
 def _production_stage_handlers(
     service: DeeperDiveService,
     project_id: str,
@@ -410,7 +418,7 @@ def _tts_stage(
 ) -> None:
     root = service.workspaces.project_root(project_id)
     database = Database(root / "project.db")
-    turns = HostTurnService(database, _DeterministicHostTurnProvider()).list_turns(
+    turns = HostTurnService(database, _ReadOnlyHostTurnProvider()).list_turns(
         context.episode_id
     )
     if not turns:
@@ -454,7 +462,7 @@ def _composition_stage(
 ) -> None:
     root = service.workspaces.project_root(project_id)
     database = Database(root / "project.db")
-    turns = HostTurnService(database, _DeterministicHostTurnProvider()).list_turns(
+    turns = HostTurnService(database, _ReadOnlyHostTurnProvider()).list_turns(
         context.episode_id
     )
     if not turns:
