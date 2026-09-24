@@ -6,7 +6,9 @@ import pytest
 from deeper_dive import composition
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.audio_timeline import AudioTimeline, AudioTimelineRepository, TimelineItem
+from deeper_dive.director_decision import DirectorDecision
 from deeper_dive.episode_library_export import EpisodeLibraryExportService
+from deeper_dive.host_turn import HostTurnService
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 from deeper_dive.storage.run_repositories import GenerationRunRecord, GenerationRunRepository
@@ -19,6 +21,11 @@ from deeper_dive.tts_generation import (
     TTSGenerationStage,
     TTSTurn,
 )
+
+
+class _UnusedTurnProvider:
+    def generate_turn(self, decision: DirectorDecision) -> dict[str, object]:
+        raise AssertionError("legacy compatibility test inserts turns directly")
 
 
 def _database(path: Path) -> Database:
@@ -167,6 +174,7 @@ def test_legacy_success_artifacts_remain_exportable_and_timeline_visible(
     episode = service.quick_deep_dive(project.id)
     root = service.workspaces.project_root(project.id)
     database = Database(root / "project.db")
+    HostTurnService(database, _UnusedTurnProvider())
     host_id = HostEpisodeRepository(database).list_episode_host_ids(episode.id)[0]
     turn_id = "turn-legacy"
     legacy_audio = root / "output" / "tts" / "legacy-artifact.wav"
