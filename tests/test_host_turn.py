@@ -30,6 +30,8 @@ class FakeTurnProvider:
             "speaker_id": decision.speaker_id,
             "text": f"turn {self.calls} grounded response",
             "evidence_ids": list(decision.evidence_ids),
+            "provider_id": "fake-turns",
+            "model": "fake-turn-model",
         }
 
 
@@ -46,7 +48,9 @@ def _database(tmp_path: Path) -> Database:
     return database
 
 
-def test_turn_generation_persists_citations_state_and_checkpoint(tmp_path: Path) -> None:
+def test_turn_generation_persists_citations_state_checkpoint_and_provider_identity(
+    tmp_path: Path,
+) -> None:
     database = _database(tmp_path)
     provider = FakeTurnProvider()
     service = HostTurnService(database, provider)
@@ -57,6 +61,10 @@ def test_turn_generation_persists_citations_state_and_checkpoint(tmp_path: Path)
     assert turn.speaker_id == "h"
     assert turn.evidence_ids == ("chunk-1",)
     assert service.list_turns("e") == [turn]
+    identity = service.provider_identity(turn.id)
+    assert identity is not None
+    assert identity.provider_id == "fake-turns"
+    assert identity.model == "fake-turn-model"
     state = service.states.get("e")
     assert state is not None
     assert state.segment_turn == 1

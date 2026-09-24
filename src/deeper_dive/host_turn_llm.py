@@ -71,4 +71,6 @@ class LLMHostTurnProvider:
             "speaker_id": speaker_id,
             "text": text,
             "evidence_ids": evidence_ids,
+            "provider_id": self.provider.provider_id,
+            "model": self.model,
         }

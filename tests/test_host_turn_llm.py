@@ -31,6 +31,8 @@ def test_llm_host_turn_provider_routes_structured_request_to_configured_model() 
 
     assert payload["text"] == "provider-backed unique turn marker"
     assert payload["evidence_ids"] == ["claim-1"]
+    assert payload["provider_id"] == "configured"
+    assert payload["model"] == "host-model"
     assert len(llm.requests) == 1
     request = llm.requests[0]
     assert request.model == "host-model"

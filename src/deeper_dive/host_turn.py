@@ -24,6 +24,13 @@ class HostTurn:
     evidence_ids: tuple[str, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class HostTurnProviderIdentity:
+    turn_id: str
+    provider_id: str
+    model: str
+
+
 class HostTurnProvider(Protocol):
     def generate_turn(self, decision: DirectorDecision) -> dict[str, object]: ...
 
@@ -67,6 +74,7 @@ class HostTurnService:
             raise ValueError("generated turn cited evidence outside director scope")
         if len(set(evidence_ids)) != len(evidence_ids):
             raise ValueError("generated turn contains duplicate evidence IDs")
+        provider_identity = self._provider_identity(payload)
         turn = HostTurn(
             id=str(uuid4()),
             episode_id=episode_id,
@@ -76,7 +84,7 @@ class HostTurnService:
             text=text,
             evidence_ids=evidence_ids,
         )
-        self._commit(run_id, unit_id, turn, state)
+        self._commit(run_id, unit_id, turn, state, provider_identity)
         return turn
 
     def list_turns(self, episode_id: str) -> list[HostTurn]:
@@ -88,8 +96,28 @@ class HostTurnService:
             ).fetchall()
         return [self._from_row(row) for row in rows]
 
+    def provider_identity(self, turn_id: str) -> HostTurnProviderIdentity | None:
+        with self.database.connection() as db:
+            row = db.execute(
+                """SELECT turn_id,provider_id,model FROM conversation_turn_provider_identity
+                WHERE turn_id=?""",
+                (turn_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return HostTurnProviderIdentity(
+            turn_id=str(row["turn_id"]),
+            provider_id=str(row["provider_id"]),
+            model=str(row["model"]),
+        )
+
     def _commit(
-        self, run_id: str, unit_id: str, turn: HostTurn, previous: ConversationState
+        self,
+        run_id: str,
+        unit_id: str,
+        turn: HostTurn,
+        previous: ConversationState,
+        provider_identity: tuple[str, str] | None,
     ) -> None:
         participation = dict(previous.participation)
         participation[turn.speaker_id] = participation.get(turn.speaker_id, 0) + 1
@@ -109,6 +137,13 @@ class HostTurnService:
                     json.dumps(turn.evidence_ids),
                 ),
             )
+            if provider_identity is not None:
+                db.execute(
+                    """INSERT OR REPLACE INTO conversation_turn_provider_identity(
+                        turn_id,provider_id,model
+                    ) VALUES (?,?,?)""",
+                    (turn.id, provider_identity[0], provider_identity[1]),
+                )
             db.execute(
                 """INSERT INTO conversation_states(
                     episode_id,segment_ordinal,segment_turn,running_summary,
@@ -165,10 +200,29 @@ class HostTurnService:
                     UNIQUE(episode_id,segment_ordinal,turn_ordinal)
                 )"""
             )
+            db.execute(
+                """CREATE TABLE IF NOT EXISTS conversation_turn_provider_identity (
+                    turn_id TEXT PRIMARY KEY REFERENCES conversation_turns(id) ON DELETE CASCADE,
+                    provider_id TEXT NOT NULL,
+                    model TEXT NOT NULL
+                )"""
+            )
 
     @staticmethod
     def _unit_id(state: ConversationState) -> str:
         return f"{state.segment_ordinal}:{state.segment_turn}"
+
+    @staticmethod
+    def _provider_identity(payload: dict[str, object]) -> tuple[str, str] | None:
+        provider_id = payload.get("provider_id")
+        model = payload.get("model")
+        if provider_id is None and model is None:
+            return None
+        if not isinstance(provider_id, str) or not provider_id.strip():
+            raise ValueError("generated provider identity requires provider_id")
+        if not isinstance(model, str) or not model.strip():
+            raise ValueError("generated provider identity requires model")
+        return provider_id.strip(), model.strip()
 
     @staticmethod
     def _from_row(row: sqlite3.Row) -> HostTurn:
