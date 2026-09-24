@@ -136,17 +136,19 @@
 
 ## PCG-050 — Choose canonical TTS artifact success status
 
-- [ ] Choose one canonical terminal success value for TTS artifacts.
-- [ ] Update repositories, cache lookups, tests, export, timeline rendering, and docs to use it.
-- [ ] Add compatibility reads for legacy success values.
-- [ ] Add a migration or normalization path if persisted data requires it.
+- [x] Choose one canonical terminal success value for TTS artifacts.
+- [x] Update repositories, cache lookups, tests, export, timeline rendering, and docs to use it.
+- [x] Add compatibility reads for legacy success values.
+- [x] Add a migration/normalization path if persisted data requires it.
 
 ## PCG-051 — Add artifact-status compatibility tests
 
-- [ ] Test cache lookup for canonical success status.
-- [ ] Test lookup/normalization for legacy success status values.
-- [ ] Test export and timeline behavior with migrated/legacy artifacts.
-- [ ] Ensure no code path writes a noncanonical success status after remediation.
+- [x] Test cache lookup for canonical success status.
+- [x] Test lookup/normalization for legacy success status values.
+- [x] Test export and timeline behavior with migrated/legacy artifacts.
+- [x] Ensure no code path writes a noncanonical success status after remediation.
+
+**Evidence:** PR #383 added canonical `TTS_ARTIFACT_STATUS_COMPLETE` handling, repository read compatibility for legacy `completed` rows, and write-time normalization, then merged as `4fd33e7c83e12587491bd9c637d594b4a83d8304` with merged-master CI run `35983971158`. PR #384 updated the remaining known production writer, CLI/pipeline assertions, and installed-wheel smoke to use the canonical success status, then merged as `629db8dfc2ada3150089dedd26e5dba1bc433702` with merged-master CI run `35987826239`. PR #388 added workspace-level legacy artifact cache/timeline/export compatibility coverage, then merged as `f3dafdc0096d25a662fb8fc7e589ed58e1adcf85` with merged-master CI run `35992678750`. This reconciliation adds the architecture documentation status contract and requires exact-head and merged-master CI before R6 remains closed.
 
 ---
 
