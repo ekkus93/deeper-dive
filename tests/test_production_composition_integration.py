@@ -18,9 +18,7 @@ def _configured_composition(tmp_path) -> ProductionComposition:
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
             providers={
-                "planner": ProviderConfig(
-                    provider_type="fake", default_model="fake-v1"
-                ),
+                "planner": ProviderConfig(provider_type="fake", default_model="fake-v1"),
                 "speech": ProviderConfig(provider_type="fake-tts"),
             },
             defaults={
@@ -52,9 +50,7 @@ def _configured_episode(composition: ProductionComposition):
     return project, episode
 
 
-def test_production_composed_deterministic_application_can_plan_and_generate(
-    tmp_path,
-) -> None:
+def test_production_composed_deterministic_application_can_plan_and_generate(tmp_path) -> None:
     composition = _configured_composition(tmp_path)
     project, episode = _configured_episode(composition)
 
@@ -87,9 +83,7 @@ def test_production_composed_deterministic_application_can_plan_and_generate(
     assert completed.state == "completed"
 
 
-def test_malformed_host_generation_output_fails_with_sanitized_run_state(
-    tmp_path,
-) -> None:
+def test_malformed_host_generation_output_fails_with_sanitized_run_state(tmp_path) -> None:
     composition = _configured_composition(tmp_path)
     project, episode = _configured_episode(composition)
     planner = composition.configured_planning_service(project.id, "planner", "fake-v1")
@@ -99,7 +93,7 @@ def test_malformed_host_generation_output_fails_with_sanitized_run_state(
         FakeLLMProvider(
             provider_id="planner",
             model="fake-v1",
-            response=f"not-json Bearer {private_value}",
+            response=f"not-json private-marker {private_value}",
         )
     )
     run = composition.create_generation_run(project.id, episode.id)
