@@ -11,10 +11,12 @@ def _controller(tmp_path) -> ProviderController:
         UserConfigStore(tmp_path / "config.json"),
         LLMProviderRegistry(),
         {},
-        provider_factory=ProviderFactory(environ={
-            "OPENAI_TEST_KEY": "secret-openai",
-            "ELEVEN_TEST_KEY": "secret-eleven",
-        }),
+        provider_factory=ProviderFactory(
+            environ={
+                "OPENAI_TEST_KEY": "secret-openai",
+                "ELEVEN_TEST_KEY": "secret-eleven",
+            }
+        ),
     )
 
 

@@ -18,7 +18,13 @@ from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 _PROVIDER_CONFIGURATION_FIELDS: dict[str, frozenset[str]] = {
     "fake": frozenset({"default_model", "network_scope"}),
     "openai": frozenset(
-        {"base_url", "default_model", "credential_env", "timeout_seconds", "network_scope"}
+        {
+            "base_url",
+            "default_model",
+            "credential_env",
+            "timeout_seconds",
+            "network_scope",
+        }
     ),
     "ollama": frozenset({"base_url", "default_model", "timeout_seconds", "network_scope"}),
     "llama-server": frozenset(
@@ -27,7 +33,13 @@ _PROVIDER_CONFIGURATION_FIELDS: dict[str, frozenset[str]] = {
     "fake-tts": frozenset({"network_scope"}),
     "kitten": frozenset({"network_scope"}),
     "openai-tts": frozenset(
-        {"base_url", "default_model", "credential_env", "timeout_seconds", "network_scope"}
+        {
+            "base_url",
+            "default_model",
+            "credential_env",
+            "timeout_seconds",
+            "network_scope",
+        }
     ),
     "openai-compatible-tts": frozenset(
         {
@@ -41,7 +53,13 @@ _PROVIDER_CONFIGURATION_FIELDS: dict[str, frozenset[str]] = {
         }
     ),
     "elevenlabs": frozenset(
-        {"base_url", "default_model", "credential_env", "timeout_seconds", "network_scope"}
+        {
+            "base_url",
+            "default_model",
+            "credential_env",
+            "timeout_seconds",
+            "network_scope",
+        }
     ),
 }
 
