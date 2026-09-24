@@ -45,10 +45,6 @@ strict = true
 packages = ["deeper_dive"]
 mypy_path = "src"
 
-[[tool.mypy.overrides]]
-module = "deeper_dive.transcript_review_screen"
-disable_error_code = ["index"]
-
 [tool.pytest.ini_options]
 addopts = "-ra -vv --maxfail=1 --strict-config --strict-markers"
 testpaths = ["tests"]
