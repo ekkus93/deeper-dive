@@ -17,9 +17,9 @@ def test_existing_project_and_episode_reload_from_persisted_workspace(tmp_path: 
     service = DeeperDiveService(WorkspaceManager(data_dir))
     service.workspaces.initialize()
     project = service.create_project("Persisted project")
-    episode = EpisodeConfigurationService(
-        service.hosts(project.id).database
-    ).create(project.id, EpisodeConfiguration(title="Persisted episode"))
+    episode = EpisodeConfigurationService(service.hosts(project.id).database).create(
+        project.id, EpisodeConfiguration(title="Persisted episode")
+    )
 
     restarted = DeeperDiveService(WorkspaceManager(data_dir))
     restarted.workspaces.initialize()
