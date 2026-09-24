@@ -7,9 +7,9 @@ from dataclasses import dataclass
 from deeper_dive.llm import LLMProvider, LLMProviderRegistry
 from deeper_dive.provider_factory import (
     LLM_PROVIDER_TYPES,
-    TTS_PROVIDER_TYPES,
     ProviderBuildResult,
     ProviderFactory,
+    TTS_PROVIDER_TYPES,
 )
 from deeper_dive.tts import TTSProvider
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
