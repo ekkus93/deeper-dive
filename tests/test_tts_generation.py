@@ -4,7 +4,13 @@ import pytest
 
 from deeper_dive.storage.database import Database
 from deeper_dive.tts import FakeTTSProvider, TTSProviderRegistry, TTSVoice
-from deeper_dive.tts_generation import TTSArtifactRepository, TTSGenerationStage, TTSTurn
+from deeper_dive.tts_generation import (
+    TTS_ARTIFACT_STATUS_COMPLETE,
+    TTSArtifact,
+    TTSArtifactRepository,
+    TTSGenerationStage,
+    TTSTurn,
+)
 
 
 def _database(path: Path) -> Database:
@@ -87,3 +93,58 @@ def test_cache_identity_includes_settings(tmp_path: Path) -> None:
     base = TTSTurn("t", "h", "text", "p", "v", model="m", settings={"sample_rate_hz": 24000})
     changed = TTSTurn("t", "h", "text", "p", "v", model="m", settings={"sample_rate_hz": 48000})
     assert TTSGenerationStage.cache_key(base) != TTSGenerationStage.cache_key(changed)
+
+
+def test_repository_reads_legacy_completed_status_as_success(tmp_path: Path) -> None:
+    database = _database(tmp_path / "project.db")
+    path = tmp_path / "legacy.wav"
+    path.write_bytes(b"legacy-audio")
+    with database.transaction() as db:
+        db.execute(
+            """INSERT INTO tts_artifacts(
+                turn_id,artifact_id,cache_key,status,path,provider_id,voice,model
+            ) VALUES (?,?,?,?,?,?,?,?)""",
+            (
+                "t-legacy",
+                "legacy-artifact",
+                "legacy-key",
+                "completed",
+                str(path),
+                "fake",
+                "v",
+                None,
+            ),
+        )
+
+    artifact = TTSArtifactRepository(database).get_by_cache_key("legacy-key")
+
+    assert artifact is not None
+    assert artifact.status == TTS_ARTIFACT_STATUS_COMPLETE
+    assert artifact.path == path
+
+
+def test_repository_saves_legacy_success_artifacts_with_canonical_status(tmp_path: Path) -> None:
+    database = _database(tmp_path / "project.db")
+    path = tmp_path / "artifact.wav"
+    path.write_bytes(b"audio")
+    repository = TTSArtifactRepository(database)
+
+    repository.save(
+        TTSArtifact(
+            turn_id="t-canonical",
+            artifact_id="artifact",
+            cache_key="canonical-key",
+            status="completed",
+            path=path,
+            provider_id="fake",
+            voice="v",
+            model=None,
+        )
+    )
+
+    with database.connection() as db:
+        row = db.execute("SELECT status FROM tts_artifacts WHERE turn_id='t-canonical'").fetchone()
+
+    assert row is not None
+    assert row["status"] == TTS_ARTIFACT_STATUS_COMPLETE
+    assert TTSArtifactRepository(database).get_by_cache_key("canonical-key") is not None
