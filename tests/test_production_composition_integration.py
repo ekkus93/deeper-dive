@@ -18,7 +18,9 @@ def _configured_composition(tmp_path) -> ProductionComposition:
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
             providers={
-                "planner": ProviderConfig(provider_type="fake", default_model="fake-v1"),
+                "planner": ProviderConfig(
+                    provider_type="fake", default_model="fake-v1"
+                ),
                 "speech": ProviderConfig(provider_type="fake-tts"),
             },
             defaults={
@@ -50,7 +52,9 @@ def _configured_episode(composition: ProductionComposition):
     return project, episode
 
 
-def test_production_composed_deterministic_application_can_plan_and_generate(tmp_path) -> None:
+def test_production_composed_deterministic_application_can_plan_and_generate(
+    tmp_path,
+) -> None:
     composition = _configured_composition(tmp_path)
     project, episode = _configured_episode(composition)
 
@@ -83,12 +87,13 @@ def test_production_composed_deterministic_application_can_plan_and_generate(tmp
     assert completed.state == "completed"
 
 
-def test_malformed_host_generation_output_fails_with_sanitized_run_state(tmp_path) -> None:
+def test_malformed_host_generation_output_fails_with_sanitized_run_state(
+    tmp_path,
+) -> None:
     composition = _configured_composition(tmp_path)
     project, episode = _configured_episode(composition)
-    composition.configured_planning_service(project.id, "planner", "fake-v1").build_plan(
-        episode.id
-    )
+    planner = composition.configured_planning_service(project.id, "planner", "fake-v1")
+    planner.build_plan(episode.id)
     private_value = "PCG003_PRIVATE_MARKER"
     composition.providers.llm_registry.register(
         FakeLLMProvider(
