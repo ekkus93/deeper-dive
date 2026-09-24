@@ -397,6 +397,7 @@ def _conversation_stage(
     turns.generate(context.run_id, context.episode_id, decision)
 
 
+# fmt: off
 def _tts_stage(
     service: DeeperDiveService,
     project_id: str,
@@ -495,6 +496,7 @@ def _tts_artifacts_for_turns(
     if missing:
         raise ValueError("missing TTS artifacts for turns: " + ", ".join(missing))
     return by_turn
+# fmt: on
 
 
 def _durable_stage_boundary(context: PipelineContext) -> None:
