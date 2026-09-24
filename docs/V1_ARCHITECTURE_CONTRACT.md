@@ -22,6 +22,10 @@ A generation run is durable state, not a UI status label. Normal execution moves
 
 Episode identity scopes transcript turns, TTS/audio artifacts, playback, review state, generation runs, and exports. Export produces a transcript, source/provenance manifest, metadata, and audio when present. Metadata carries project, episode, and run identity. Multi-episode qualification requires selecting episode A never to read, play, mutate, or export episode B artifacts. Duplicate/delete operations must preserve sibling isolation.
 
+## TTS artifact status contract
+
+The canonical successful TTS artifact status is `complete`, exposed in code as `TTS_ARTIFACT_STATUS_COMPLETE`. Writers must store the canonical value. Readers preserve persisted-data compatibility by accepting legacy successful `completed` rows and normalizing them to the canonical status at the repository boundary. Cache lookup, timeline visibility, episode export, installed-wheel smoke checks, and production-pipeline tests must assert the canonical status while continuing to support legacy successful rows.
+
 ## Sanitizer boundary
 
 `deeper_dive.diagnostics` provides the canonical redaction/sanitization boundary. Untrusted provider/pipeline exception material is sanitized before durable failure persistence, structured diagnostic logging, diagnostic-bundle creation, or CLI/TUI presentation. Sanitization covers authorization headers, API-key/token/environment-style assignments, credential-bearing URLs, nested exception context, and debug/repr payloads while retaining actionable non-secret context.
