@@ -175,6 +175,7 @@ def test_legacy_success_artifacts_remain_exportable_and_timeline_visible(
     episode_audio = root / "output" / f"{episode.id}.wav"
     episode_audio.write_bytes(b"legacy episode audio")
 
+    # Simulate an on-disk project created before canonical success-status writes.
     with database.transaction() as db:
         db.execute(
             """INSERT INTO conversation_turns(
