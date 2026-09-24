@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+import pytest
+
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.episode_library_screen import EpisodeLibraryController
 from deeper_dive.generation_monitor import GenerationMonitorScreen
@@ -18,11 +20,17 @@ from deeper_dive.tui import DeeperDiveApp
 from deeper_dive.user_config import UserConfigStore
 
 
-def test_tui_acceptance_click_generate_review_and_export(tmp_path: Path) -> None:
-    asyncio.run(_exercise_tui_acceptance(tmp_path))
+def test_tui_acceptance_click_generate_review_and_export(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    asyncio.run(_exercise_tui_acceptance(tmp_path, monkeypatch))
 
 
-async def _exercise_tui_acceptance(tmp_path: Path) -> None:
+async def _exercise_tui_acceptance(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
     project = service.create_project("DDR-112 TUI")
     service.add_pasted_source(
@@ -50,6 +58,11 @@ async def _exercise_tui_acceptance(tmp_path: Path) -> None:
         provider_controller=controller,
         preflight_controller=PreflightController(ffmpeg_executable=fake_ffmpeg),
     )
+    monkeypatch.setattr(
+        GenerationMonitorScreen,
+        "start_background_generation",
+        lambda self: None,
+    )
 
     async with app.run_test(size=(120, 50)) as pilot:
         app.current_project_id = project.id
@@ -65,14 +78,18 @@ async def _exercise_tui_acceptance(tmp_path: Path) -> None:
         await pilot.pause()
         assert isinstance(app.screen, GenerationMonitorScreen)
         monitor = app.screen
-        assert monitor._task is not None
-        await monitor._task
-        await pilot.pause()
+        before = app.generation_monitor_controller.snapshot(app)
+        assert before.run is not None
+        assert before.run.state == "pending"
 
-        run = service.runs(project.id).latest_for_episode(app.current_episode_id)
-        assert run is not None
-        assert run.state == "completed"
-        assert run.stage == "export"
+        composition = app.service._production_composition
+        composition.run_generation(project.id, before.run.id)
+        monitor.refresh_monitor()
+        after = app.generation_monitor_controller.snapshot(app)
+        assert after.run is not None
+        assert after.run.state == "completed"
+        assert after.run.stage == "export"
+        assert after.completed_stages
         assert TranscriptReviewController().turns(app)
 
         app.action_navigate("library")
