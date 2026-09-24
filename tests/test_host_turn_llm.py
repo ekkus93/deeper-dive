@@ -41,7 +41,9 @@ def test_llm_host_turn_provider_routes_structured_request_to_configured_model() 
 def test_llm_host_turn_provider_rejects_malformed_provider_output() -> None:
     llm = FakeLLMProvider(response="not-json")
     adapter = LLMHostTurnProvider(llm, "fake-v1")
-    decision = DirectorDecision("host-a", "Discuss", 30, 60)
+    decision = DirectorDecision(
+        speaker_id="host-a", intent="Discuss", target_duration_seconds=30, target_words=60
+    )
 
     with pytest.raises(ValueError, match="invalid JSON"):
         adapter.generate_turn(decision)
@@ -50,7 +52,9 @@ def test_llm_host_turn_provider_rejects_malformed_provider_output() -> None:
 def test_llm_host_turn_provider_rejects_invalid_structured_shape() -> None:
     llm = FakeLLMProvider(response=json.dumps({"speaker_id": "host-a", "text": "turn"}))
     adapter = LLMHostTurnProvider(llm, "fake-v1")
-    decision = DirectorDecision("host-a", "Discuss", 30, 60)
+    decision = DirectorDecision(
+        speaker_id="host-a", intent="Discuss", target_duration_seconds=30, target_words=60
+    )
 
     with pytest.raises(ValueError, match="evidence_ids"):
         adapter.generate_turn(decision)
