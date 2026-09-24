@@ -47,6 +47,44 @@ def test_save_tts_adapter_reloads_runtime_provider(tmp_path) -> None:
     assert controller.tts("speech").provider_id == "speech"
 
 
+def test_save_provider_persists_extended_configuration_fields(tmp_path) -> None:
+    controller = _controller(tmp_path)
+
+    controller.save_provider(
+        "speech",
+        "openai-compatible-tts",
+        base_url="http://127.0.0.1:9000/v1",
+        default_model="local-tts",
+        credential_env="LOCAL_TTS_TOKEN",
+        timeout_seconds=12.5,
+        network_scope="local",
+        response_format="mp3",
+        voices=("alice", "bob"),
+    )
+
+    saved = controller.config().providers["speech"]
+    assert saved.credential_env == "LOCAL_TTS_TOKEN"
+    assert saved.timeout_seconds == 12.5
+    assert saved.network_scope == "local"
+    assert saved.response_format == "mp3"
+    assert saved.voices == ("alice", "bob")
+    assert tuple(voice.id for voice in controller.tts("speech").voices()) == (
+        "alice",
+        "bob",
+    )
+
+
+def test_save_provider_validates_extended_configuration_fields(tmp_path) -> None:
+    controller = _controller(tmp_path)
+
+    with pytest.raises(ValueError, match="timeout_seconds"):
+        controller.save_provider("planner", "fake", timeout_seconds=0)
+    with pytest.raises(ValueError, match="network_scope"):
+        controller.save_provider("planner", "fake", network_scope="internet")
+
+    assert "planner" not in controller.config().providers
+
+
 def test_invalid_provider_configuration_is_not_persisted(tmp_path) -> None:
     controller = _controller(tmp_path)
 

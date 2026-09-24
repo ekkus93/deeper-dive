@@ -41,6 +41,11 @@ class ProviderController:
         *,
         base_url: str | None = None,
         default_model: str | None = None,
+        credential_env: str | None = None,
+        timeout_seconds: float = 60.0,
+        network_scope: str | None = None,
+        response_format: str = "wav",
+        voices: tuple[str, ...] = (),
     ) -> None:
         kind = provider_type.strip().lower().replace("_", "-")
         if self.capability(kind) == "unknown":
@@ -53,6 +58,11 @@ class ProviderController:
             provider_type=kind,
             base_url=base_url or None,
             default_model=default_model or None,
+            credential_env=credential_env or None,
+            timeout_seconds=timeout_seconds,
+            network_scope=network_scope,  # type: ignore[arg-type]
+            response_format=response_format,
+            voices=voices,
         )
         self.config_store.save(config)
         self.reload()
