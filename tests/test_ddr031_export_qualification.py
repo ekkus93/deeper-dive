@@ -33,6 +33,11 @@ def _completed_episode(tmp_path: Path):
     summary = composition.service.add_file_sources(project.id, [source_path])
     assert len(summary.imported) == 1
     episode = composition.service.quick_deep_dive(project.id)
+    with composition.database_for_project(project.id).transaction() as connection:
+        connection.execute(
+            "UPDATE hosts SET tts_provider='speech',tts_voice='voice-a' WHERE project_id=?",
+            (project.id,),
+        )
     run = composition.create_generation_run(project.id, episode.id)
     result = composition.run_generation(project.id, run.id)
     assert result.run.state == "completed"
@@ -56,7 +61,7 @@ def test_episode_library_export_writes_complete_episode_specific_artifact_set(
     assert episode.id in result.metadata.name
     assert result.audio is not None
     assert episode.id in result.audio.name
-    assert result.audio.read_bytes().startswith(b"FAKE-WAV")
+    assert result.audio.read_bytes().startswith(b"FAKE-AUDIO")
     assert "Configured fake provider host turn marker" in result.transcript.read_text(
         encoding="utf-8"
     )
