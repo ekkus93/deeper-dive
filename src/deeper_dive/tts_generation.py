@@ -12,6 +12,9 @@ from typing import Any
 from deeper_dive.storage.database import Database
 from deeper_dive.tts import TTSAudioResult, TTSProviderRegistry, TTSRequest
 
+TTS_ARTIFACT_STATUS_COMPLETE = "complete"
+TTS_ARTIFACT_LEGACY_SUCCESS_STATUSES = ("completed",)
+
 
 @dataclass(frozen=True, slots=True)
 class TTSTurn:
@@ -44,13 +47,17 @@ class TTSArtifactRepository:
         self.database.initialize()
 
     def get_by_cache_key(self, cache_key: str) -> TTSArtifact | None:
+        accepted = (TTS_ARTIFACT_STATUS_COMPLETE, *TTS_ARTIFACT_LEGACY_SUCCESS_STATUSES)
+        placeholders = ",".join("?" for _ in accepted)
         with self.database.connection() as db:
             row = db.execute(
-                "SELECT * FROM tts_artifacts WHERE cache_key=? AND status='complete'", (cache_key,)
+                f"SELECT * FROM tts_artifacts WHERE cache_key=? AND status IN ({placeholders})",
+                (cache_key, *accepted),
             ).fetchone()
         return None if row is None else self._from_row(row)
 
     def save(self, artifact: TTSArtifact) -> None:
+        artifact = self._with_canonical_status(artifact)
         with self.database.transaction() as db:
             db.execute(
                 """INSERT INTO tts_artifacts(
@@ -81,12 +88,32 @@ class TTSArtifactRepository:
             )
 
     @staticmethod
+    def _with_canonical_status(artifact: TTSArtifact) -> TTSArtifact:
+        if artifact.status == TTS_ARTIFACT_STATUS_COMPLETE:
+            return artifact
+        if artifact.status in TTS_ARTIFACT_LEGACY_SUCCESS_STATUSES:
+            return TTSArtifact(
+                turn_id=artifact.turn_id,
+                artifact_id=artifact.artifact_id,
+                cache_key=artifact.cache_key,
+                status=TTS_ARTIFACT_STATUS_COMPLETE,
+                path=artifact.path,
+                provider_id=artifact.provider_id,
+                voice=artifact.voice,
+                model=artifact.model,
+            )
+        return artifact
+
+    @staticmethod
     def _from_row(row: Any) -> TTSArtifact:
+        status = str(row["status"])
+        if status in TTS_ARTIFACT_LEGACY_SUCCESS_STATUSES:
+            status = TTS_ARTIFACT_STATUS_COMPLETE
         return TTSArtifact(
             turn_id=str(row["turn_id"]),
             artifact_id=str(row["artifact_id"]),
             cache_key=str(row["cache_key"]),
-            status=str(row["status"]),
+            status=status,
             path=Path(str(row["path"])),
             provider_id=str(row["provider_id"]),
             voice=str(row["voice"]),
@@ -170,7 +197,7 @@ class TTSGenerationStage:
             turn_id=turn.turn_id,
             artifact_id=artifact_id,
             cache_key=key,
-            status="complete",
+            status=TTS_ARTIFACT_STATUS_COMPLETE,
             path=path,
             provider_id=turn.provider_id,
             voice=turn.voice,
