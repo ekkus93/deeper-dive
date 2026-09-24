@@ -411,7 +411,10 @@ def _tts_stage(
     if composition is None:
         raise RuntimeError("production composition is unavailable for TTS generation")
     repository = HostEpisodeRepository(database)
-    hosts = {record.id: HostProfile.from_record(record) for record in repository.list_hosts(project_id)}
+    hosts = {
+        record.id: HostProfile.from_record(record)
+        for record in repository.list_hosts(project_id)
+    }
     tts_turns = tuple(
         _tts_turn_for_host(composition, hosts[turn.speaker_id], turn) for turn in turns
     )
