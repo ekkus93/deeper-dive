@@ -90,12 +90,8 @@ def test_failure_resumes_without_resynthesizing_completed_turns(tmp_path: Path) 
 
 
 def test_cache_identity_includes_settings(tmp_path: Path) -> None:
-    base = TTSTurn(
-        "t", "h", "text", "p", "v", model="m", settings={"sample_rate_hz": 24000}
-    )
-    changed = TTSTurn(
-        "t", "h", "text", "p", "v", model="m", settings={"sample_rate_hz": 48000}
-    )
+    base = TTSTurn("t", "h", "text", "p", "v", model="m", settings={"sample_rate_hz": 24000})
+    changed = TTSTurn("t", "h", "text", "p", "v", model="m", settings={"sample_rate_hz": 48000})
     assert TTSGenerationStage.cache_key(base) != TTSGenerationStage.cache_key(changed)
 
 
@@ -127,9 +123,7 @@ def test_repository_reads_legacy_completed_status_as_success(tmp_path: Path) -> 
     assert artifact.path == path
 
 
-def test_repository_saves_legacy_success_artifacts_with_canonical_status(
-    tmp_path: Path,
-) -> None:
+def test_repository_saves_legacy_success_artifacts_with_canonical_status(tmp_path: Path) -> None:
     database = _database(tmp_path / "project.db")
     path = tmp_path / "artifact.wav"
     path.write_bytes(b"audio")
@@ -149,9 +143,7 @@ def test_repository_saves_legacy_success_artifacts_with_canonical_status(
     )
 
     with database.connection() as db:
-        row = db.execute(
-            "SELECT status FROM tts_artifacts WHERE turn_id='t-canonical'"
-        ).fetchone()
+        row = db.execute("SELECT status FROM tts_artifacts WHERE turn_id='t-canonical'").fetchone()
 
     assert row is not None
     assert row["status"] == TTS_ARTIFACT_STATUS_COMPLETE
