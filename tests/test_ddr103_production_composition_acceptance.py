@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+from dataclasses import replace
 from pathlib import Path
 
 from deeper_dive.composition import ProductionComposition
@@ -14,10 +16,22 @@ from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 def test_production_composition_plan_preflight_generate_review_export(tmp_path: Path) -> None:
     data_dir = tmp_path / "data"
+    llm_roles = (
+        "corpus_analysis",
+        "research_planning",
+        "source_analysis",
+        "episode_planning",
+        "directing",
+        "host_generation",
+        "verification",
+    )
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
-            providers={"planner": ProviderConfig(provider_type="fake", default_model="fake-v1")},
-            defaults={"episode_planning": "planner:fake-v1"},
+            providers={
+                "planner": ProviderConfig(provider_type="fake", default_model="fake-v1"),
+                "speech": ProviderConfig(provider_type="fake-tts"),
+            },
+            defaults={role: "planner:fake-v1" for role in llm_roles},
         )
     )
     composition = ProductionComposition.build(
@@ -25,6 +39,7 @@ def test_production_composition_plan_preflight_generate_review_export(tmp_path: 
         provider_factory=ProviderFactory(environ={}),
     )
     assert composition.provider_controller.llm_registry.provider_ids() == ("planner",)
+    assert tuple(composition.provider_controller.tts_providers) == ("speech",)
 
     project = composition.service.create_project("DDR-103 acceptance")
     source = composition.service.add_pasted_source(
@@ -35,7 +50,8 @@ def test_production_composition_plan_preflight_generate_review_export(tmp_path: 
     assert composition.service.list_source_chunks(project.id, source.id)
 
     host = create_host_from_preset("curious_explainer", project.id)
-    composition.service.hosts(project.id).create_host(host.to_record())
+    host_record = replace(host.to_record(), tts_provider="speech", tts_voice="default")
+    composition.service.hosts(project.id).create_host(host_record)
     episode = EpisodeConfigurationService(composition.database_for_project(project.id)).create(
         project.id,
         EpisodeConfiguration(
@@ -54,6 +70,7 @@ def test_production_composition_plan_preflight_generate_review_export(tmp_path: 
     app.current_project_id = project.id
     app.current_project_name = project.name
     app.current_episode_id = episode.id
+    composition.preflight_controller.ffmpeg_executable = Path(sys.executable)
     preflight = composition.preflight_controller.build(app)
     assert preflight.source_count == 1
     assert preflight.indexed_source_count == 1
