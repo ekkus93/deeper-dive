@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from deeper_dive.llm import LLMProviderRegistry
+from deeper_dive.llm import LLMProviderRegistry, ProviderHealth
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.user_config import UserConfigStore
@@ -132,8 +132,13 @@ def test_save_provider_validates_extended_configuration_fields(tmp_path) -> None
         ),
     ),
 )
-def test_supported_adapter_classes_save_reload_through_controller(
-    tmp_path, name: str, provider_type: str, kwargs: dict[str, object], capability: str
+def test_supported_adapter_classes_save_reload_and_health_through_controller(
+    tmp_path,
+    monkeypatch,
+    name: str,
+    provider_type: str,
+    kwargs: dict[str, object],
+    capability: str,
 ) -> None:
     secrets = {
         "OPENAI_TEST_KEY": "openai-secret-value",
@@ -149,10 +154,12 @@ def test_supported_adapter_classes_save_reload_through_controller(
     saved = controller.config().providers[name]
     assert saved.provider_type == provider_type
     assert controller.capability(provider_type) == capability
-    if capability == "llm":
-        assert controller.llm(name).provider_id == name
-    else:
-        assert controller.tts(name).provider_id == name
+    provider = controller.llm(name) if capability == "llm" else controller.tts(name)
+    assert provider.provider_id == name
+    monkeypatch.setattr(provider, "health", lambda: ProviderHealth(True, "adapter-ready"))
+    health = controller.health(name)
+    assert health.healthy is True
+    assert health.message == "adapter-ready"
 
     persisted = (tmp_path / "config.json").read_text(encoding="utf-8")
     assert all(secret not in persisted for secret in secrets.values())
