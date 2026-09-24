@@ -26,7 +26,9 @@ _PROVIDER_CONFIGURATION_FIELDS: dict[str, frozenset[str]] = {
             "network_scope",
         }
     ),
-    "ollama": frozenset({"base_url", "default_model", "timeout_seconds", "network_scope"}),
+    "ollama": frozenset(
+        {"base_url", "default_model", "timeout_seconds", "network_scope"}
+    ),
     "llama-server": frozenset(
         {"base_url", "default_model", "timeout_seconds", "network_scope"}
     ),
