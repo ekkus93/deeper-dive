@@ -4,6 +4,7 @@ from pathlib import Path
 
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
+from deeper_dive.host_turn import HostTurnService
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository, HostProfileRecord
 from deeper_dive.storage.workspace import WorkspaceManager
@@ -17,6 +18,11 @@ from deeper_dive.transcript_review_screen import (
 from deeper_dive.tui import DeeperDiveApp
 
 
+class _UnusedTurnProvider:
+    def generate_turn(self, decision: object) -> dict[str, object]:
+        raise AssertionError("not used")
+
+
 def _review_app(tmp_path: Path) -> tuple[DeeperDiveApp, str]:
     service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
     project = service.create_project("DDR-102 direct review")
@@ -27,6 +33,7 @@ def _review_app(tmp_path: Path) -> tuple[DeeperDiveApp, str]:
         project.id,
         EpisodeConfiguration(title="Review episode", host_ids=("host-1",)),
     )
+    HostTurnService(database, _UnusedTurnProvider())
     with database.transaction() as connection:
         connection.execute(
             """INSERT INTO conversation_turns(
