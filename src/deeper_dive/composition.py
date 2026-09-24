@@ -385,9 +385,7 @@ def _conversation_stage(
     try:
         provider = composition.providers.llm_registry.get(assignment.provider)
     except KeyError as exc:
-        raise ValueError(
-            f"unknown provider {assignment.provider!r} for host_generation"
-        ) from exc
+        raise ValueError(f"unknown provider {assignment.provider!r} for host_generation") from exc
     turns = HostTurnService(database, LLMHostTurnProvider(provider, assignment.model))
     decision = DirectorDecision(
         speaker_id=host_ids[0],
