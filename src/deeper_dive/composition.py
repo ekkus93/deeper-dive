@@ -411,10 +411,7 @@ def _tts_stage(
     if composition is None:
         raise RuntimeError("production composition is unavailable for TTS generation")
     repository = HostEpisodeRepository(database)
-    hosts = {
-        record.id: HostProfile.from_record(record)
-        for record in repository.list_hosts(project_id)
-    }
+    hosts = {record.id: HostProfile.from_record(record) for record in repository.list_hosts(project_id)}
     tts_turns = tuple(
         _tts_turn_for_host(composition, hosts[turn.speaker_id], turn) for turn in turns
     )
@@ -470,11 +467,15 @@ def _composition_stage(
     output.mkdir(parents=True, exist_ok=True)
     episode_audio = output / f"{context.episode_id}.wav"
     episode_audio.write_bytes(
-        b"".join(Path(str(artifact_rows[turn.id]["path"])).read_bytes() for turn in turns)
+        b"".join(
+            Path(str(artifact_rows[turn.id]["path"])).read_bytes() for turn in turns
+        )
     )
 
 
-def _tts_artifacts_for_turns(database: Database, turns: list[HostTurn]) -> dict[str, Mapping[str, object]]:
+def _tts_artifacts_for_turns(
+    database: Database, turns: list[HostTurn]
+) -> dict[str, Mapping[str, object]]:
     turn_ids = tuple(turn.id for turn in turns)
     placeholders = ",".join("?" for _ in turn_ids)
     with database.connection() as connection:
