@@ -20,7 +20,7 @@ from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.transcript_review_screen import TranscriptReviewController
 from deeper_dive.tts import FakeTTSProvider
 from deeper_dive.tui import DeeperDiveApp
-from deeper_dive.user_config import UserConfig, UserConfigStore
+from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
 def _episode_host_presets(
@@ -249,6 +249,7 @@ def _planning_provider_controller(service: DeeperDiveService) -> ProviderControl
     )
     store = UserConfigStore(service.workspaces.data_dir / "config.json")
     config = store.load()
+    config.providers["fake"] = ProviderConfig(provider_type="fake", default_model="fake-v1")
     config.defaults["episode_planning"] = "fake:fake-v1"
     store.save(config)
     return ProviderController(store, registry, {})
@@ -257,6 +258,7 @@ def _planning_provider_controller(service: DeeperDiveService) -> ProviderControl
 def _generation_provider_controller(service: DeeperDiveService) -> ProviderController:
     controller = _planning_provider_controller(service)
     config = controller.config()
+    config.providers["fake-tts"] = ProviderConfig(provider_type="fake-tts")
     for role in ModelRole:
         config.defaults[role.value] = "fake:fake-v1"
     controller.config_store.save(config)

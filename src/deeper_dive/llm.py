@@ -168,6 +168,16 @@ class FakeLLMProvider:
 
     def _response_for(self, request: LLMRequest) -> str:
         prompt = "\n".join(message.content for message in request.messages).lower()
+        if "generate one podcast host turn" in prompt:
+            if self.response == self.DEFAULT_RESPONSE:
+                return self._host_turn_response(request)
+            try:
+                payload = json.loads(self.response)
+            except json.JSONDecodeError:
+                return self.response
+            if isinstance(payload, dict) and isinstance(payload.get("segments"), list):
+                return self._host_turn_response(request)
+            return self.response
         if "identify research gaps" in prompt and "gaps array" in prompt:
             try:
                 payload = json.loads(self.response)
@@ -177,6 +187,23 @@ class FakeLLMProvider:
                 return self.response
             return self._research_gap_response(request)
         return self.response
+
+    @staticmethod
+    def _host_turn_response(request: LLMRequest) -> str:
+        try:
+            payload = json.loads(request.messages[-1].content)
+        except (IndexError, json.JSONDecodeError):
+            payload = {}
+        speaker_id = str(payload.get("speaker_id", "")) if isinstance(payload, dict) else ""
+        evidence_ids = payload.get("evidence_ids", []) if isinstance(payload, dict) else []
+        return json.dumps(
+            {
+                "speaker_id": speaker_id,
+                "text": "Configured fake provider host turn marker; deterministic production turn.",
+                "evidence_ids": evidence_ids if isinstance(evidence_ids, list) else [],
+            },
+            sort_keys=True,
+        )
 
     @staticmethod
     def _research_gap_response(request: LLMRequest) -> str:

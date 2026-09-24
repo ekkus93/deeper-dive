@@ -16,7 +16,8 @@ def test_library_export_creates_episode_specific_artifacts(tmp_path: Path) -> No
     data_dir = tmp_path / "data"
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
-            providers={"planner": ProviderConfig(provider_type="fake", default_model="fake-v1")}
+            providers={"planner": ProviderConfig(provider_type="fake", default_model="fake-v1")},
+            defaults={"host_generation": "planner:fake-v1"},
         )
     )
     composition = ProductionComposition.build(
@@ -50,7 +51,9 @@ def test_library_export_creates_episode_specific_artifacts(tmp_path: Path) -> No
     assert result.audio.is_file()
     assert episode.id in result.transcript.name
     assert episode.id in result.audio.name
-    assert "deterministic production turn" in result.transcript.read_text(encoding="utf-8")
+    assert "Configured fake provider host turn marker" in result.transcript.read_text(
+        encoding="utf-8"
+    )
     metadata = json.loads(result.metadata.read_text(encoding="utf-8"))
     assert metadata["episode_id"] == episode.id
     assert metadata["run_id"] == completed.id

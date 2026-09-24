@@ -21,6 +21,7 @@ from deeper_dive.episode_planner import EpisodePlanGenerator, EpisodePlannerServ
 from deeper_dive.export import EpisodeExporter
 from deeper_dive.generation_monitor import GenerationMonitorController
 from deeper_dive.host_turn import HostTurn, HostTurnService
+from deeper_dive.host_turn_llm import LLMHostTurnProvider
 from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
 from deeper_dive.pipeline import (
     DEFAULT_STAGES,
@@ -317,20 +318,6 @@ def _project_id_for_run(service: DeeperDiveService, run_id: str) -> str:
     raise KeyError(f"unknown generation run: {run_id}")
 
 
-class _DeterministicHostTurnProvider:
-    """Bounded local turn provider used by the deterministic production pipeline path."""
-
-    def generate_turn(self, decision: DirectorDecision) -> dict[str, object]:
-        return {
-            "speaker_id": decision.speaker_id,
-            "text": (
-                f"{decision.intent} This deterministic production turn is persisted "
-                "through the shared generation pipeline."
-            ),
-            "evidence_ids": list(decision.evidence_ids),
-        }
-
-
 def _production_stage_handlers(
     service: DeeperDiveService,
     project_id: str,
@@ -374,8 +361,8 @@ def _conversation_stage(
     context: PipelineContext,
 ) -> None:
     database = Database(service.workspaces.project_root(project_id) / "project.db")
-    turns = HostTurnService(database, _DeterministicHostTurnProvider())
-    if turns.list_turns(context.episode_id):
+    existing_turns = HostTurnService(database)
+    if existing_turns.list_turns(context.episode_id):
         return
     repository = HostEpisodeRepository(database)
     host_ids = tuple(repository.list_episode_host_ids(context.episode_id))
@@ -384,6 +371,22 @@ def _conversation_stage(
     episode = repository.get_episode(context.episode_id)
     if episode is None:
         raise KeyError(context.episode_id)
+    composition = getattr(service, "_production_composition", None)
+    if composition is None:
+        raise RuntimeError("production composition is unavailable for conversation generation")
+    assignments, errors = composition.effective_model_role_assignments_for_episode(
+        project_id, context.episode_id
+    )
+    if errors:
+        raise ValueError("invalid model-role configuration: " + "; ".join(errors))
+    assignment = assignments.resolve(model_roles.ModelRole.HOST_GENERATION)
+    if assignment is None:
+        raise ValueError("no provider/model assignment for host_generation")
+    try:
+        provider = composition.providers.llm_registry.get(assignment.provider)
+    except KeyError as exc:
+        raise ValueError(f"unknown provider {assignment.provider!r} for host_generation") from exc
+    turns = HostTurnService(database, LLMHostTurnProvider(provider, assignment.model))
     decision = DirectorDecision(
         speaker_id=host_ids[0],
         intent=f"Discuss {episode.title}",
@@ -400,9 +403,7 @@ def _tts_stage(
 ) -> None:
     root = service.workspaces.project_root(project_id)
     database = Database(root / "project.db")
-    turns = HostTurnService(database, _DeterministicHostTurnProvider()).list_turns(
-        context.episode_id
-    )
+    turns = HostTurnService(database).list_turns(context.episode_id)
     if not turns:
         return
     output = root / "output" / "tts"
@@ -444,9 +445,7 @@ def _composition_stage(
 ) -> None:
     root = service.workspaces.project_root(project_id)
     database = Database(root / "project.db")
-    turns = HostTurnService(database, _DeterministicHostTurnProvider()).list_turns(
-        context.episode_id
-    )
+    turns = HostTurnService(database).list_turns(context.episode_id)
     if not turns:
         return
     items = tuple(

@@ -25,7 +25,10 @@ def test_cli_acceptance_create_source_host_episode_generate_export(
     planner = ProviderConfig(provider_type="fake", default_model="fake-v1")
     config = UserConfig(
         providers={"planner": planner},
-        defaults={"episode_planning": "planner:fake-v1"},
+        defaults={
+            "episode_planning": "planner:fake-v1",
+            "host_generation": "planner:fake-v1",
+        },
     )
     UserConfigStore(data_dir / "config.json").save(config)
     corpus = tmp_path / "corpus.txt"
@@ -110,6 +113,12 @@ def test_cli_acceptance_pause_resume_uses_durable_control_path(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     data_dir = tmp_path / "data"
+    UserConfigStore(data_dir / "config.json").save(
+        UserConfig(
+            providers={"planner": ProviderConfig(provider_type="fake", default_model="fake-v1")},
+            defaults={"host_generation": "planner:fake-v1"},
+        )
+    )
     composition = ProductionComposition.build(
         data_dir,
         provider_factory=ProviderFactory(environ={}),
