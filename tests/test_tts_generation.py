@@ -234,8 +234,12 @@ def test_legacy_success_artifacts_remain_exportable_and_timeline_visible(
     assert exported.audio.read_bytes() == b"legacy episode audio"
 
 
-def test_production_tts_stage_uses_canonical_success_status_constant() -> None:
+def test_production_tts_stage_uses_provider_generation_contract() -> None:
     source = inspect.getsource(composition._tts_stage)
+    composition_source = inspect.getsource(composition._composition_stage)
 
-    assert "TTS_ARTIFACT_STATUS_COMPLETE" in source
-    assert '"completed"' not in source
+    assert "TTSGenerationStage" in source
+    assert "TTSArtifactRepository" in source
+    assert "_deterministic_audio_bytes" not in source
+    assert "deterministic-tts" not in source
+    assert "_deterministic_audio_bytes" not in composition_source
