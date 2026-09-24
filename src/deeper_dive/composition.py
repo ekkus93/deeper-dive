@@ -371,7 +371,9 @@ def _conversation_stage(
     database = Database(service.workspaces.project_root(project_id) / "project.db")
     composition = getattr(service, "_production_composition", None)
     if composition is None:
-        raise RuntimeError("production composition is required for conversation generation")
+        raise RuntimeError(
+            "production composition is required for conversation generation"
+        )
     assignments, errors = composition.effective_model_role_assignments_for_run(
         project_id, context.run_id
     )

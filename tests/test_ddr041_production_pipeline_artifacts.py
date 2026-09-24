@@ -19,10 +19,12 @@ def test_production_pipeline_persists_reviewable_and_exportable_quick_episode(
     config_store = UserConfigStore(data_dir / "config.json")
     planner = ProviderConfig(provider_type="fake", default_model="fake-v1")
     speech = ProviderConfig(provider_type="fake-tts")
-    config_store.save(UserConfig(
+    config_store.save(
+        UserConfig(
             providers={"planner": planner, "speech": speech},
             defaults={"host_generation": "planner:fake-v1"},
-        ))
+        )
+    )
     composition = ProductionComposition.build(
         data_dir,
         provider_factory=ProviderFactory(environ={}),
