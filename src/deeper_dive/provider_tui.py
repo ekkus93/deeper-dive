@@ -4,11 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from deeper_dive.llm import (
-    LLMProvider,
-    LLMProviderRegistry,
-    ProviderHealth,
-)
+import deeper_dive.llm as llm
+from deeper_dive.llm import LLMProvider, LLMProviderRegistry
 from deeper_dive.provider_factory import (
     LLM_PROVIDER_TYPES,
     TTS_PROVIDER_TYPES,
@@ -151,7 +148,7 @@ class ProviderController:
         except KeyError as exc:
             raise KeyError(f"unknown TTS provider: {name}") from exc
 
-    def health(self, name: str) -> ProviderHealth:
+    def health(self, name: str) -> llm.ProviderHealth:
         """Route UI health checks through the configured runtime adapter."""
 
         config = self.config().providers.get(name)
