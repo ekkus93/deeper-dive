@@ -17,7 +17,7 @@ from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.tts import FakeTTSProvider
 from deeper_dive.tui import DeeperDiveApp
-from deeper_dive.user_config import UserConfig, UserConfigStore
+from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
 def test_generate_starts_real_pipeline_and_reuses_active_run(tmp_path: Path) -> None:
@@ -55,8 +55,16 @@ async def _generate_starts_real_pipeline_and_reuses_active_run(tmp_path: Path) -
 
     ffmpeg = tmp_path / "ffmpeg"
     ffmpeg.write_text("fake", encoding="utf-8")
-    config_store = UserConfigStore(tmp_path / "config.json")
-    config_store.save(UserConfig(defaults={role.value: "fake:fake-v1" for role in ModelRole}))
+    config_store = UserConfigStore(service.workspaces.data_dir / "config.json")
+    config_store.save(
+        UserConfig(
+            providers={
+                "fake": ProviderConfig(provider_type="fake", default_model="fake-v1"),
+                "fake-tts": ProviderConfig(provider_type="fake-tts"),
+            },
+            defaults={role.value: "fake:fake-v1" for role in ModelRole},
+        )
+    )
     llm_registry = LLMProviderRegistry()
     llm_registry.register(FakeLLMProvider())
     provider_controller = ProviderController(
