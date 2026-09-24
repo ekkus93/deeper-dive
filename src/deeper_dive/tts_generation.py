@@ -45,6 +45,18 @@ class TTSArtifactRepository:
     def __init__(self, database: Database) -> None:
         self.database = database
         self.database.initialize()
+        self.normalize_legacy_success_statuses()
+
+    def normalize_legacy_success_statuses(self) -> int:
+        """Normalize persisted legacy success values to the canonical status."""
+
+        placeholders = ",".join("?" for _ in TTS_ARTIFACT_LEGACY_SUCCESS_STATUSES)
+        with self.database.transaction() as db:
+            cursor = db.execute(
+                f"UPDATE tts_artifacts SET status=? WHERE status IN ({placeholders})",
+                (TTS_ARTIFACT_STATUS_COMPLETE, *TTS_ARTIFACT_LEGACY_SUCCESS_STATUSES),
+            )
+        return cursor.rowcount
 
     def get_by_cache_key(self, cache_key: str) -> TTSArtifact | None:
         accepted = (TTS_ARTIFACT_STATUS_COMPLETE, *TTS_ARTIFACT_LEGACY_SUCCESS_STATUSES)
