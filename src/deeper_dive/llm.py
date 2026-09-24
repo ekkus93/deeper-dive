@@ -169,6 +169,8 @@ class FakeLLMProvider:
     def _response_for(self, request: LLMRequest) -> str:
         prompt = "\n".join(message.content for message in request.messages).lower()
         if "generate one podcast host turn" in prompt:
+            if self.response != self.DEFAULT_RESPONSE:
+                return self.response
             return self._host_turn_response(request)
         if "identify research gaps" in prompt and "gaps array" in prompt:
             try:
