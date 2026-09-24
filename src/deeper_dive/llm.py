@@ -193,7 +193,7 @@ class FakeLLMProvider:
         return json.dumps(
             {
                 "speaker_id": speaker_id,
-                "text": "provider-backed deterministic host turn",
+                "text": "provider-backed deterministic production turn",
                 "evidence_ids": evidence_ids if isinstance(evidence_ids, list) else [],
             },
             sort_keys=True,

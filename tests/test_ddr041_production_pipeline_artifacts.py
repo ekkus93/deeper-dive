@@ -56,7 +56,7 @@ def test_production_pipeline_persists_reviewable_and_exportable_quick_episode(
 
     assert result.run.state == "completed"
     assert turns
-    assert "provider-backed deterministic host turn" in str(turns[0]["text"])
+    assert "provider-backed deterministic production turn" in str(turns[0]["text"])
     assert artifacts
     assert all(str(row["status"]) == TTS_ARTIFACT_STATUS_COMPLETE for row in artifacts)
     assert output_audio.is_file()
@@ -64,6 +64,6 @@ def test_production_pipeline_persists_reviewable_and_exportable_quick_episode(
     assert timeline.placements
     assert export.transcript.is_file()
     transcript = export.transcript.read_text(encoding="utf-8")
-    assert "provider-backed deterministic host turn" in transcript
+    assert "provider-backed deterministic production turn" in transcript
     assert export.audio is not None
     assert export.audio.is_file()
