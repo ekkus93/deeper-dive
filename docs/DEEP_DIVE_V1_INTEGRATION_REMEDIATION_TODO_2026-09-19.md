@@ -546,23 +546,35 @@
 
 ## DDR-090 — Audit Ruff exclusions
 
-- [ ] Enumerate currently excluded production modules.
-- [ ] Run Ruff against each excluded module individually.
-- [ ] Remediate `audio_playback.py` or document a narrow retained exception.
-- [ ] Remediate `cli.py` or document a narrow retained exception.
-- [ ] Remediate `diagnostics.py` or document a narrow retained exception.
-- [ ] Remediate `preflight.py` or document a narrow retained exception.
-- [ ] Remediate `preflight_screen.py` or document a narrow retained exception.
-- [ ] Remediate `transcript_review_screen.py` or document a narrow retained exception.
-- [ ] Remove broad exclusions where no longer needed.
-- [ ] Keep formatter and mypy green.
+- [x] Enumerate currently excluded production modules.
+- [x] Run Ruff against each excluded module individually.
+- [x] Remediate `audio_playback.py` or document a narrow retained exception.
+- [x] Remediate `cli.py` or document a narrow retained exception.
+- [x] Remediate `diagnostics.py` or document a narrow retained exception.
+- [x] Remediate `preflight.py` or document a narrow retained exception.
+- [x] Remediate `preflight_screen.py` or document a narrow retained exception.
+- [x] Remediate `transcript_review_screen.py` or document a narrow retained exception.
+- [x] Remove broad exclusions where no longer needed.
+- [x] Keep formatter and mypy green.
+
+**Evidence**
+
+- `pyproject.toml` has no project-level Ruff `exclude`, `extend-exclude`, or broad per-file ignore configuration; the configured quality gate runs `ruff format --check .`, `ruff check .`, `mypy`, tests, and build across the repository.
+- `docs/R10_STATIC_MAINTAINABILITY_AUDIT_2026-09-23.md` enumerates the requested production modules, documents that there are no broad Ruff exclusions to retain, and identifies only narrow inline suppressions with local safety rationale where present.
+- Exact-head reconciliation CI for this audit PR passed the same formatter, Ruff, mypy, tests, and build gates before merge.
 
 ## DDR-091 — Review composition/API duplication
 
-- [ ] Remove duplicate service construction paths where practical.
-- [ ] Ensure TUI and CLI share provider/export/planning/pipeline implementations.
-- [ ] Ensure fake implementations live behind explicit test/development injection.
-- [ ] Add architecture notes to developer documentation.
+- [x] Remove duplicate service construction paths where practical.
+- [x] Ensure TUI and CLI share provider/export/planning/pipeline implementations.
+- [x] Ensure fake implementations live behind explicit test/development injection.
+- [x] Add architecture notes to developer documentation.
+
+**Evidence**
+
+- `ProductionComposition` is the shared construction root for provider factory/registries, planning, preflight, generation pipeline, export, benchmark, playback, research execution, and targeted repair services consumed by both TUI and CLI surfaces.
+- `docs/R10_STATIC_MAINTAINABILITY_AUDIT_2026-09-23.md` records the service-sharing review and identifies the remaining deterministic/fake behavior as provider-boundary or development/test-path behavior rather than independent surface-specific implementations.
+- Existing R3-R9 tests exercise the shared TUI/CLI service layer through production-composed planning, generation, control, export, provider CLI, and sanitizer paths; exact-head reconciliation CI for this audit PR passed before merge.
 
 ---
 
