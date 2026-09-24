@@ -146,6 +146,7 @@ jobs:
           from pathlib import Path
 
           from deeper_dive.diagnostics import sanitize_exception_message
+          from deeper_dive.tts_generation import TTS_ARTIFACT_STATUS_COMPLETE
 
           sources = json.load(open("/tmp/sources.json"))
           plan = json.load(open("/tmp/plan.json"))
@@ -190,7 +191,8 @@ jobs:
                   (episode_id,),
               ).fetchone()[0]
               artifact_count = connection.execute(
-                  "SELECT COUNT(*) FROM tts_artifacts WHERE status='completed'",
+                  "SELECT COUNT(*) FROM tts_artifacts WHERE status=?",
+                  (TTS_ARTIFACT_STATUS_COMPLETE,),
               ).fetchone()[0]
           assert turn_count > 0
           assert artifact_count > 0
