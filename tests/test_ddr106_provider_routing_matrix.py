@@ -74,7 +74,7 @@ def test_provider_routing_matrix_fails_closed_without_required_credentials() -> 
 
 
 def test_provider_routing_matrix_rejects_unknown_provider_type() -> None:
-    with pytest.raises(ProviderConfigurationError, match="unsupported provider type"):
+    with pytest.raises(ProviderConfigurationError, match="unsupported provider_type"):
         ProviderFactory(environ={}).build(
             UserConfig(providers={"unknown": ProviderConfig(provider_type="not-a-provider")})
         )
