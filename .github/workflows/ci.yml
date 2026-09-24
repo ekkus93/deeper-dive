@@ -81,28 +81,73 @@ jobs:
           JSON
           printf '# Fresh corpus\n\nA small synthetic source for fresh-machine qualification.\n' > /tmp/fresh-corpus/source.md
           deeper-dive --data-dir "$DEEPER_DIVE_DATA_DIR" --json project create "Fresh machine smoke" > /tmp/project.json
-          PROJECT_ID="$(/tmp/deeper-dive-fresh/bin/python -c 'import json; print(json.load(open("/tmp/project.json"))["id"])')"
+          export PROJECT_ID="$(/tmp/deeper-dive-fresh/bin/python -c 'import json; print(json.load(open("/tmp/project.json"))["id"])')"
           deeper-dive --data-dir "$DEEPER_DIVE_DATA_DIR" --json source add "$PROJECT_ID" /tmp/fresh-corpus > /tmp/sources.json
           deeper-dive --data-dir "$DEEPER_DIVE_DATA_DIR" --json host create "$PROJECT_ID" curious_explainer > /tmp/host.json
-          HOST_ID="$(/tmp/deeper-dive-fresh/bin/python -c 'import json; print(json.load(open("/tmp/host.json"))["id"])')"
+          export HOST_ID="$(/tmp/deeper-dive-fresh/bin/python -c 'import json; print(json.load(open("/tmp/host.json"))["id"])')"
           deeper-dive --data-dir "$DEEPER_DIVE_DATA_DIR" --json episode create "$PROJECT_ID" --title "Fresh smoke episode" --focus "Explain the synthetic source" --duration 60 --hosts "$HOST_ID" --research-policy off > /tmp/episode.json
-          EPISODE_ID="$(/tmp/deeper-dive-fresh/bin/python -c 'import json; print(json.load(open("/tmp/episode.json"))["id"])')"
+          export EPISODE_ID="$(/tmp/deeper-dive-fresh/bin/python -c 'import json; data=json.load(open("/tmp/episode.json")); print(data["episode"]["id"] if "episode" in data else data["id"])')"
           deeper-dive --data-dir "$DEEPER_DIVE_DATA_DIR" --json episode plan "$PROJECT_ID" "$EPISODE_ID" > /tmp/plan.json
+          /tmp/deeper-dive-fresh/bin/python - <<'PY' > /tmp/preflight.json
+          import json
+          import os
+          from pathlib import Path
+
+          from deeper_dive.composition import ProductionComposition
+          from deeper_dive.preflight_screen import PreflightController
+          from deeper_dive.tui import DeeperDiveApp
+
+          data_dir = Path(os.environ["DEEPER_DIVE_DATA_DIR"])
+          project_id = os.environ["PROJECT_ID"]
+          episode_id = os.environ["EPISODE_ID"]
+          composition = ProductionComposition.build(data_dir=data_dir)
+          preflight = PreflightController(ffmpeg_executable=Path("/usr/bin/ffmpeg"))
+          app = DeeperDiveApp(
+              composition.service,
+              provider_controller=composition.provider_controller,
+              preflight_controller=preflight,
+          )
+          app.current_project_id = project_id
+          app.current_project_name = "Fresh machine smoke"
+          app.current_episode_id = episode_id
+          presentation = preflight.build(app)
+          payload = {
+              "ready": presentation.report.ready,
+              "blockers": [issue.message for issue in presentation.report.blockers],
+              "source_count": presentation.source_count,
+              "indexed_source_count": presentation.indexed_source_count,
+              "host_count": presentation.host_count,
+              "routes": [route.stage for route in presentation.report.routes],
+          }
+          assert payload["ready"], payload
+          assert payload["source_count"] == 1
+          assert payload["indexed_source_count"] == 1
+          assert payload["host_count"] == 1
+          assert "episode_planning" in payload["routes"]
+          print(json.dumps(payload, sort_keys=True))
+          PY
           deeper-dive --data-dir "$DEEPER_DIVE_DATA_DIR" --json episode generate "$PROJECT_ID" "$EPISODE_ID" > /tmp/run.json
           deeper-dive --data-dir "$DEEPER_DIVE_DATA_DIR" --json episode export "$PROJECT_ID" "$EPISODE_ID" --output-dir /tmp/fresh-exports > /tmp/export.json
           /tmp/deeper-dive-fresh/bin/python - <<'PY'
           import json
+          import os
+          import sqlite3
           from pathlib import Path
+
+          from deeper_dive.diagnostics import sanitize_exception_message
 
           sources = json.load(open("/tmp/sources.json"))
           plan = json.load(open("/tmp/plan.json"))
+          preflight = json.load(open("/tmp/preflight.json"))
           run = json.load(open("/tmp/run.json"))
           exported = json.load(open("/tmp/export.json"))
           episode = json.load(open("/tmp/episode.json"))
           episode_id = episode["episode"]["id"] if "episode" in episode else episode["id"]
+          project_id = os.environ["PROJECT_ID"]
 
           assert len(sources["imported"]) == 1
           assert plan["segments"]
+          assert preflight["ready"] is True
           assert run["state"] == "completed"
           assert run["stage"] == "export"
           assert exported["episode_id"] == episode_id
@@ -122,8 +167,29 @@ jobs:
           metadata_payload = json.loads(metadata.read_text(encoding="utf-8"))
           assert "deterministic production turn" in transcript_text
           assert metadata_payload["episode_id"] == episode_id
+          assert metadata_payload["project_id"] == project_id
+          assert metadata_payload["run_id"] == run["id"]
           assert manifest_payload
           assert metadata_payload
+
+          db_path = Path(os.environ["DEEPER_DIVE_DATA_DIR"]) / "projects" / project_id / "project.db"
+          with sqlite3.connect(db_path) as connection:
+              turn_count = connection.execute(
+                  "SELECT COUNT(*) FROM conversation_turns WHERE episode_id=?",
+                  (episode_id,),
+              ).fetchone()[0]
+              artifact_count = connection.execute(
+                  "SELECT COUNT(*) FROM tts_artifacts WHERE status='completed'",
+              ).fetchone()[0]
+          assert turn_count > 0
+          assert artifact_count > 0
+
+          private_value = "DDR110" + "_PRIVATE" + "_MARKER"
+          redacted = sanitize_exception_message(
+              RuntimeError(("Author" + "ization") + ": " + "Bearer " + private_value)
+          )
+          assert private_value not in redacted
+          assert "[REDACTED]" in redacted
           PY
       - name: Install real KittenTTS runtime
         run: |
