@@ -9,6 +9,7 @@ from deeper_dive import cli as cli_module
 from deeper_dive.cli import main
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.provider_factory import ProviderFactory
+from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
 def _json_call(args: list[str], capsys: pytest.CaptureFixture[str]) -> dict[str, object]:
@@ -17,6 +18,12 @@ def _json_call(args: list[str], capsys: pytest.CaptureFixture[str]) -> dict[str,
 
 
 def _build_project_with_episode(data_dir: Path) -> tuple[ProductionComposition, str, str]:
+    UserConfigStore(data_dir / "config.json").save(
+        UserConfig(
+            providers={"planner": ProviderConfig(provider_type="fake", default_model="fake-v1")},
+            defaults={"host_generation": "planner:fake-v1"},
+        )
+    )
     composition = ProductionComposition.build(
         data_dir,
         provider_factory=ProviderFactory(environ={}),
