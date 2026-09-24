@@ -40,8 +40,8 @@ def test_health_routes_through_llm_runtime_adapter(tmp_path, monkeypatch) -> Non
 
     health = controller.health("planner")
 
-    assert health.ready is True
-    assert health.detail == "llm-ready"
+    assert health.healthy is True
+    assert health.message == "llm-ready"
 
 
 def test_health_routes_through_tts_runtime_adapter(tmp_path, monkeypatch) -> None:
@@ -52,5 +52,5 @@ def test_health_routes_through_tts_runtime_adapter(tmp_path, monkeypatch) -> Non
 
     health = controller.health("speech")
 
-    assert health.ready is True
-    assert health.detail == "tts-ready"
+    assert health.healthy is True
+    assert health.message == "tts-ready"
