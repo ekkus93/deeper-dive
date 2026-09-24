@@ -168,6 +168,10 @@ class FakeLLMProvider:
 
     def _response_for(self, request: LLMRequest) -> str:
         prompt = "\n".join(message.content for message in request.messages).lower()
+        if request.response_schema is not None:
+            required = request.response_schema.get("required")
+            if required == ["speaker_id", "text", "evidence_ids"]:
+                return self._host_turn_response(request)
         if "identify research gaps" in prompt and "gaps array" in prompt:
             try:
                 payload = json.loads(self.response)
@@ -177,6 +181,23 @@ class FakeLLMProvider:
                 return self.response
             return self._research_gap_response(request)
         return self.response
+
+    @staticmethod
+    def _host_turn_response(request: LLMRequest) -> str:
+        try:
+            payload = json.loads(request.messages[-1].content)
+        except (IndexError, json.JSONDecodeError):
+            payload = {}
+        speaker_id = str(payload.get("speaker_id", "")) if isinstance(payload, dict) else ""
+        evidence_ids = payload.get("evidence_ids", []) if isinstance(payload, dict) else []
+        return json.dumps(
+            {
+                "speaker_id": speaker_id,
+                "text": "provider-backed deterministic production turn",
+                "evidence_ids": evidence_ids if isinstance(evidence_ids, list) else [],
+            },
+            sort_keys=True,
+        )
 
     @staticmethod
     def _research_gap_response(request: LLMRequest) -> str:

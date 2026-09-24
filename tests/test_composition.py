@@ -28,7 +28,8 @@ def test_production_composition_loads_persisted_providers(tmp_path) -> None:
             providers={
                 "planner": ProviderConfig(provider_type="fake", default_model="fake-v1"),
                 "speech": ProviderConfig(provider_type="fake-tts"),
-            }
+            },
+            defaults={"host_generation": "planner:fake-v1"},
         )
     )
 
@@ -155,7 +156,8 @@ def test_production_composition_can_plan_and_generate_with_deterministic_provide
     data_dir = tmp_path / "data"
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
-            providers={"planner": ProviderConfig(provider_type="fake", default_model="fake-v1")}
+            providers={"planner": ProviderConfig(provider_type="fake", default_model="fake-v1")},
+            defaults={"host_generation": "planner:fake-v1"},
         )
     )
     composition = ProductionComposition.build(
