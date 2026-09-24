@@ -20,27 +20,29 @@
 
 ## PCG-001 — Remove hidden deterministic host-turn generation from production stages
 
-- [ ] Identify every production generation path that instantiates or depends on hidden deterministic host-turn providers.
-- [ ] Replace hidden deterministic turn generation with configured provider-backed generation.
-- [ ] Keep deterministic behavior available only through explicit configured fake/development provider adapters.
-- [ ] Add a regression test that fails if production generation emits the old canned deterministic turn text without provider participation.
+- [x] Identify every production generation path that instantiates or depends on hidden deterministic host-turn providers.
+- [x] Replace hidden deterministic turn generation with configured provider-backed generation.
+- [x] Keep deterministic behavior available only through explicit configured fake/development provider adapters.
+- [x] Add a regression test that fails if production generation emits the old canned deterministic turn text without provider participation.
 
 ## PCG-002 — Resolve and use configured LLM role assignments during generation
 
-- [ ] Resolve effective model-role assignments for the run before conversation generation.
-- [ ] Construct provider adapters through the production provider factory/registry.
-- [ ] Use the configured host-generation role for host turns.
+- [x] Resolve effective model-role assignments for the run before conversation generation.
+- [x] Construct provider adapters through the production provider factory/registry.
+- [x] Use the configured host-generation role for host turns.
 - [ ] Use the configured directing role where director behavior is claimed.
 - [ ] Use the configured verification role where verification behavior is claimed.
 - [ ] Persist provider/model identity evidence with generated turns or run diagnostics where appropriate.
-- [ ] Add tests proving configured fake LLM providers are called and their unique output is persisted.
+- [x] Add tests proving configured fake LLM providers are called and their unique output is persisted.
 
 ## PCG-003 — Preserve transcript provenance and structured output validation
 
 - [ ] Preserve chapter, segment, host, claim, citation, and source-passage provenance in provider-backed generated turns.
-- [ ] Validate provider structured output before persistence.
+- [x] Validate provider structured output before persistence.
 - [ ] Surface sanitized actionable failures for malformed provider output.
-- [ ] Ensure transcript review, repair, export, and multi-episode isolation still pass with provider-backed generation.
+- [x] Ensure transcript review, repair, export, and multi-episode isolation still pass with provider-backed generation.
+
+**Evidence:** PR #397 added `LLMHostTurnProvider` with model-bound structured-output validation and malformed-response rejection, passed exact-head CI run `36008687820`, merged as `a639d3a4622718160342cc3ffeb995f9d411b3b6`, and passed merged-master CI run `36008889541`. PR #398 removed the hidden production `_DeterministicHostTurnProvider` path, routes `_conversation_stage` through effective `HOST_GENERATION` assignments and the production LLM registry, keeps deterministic CI behavior only through configured fake providers, updated CLI/TUI/library/export/multi-episode/fresh-machine fixtures to configure `host_generation`, passed exact-head CI run `36049281542`, merged as `1ba83280f4ae5b8106cc25f14db613bf950d4825`, and passed merged-master CI run `36049471554`. Directing/verification role use, provider/model identity persistence, full source-passage provenance, and sanitized malformed-output surfacing remain open.
 
 ---
 
