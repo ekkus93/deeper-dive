@@ -26,7 +26,8 @@ def test_cli_generate_reaches_completed_state_and_persists_episode_artifacts(
             providers={
                 "planner": ProviderConfig(provider_type="fake", default_model="fake-v1"),
                 "speech": ProviderConfig(provider_type="fake-tts"),
-            }
+            },
+            defaults={"host_generation": "planner:fake-v1"},
         )
     )
     composition = ProductionComposition.build(
