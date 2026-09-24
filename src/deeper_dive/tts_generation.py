@@ -182,9 +182,7 @@ class TTSGenerationStage:
         return tuple(resolved[turn.turn_id] for turn in turns)
 
     @staticmethod
-    def _artifact_for_current_turn(
-        turn: TTSTurn, key: str, cached: TTSArtifact
-    ) -> TTSArtifact:
+    def _artifact_for_current_turn(turn: TTSTurn, key: str, cached: TTSArtifact) -> TTSArtifact:
         return TTSArtifact(
             turn_id=turn.turn_id,
             artifact_id=cached.artifact_id,
