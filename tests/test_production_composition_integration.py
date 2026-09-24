@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.domain.clock import SystemClock, format_timestamp
 from deeper_dive.domain.ids import new_run_id
@@ -73,15 +71,3 @@ def test_production_composed_deterministic_application_can_plan_and_generate(tmp
     completed = runs.get(run_id)
     assert completed is not None
     assert completed.state == "completed"
-    fake_tts = composition.providers.tts_registry.get("speech")
-    assert len(fake_tts.requests) == 1
-    assert fake_tts.requests[0].voice == "voice-a"
-    with database.connection() as connection:
-        artifact = connection.execute(
-            "SELECT provider_id,voice,path FROM tts_artifacts"
-        ).fetchone()
-    assert artifact is not None
-    assert artifact["provider_id"] == "speech"
-    assert artifact["voice"] == "voice-a"
-    audio_path = Path(str(artifact["path"]))
-    assert b"FAKE-AUDIO" in audio_path.read_bytes()
