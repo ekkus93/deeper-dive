@@ -20,7 +20,10 @@ def _json_call(args: list[str], capsys: pytest.CaptureFixture[str]) -> dict[str,
 def _build_project_with_episode(data_dir: Path) -> tuple[ProductionComposition, str, str]:
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
-            providers={"planner": ProviderConfig(provider_type="fake", default_model="fake-v1")},
+            providers={
+                "planner": ProviderConfig(provider_type="fake", default_model="fake-v1"),
+                "speech": ProviderConfig(provider_type="fake-tts"),
+            },
             defaults={"host_generation": "planner:fake-v1"},
         )
     )
