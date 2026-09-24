@@ -405,9 +405,7 @@ def _tts_stage(
 ) -> None:
     root = service.workspaces.project_root(project_id)
     database = Database(root / "project.db")
-    turns = HostTurnService(database).list_turns(
-        context.episode_id
-    )
+    turns = HostTurnService(database).list_turns(context.episode_id)
     if not turns:
         return
     output = root / "output" / "tts"
@@ -449,9 +447,7 @@ def _composition_stage(
 ) -> None:
     root = service.workspaces.project_root(project_id)
     database = Database(root / "project.db")
-    turns = HostTurnService(database).list_turns(
-        context.episode_id
-    )
+    turns = HostTurnService(database).list_turns(context.episode_id)
     if not turns:
         return
     items = tuple(
