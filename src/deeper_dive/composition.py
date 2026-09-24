@@ -373,7 +373,9 @@ def _conversation_stage(
         raise KeyError(context.episode_id)
     composition = getattr(service, "_production_composition", None)
     if composition is None:
-        raise RuntimeError(\n            "production composition is unavailable for conversation generation"\n        )
+        raise RuntimeError(
+            "production composition is unavailable for conversation generation"
+        )
     assignments, errors = composition.effective_model_role_assignments_for_episode(
         project_id, context.episode_id
     )
