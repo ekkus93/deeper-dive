@@ -121,9 +121,10 @@ def test_episode_cli_create_plan_generate_status_and_export(
         Path(str(export["audio"])),
     }
     assert all(path.is_file() for path in exported_paths)
-    assert "Configured fake provider host turn marker" in Path(
-        str(export["transcript"])
-    ).read_text(encoding="utf-8")
+    assert (
+        "Configured fake provider host turn marker"
+        in Path(str(export["transcript"])).read_text(encoding="utf-8")
+    )
     metadata = json.loads(Path(str(export["metadata"])).read_text(encoding="utf-8"))
     assert metadata["episode_id"] == episode_id
     assert metadata["run_id"] == run["id"]
