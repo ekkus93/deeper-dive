@@ -32,7 +32,7 @@
 - [x] Use the configured host-generation role for host turns.
 - [ ] Use the configured directing role where director behavior is claimed.
 - [ ] Use the configured verification role where verification behavior is claimed.
-- [ ] Persist provider/model identity evidence with generated turns or run diagnostics where appropriate.
+- [x] Persist provider/model identity evidence with generated turns or run diagnostics where appropriate.
 - [x] Add tests proving configured fake LLM providers are called and their unique output is persisted.
 
 ## PCG-003 — Preserve transcript provenance and structured output validation
@@ -42,7 +42,7 @@
 - [ ] Surface sanitized actionable failures for malformed provider output.
 - [x] Ensure transcript review, repair, export, and multi-episode isolation still pass with provider-backed generation.
 
-**Evidence:** PR #397 added `LLMHostTurnProvider` with model-bound structured-output validation and malformed-response rejection, passed exact-head CI run `36008687820`, merged as `a639d3a4622718160342cc3ffeb995f9d411b3b6`, and passed merged-master CI run `36008889541`. PR #398 removed the hidden production `_DeterministicHostTurnProvider` path, routes `_conversation_stage` through effective `HOST_GENERATION` assignments and the production LLM registry, keeps deterministic CI behavior only through configured fake providers, updated CLI/TUI/library/export/multi-episode/fresh-machine fixtures to configure `host_generation`, passed exact-head CI run `36049281542`, merged as `1ba83280f4ae5b8106cc25f14db613bf950d4825`, and passed merged-master CI run `36049471554`. Directing/verification role use, provider/model identity persistence, full source-passage provenance, and sanitized malformed-output surfacing remain open.
+**Evidence:** PR #397 added `LLMHostTurnProvider` with model-bound structured-output validation and malformed-response rejection, passed exact-head CI run `36008687820`, merged as `a639d3a4622718160342cc3ffeb995f9d411b3b6`, and passed merged-master CI run `36008889541`. PR #398 removed the hidden production `_DeterministicHostTurnProvider` path, routes `_conversation_stage` through effective `HOST_GENERATION` assignments and the production LLM registry, keeps deterministic CI behavior only through configured fake providers, updated CLI/TUI/library/export/multi-episode/fresh-machine fixtures to configure `host_generation`, passed exact-head CI run `36049281542`, merged as `1ba83280f4ae5b8106cc25f14db613bf950d4825`, and passed merged-master CI run `36049471554`. PR #401 added durable turn-level provider/model identity evidence in `conversation_turn_provider_identity`, preserved existing `conversation_turns` schema shape, passed exact-head CI run `36052199820`, merged as `650e6c489862b39e7862cf7fce05d546ad158466`, and passed merged-master CI run `36052391424`. Directing/verification role use, full source-passage provenance, and sanitized malformed-output surfacing remain open.
 
 ---
 
