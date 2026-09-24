@@ -83,4 +83,6 @@ def test_production_composed_deterministic_application_can_plan_and_generate(tmp
     assert artifact is not None
     assert artifact["provider_id"] == "speech"
     assert artifact["voice"] == "voice-a"
-    assert "FAKE-AUDIO" in Path(str(artifact["path"])).read_text(encoding="utf-8")
+    assert "FAKE-AUDIO" in Path(str(artifact["path"])).read_text(
+        encoding="utf-8"
+    )
