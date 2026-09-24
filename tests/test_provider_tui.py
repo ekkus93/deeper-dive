@@ -68,7 +68,7 @@ def test_save_provider_persists_extended_configuration_fields(tmp_path) -> None:
     assert saved.network_scope == "local"
     assert saved.response_format == "mp3"
     assert saved.voices == ("alice", "bob")
-    assert tuple(voice.voice_id for voice in controller.tts("speech").voices()) == (
+    assert tuple(voice.id for voice in controller.tts("speech").voices()) == (
         "alice",
         "bob",
     )
