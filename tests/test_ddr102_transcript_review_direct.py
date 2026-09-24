@@ -32,7 +32,15 @@ def _review_app(tmp_path: Path) -> tuple[DeeperDiveApp, str]:
             """INSERT INTO conversation_turns(
                 id,episode_id,segment_ordinal,turn_ordinal,speaker_id,text,evidence_ids_json
             ) VALUES (?,?,?,?,?,?,?)""",
-            ("turn-1", episode.id, 0, 0, "host-1", "Durable review text", '["chunk-1"]'),
+            (
+                "turn-1",
+                episode.id,
+                0,
+                0,
+                "host-1",
+                "Durable review text",
+                '["chunk-1"]',
+            ),
         )
     app = DeeperDiveApp(service)
     app.current_project_id = project.id
@@ -51,7 +59,11 @@ def test_ddr102_review_renderers_cover_chapters_claims_and_citations() -> None:
         (),
     )
     passage = SourcePassageSummary(
-        "chunk-1", "Source title", "user", "page 1", "Evidence passage"
+        "chunk-1",
+        "Source title",
+        "user",
+        "page 1",
+        "Evidence passage",
     )
     screen = TranscriptReviewScreen()
     screen.turns = (turn,)
