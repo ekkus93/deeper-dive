@@ -24,12 +24,16 @@ def test_cli_acceptance_create_source_host_episode_generate_export(
     data_dir = tmp_path / "data"
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
-            providers={"planner": ProviderConfig(provider_type="fake", default_model="fake-v1")},
+            providers={
+                "planner": ProviderConfig(provider_type="fake", default_model="fake-v1")
+            },
             defaults={"episode_planning": "planner:fake-v1"},
         )
     )
     corpus = tmp_path / "corpus.txt"
-    corpus.write_text("Deterministic local acceptance corpus about orbital mechanics.", encoding="utf-8")
+    corpus.write_text(
+        "Deterministic local acceptance corpus about orbital mechanics.", encoding="utf-8"
+    )
     base = ["--data-dir", str(data_dir), "--json"]
 
     project = _json_call([*base, "project", "create", "DDR-111 acceptance"], capsys)
@@ -87,7 +91,9 @@ def test_cli_acceptance_pause_resume_uses_durable_control_path(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     data_dir = tmp_path / "data"
-    composition = ProductionComposition.build(data_dir, provider_factory=ProviderFactory(environ={}))
+    composition = ProductionComposition.build(
+        data_dir, provider_factory=ProviderFactory(environ={})
+    )
     project = composition.service.create_project("DDR-111 control")
     episode = composition.service.quick_deep_dive(project.id)
     run = composition.create_generation_run(project.id, episode.id)
@@ -108,4 +114,5 @@ def test_cli_acceptance_pause_resume_uses_durable_control_path(
     persisted = composition.generation_run_repository(project.id).get(run.id)
     assert persisted is not None
     assert persisted.state == "completed"
-    assert (composition.service.workspaces.project_root(project.id) / "output" / f"{episode.id}.wav").is_file()
+    audio = composition.service.workspaces.project_root(project.id) / "output" / f"{episode.id}.wav"
+    assert audio.is_file()
