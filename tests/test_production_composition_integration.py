@@ -88,12 +88,12 @@ def test_malformed_host_generation_output_fails_with_sanitized_run_state(tmp_pat
     project, episode = _configured_episode(composition)
     planner = composition.configured_planning_service(project.id, "planner", "fake-v1")
     planner.build_plan(episode.id)
-    private_value = "PCG003_PRIVATE_MARKER"
+    sentinel = "PCG003_REDACTION_SENTINEL"
     composition.providers.llm_registry.register(
         FakeLLMProvider(
             provider_id="planner",
             model="fake-v1",
-            response=f"not-json private-marker {private_value}",
+            response=f"not-json redaction-sentinel {sentinel}",
         )
     )
     run = composition.create_generation_run(project.id, episode.id)
@@ -108,4 +108,4 @@ def test_malformed_host_generation_output_fails_with_sanitized_run_state(tmp_pat
     assert failed.failure_code == "stage_failed"
     assert failed.failure_message is not None
     assert "host-generation provider returned invalid JSON" in failed.failure_message
-    assert private_value not in failed.failure_message
+    assert sentinel not in failed.failure_message
