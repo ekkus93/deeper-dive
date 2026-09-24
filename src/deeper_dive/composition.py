@@ -20,7 +20,7 @@ from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.episode_planner import EpisodePlanGenerator, EpisodePlannerService
 from deeper_dive.export import EpisodeExporter
 from deeper_dive.generation_monitor import GenerationMonitorController
-from deeper_dive.host_turn import HostTurn, HostTurnService
+from deeper_dive.host_turn import HostTurnService
 from deeper_dive.host_turn_llm import LLMHostTurnProvider
 from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
 from deeper_dive.pipeline import (
@@ -47,7 +47,11 @@ from deeper_dive.targeted_repair import (
     TurnRepairProvider,
 )
 from deeper_dive.tts_benchmark import TTSBenchmarkService
-from deeper_dive.tts_generation import TTS_ARTIFACT_STATUS_COMPLETE
+from deeper_dive.tts_generation import (
+    TTSArtifactRepository,
+    TTSGenerationStage,
+    TTSTurn,
+)
 from deeper_dive.user_config import UserConfigStore
 
 
@@ -406,36 +410,44 @@ def _tts_stage(
     turns = HostTurnService(database).list_turns(context.episode_id)
     if not turns:
         return
-    output = root / "output" / "tts"
-    output.mkdir(parents=True, exist_ok=True)
-    with database.transaction() as connection:
-        for turn in turns:
-            artifact_id = f"{turn.id}-deterministic"
-            path = output / f"{artifact_id}.wav"
-            path.write_bytes(_deterministic_audio_bytes(turn))
-            connection.execute(
-                """INSERT INTO tts_artifacts(
-                    turn_id,artifact_id,cache_key,status,path,provider_id,voice,model
-                ) VALUES (?,?,?,?,?,?,?,?)
-                ON CONFLICT(turn_id) DO UPDATE SET
-                    artifact_id=excluded.artifact_id,
-                    cache_key=excluded.cache_key,
-                    status=excluded.status,
-                    path=excluded.path,
-                    provider_id=excluded.provider_id,
-                    voice=excluded.voice,
-                    model=excluded.model""",
-                (
-                    turn.id,
-                    artifact_id,
-                    f"{context.episode_id}:{turn.id}:deterministic",
-                    TTS_ARTIFACT_STATUS_COMPLETE,
-                    str(path),
-                    "deterministic-tts",
-                    turn.speaker_id,
-                    "deterministic-v1",
-                ),
+    composition = getattr(service, "_production_composition", None)
+    if composition is None:
+        raise RuntimeError("production composition is unavailable for TTS generation")
+    hosts = HostEpisodeRepository(database)
+    tts_turns: list[TTSTurn] = []
+    for turn in turns:
+        host_record = hosts.get_host(turn.speaker_id)
+        if host_record is None:
+            raise ValueError(f"unknown host {turn.speaker_id!r} for TTS generation")
+        if not host_record.tts_provider:
+            raise ValueError(f"host {turn.speaker_id!r} has no TTS provider assigned")
+        if not host_record.tts_voice:
+            raise ValueError(f"host {turn.speaker_id!r} has no TTS voice assigned")
+        try:
+            provider = composition.providers.tts_registry.get(host_record.tts_provider)
+        except KeyError as exc:
+            raise ValueError(
+                f"unknown TTS provider {host_record.tts_provider!r} for host {turn.speaker_id!r}"
+            ) from exc
+        if not any(voice.id == host_record.tts_voice for voice in provider.voices()):
+            raise ValueError(
+                f"unknown TTS voice {host_record.tts_voice!r} "
+                f"for provider {host_record.tts_provider!r}"
             )
+        tts_turns.append(
+            TTSTurn(
+                turn_id=turn.id,
+                host_id=turn.speaker_id,
+                text=turn.text,
+                provider_id=host_record.tts_provider,
+                voice=host_record.tts_voice,
+            )
+        )
+    TTSGenerationStage(
+        composition.providers.tts_registry,
+        TTSArtifactRepository(database),
+        root / "output" / "tts",
+    ).generate(context.run_id, tuple(tts_turns))
 
 
 def _composition_stage(
@@ -448,11 +460,23 @@ def _composition_stage(
     turns = HostTurnService(database).list_turns(context.episode_id)
     if not turns:
         return
+    with database.connection() as connection:
+        rows = {
+            str(row["turn_id"]): row
+            for row in connection.execute(
+                "SELECT turn_id,artifact_id,path FROM tts_artifacts "
+                "WHERE turn_id IN (SELECT id FROM conversation_turns WHERE episode_id=?)",
+                (context.episode_id,),
+            ).fetchall()
+        }
+    missing = [turn.id for turn in turns if turn.id not in rows]
+    if missing:
+        raise ValueError("composition requires TTS artifacts for every conversation turn")
     items = tuple(
         TimelineItem.clip(
             turn_id=turn.id,
             host_id=turn.speaker_id,
-            artifact_id=f"{turn.id}-deterministic",
+            artifact_id=str(rows[turn.id]["artifact_id"]),
             duration_seconds=max(0.1, len(turn.text.split()) / 150 * 60),
             metadata={"chapter_title": f"Turn {turn.turn_ordinal + 1}"},
         )
@@ -462,11 +486,9 @@ def _composition_stage(
     output = root / "output"
     output.mkdir(parents=True, exist_ok=True)
     episode_audio = output / f"{context.episode_id}.wav"
-    episode_audio.write_bytes(b"".join(_deterministic_audio_bytes(turn) for turn in turns))
-
-
-def _deterministic_audio_bytes(turn: HostTurn) -> bytes:
-    return f"FAKE-WAV\n{turn.speaker_id}\n{turn.text}\n".encode()
+    episode_audio.write_bytes(
+        b"".join(Path(str(rows[turn.id]["path"])).read_bytes() for turn in turns)
+    )
 
 
 def _durable_stage_boundary(context: PipelineContext) -> None:

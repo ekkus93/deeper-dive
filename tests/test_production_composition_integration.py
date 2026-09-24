@@ -30,6 +30,8 @@ def test_production_composed_deterministic_application_can_plan_and_generate(tmp
     )
     project = composition.service.create_project("Production integration")
     host = create_host_from_preset("skeptic", project.id)
+    host.tts_provider = "speech"
+    host.tts_voice = "voice-a"
     composition.service.hosts(project.id).create_host(host.to_record())
     database = composition.database_for_project(project.id)
     episode = EpisodeConfigurationService(database).create(
