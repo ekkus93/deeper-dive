@@ -50,7 +50,7 @@ def test_production_composition_plan_preflight_generate_review_export(tmp_path: 
     assert composition.service.list_source_chunks(project.id, source.id)
 
     host = create_host_from_preset("curious_explainer", project.id)
-    host_record = replace(host.to_record(), tts_provider="speech", tts_voice="default")
+    host_record = replace(host.to_record(), tts_provider="speech", tts_voice="voice-a")
     composition.service.hosts(project.id).create_host(host_record)
     episode = EpisodeConfigurationService(composition.database_for_project(project.id)).create(
         project.id,
