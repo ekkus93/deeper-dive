@@ -20,7 +20,8 @@ def _completed_episode(tmp_path: Path):
             providers={
                 "planner": ProviderConfig(provider_type="fake", default_model="fake-v1"),
                 "speech": ProviderConfig(provider_type="fake-tts"),
-            }
+            },
+            defaults={"host_generation": "planner:fake-v1"},
         )
     )
     composition = ProductionComposition.build(
@@ -56,7 +57,7 @@ def test_episode_library_export_writes_complete_episode_specific_artifact_set(
     assert result.audio is not None
     assert episode.id in result.audio.name
     assert result.audio.read_bytes().startswith(b"FAKE-WAV")
-    assert "deterministic production turn" in result.transcript.read_text(encoding="utf-8")
+    assert "Configured fake provider host turn marker" in result.transcript.read_text(encoding="utf-8")
 
     manifest = json.loads(result.manifest.read_text(encoding="utf-8"))
     assert len(manifest["sources"]) == 1
