@@ -7,6 +7,7 @@ from pathlib import Path
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.episode_library_screen import EpisodeLibraryController, EpisodeLibraryItem
+from deeper_dive.host_turn import HostTurnService
 from deeper_dive.hosts import create_host_from_preset
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.storage.run_repositories import GenerationRunRecord
@@ -87,6 +88,7 @@ def test_library_export_targets_selected_episode_run_identity(tmp_path: Path) ->
     (output / f"{first.id}.wav").write_bytes(b"audio-first")
     (output / f"{second.id}.wav").write_bytes(b"audio-second")
     database = composition.database_for_project(project.id)
+    HostTurnService(database)
     with database.transaction() as connection:
         connection.execute(
             """INSERT INTO conversation_turns(
