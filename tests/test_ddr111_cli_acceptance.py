@@ -115,7 +115,10 @@ def test_cli_acceptance_pause_resume_uses_durable_control_path(
     data_dir = tmp_path / "data"
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
-            providers={"planner": ProviderConfig(provider_type="fake", default_model="fake-v1"), "audio": ProviderConfig(provider_type="fake-tts")},
+            providers={
+                "planner": ProviderConfig(provider_type="fake", default_model="fake-v1"),
+                "audio": ProviderConfig(provider_type="fake-tts"),
+            },
             defaults={"host_generation": "planner:fake-v1"},
         )
     )
