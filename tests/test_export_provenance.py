@@ -11,7 +11,7 @@ from deeper_dive.host_turn import HostTurnService
 from deeper_dive.hosts import create_host_from_preset
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import EpisodeRecord
-from deeper_dive.storage.repositories import SourceChunkRecord, SourceRecord
+from deeper_dive.storage.repositories import CorpusRepository, SourceChunkRecord, SourceRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.storage.workspace import WorkspaceManager
 
@@ -43,7 +43,8 @@ def test_episode_export_preserves_transcript_source_and_claim_provenance(
         content_hash="hash",
         location="chapter 2 / paragraph 4",
     )
-    corpus = service.corpus(project.id)
+    database = Database(service.workspaces.project_root(project.id) / "project.db")
+    corpus = CorpusRepository(database)
     corpus.create_source(source)
     corpus.create_chunk(chunk)
     host = create_host_from_preset("curious_explainer", project.id)
@@ -66,7 +67,6 @@ def test_episode_export_preserves_transcript_source_and_claim_provenance(
         modified_at=timestamp,
     )
     service.runs(project.id).create(run)
-    database = Database(service.workspaces.project_root(project.id) / "project.db")
     HostTurnService(database)
     with database.transaction() as connection:
         connection.execute(
