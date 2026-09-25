@@ -107,7 +107,7 @@ class EpisodeLibraryExportService:
             evidence_ids = cls._json_ids(row["evidence_ids_json"])
             evidence_by_turn[turn_id] = evidence_ids
             passage_ids.extend(evidence_ids)
-            for claim in claims_by_turn.get(turn_id, ()):  # claim evidence is transcript provenance too
+            for claim in claims_by_turn.get(turn_id, ()):
                 passage_ids.extend(claim.supporting_ids)
                 passage_ids.extend(claim.contradicting_ids)
         passages = cls._passages(database, tuple(dict.fromkeys(passage_ids)))
