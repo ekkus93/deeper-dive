@@ -313,7 +313,8 @@ class ProvidersScreen(Screen[None]):
         if not provider_type:
             return "Enter a provider adapter to see supported configuration fields."
         try:
-            supported_fields = self.provider_app.provider_controller.configuration_fields(provider_type)
+            controller = self.provider_app.provider_controller
+            supported_fields = controller.configuration_fields(provider_type)
         except ValueError as exc:
             return user_status("provider", exc)
         kind = provider_type.strip().lower().replace("_", "-")
