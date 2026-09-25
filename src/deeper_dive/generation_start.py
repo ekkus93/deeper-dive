@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
+from pathlib import Path
 
 from deeper_dive.domain.clock import format_timestamp
 from deeper_dive.domain.ids import new_run_id
