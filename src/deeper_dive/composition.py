@@ -20,6 +20,10 @@ from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.episode_planner import EpisodePlanGenerator, EpisodePlannerService
 from deeper_dive.export import EpisodeExporter
 from deeper_dive.generation_monitor import GenerationMonitorController
+from deeper_dive.generation_role_providers import (
+    LLMDirectorDecisionProvider,
+    LLMTranscriptVerifier,
+)
 from deeper_dive.host_turn import HostTurn, HostTurnService
 from deeper_dive.host_turn_llm import LLMHostTurnProvider
 from deeper_dive.hosts import HostProfile
@@ -333,6 +337,7 @@ def _production_stage_handlers(
     handlers = {stage: _durable_stage_boundary for stage in DEFAULT_STAGES}
     handlers["planning"] = lambda context: _planning_stage(service, project_id, context)
     handlers["conversation"] = lambda context: _conversation_stage(service, project_id, context)
+    handlers["verification"] = lambda context: _verification_stage(service, project_id, context)
     handlers["tts"] = lambda context: _tts_stage(service, project_id, context)
     handlers["composition"] = lambda context: _composition_stage(service, project_id, context)
     return handlers
@@ -387,21 +392,83 @@ def _conversation_stage(
     )
     if errors:
         raise ValueError("invalid model-role configuration: " + "; ".join(errors))
-    assignment = assignments.resolve(model_roles.ModelRole.HOST_GENERATION)
+    provider, model = _llm_provider_for_role(
+        composition,
+        assignments,
+        model_roles.ModelRole.HOST_GENERATION,
+    )
+    turns = HostTurnService(database, LLMHostTurnProvider(provider, model))
+    decision = _director_decision(composition, assignments, episode.title, host_ids)
+    turns.generate(context.run_id, context.episode_id, decision)
+
+
+def _director_decision(
+    composition: ProductionComposition,
+    assignments: model_roles.ModelRoleAssignments,
+    episode_title: str,
+    host_ids: tuple[str, ...],
+) -> DirectorDecision:
+    if assignments.resolve(model_roles.ModelRole.DIRECTING) is None:
+        return DirectorDecision(
+            speaker_id=host_ids[0],
+            intent=f"Discuss {episode_title}",
+            target_duration_seconds=45,
+            target_words=80,
+        )
+    provider, model = _llm_provider_for_role(
+        composition,
+        assignments,
+        model_roles.ModelRole.DIRECTING,
+    )
+    return LLMDirectorDecisionProvider(provider, model).decide(
+        episode_title=episode_title,
+        host_ids=host_ids,
+    )
+
+
+def _verification_stage(
+    service: DeeperDiveService,
+    project_id: str,
+    context: PipelineContext,
+) -> None:
+    database = Database(service.workspaces.project_root(project_id) / "project.db")
+    turns = tuple(HostTurnService(database).list_turns(context.episode_id))
+    if not turns:
+        return
+    composition = getattr(service, "_production_composition", None)
+    if composition is None:
+        raise RuntimeError("production composition is unavailable for verification")
+    assignments, errors = composition.effective_model_role_assignments_for_episode(
+        project_id, context.episode_id
+    )
+    if errors:
+        raise ValueError("invalid model-role configuration: " + "; ".join(errors))
+    if assignments.resolve(model_roles.ModelRole.VERIFICATION) is None:
+        return
+    provider, model = _llm_provider_for_role(
+        composition,
+        assignments,
+        model_roles.ModelRole.VERIFICATION,
+    )
+    LLMTranscriptVerifier(provider, model).verify(
+        episode_id=context.episode_id,
+        turns=turns,
+    )
+
+
+def _llm_provider_for_role(
+    composition: ProductionComposition,
+    assignments: model_roles.ModelRoleAssignments,
+    role: model_roles.ModelRole,
+) -> tuple[LLMProvider, str]:
+    assignment = assignments.resolve(role)
     if assignment is None:
-        raise ValueError("no provider/model assignment for host_generation")
+        raise ValueError(f"no provider/model assignment for {role.value}")
     try:
         provider = composition.providers.llm_registry.get(assignment.provider)
     except KeyError as exc:
-        raise ValueError(f"unknown provider {assignment.provider!r} for host_generation") from exc
-    turns = HostTurnService(database, LLMHostTurnProvider(provider, assignment.model))
-    decision = DirectorDecision(
-        speaker_id=host_ids[0],
-        intent=f"Discuss {episode.title}",
-        target_duration_seconds=45,
-        target_words=80,
-    )
-    turns.generate(context.run_id, context.episode_id, decision)
+        raise ValueError(f"unknown provider {assignment.provider!r} for {role.value}") from exc
+    return provider, assignment.model
 
 
 # fmt: off
