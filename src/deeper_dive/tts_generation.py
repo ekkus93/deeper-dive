@@ -95,8 +95,9 @@ class TTSArtifactRepository:
         with self.database.transaction() as db:
             db.execute(
                 """INSERT OR IGNORE INTO generation_run_units(run_id,stage,unit_id,completed_at)
-                VALUES (?, 'tts', ?, datetime('now'))""",
-                (run_id, turn_id),
+                SELECT ?, 'tts', ?, datetime('now')
+                WHERE EXISTS (SELECT 1 FROM generation_runs WHERE id=?)""",
+                (run_id, turn_id, run_id),
             )
 
     @staticmethod
