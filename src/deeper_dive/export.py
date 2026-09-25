@@ -13,9 +13,36 @@ from deeper_dive.ffmpeg import FFmpegComposer
 
 
 @dataclass(frozen=True, slots=True)
+class TranscriptClaim:
+    claim_id: str
+    text: str
+    state: str = "unverified"
+    rationale: str = ""
+    supporting_ids: tuple[str, ...] = ()
+    contradicting_ids: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class TranscriptSourcePassage:
+    chunk_id: str
+    source_title: str
+    origin: str
+    location: str | None = None
+    text: str = ""
+    relation: str = "cited"
+
+
+@dataclass(frozen=True, slots=True)
 class TranscriptTurn:
     host: str
     text: str
+    turn_id: str = ""
+    speaker_id: str = ""
+    segment_ordinal: int = 0
+    turn_ordinal: int = 0
+    evidence_ids: tuple[str, ...] = ()
+    claims: tuple[TranscriptClaim, ...] = ()
+    source_passages: tuple[TranscriptSourcePassage, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,11 +83,11 @@ class EpisodeExporter:
         composer._run([str(composer.config.executable), "-y", "-i", str(wav_path), str(mp3_path)])
         return mp3_path
 
-    @staticmethod
-    def write_transcript(path: Path, title: str, turns: tuple[TranscriptTurn, ...]) -> Path:
+    @classmethod
+    def write_transcript(cls, path: Path, title: str, turns: tuple[TranscriptTurn, ...]) -> Path:
         body = [f"# {title}", ""]
         for turn in turns:
-            body.extend((f"## {turn.host}", "", turn.text, ""))
+            body.extend(cls._turn_markdown(turn))
         path.write_text("\n".join(body), encoding="utf-8")
         return path
 
@@ -87,3 +114,69 @@ class EpisodeExporter:
 
         path.write_text(json.dumps(clean(metadata), indent=2, sort_keys=True), encoding="utf-8")
         return path
+
+    @staticmethod
+    def transcript_provenance(turns: tuple[TranscriptTurn, ...]) -> dict[str, object]:
+        return {
+            "turns": [
+                {
+                    "turn_id": turn.turn_id,
+                    "chapter": turn.segment_ordinal + 1,
+                    "segment_ordinal": turn.segment_ordinal,
+                    "turn_ordinal": turn.turn_ordinal,
+                    "host": turn.host,
+                    "speaker_id": turn.speaker_id,
+                    "citations": list(turn.evidence_ids),
+                    "claims": [asdict(claim) for claim in turn.claims],
+                    "source_passages": [asdict(passage) for passage in turn.source_passages],
+                }
+                for turn in turns
+            ]
+        }
+
+    @staticmethod
+    def _turn_markdown(turn: TranscriptTurn) -> list[str]:
+        heading = f"## {turn.host}"
+        if turn.turn_id:
+            heading = (
+                f"## Chapter {turn.segment_ordinal + 1} / "
+                f"Turn {turn.turn_ordinal + 1}: {turn.host}"
+            )
+        lines = [heading, ""]
+        if turn.turn_id:
+            lines.extend(
+                (
+                    f"Turn ID: {turn.turn_id}",
+                    f"Speaker ID: {turn.speaker_id}",
+                    "Citations: " + (", ".join(turn.evidence_ids) if turn.evidence_ids else "none"),
+                    "",
+                )
+            )
+        lines.extend((turn.text, ""))
+        if turn.claims:
+            lines.extend(("### Claims", ""))
+            for claim in turn.claims:
+                evidence = tuple(dict.fromkeys((*claim.supporting_ids, *claim.contradicting_ids)))
+                lines.extend(
+                    (
+                        f"- [{claim.state}] {claim.text}",
+                        f"  - Claim ID: {claim.claim_id}",
+                        f"  - Evidence: {', '.join(evidence) if evidence else 'none'}",
+                    )
+                )
+                if claim.rationale:
+                    lines.append(f"  - Rationale: {claim.rationale}")
+            lines.append("")
+        if turn.source_passages:
+            lines.extend(("### Source passages", ""))
+            for passage in turn.source_passages:
+                location = passage.location or "location unavailable"
+                lines.extend(
+                    (
+                        f"- [{passage.chunk_id}] {passage.relation} | {passage.origin} | "
+                        f"{passage.source_title} | {location}",
+                        f"  {passage.text}",
+                    )
+                )
+            lines.append("")
+        return lines
