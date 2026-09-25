@@ -18,6 +18,7 @@ from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.episode_library_export import EpisodeLibraryExportService
 from deeper_dive.episode_planner import EpisodePlannerService
+from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.hosts import HostProfile, create_host_from_preset, preset_names
 from deeper_dive.research_controller import PersistentResearchController
 from deeper_dive.research_gaps import ResearchGap, ResearchGapPlanner
@@ -354,8 +355,8 @@ def _episode_command(composition: ProductionComposition, args: argparse.Namespac
         planner = _plan_reader(composition, project_id)
         return _output(asdict(planner.load_plan(episode.id)), args.json_output)
     if args.episode_command == "generate":
-        run = composition.create_generation_run(project_id, episode.id)
-        result = composition.run_generation(project_id, run.id)
+        start = GenerationStartService(composition).start(project_id, episode.id)
+        result = composition.run_generation(project_id, start.run.id)
         return _output(asdict(result.run), args.json_output)
     if args.episode_command in {"pause", "cancel", "resume", "status"}:
         return _episode_run_command(composition, episode, args)

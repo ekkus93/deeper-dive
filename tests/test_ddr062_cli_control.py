@@ -24,7 +24,10 @@ def _build_project_with_episode(data_dir: Path) -> tuple[ProductionComposition, 
                 "planner": ProviderConfig(provider_type="fake", default_model="fake-v1"),
                 "speech": ProviderConfig(provider_type="fake-tts"),
             },
-            defaults={"host_generation": "planner:fake-v1"},
+            defaults={
+                "episode_planning": "planner:fake-v1",
+                "host_generation": "planner:fake-v1",
+            },
         )
     )
     composition = ProductionComposition.build(
@@ -32,6 +35,7 @@ def _build_project_with_episode(data_dir: Path) -> tuple[ProductionComposition, 
         provider_factory=ProviderFactory(environ={}),
     )
     project = composition.service.create_project("CLI control")
+    composition.service.add_pasted_source(project.id, "Fixture", "Indexed source text.")
     episode = composition.service.quick_deep_dive(project.id)
     with composition.database_for_project(project.id).transaction() as connection:
         connection.execute(
@@ -49,6 +53,10 @@ def test_cli_pause_reaches_durable_paused_state_and_resume_executes_from_checkpo
     data_dir = tmp_path / "data"
     composition, project_id, episode_id = _build_project_with_episode(data_dir)
     run = composition.create_generation_run(project_id, episode_id)
+    monkeypatch.setattr(
+        "deeper_dive.preflight.FFmpegConfig.detect",
+        staticmethod(lambda executable=None: executable or Path("/fake/ffmpeg")),
+    )
     monkeypatch.setattr(
         cli_module.ProductionComposition,
         "build",
@@ -110,6 +118,10 @@ def test_cli_rejects_illegal_control_transitions(
 ) -> None:
     data_dir = tmp_path / "data"
     composition, project_id, episode_id = _build_project_with_episode(data_dir)
+    monkeypatch.setattr(
+        "deeper_dive.preflight.FFmpegConfig.detect",
+        staticmethod(lambda executable=None: executable or Path("/fake/ffmpeg")),
+    )
     monkeypatch.setattr(
         cli_module.ProductionComposition,
         "build",

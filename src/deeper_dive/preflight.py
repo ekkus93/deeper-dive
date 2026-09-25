@@ -8,7 +8,12 @@ from pathlib import Path
 from deeper_dive.ffmpeg import FFmpegConfig, FFmpegError
 from deeper_dive.hosts import HostProfile
 from deeper_dive.llm import LLMProviderRegistry
-from deeper_dive.model_roles import ModelRoleAssignments, preflight_model_roles
+from deeper_dive.model_roles import (
+    REQUIRED_MODEL_ROLES,
+    ModelRole,
+    ModelRoleAssignments,
+    preflight_model_roles,
+)
 from deeper_dive.tts import TTSProviderRegistry
 
 
@@ -96,10 +101,15 @@ class PreflightService:
         cloud_prices: tuple[CloudPrice, ...] = (),
         local_provider_ids: frozenset[str] = frozenset(),
         local_only: bool = False,
+        required_model_roles: tuple[ModelRole, ...] = REQUIRED_MODEL_ROLES,
     ) -> PreflightReport:
         issues: list[PreflightIssue] = []
         routes: list[ProviderRoute] = []
-        role_result = preflight_model_roles(assignments, self.llm_registry)
+        role_result = preflight_model_roles(
+            assignments,
+            self.llm_registry,
+            required_roles=required_model_roles,
+        )
         issues.extend(
             PreflightIssue("llm_assignment", item.message) for item in role_result.blockers
         )

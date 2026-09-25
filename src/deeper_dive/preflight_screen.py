@@ -15,7 +15,7 @@ from textual.widgets import Button, Footer, Header, Label, Static
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.generation_monitor import GenerationMonitorScreen
-from deeper_dive.generation_start import select_or_create_generation_run
+from deeper_dive.generation_start import GenerationStartService, select_or_create_generation_run
 from deeper_dive.hosts import HostProfile
 from deeper_dive.model_roles import (
     ModelRole,
@@ -140,7 +140,19 @@ class PreflightController:
         episode = self._selected_episode(repository, project_id, app.current_episode_id)
         if episode is None:
             raise ValueError("create/build an episode before generation")
-        result = select_or_create_generation_run(app.service, project_id, episode.id)
+        composition = getattr(app.service, "_production_composition", None)
+        if composition is None:
+            result = select_or_create_generation_run(app.service, project_id, episode.id)
+        else:
+            composition.provider_controller = app.provider_controller
+            composition.preflight_service = PreflightService(
+                app.provider_controller.llm_registry,
+                self._tts_registry(app),
+            )
+            result = GenerationStartService(
+                composition,
+                ffmpeg_executable=self.ffmpeg_executable,
+            ).start(project_id, episode.id)
         app.current_episode_id = episode.id
         app.current_run_id = result.run.id
         return result.run
@@ -205,6 +217,13 @@ class PreflightController:
                 )
         issues = tuple(PreflightIssue("llm_assignment", error) for error in errors)
         return assignments, issues
+
+    @staticmethod
+    def _tts_registry(app: PreflightApp) -> TTSProviderRegistry:
+        registry = TTSProviderRegistry()
+        for provider in app.provider_controller.tts_providers.values():
+            registry.register(provider)
+        return registry
 
     @staticmethod
     def _local_provider_ids(

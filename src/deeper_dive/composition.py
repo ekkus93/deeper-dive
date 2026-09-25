@@ -280,7 +280,9 @@ class ProductionComposition:
     ) -> PipelineResult:
         """Execute a production-composed generation run to a terminal/control state."""
 
-        self.effective_model_role_assignments_for_run(project_id, run_id)
+        _assignments, errors = self.effective_model_role_assignments_for_run(project_id, run_id)
+        if errors:
+            raise ValueError("invalid model-role configuration: " + "; ".join(errors))
         return self.generation_pipeline(project_id, progress=progress).run(run_id)
 
     def exporter(self, project_id: str) -> EpisodeExporter:
