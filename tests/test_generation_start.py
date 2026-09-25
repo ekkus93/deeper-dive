@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
+
+import pytest
 
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.domain.clock import FrozenClock, format_timestamp
@@ -12,38 +15,71 @@ from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.storage.workspace import WorkspaceManager
 
 
-def test_generation_start_creates_one_pending_run_and_reuses_it(tmp_path: Path) -> None:
+@pytest.mark.parametrize("state", ["pending", "running", "paused"])
+def test_generation_start_reuses_active_run(tmp_path: Path, state: str) -> None:
     service, project_id, episode_id = _episode(tmp_path)
+    active = _run(service, episode_id, state=state)
+    service.runs(project_id).create(active)
 
     first = select_or_create_generation_run(service, project_id, episode_id)
     second = select_or_create_generation_run(service, project_id, episode_id)
 
-    assert first.created is True
-    assert first.run.state == "pending"
-    assert first.run.stage == "sources"
+    assert first.created is False
+    assert first.run.id == active.id
     assert second.created is False
-    assert second.run.id == first.run.id
-    assert service.runs(project_id).latest_for_episode(episode_id) == first.run
+    assert second.run.id == active.id
+    assert service.runs(project_id).latest_for_episode(episode_id) == active
 
 
-def test_generation_start_creates_new_run_after_terminal_run(tmp_path: Path) -> None:
+@pytest.mark.parametrize("state", ["completed", "failed", "cancelled"])
+def test_generation_start_creates_new_run_after_terminal_run(tmp_path: Path, state: str) -> None:
     service, project_id, episode_id = _episode(tmp_path)
-    timestamp = format_timestamp(service.clock.now())
-    completed = GenerationRunRecord(
-        id=str(new_run_id()),
-        episode_id=episode_id,
-        stage="export",
-        state="completed",
-        created_at=timestamp,
-        modified_at=timestamp,
-    )
-    service.runs(project_id).create(completed)
+    terminal = _run(service, episode_id, state=state)
+    service.runs(project_id).create(terminal)
 
     result = select_or_create_generation_run(service, project_id, episode_id)
 
     assert result.created is True
-    assert result.run.id != completed.id
+    assert result.run.id != terminal.id
     assert result.run.state == "pending"
+    assert result.run.stage == "sources"
+
+
+def test_generation_start_replaces_active_run_with_cancel_requested(tmp_path: Path) -> None:
+    service, project_id, episode_id = _episode(tmp_path)
+    cancelling = replace(_run(service, episode_id, state="running"), cancel_requested=True)
+    service.runs(project_id).create(cancelling)
+
+    result = select_or_create_generation_run(service, project_id, episode_id)
+
+    assert result.created is True
+    assert result.run.id != cancelling.id
+    assert result.run.state == "pending"
+
+
+def test_generation_start_rejects_unknown_persisted_state(tmp_path: Path) -> None:
+    service, project_id, episode_id = _episode(tmp_path)
+    service.runs(project_id).create(_run(service, episode_id, state="mystery"))
+
+    with pytest.raises(ValueError, match="unsupported run state"):
+        select_or_create_generation_run(service, project_id, episode_id)
+
+
+def _run(
+    service: DeeperDiveService,
+    episode_id: str,
+    *,
+    state: str,
+) -> GenerationRunRecord:
+    timestamp = format_timestamp(service.clock.now())
+    return GenerationRunRecord(
+        id=str(new_run_id()),
+        episode_id=episode_id,
+        stage="export" if state == "completed" else "sources",
+        state=state,
+        created_at=timestamp,
+        modified_at=timestamp,
+    )
 
 
 def _episode(tmp_path: Path) -> tuple[DeeperDiveService, str, str]:
