@@ -96,7 +96,9 @@ def test_generation_uses_configured_directing_and_verification_roles(tmp_path: P
     result = composition.run_generation(project_id, run.id)
 
     assert result.run.state == "completed"
-    turns = HostTurnService(composition.database_for_project(project_id)).list_turns(episode_id)
+    turns = HostTurnService(composition.database_for_project(project_id)).list_turns(
+        episode_id
+    )
     assert len(turns) == 1
     assert "Configured fake provider host turn marker" in turns[0].text
     assert "Configured fake directing decision marker" in turns[0].text
@@ -127,5 +129,9 @@ def test_generation_fails_when_configured_verification_rejects_transcript(
     assert failed.failure_message is not None
     assert "reject marker" in failed.failure_message
     assert factory.verifier.requests
-    output = composition.service.workspaces.project_root(project_id) / "output" / f"{episode_id}.wav"
+    output = (
+        composition.service.workspaces.project_root(project_id)
+        / "output"
+        / f"{episode_id}.wav"
+    )
     assert not output.exists()
