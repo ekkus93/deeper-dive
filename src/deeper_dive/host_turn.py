@@ -31,6 +31,26 @@ class HostTurnProviderIdentity:
     model: str
 
 
+@dataclass(frozen=True, slots=True)
+class HostTurnProvenance:
+    """Durable provenance tying one generated turn to source passages."""
+
+    turn_id: str
+    episode_id: str
+    segment_ordinal: int
+    turn_ordinal: int
+    host_id: str
+    evidence_id: str
+    source_id: str
+    source_title: str
+    source_locator: str | None
+    chunk_id: str
+    chunk_ordinal: int
+    chunk_location: str | None
+    source_passage: str
+    claim_text: str
+
+
 class HostTurnProvider(Protocol):
     def generate_turn(self, decision: DirectorDecision) -> dict[str, object]: ...
 
@@ -111,6 +131,15 @@ class HostTurnService:
             model=str(row["model"]),
         )
 
+    def list_provenance(self, turn_id: str) -> tuple[HostTurnProvenance, ...]:
+        with self.database.connection() as db:
+            rows = db.execute(
+                """SELECT * FROM conversation_turn_provenance
+                WHERE turn_id=? ORDER BY chunk_ordinal,chunk_id""",
+                (turn_id,),
+            ).fetchall()
+        return tuple(HostTurnProvenance(**dict(row)) for row in rows)
+
     def _commit(
         self,
         run_id: str,
@@ -137,6 +166,7 @@ class HostTurnService:
                     json.dumps(turn.evidence_ids),
                 ),
             )
+            self._insert_provenance(db, turn)
             if provider_identity is not None:
                 db.execute(
                     """INSERT OR REPLACE INTO conversation_turn_provider_identity(
@@ -169,6 +199,42 @@ class HostTurnService:
                 """INSERT OR IGNORE INTO generation_run_units(run_id,stage,unit_id,completed_at)
                 VALUES (?,?,?,CURRENT_TIMESTAMP)""",
                 (run_id, self.STAGE, unit_id),
+            )
+
+    def _insert_provenance(self, db: sqlite3.Connection, turn: HostTurn) -> None:
+        for evidence_id in turn.evidence_ids:
+            row = db.execute(
+                """SELECT c.id AS chunk_id,c.ordinal AS chunk_ordinal,c.text AS source_passage,
+                c.location AS chunk_location,s.id AS source_id,s.title AS source_title,
+                s.locator AS source_locator
+                FROM source_chunks c JOIN sources s ON s.id=c.source_id
+                WHERE c.id=?""",
+                (evidence_id,),
+            ).fetchone()
+            if row is None:
+                continue
+            db.execute(
+                """INSERT OR REPLACE INTO conversation_turn_provenance(
+                    turn_id,episode_id,segment_ordinal,turn_ordinal,host_id,evidence_id,
+                    source_id,source_title,source_locator,chunk_id,chunk_ordinal,
+                    chunk_location,source_passage,claim_text
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    turn.id,
+                    turn.episode_id,
+                    turn.segment_ordinal,
+                    turn.turn_ordinal,
+                    turn.speaker_id,
+                    evidence_id,
+                    str(row["source_id"]),
+                    str(row["source_title"]),
+                    None if row["source_locator"] is None else str(row["source_locator"]),
+                    str(row["chunk_id"]),
+                    int(row["chunk_ordinal"]),
+                    None if row["chunk_location"] is None else str(row["chunk_location"]),
+                    str(row["source_passage"]),
+                    turn.text,
+                ),
             )
 
     def _checkpointed_turn(self, run_id: str, unit_id: str) -> HostTurn | None:
@@ -206,6 +272,29 @@ class HostTurnService:
                     provider_id TEXT NOT NULL,
                     model TEXT NOT NULL
                 )"""
+            )
+            db.execute(
+                """CREATE TABLE IF NOT EXISTS conversation_turn_provenance (
+                    turn_id TEXT NOT NULL REFERENCES conversation_turns(id) ON DELETE CASCADE,
+                    episode_id TEXT NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
+                    segment_ordinal INTEGER NOT NULL CHECK(segment_ordinal >= 0),
+                    turn_ordinal INTEGER NOT NULL CHECK(turn_ordinal >= 0),
+                    host_id TEXT NOT NULL REFERENCES hosts(id) ON DELETE RESTRICT,
+                    evidence_id TEXT NOT NULL,
+                    source_id TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+                    source_title TEXT NOT NULL,
+                    source_locator TEXT,
+                    chunk_id TEXT NOT NULL REFERENCES source_chunks(id) ON DELETE CASCADE,
+                    chunk_ordinal INTEGER NOT NULL CHECK(chunk_ordinal >= 0),
+                    chunk_location TEXT,
+                    source_passage TEXT NOT NULL,
+                    claim_text TEXT NOT NULL,
+                    PRIMARY KEY(turn_id,evidence_id)
+                )"""
+            )
+            db.execute(
+                """CREATE INDEX IF NOT EXISTS turn_provenance_episode_idx
+                ON conversation_turn_provenance(episode_id,segment_ordinal,turn_ordinal)"""
             )
 
     @staticmethod
