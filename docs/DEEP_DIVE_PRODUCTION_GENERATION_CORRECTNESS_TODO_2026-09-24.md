@@ -190,38 +190,40 @@
 
 ## PCG-070 — Strengthen production-composition integration tests
 
-- [ ] Configure fake LLM/TTS providers through durable provider configuration.
-- [ ] Prove production generation calls those configured providers.
-- [ ] Prove generated turns/audio contain provider-supplied unique markers.
-- [ ] Prove missing providers fail before output is produced.
-- [ ] Prove export contains provider-backed transcript/audio artifacts.
+- [x] Configure fake LLM/TTS providers through durable provider configuration.
+- [x] Prove production generation calls those configured providers.
+- [x] Prove generated turns/audio contain provider-supplied unique markers.
+- [x] Prove missing providers fail before output is produced.
+- [x] Prove export contains provider-backed transcript/audio artifacts.
 
 ## PCG-071 — Strengthen CLI acceptance workflow
 
-- [ ] Configure deterministic providers through normal CLI/user configuration paths.
-- [ ] Run preflight-equivalent readiness checks before generation.
-- [ ] Generate to completion through the shared start service.
-- [ ] Assert provider-backed turns, provider-backed TTS artifacts, transcript export, metadata, manifest, and audio output.
-- [ ] Exercise duplicate-safe generation start and one pause/resume path.
+- [x] Configure deterministic providers through normal CLI/user configuration paths.
+- [x] Run preflight-equivalent readiness checks before generation.
+- [x] Generate to completion through the shared start service.
+- [x] Assert provider-backed turns, provider-backed TTS artifacts, transcript export, metadata, manifest, and audio output.
+- [x] Exercise duplicate-safe generation start and one pause/resume path.
 
 ## PCG-072 — Strengthen TUI acceptance workflow
 
-- [ ] Configure/select deterministic providers through production TUI/controller paths.
-- [ ] Build plan and pass preflight.
-- [ ] Click Generate and enter monitor through the shared start service.
-- [ ] Complete provider-backed generation.
-- [ ] Open transcript review and Episode Library export.
-- [ ] Assert provider-backed transcript/audio artifacts and duplicate-click safety.
+- [x] Configure/select deterministic providers through production TUI/controller paths.
+- [x] Build plan and pass preflight.
+- [x] Click Generate and enter monitor through the shared start service.
+- [x] Complete provider-backed generation.
+- [x] Open transcript review and Episode Library export.
+- [x] Assert provider-backed transcript/audio artifacts and duplicate-click safety.
 
 ## PCG-073 — Strengthen installed-wheel fresh-machine gate
 
-- [ ] Build wheel from exact head and install into a clean Python 3.12 environment.
-- [ ] Launch installed CLI and TUI entry points.
-- [ ] Configure deterministic providers through installed production paths.
-- [ ] Generate provider-backed transcript/audio without source-tree imports.
-- [ ] Export transcript, metadata, manifest, and audio.
-- [ ] Keep real KittenTTS CPU smoke as a separate bounded qualification.
-- [ ] Keep normal CI free of paid credentials and live external-service requirements.
+- [x] Build wheel from exact head and install into a clean Python 3.12 environment.
+- [x] Launch installed CLI and TUI entry points.
+- [x] Configure deterministic providers through installed production paths.
+- [x] Generate provider-backed transcript/audio without source-tree imports.
+- [x] Export transcript, metadata, manifest, and audio.
+- [x] Keep real KittenTTS CPU smoke as a separate bounded qualification.
+- [x] Keep normal CI free of paid credentials and live external-service requirements.
+
+**Evidence:** PR #428 added `tests/test_provider_backed_acceptance.py`, a reusable provider-backed acceptance fixture that creates a project, indexed source corpus, configured fake LLM/TTS providers through durable `UserConfigStore` paths, an episode plan, a generation run, provider-backed transcript turns, TTS artifacts, and exported transcript/metadata/manifest/audio. The production-composition acceptance proves configured fake providers are used, provider-supplied host/director markers persist into transcript output, TTS artifacts are written with the configured provider/voice, missing providers fail at preflight before a run is created, and export contains provider-backed transcript/audio artifacts. The CLI acceptance configures deterministic providers through normal data-dir/user-config paths, runs preflight-equivalent generation start, completes generation through the shared start service, verifies provider-backed turns/TTS/export artifacts, and exercises duplicate-safe generation plus pause/resume. The TUI acceptance uses the shared preflight/generate/monitor flow, verifies duplicate-safe run identity, completes the same durable run through the production composition, and exercises Episode Library export and Transcript Review. R7 PRs #424/#425 provide the production TUI/controller provider-configuration coverage used by the TUI workflow. Exact-head CI for PR #428 passed in run `36183266434`, PR #428 merged as `1cc18874db5bcad0131746ccd452a513eb1f93e2`, and merged-master CI passed in run `36183521834`, including the existing fresh-machine job that builds and installs the wheel in a clean Python 3.12 environment, launches installed CLI/TUI entry points, configures deterministic providers without source-tree imports, generates and exports provider-backed artifacts, keeps the real KittenTTS CPU smoke separate, and requires no paid credentials/live external services.
 
 ---
 
