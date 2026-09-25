@@ -280,7 +280,9 @@ class ProductionComposition:
     ) -> PipelineResult:
         """Execute a production-composed generation run to a terminal/control state."""
 
-        self.effective_model_role_assignments_for_run(project_id, run_id)
+        _assignments, errors = self.effective_model_role_assignments_for_run(project_id, run_id)
+        if errors:
+            raise ValueError("invalid model-role configuration: " + "; ".join(errors))
         return self.generation_pipeline(project_id, progress=progress).run(run_id)
 
     def exporter(self, project_id: str) -> EpisodeExporter:
@@ -346,19 +348,22 @@ def _planning_stage(
         return
     composition = getattr(service, "_production_composition", None)
     if composition is None:
-        return
-    provider_ids = composition.provider_controller.llm_registry.provider_ids()
-    if not provider_ids:
-        return
-    provider_id = provider_ids[0]
-    provider = composition.provider_controller.llm_registry.get(provider_id)
-    models = provider.models()
-    model = models[0].model if models else None
-    planner = composition.configured_planning_service(project_id, provider_id, model)
-    try:
-        planner.build_plan(context.episode_id)
-    except ValueError:
-        return
+        raise RuntimeError("production composition is unavailable for episode planning")
+    assignments, errors = composition.effective_model_role_assignments_for_episode(
+        project_id,
+        context.episode_id,
+    )
+    if errors:
+        raise ValueError("invalid model-role configuration: " + "; ".join(errors))
+    assignment = assignments.resolve(model_roles.ModelRole.EPISODE_PLANNING)
+    if assignment is None:
+        raise ValueError("no provider/model assignment for episode_planning")
+    planner = composition.configured_planning_service(
+        project_id,
+        assignment.provider,
+        assignment.model,
+    )
+    planner.build_plan(context.episode_id)
 
 
 def _conversation_stage(
