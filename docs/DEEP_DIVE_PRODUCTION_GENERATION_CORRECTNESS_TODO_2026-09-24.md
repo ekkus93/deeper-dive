@@ -6,13 +6,13 @@
 
 ## 0. Execution rules
 
-- [ ] Treat this TODO as the authoritative remediation state for production-generation correctness.
-- [ ] Do not modify or reopen the completed V1 integration remediation TODO except to reference this follow-up if needed.
-- [ ] Use deterministic providers in CI only as explicit provider-boundary adapters configured through durable production paths.
-- [ ] Do not mark an item complete because a deterministic hidden shortcut produces output.
-- [ ] Require production wiring, tests, exact-head CI, merge to `master`, TODO reconciliation, reload from `master`, and merged-master CI before final completion.
-- [ ] Keep CLI and TUI behavior aligned through shared services wherever practical.
-- [ ] Preserve sanitizer, provenance, checkpoint, and artifact identity invariants.
+- [x] Treat this TODO as the authoritative remediation state for production-generation correctness.
+- [x] Do not modify or reopen the completed V1 integration remediation TODO except to reference this follow-up if needed.
+- [x] Use deterministic providers in CI only as explicit provider-boundary adapters configured through durable production paths.
+- [x] Do not mark an item complete because a deterministic hidden shortcut produces output.
+- [x] Require production wiring, tests, exact-head CI, merge to `master`, TODO reconciliation, reload from `master`, and merged-master CI before final completion.
+- [x] Keep CLI and TUI behavior aligned through shared services wherever practical.
+- [x] Preserve sanitizer, provenance, checkpoint, and artifact identity invariants.
 
 ---
 
