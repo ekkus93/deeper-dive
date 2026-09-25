@@ -200,7 +200,9 @@ class FakeLLMProvider:
             payload = {}
         host_ids = payload.get("host_ids", []) if isinstance(payload, dict) else []
         speaker_id = str(host_ids[0]) if host_ids else ""
-        evidence_ids = payload.get("available_evidence_ids", []) if isinstance(payload, dict) else []
+        evidence_ids = (
+            payload.get("available_evidence_ids", []) if isinstance(payload, dict) else []
+        )
         return json.dumps(
             {
                 "speaker_id": speaker_id,
