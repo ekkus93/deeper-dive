@@ -32,7 +32,8 @@ def test_multi_episode_review_playback_and_export_artifacts_are_isolated(tmp_pat
         provider_factory=ProviderFactory(environ={}),
     )
     project = composition.service.create_project("Isolation matrix")
-    configs = EpisodeConfigurationService(composition.database_for_project(project.id))
+    database = composition.database_for_project(project.id)
+    configs = EpisodeConfigurationService(database)
 
     first = composition.service.quick_deep_dive(project.id)
     first_config = configs.load_configuration(first.id)
@@ -46,6 +47,11 @@ def test_multi_episode_review_playback_and_export_artifacts_are_isolated(tmp_pat
         second.id,
         replace(second_config, title="Second isolated episode", focus="second focus"),
     )
+    with database.transaction() as connection:
+        connection.execute(
+            "UPDATE hosts SET tts_provider='speech',tts_voice='voice-a' WHERE project_id=?",
+            (project.id,),
+        )
 
     first_run = composition.run_generation(
         project.id,
