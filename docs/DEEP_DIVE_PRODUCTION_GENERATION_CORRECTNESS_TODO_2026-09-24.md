@@ -126,17 +126,19 @@
 
 ## PCG-040 — Audit pipeline stages for no-op completion claims
 
-- [ ] Enumerate every default pipeline stage and its handler.
-- [ ] For each no-op boundary, decide whether to implement real work, rename it, or document it as an intentional checkpoint boundary.
-- [ ] Update tests so boundary completion is not treated as proof of work.
-- [ ] Add a developer architecture note for stage semantics.
+- [x] Enumerate every default pipeline stage and its handler.
+- [x] For each no-op boundary, decide whether to implement real work, rename it, or document it as an intentional checkpoint boundary.
+- [x] Update tests so boundary completion is not treated as proof of work.
+- [x] Add a developer architecture note for stage semantics.
 
 ## PCG-041 — Clarify or implement generation pipeline export stage
 
-- [ ] Decide whether pipeline `export` performs artifact export or only marks generation completion readiness.
-- [ ] If export remains separate, rename or document the stage so users/tests do not confuse stage completion with exported artifacts.
-- [ ] If export is implemented in-pipeline, route it through `EpisodeExporter` and assert concrete artifacts.
-- [ ] Update CLI/TUI/fresh-machine tests to match the chosen semantics.
+- [x] Decide whether pipeline `export` performs artifact export or only marks generation completion readiness.
+- [x] If export remains separate, rename or document the stage so users/tests do not confuse stage completion with exported artifacts.
+- [x] If export is implemented in-pipeline, route it through `EpisodeExporter` and assert concrete artifacts.
+- [x] Update CLI/TUI/fresh-machine tests to match the chosen semantics.
+
+**Evidence:** PR #420 added `docs/GENERATION_PIPELINE_STAGE_SEMANTICS.md`, enumerating every default stage and handler, classifying `sources`, `research`, `verification`, and `export` as intentional durable readiness/checkpoint boundaries, and documenting that transcript/metadata/manifest/audio artifacts are produced by explicit CLI and Episode Library export services rather than by the generation pipeline `export` checkpoint. It also added `tests/test_generation_pipeline_stage_semantics.py`, which proves pipeline `export` completion alone does not create exported artifact files and that explicit export through `EpisodeLibraryExportService` produces the concrete transcript, manifest, metadata, and audio artifacts. Existing CLI, TUI, and fresh-machine workflows already perform explicit export after generation, matching the documented semantics. Exact-head CI passed in run `36138749603`, PR #420 merged as `a21c139b9041131d191d02c61261a358758d537b`, and merged-master CI passed in run `36138958158`.
 
 ---
 
