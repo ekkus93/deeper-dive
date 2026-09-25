@@ -17,14 +17,7 @@ from deeper_dive.user_config import UserConfig, UserConfigStore
 class _PlanGenerator:
     def generate_plan(self, request):
         _ = request
-        return {
-            "segments": [
-                {
-                    "title": "Opening",
-                    "target_duration_seconds": 900,
-                }
-            ]
-        }
+        return {"segments": [{"title": "Opening", "target_duration_seconds": 900}]}
 
 
 class _RecordingFactory(ProviderFactory):
