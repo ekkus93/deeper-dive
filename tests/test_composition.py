@@ -251,6 +251,7 @@ def test_production_composition_monitor_runner_executes_durable_pipeline(tmp_pat
             title="Episode",
             created_at=timestamp,
             modified_at=timestamp,
+            target_duration_seconds=1200,
         ),
         [],
     )
