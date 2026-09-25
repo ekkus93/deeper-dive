@@ -174,7 +174,10 @@ def test_episode_cli_show_plan_reads_persisted_plan_without_configured_provider(
     plan = _json_call([*base, "episode", "plan", project_id, str(episode["id"])], capsys)
     (tmp_path / "config.json").unlink()
 
-    shown_plan = _json_call([*base, "episode", "show-plan", project_id, str(episode["id"])], capsys)
+    shown_plan = _json_call(
+        [*base, "episode", "show-plan", project_id, str(episode["id"])],
+        capsys,
+    )
 
     assert shown_plan["id"] == plan["id"]
 
