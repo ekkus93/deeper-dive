@@ -206,8 +206,8 @@ class ProviderFactory:
         config: ProviderConfig,
     ) -> TTSProvider:
         if kind == "fake-tts":
-            voices = tuple(TTSVoice(voice, voice) for voice in config.voices)
-            return FakeTTSProvider(provider_id=name, voices=voices or None)
+            fake_voices = tuple(TTSVoice(voice, voice) for voice in config.voices)
+            return FakeTTSProvider(provider_id=name, voices=fake_voices or None)
         if kind == "kitten":
             return KittenTTSMicroProvider()
         if kind == "openai-tts":
@@ -225,20 +225,20 @@ class ProviderFactory:
                 timeout=config.timeout_seconds,
             )
         if kind == "openai-compatible-tts":
+            configured_voices = tuple(config.voices)
+            if not configured_voices:
+                raise ProviderConfigurationError(
+                    f"provider {name!r} requires at least one configured voice"
+                )
             if not config.base_url:
                 raise ProviderConfigurationError(
                     f"provider {name!r} requires base_url for openai-compatible-tts"
-                )
-            voices = tuple(config.voices)
-            if not voices:
-                raise ProviderConfigurationError(
-                    f"provider {name!r} requires at least one configured voice"
                 )
             return OpenAICompatibleTTSProvider(
                 provider_id=name,
                 base_url=config.base_url,
                 model=config.default_model or "tts-1",
-                voices=voices,
+                voices=configured_voices,
                 api_key=self._optional_secret(config),
                 response_format=config.response_format,
                 timeout=config.timeout_seconds,
