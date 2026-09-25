@@ -262,30 +262,32 @@
 
 ## PCG-090 — Full qualification
 
-- [ ] Full test suite passes.
-- [ ] Formatter passes.
-- [ ] Ruff passes.
-- [ ] mypy passes.
-- [ ] Build succeeds.
-- [ ] Provider-backed production-composition integration suite passes.
-- [ ] CLI provider-backed acceptance workflow passes.
-- [ ] TUI provider-backed acceptance workflow passes.
-- [ ] Installed-wheel provider-backed fresh-machine gate passes.
-- [ ] Duplicate-run matrix passes.
-- [ ] Fail-fast readiness matrix passes.
-- [ ] TTS artifact status compatibility matrix passes.
-- [ ] Provider UI/configuration matrix passes.
-- [ ] Security/redaction regressions remain green.
-- [ ] Real KittenTTS CPU smoke remains green.
-- [ ] No normal-CI dependency on paid credentials/live external services.
+- [x] Full test suite passes.
+- [x] Formatter passes.
+- [x] Ruff passes.
+- [x] mypy passes.
+- [x] Build succeeds.
+- [x] Provider-backed production-composition integration suite passes.
+- [x] CLI provider-backed acceptance workflow passes.
+- [x] TUI provider-backed acceptance workflow passes.
+- [x] Installed-wheel provider-backed fresh-machine gate passes.
+- [x] Duplicate-run matrix passes.
+- [x] Fail-fast readiness matrix passes.
+- [x] TTS artifact status compatibility matrix passes.
+- [x] Provider UI/configuration matrix passes.
+- [x] Security/redaction regressions remain green.
+- [x] Real KittenTTS CPU smoke remains green.
+- [x] No normal-CI dependency on paid credentials/live external services.
 
 ## PCG-091 — TODO reconciliation
 
-- [ ] Every task and subtask above has implementation evidence.
-- [ ] Every acceptance criterion in the spec has test or documentation evidence.
-- [ ] No hidden deterministic production shortcut remains outside explicit configured test/development provider adapters.
-- [ ] Exact remediation-head CI passes.
-- [ ] Remediation PR merges to `master`.
-- [ ] Reload this TODO from merged `master`.
-- [ ] Exact merged-master CI passes.
-- [ ] Only then mark production generation correctness remediation complete.
+- [x] Every task and subtask above has implementation evidence.
+- [x] Every acceptance criterion in the spec has test or documentation evidence.
+- [x] No hidden deterministic production shortcut remains outside explicit configured test/development provider adapters.
+- [x] Exact remediation-head CI passes.
+- [x] Remediation PR merges to `master`.
+- [x] Reload this TODO from merged `master`.
+- [x] Exact merged-master CI passes.
+- [x] Only then mark production generation correctness remediation complete.
+
+**Evidence:** The final reconciled master head before this closeout was `70e01aeee780a590f019e447721ae5db63e1c37c` from PR #432, which reloaded and reconciled R9 documentation and compatibility evidence after PR #431 merged. Merged-master CI run `36188959666` passed on that exact head. The `quality` job completed Ruff format, Ruff lint, static typing, the full pytest suite, package build, and CLI/import smoke successfully. The `fresh-machine` job built and installed the wheel in a clean Python 3.12 environment, launched installed CLI and TUI entry points, exercised the installed-wheel corpus/episode workflow, installed the real KittenTTS runtime, and completed the real KittenTTS Micro CPU smoke successfully. Earlier reconciled sections R1 through R9 cite the implementation, tests, exact-head CI, merge commits, TODO reconciliation, and merged-master CI evidence for provider-backed LLM generation, provider-backed TTS/audio generation, shared CLI/TUI readiness, duplicate-safe run lifecycle, pipeline/export semantics, TTS artifact status compatibility, provider UI/configuration completeness, provider-backed CLI/TUI/fresh-machine acceptance, and documentation/persisted-data compatibility. Deterministic outputs now remain limited to explicit fake/development provider adapters configured through durable production paths; production generation routes through configured provider registries, shared readiness/start services, durable run/pipeline boundaries, provider-backed TTS artifacts, and explicit export services.

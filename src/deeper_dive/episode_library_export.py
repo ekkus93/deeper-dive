@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import json
+from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
-from deeper_dive.export import EpisodeExporter, ManifestSource, TranscriptTurn
+from deeper_dive.export import (
+    EpisodeExporter,
+    ManifestSource,
+    TranscriptCitation,
+    TranscriptTurn,
+)
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
@@ -68,6 +75,7 @@ class EpisodeLibraryExportService:
                 "run_id": run.id,
                 "title": episode.title,
                 "run_state": run.state,
+                "turns": [self._turn_metadata(turn) for turn in turns],
             },
         )
         audio = self._copy_episode_audio(root, episode.id, stem)
@@ -82,12 +90,72 @@ class EpisodeLibraryExportService:
             if table is None:
                 return ()
             rows = connection.execute(
-                """SELECT t.text,COALESCE(h.display_name,t.speaker_id) AS speaker_name
+                """SELECT t.id,t.text,t.speaker_id,t.segment_ordinal,t.turn_ordinal,
+                t.evidence_ids_json,COALESCE(h.display_name,t.speaker_id) AS speaker_name
                 FROM conversation_turns t LEFT JOIN hosts h ON h.id=t.speaker_id
                 WHERE t.episode_id=? ORDER BY t.segment_ordinal,t.turn_ordinal""",
                 (episode_id,),
             ).fetchall()
-        return tuple(TranscriptTurn(str(row["speaker_name"]), str(row["text"])) for row in rows)
+            all_evidence_ids = tuple(
+                evidence_id
+                for row in rows
+                for evidence_id in _evidence_ids(str(row["evidence_ids_json"]))
+            )
+            citation_map = EpisodeLibraryExportService._citations(connection, all_evidence_ids)
+        return tuple(
+            TranscriptTurn(
+                host=str(row["speaker_name"]),
+                text=str(row["text"]),
+                speaker_id=str(row["speaker_id"]),
+                segment_ordinal=int(row["segment_ordinal"]),
+                turn_ordinal=int(row["turn_ordinal"]),
+                evidence_ids=_evidence_ids(str(row["evidence_ids_json"])),
+                citations=tuple(
+                    citation_map[evidence_id]
+                    for evidence_id in _evidence_ids(str(row["evidence_ids_json"]))
+                    if evidence_id in citation_map
+                ),
+            )
+            for row in rows
+        )
+
+    @staticmethod
+    def _citations(
+        connection: Any,
+        evidence_ids: tuple[str, ...],
+    ) -> dict[str, TranscriptCitation]:
+        ordered_ids = tuple(dict.fromkeys(evidence_ids))
+        if not ordered_ids:
+            return {}
+        placeholders = ",".join("?" for _ in ordered_ids)
+        rows = connection.execute(
+            f"""SELECT c.id,c.text,c.location,s.title,s.origin,s.locator
+            FROM source_chunks c JOIN sources s ON s.id=c.source_id
+            WHERE c.id IN ({placeholders})""",
+            ordered_ids,
+        ).fetchall()
+        return {
+            str(row["id"]): TranscriptCitation(
+                evidence_id=str(row["id"]),
+                source_title=str(row["title"]),
+                source_origin=str(row["origin"]),
+                source_locator=None if row["locator"] is None else str(row["locator"]),
+                location=None if row["location"] is None else str(row["location"]),
+                text=str(row["text"]),
+            )
+            for row in rows
+        }
+
+    @staticmethod
+    def _turn_metadata(turn: TranscriptTurn) -> dict[str, object]:
+        return {
+            "speaker_id": turn.speaker_id,
+            "speaker_name": turn.host,
+            "segment_ordinal": turn.segment_ordinal,
+            "turn_ordinal": turn.turn_ordinal,
+            "evidence_ids": list(turn.evidence_ids),
+            "citations": [asdict(citation) for citation in turn.citations],
+        }
 
     @staticmethod
     def _sources(database: Database, project_id: str) -> tuple[ManifestSource, ...]:
@@ -116,3 +184,10 @@ class EpisodeLibraryExportService:
                 destination.write_bytes(source.read_bytes())
                 return destination
         return None
+
+
+def _evidence_ids(raw: str) -> tuple[str, ...]:
+    payload = json.loads(raw)
+    if not isinstance(payload, list):
+        return ()
+    return tuple(str(value) for value in payload)

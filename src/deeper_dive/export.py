@@ -13,9 +13,26 @@ from deeper_dive.ffmpeg import FFmpegComposer
 
 
 @dataclass(frozen=True, slots=True)
+class TranscriptCitation:
+    """Source-passage citation retained for one transcript turn."""
+
+    evidence_id: str
+    source_title: str
+    source_origin: str
+    source_locator: str | None
+    location: str | None
+    text: str
+
+
+@dataclass(frozen=True, slots=True)
 class TranscriptTurn:
     host: str
     text: str
+    speaker_id: str | None = None
+    segment_ordinal: int | None = None
+    turn_ordinal: int | None = None
+    evidence_ids: tuple[str, ...] = ()
+    citations: tuple[TranscriptCitation, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,9 +77,39 @@ class EpisodeExporter:
     def write_transcript(path: Path, title: str, turns: tuple[TranscriptTurn, ...]) -> Path:
         body = [f"# {title}", ""]
         for turn in turns:
-            body.extend((f"## {turn.host}", "", turn.text, ""))
+            heading_parts = []
+            if turn.segment_ordinal is not None:
+                heading_parts.append(f"segment {turn.segment_ordinal + 1}")
+            if turn.turn_ordinal is not None:
+                heading_parts.append(f"turn {turn.turn_ordinal + 1}")
+            if turn.speaker_id:
+                heading_parts.append(f"host `{turn.speaker_id}`")
+            suffix = f" ({', '.join(heading_parts)})" if heading_parts else ""
+            body.extend((f"## {turn.host}{suffix}", "", turn.text, ""))
+            if turn.citations:
+                body.extend(("### Citations", ""))
+                for citation in turn.citations:
+                    body.append(EpisodeExporter._citation_line(citation))
+                body.append("")
+            elif turn.evidence_ids:
+                body.extend(("### Evidence IDs", ""))
+                body.extend(f"- `{evidence_id}`" for evidence_id in turn.evidence_ids)
+                body.append("")
         path.write_text("\n".join(body), encoding="utf-8")
         return path
+
+    @staticmethod
+    def _citation_line(citation: TranscriptCitation) -> str:
+        details = [citation.source_origin]
+        if citation.source_locator:
+            details.append(citation.source_locator)
+        if citation.location:
+            details.append(citation.location)
+        passage = " ".join(citation.text.split())
+        return (
+            f"- `{citation.evidence_id}` — {citation.source_title} "
+            f"({'; '.join(details)}): {passage}"
+        )
 
     @staticmethod
     def write_manifest(path: Path, sources: tuple[ManifestSource, ...]) -> Path:
