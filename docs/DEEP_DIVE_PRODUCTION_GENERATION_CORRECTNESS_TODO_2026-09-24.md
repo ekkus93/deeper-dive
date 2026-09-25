@@ -114,11 +114,11 @@
 ## PCG-031 — Align status/control with duplicate-safe runs
 
 - [x] Ensure `episode status` reports the correct active/latest run after duplicate-safe start logic.
-- [ ] Ensure pause/cancel/resume target the intended run.
-- [ ] Ensure Episode Library resume/export target the intended run and episode identity.
-- [ ] Add state-transition tests that include duplicate-start attempts.
+- [x] Ensure pause/cancel/resume target the intended run.
+- [x] Ensure Episode Library resume/export target the intended run and episode identity.
+- [x] Add state-transition tests that include duplicate-start attempts.
 
-**Evidence:** PR #412 extended `tests/test_generation_start.py` to cover the shared run-selection state matrix: pending/running/paused active runs are reused, completed/failed/cancelled terminal runs allow new pending attempts, cancellation-requested active runs are replaced by new attempts, and unknown persisted states fail closed. Exact-head CI passed in run `36120277010`, PR #412 merged as `b9bfd6f0e6632dbb51ff6452984c3a2b5eb26e4a`, and merged-master CI passed in run `36134160719`. PR #416 added `docs/GENERATION_RUN_SELECTION_POLICY.md` and `tests/test_generation_start_surfaces.py`, covering repeated CLI `episode generate`, repeated TUI Generate, mixed CLI→TUI duplicate starts, and CLI `episode status` reporting the reused active run identity. Exact-head CI passed in run `36136341618`, PR #416 merged as `fc07530bf7cc4581120b16a3d869c0552110bd3c`, and merged-master CI passed in run `36136474636`. Pause/cancel/resume targeting, Episode Library resume/export targeting, and duplicate-start state-transition tests remain open.
+**Evidence:** PR #412 extended `tests/test_generation_start.py` to cover the shared run-selection state matrix: pending/running/paused active runs are reused, completed/failed/cancelled terminal runs allow new pending attempts, cancellation-requested active runs are replaced by new attempts, and unknown persisted states fail closed. Exact-head CI passed in run `36120277010`, PR #412 merged as `b9bfd6f0e6632dbb51ff6452984c3a2b5eb26e4a`, and merged-master CI passed in run `36134160719`. PR #416 added `docs/GENERATION_RUN_SELECTION_POLICY.md` and `tests/test_generation_start_surfaces.py`, covering repeated CLI `episode generate`, repeated TUI Generate, mixed CLI→TUI duplicate starts, and CLI `episode status` reporting the reused active run identity. Exact-head CI passed in run `36136341618`, PR #416 merged as `fc07530bf7cc4581120b16a3d869c0552110bd3c`, and merged-master CI passed in run `36136474636`. PR #418 added state-transition targeting coverage for duplicate-start CLI pause/resume/cancel flows and Episode Library resume/export identity coverage, proving selected episode/run identity is preserved even when another episode is current. Exact-head CI passed in run `36137848055`, PR #418 merged as `9c809961baf780b5e6df666769d4b118f7c5fb29`, and merged-master CI passed in run `36138001916`.
 
 ---
 
