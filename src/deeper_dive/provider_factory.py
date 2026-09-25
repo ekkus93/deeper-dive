@@ -206,7 +206,8 @@ class ProviderFactory:
         config: ProviderConfig,
     ) -> TTSProvider:
         if kind == "fake-tts":
-            return FakeTTSProvider(provider_id=name)
+            voices = tuple(TTSVoice(voice, voice) for voice in config.voices)
+            return FakeTTSProvider(provider_id=name, voices=voices or None)
         if kind == "kitten":
             return KittenTTSMicroProvider()
         if kind == "openai-tts":
