@@ -50,7 +50,9 @@ def test_cli_generate_reaches_completed_state_and_persists_episode_artifacts(
     config = configs.load_configuration(episode.id)
     configs.edit(episode.id, replace(config, focus="focused deep dive"))
     monkeypatch.setattr(
-        "deeper_dive.preflight.FFmpegConfig.detect", staticmethod(lambda executable=None: executable or Path("/fake/ffmpeg"))
+        "deeper_dive.preflight.FFmpegConfig.detect",
+        staticmethod(lambda executable=None: executable or Path("/fake/ffmpeg")),
+
     )
     monkeypatch.setattr(
         cli_module.ProductionComposition,
