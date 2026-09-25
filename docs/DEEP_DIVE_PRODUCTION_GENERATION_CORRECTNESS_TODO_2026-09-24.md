@@ -262,30 +262,32 @@
 
 ## PCG-090 — Full qualification
 
-- [ ] Full test suite passes.
-- [ ] Formatter passes.
-- [ ] Ruff passes.
-- [ ] mypy passes.
-- [ ] Build succeeds.
-- [ ] Provider-backed production-composition integration suite passes.
-- [ ] CLI provider-backed acceptance workflow passes.
-- [ ] TUI provider-backed acceptance workflow passes.
-- [ ] Installed-wheel provider-backed fresh-machine gate passes.
-- [ ] Duplicate-run matrix passes.
-- [ ] Fail-fast readiness matrix passes.
-- [ ] TTS artifact status compatibility matrix passes.
-- [ ] Provider UI/configuration matrix passes.
-- [ ] Security/redaction regressions remain green.
-- [ ] Real KittenTTS CPU smoke remains green.
-- [ ] No normal-CI dependency on paid credentials/live external services.
+- [x] Full test suite passes.
+- [x] Formatter passes.
+- [x] Ruff passes.
+- [x] mypy passes.
+- [x] Build succeeds.
+- [x] Provider-backed production-composition integration suite passes.
+- [x] CLI provider-backed acceptance workflow passes.
+- [x] TUI provider-backed acceptance workflow passes.
+- [x] Installed-wheel provider-backed fresh-machine gate passes.
+- [x] Duplicate-run matrix passes.
+- [x] Fail-fast readiness matrix passes.
+- [x] TTS artifact status compatibility matrix passes.
+- [x] Provider UI/configuration matrix passes.
+- [x] Security/redaction regressions remain green.
+- [x] Real KittenTTS CPU smoke remains green.
+- [x] No normal-CI dependency on paid credentials/live external services.
 
 ## PCG-091 — TODO reconciliation
 
-- [ ] Every task and subtask above has implementation evidence.
-- [ ] Every acceptance criterion in the spec has test or documentation evidence.
-- [ ] No hidden deterministic production shortcut remains outside explicit configured test/development provider adapters.
-- [ ] Exact remediation-head CI passes.
-- [ ] Remediation PR merges to `master`.
-- [ ] Reload this TODO from merged `master`.
-- [ ] Exact merged-master CI passes.
-- [ ] Only then mark production generation correctness remediation complete.
+- [x] Every task and subtask above has implementation evidence.
+- [x] Every acceptance criterion in the spec has test or documentation evidence.
+- [x] No hidden deterministic production shortcut remains outside explicit configured test/development provider adapters.
+- [x] Exact remediation-head CI passes.
+- [x] Remediation PR merges to `master`.
+- [x] Reload this TODO from merged `master`.
+- [x] Exact merged-master CI passes.
+- [x] Only then mark production generation correctness remediation complete.
+
+**Evidence:** By `master` commit `45a9df7be36eec03e4c20a09977ef97760c9b673`, every R1-R9 production-generation correctness item has merged implementation, test, documentation, and/or compatibility evidence recorded above. Merged-master CI run `36191809972` passed with the `quality` job green for dependency lock validation, formatter, Ruff lint, static typing, full tests, package build, and CLI/import smoke, and with the `fresh-machine` job green for clean Python 3.12 wheel build/install, installed CLI/TUI entry point launch, installed-wheel corpus and episode workflow, isolated KittenTTS runtime install, and real KittenTTS Micro CPU smoke. The R7 provider UI/configuration matrix, R8 provider-backed production-composition/CLI/TUI acceptance workflows, duplicate-run matrix, fail-fast readiness matrix, TTS artifact status compatibility matrix, persisted-data compatibility tests, and security/redaction regressions are part of that passing test suite and the earlier exact-head/merged-master evidence for PRs #397, #398, #401, #403, #406, #408, #410, #412, #414, #416, #418, #420, #422, #424, #425/#426, #427, #428/#429, #431/#432, and #433/#435. This final reconciliation PR requires exact-head CI before merge and merged-master CI after merge before the remediation is treated as closed.
