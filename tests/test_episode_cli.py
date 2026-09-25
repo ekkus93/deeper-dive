@@ -6,8 +6,6 @@ from pathlib import Path
 import pytest
 
 from deeper_dive.cli import main
-from deeper_dive.composition import ProductionComposition
-from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
@@ -36,20 +34,6 @@ def _configure_fake_episode_planning(data_dir: Path) -> None:
     )
 
 
-def _assign_fake_tts(data_dir: Path, project_id: str, host_id: str) -> None:
-    composition = ProductionComposition.build(
-        data_dir,
-        provider_factory=ProviderFactory(environ={}),
-    )
-    database = composition.database_for_project(project_id)
-    with database.transaction() as connection:
-        connection.execute(
-            "UPDATE hosts SET tts_provider='tts',tts_voice='voice-a' "
-            "WHERE project_id=? AND id=?",
-            (project_id, host_id),
-        )
-
-
 def test_episode_cli_create_plan_generate_status_and_export(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -60,7 +44,12 @@ def test_episode_cli_create_plan_generate_status_and_export(
     project_id = str(project["id"])
     host = _json_call([*base, "host", "create", project_id, "curious_explainer"], capsys)
     host_id = str(host["id"])
-    _assign_fake_tts(tmp_path, project_id, host_id)
+    voice = _json_call(
+        [*base, "host", "voice", project_id, host_id, "--provider", "tts", "--voice", "voice-a"],
+        capsys,
+    )
+    assert voice["tts_provider"] == "tts"
+    assert voice["tts_voice"] == "voice-a"
 
     episode = _json_call(
         [
@@ -174,10 +163,7 @@ def test_episode_cli_show_plan_reads_persisted_plan_without_configured_provider(
     plan = _json_call([*base, "episode", "plan", project_id, str(episode["id"])], capsys)
     (tmp_path / "config.json").unlink()
 
-    shown_plan = _json_call(
-        [*base, "episode", "show-plan", project_id, str(episode["id"])],
-        capsys,
-    )
+    shown_plan = _json_call([*base, "episode", "show-plan", project_id, str(episode["id"])], capsys)
 
     assert shown_plan["id"] == plan["id"]
 
