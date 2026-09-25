@@ -74,9 +74,20 @@ def test_library_export_targets_selected_episode_run_identity(tmp_path: Path) ->
         provider_factory=ProviderFactory(environ={}),
     )
     project = composition.service.create_project("Library export identity")
+    host_repository = composition.service.hosts(project.id)
+    first_host = create_host_from_preset("curious_explainer", project.id, host_id="host-first")
+    second_host = create_host_from_preset("skeptic", project.id, host_id="host-second")
+    host_repository.create_host(first_host.to_record())
+    host_repository.create_host(second_host.to_record())
     config_service = EpisodeConfigurationService(composition.database_for_project(project.id))
-    first = config_service.create(project.id, EpisodeConfiguration(title="First"))
-    second = config_service.create(project.id, EpisodeConfiguration(title="Second"))
+    first = config_service.create(
+        project.id,
+        EpisodeConfiguration(title="First", host_ids=(first_host.id,)),
+    )
+    second = config_service.create(
+        project.id,
+        EpisodeConfiguration(title="Second", host_ids=(second_host.id,)),
+    )
     repository = composition.generation_run_repository(project.id)
     first_run = GenerationRunRecord("run-first", first.id, "export", "completed", "t", "t")
     second_run = GenerationRunRecord("run-second", second.id, "export", "completed", "t", "t")
@@ -94,13 +105,13 @@ def test_library_export_targets_selected_episode_run_identity(tmp_path: Path) ->
             """INSERT INTO conversation_turns(
                 id,episode_id,segment_ordinal,turn_ordinal,speaker_id,text,evidence_ids_json
             ) VALUES (?,?,?,?,?,?,?)""",
-            ("turn-first", first.id, 0, 0, "host-first", "first transcript", "[]"),
+            ("turn-first", first.id, 0, 0, first_host.id, "first transcript", "[]"),
         )
         connection.execute(
             """INSERT INTO conversation_turns(
                 id,episode_id,segment_ordinal,turn_ordinal,speaker_id,text,evidence_ids_json
             ) VALUES (?,?,?,?,?,?,?)""",
-            ("turn-second", second.id, 0, 0, "host-second", "second transcript", "[]"),
+            ("turn-second", second.id, 0, 0, second_host.id, "second transcript", "[]"),
         )
     app = DeeperDiveApp(composition.service)
     app.current_project_id = project.id
