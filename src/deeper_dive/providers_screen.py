@@ -137,9 +137,10 @@ class ProvidersScreen(Screen[None]):
             self._status("Name and concrete provider adapter are required")
             return
         try:
-            supported_fields = self.provider_app.provider_controller.configuration_fields(provider_type)
+            controller = self.provider_app.provider_controller
+            supported_fields = controller.configuration_fields(provider_type)
             timeout_seconds = self._timeout_seconds(supported_fields)
-            self.provider_app.provider_controller.save_provider(
+            controller.save_provider(
                 name,
                 provider_type,
                 base_url=self._optional_field_value(
@@ -285,11 +286,13 @@ class ProvidersScreen(Screen[None]):
             return self._provider_type_details(typed_type)
         if self.selected_provider is None:
             return "Enter a provider adapter to see supported configuration fields."
-        provider = self.provider_app.provider_controller.config().providers[self.selected_provider]
+        controller = self.provider_app.provider_controller
+        provider = controller.config().providers[self.selected_provider]
+        capability = controller.capability(provider.provider_type)
         rows = [
             f"Selected: {self.selected_provider}",
             f"Adapter: {provider.provider_type}",
-            f"Capability: {self.provider_app.provider_controller.capability(provider.provider_type)}",
+            f"Capability: {capability}",
             self._provider_type_details(provider.provider_type),
         ]
         if provider.base_url is not None:
