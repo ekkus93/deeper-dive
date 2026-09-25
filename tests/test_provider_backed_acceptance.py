@@ -34,6 +34,7 @@ from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 _PROVIDER_MARKER = "Configured fake provider host turn marker"
 _DIRECTOR_MARKER = "Configured fake directing decision marker"
 
+# fmt: off
 
 @dataclass(slots=True)
 class ProviderAcceptanceFixture:
@@ -459,3 +460,5 @@ def _library_screen(app: DeeperDiveApp) -> EpisodeLibraryScreen:
 
 def _text(screen: EpisodeLibraryScreen, selector: str) -> str:
     return str(screen.query_one(selector, Static).render())
+
+# fmt: on
