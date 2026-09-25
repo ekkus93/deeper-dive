@@ -166,21 +166,23 @@
 
 ## PCG-060 — Expand provider configuration model coverage in UI
 
-- [ ] Add UI/controller support for credential environment variable names where applicable.
-- [ ] Add UI/controller support for provider timeout and network-scope metadata where applicable.
-- [ ] Add UI/controller support for TTS response format where applicable.
-- [ ] Add UI/controller support for voice catalogs and default voices where applicable.
-- [ ] Ensure unsupported fields are hidden or explained per adapter type.
+- [x] Add UI/controller support for credential environment variable names where applicable.
+- [x] Add UI/controller support for provider timeout and network-scope metadata where applicable.
+- [x] Add UI/controller support for TTS response format where applicable.
+- [x] Add UI/controller support for voice catalogs and default voices where applicable.
+- [x] Ensure unsupported fields are hidden or explained per adapter type.
 
 ## PCG-061 — Validate provider UI save/reload/health for supported adapter classes
 
-- [ ] Test OpenAI-style LLM configuration through UI/controller.
-- [ ] Test Ollama configuration through UI/controller.
-- [ ] Test OpenAI-compatible local LLM configuration through UI/controller.
-- [ ] Test KittenTTS configuration through UI/controller.
-- [ ] Test OpenAI/OpenAI-compatible TTS configuration through UI/controller.
-- [ ] Test ElevenLabs-style TTS configuration through UI/controller.
-- [ ] Assert no credential value is emitted in diagnostics, logs, CLI, or TUI messages.
+- [x] Test OpenAI-style LLM configuration through UI/controller.
+- [x] Test Ollama configuration through UI/controller.
+- [x] Test OpenAI-compatible local LLM configuration through UI/controller.
+- [x] Test KittenTTS configuration through UI/controller.
+- [x] Test OpenAI/OpenAI-compatible TTS configuration through UI/controller.
+- [x] Test ElevenLabs-style TTS configuration through UI/controller.
+- [x] Assert no credential value is emitted in diagnostics, logs, CLI, or TUI messages.
+
+**Evidence:** PR #424 exposed the existing extended `ProviderController` configuration surface in the Providers TUI: credential environment variable names, timeout seconds, network scope, TTS response format, comma-separated voice catalogs, default models, and adapter-specific supported/ignored-field presentation. It added TUI regressions proving supported fields are persisted/reloaded through production provider factories and unsupported KittenTTS fields are ignored or explained instead of persisted. Exact-head CI passed in run `36176197791`, PR #424 merged as `62c11af77b293395e625f16de2c0dd927281f018`, and merged-master CI passed in run `36176383008`. PR #425 added a Providers TUI save/reload/health matrix covering OpenAI-style LLM, Ollama, OpenAI-compatible local LLM, KittenTTS, OpenAI/OpenAI-compatible TTS, and ElevenLabs-style TTS adapters, including assertions that configured credential values are not emitted in TUI status/details or persisted config. Exact-head CI passed in run `36177527935`, PR #425 merged as `07d002a0ad07c36fb913e150000e030bee316163`, and the final reconciled master state for the same head landed as PR #426 `8c8d6158a03327f6b8e925a1fbb38417fb10c171` with merged-master CI run `36178707377`.
 
 ---
 
