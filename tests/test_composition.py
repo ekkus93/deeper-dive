@@ -230,8 +230,15 @@ def test_production_composition_constructs_generation_run_and_pipeline(tmp_path)
 
 
 def test_production_composition_monitor_runner_executes_durable_pipeline(tmp_path) -> None:
+    data_dir = tmp_path / "data"
+    UserConfigStore(data_dir / "config.json").save(
+        UserConfig(
+            providers={"planner": ProviderConfig(provider_type="fake", default_model="fake-v1")},
+            defaults={"episode_planning": "planner:fake-v1"},
+        )
+    )
     composition = ProductionComposition.build(
-        tmp_path / "data",
+        data_dir,
         provider_factory=ProviderFactory(environ={}),
     )
     project = composition.service.create_project("Monitor runner")
