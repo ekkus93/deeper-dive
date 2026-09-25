@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from deeper_dive import composition as composition_module
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.host_turn import HostTurnService
@@ -11,7 +13,7 @@ from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
-def test_production_tts_stage_routes_distinct_configured_provider_voices(tmp_path) -> None:
+def test_production_tts_stage_routes_distinct_configured_provider_voices(tmp_path: Path) -> None:
     data_dir = tmp_path / "data"
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
@@ -79,5 +81,5 @@ def test_production_tts_stage_routes_distinct_configured_provider_voices(tmp_pat
         ("turn-calm", "calm-tts", "calm"),
     ]
     by_turn = {row["turn_id"]: row for row in rows}
-    assert b"bright\nbright voice text" in by_turn["turn-bright"]["path"].read_bytes()
-    assert b"calm\ncalm voice text" in by_turn["turn-calm"]["path"].read_bytes()
+    assert b"bright\nbright voice text" in Path(str(by_turn["turn-bright"]["path"])).read_bytes()
+    assert b"calm\ncalm voice text" in Path(str(by_turn["turn-calm"]["path"])).read_bytes()
