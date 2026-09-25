@@ -469,7 +469,10 @@ def _preflight(app: DeeperDiveApp) -> PreflightScreen:
     return app.screen
 
 
-def _text(screen: HomeProjectsScreen | SourcesScreen | ProvidersScreen | PreflightScreen, selector: str) -> str:
+def _text(
+    screen: HomeProjectsScreen | SourcesScreen | ProvidersScreen | PreflightScreen,
+    selector: str,
+) -> str:
     return str(screen.query_one(selector, Static).render())
 
 
