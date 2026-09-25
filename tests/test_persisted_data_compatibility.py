@@ -15,7 +15,7 @@ from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.storage.workspace import WorkspaceManager
-from deeper_dive.tts_generation import TTSArtifactRepository, TTS_ARTIFACT_STATUS_COMPLETE
+from deeper_dive.tts_generation import TTS_ARTIFACT_STATUS_COMPLETE, TTSArtifactRepository
 from deeper_dive.user_config import UserConfigStore
 
 
