@@ -168,6 +168,10 @@ class FakeLLMProvider:
 
     def _response_for(self, request: LLMRequest) -> str:
         prompt = "\n".join(message.content for message in request.messages).lower()
+        if "choose the next podcast host turn" in prompt and "director decision" in prompt:
+            return self._director_decision_response(request)
+        if "verify generated podcast transcript" in prompt and "accepted" in prompt:
+            return self._verification_response()
         if "generate one podcast host turn" in prompt:
             if self.response == self.DEFAULT_RESPONSE:
                 return self._host_turn_response(request)
@@ -189,6 +193,35 @@ class FakeLLMProvider:
         return self.response
 
     @staticmethod
+    def _director_decision_response(request: LLMRequest) -> str:
+        try:
+            payload = json.loads(request.messages[-1].content)
+        except (IndexError, json.JSONDecodeError):
+            payload = {}
+        host_ids = payload.get("host_ids", []) if isinstance(payload, dict) else []
+        speaker_id = str(host_ids[0]) if host_ids else ""
+        evidence_ids = payload.get("available_evidence_ids", []) if isinstance(payload, dict) else []
+        return json.dumps(
+            {
+                "speaker_id": speaker_id,
+                "intent": "Configured fake directing decision marker.",
+                "evidence_ids": evidence_ids if isinstance(evidence_ids, list) else [],
+                "target_duration_seconds": 45,
+                "target_words": 80,
+                "handoff_instruction": "Continue with configured provider-backed generation.",
+                "segment_signal": "continue",
+            },
+            sort_keys=True,
+        )
+
+    @staticmethod
+    def _verification_response() -> str:
+        return json.dumps(
+            {"accepted": True, "notes": "Configured fake verification marker."},
+            sort_keys=True,
+        )
+
+    @staticmethod
     def _host_turn_response(request: LLMRequest) -> str:
         try:
             payload = json.loads(request.messages[-1].content)
@@ -196,10 +229,14 @@ class FakeLLMProvider:
             payload = {}
         speaker_id = str(payload.get("speaker_id", "")) if isinstance(payload, dict) else ""
         evidence_ids = payload.get("evidence_ids", []) if isinstance(payload, dict) else []
+        intent = str(payload.get("intent", "")) if isinstance(payload, dict) else ""
+        marker = "Configured fake provider host turn marker; deterministic production turn."
+        if "Configured fake directing decision marker" in intent:
+            marker = "Configured fake directing decision marker; provider-backed host turn."
         return json.dumps(
             {
                 "speaker_id": speaker_id,
-                "text": "Configured fake provider host turn marker; deterministic production turn.",
+                "text": marker,
                 "evidence_ids": evidence_ids if isinstance(evidence_ids, list) else [],
             },
             sort_keys=True,
