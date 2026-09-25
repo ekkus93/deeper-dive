@@ -48,7 +48,12 @@ from deeper_dive.targeted_repair import (
     TurnRepairProvider,
 )
 from deeper_dive.tts_benchmark import TTSBenchmarkService
-from deeper_dive.tts_generation import TTSArtifactRepository, TTSGenerationStage, TTSTurn
+from deeper_dive.tts_generation import (
+    TTSArtifact,
+    TTSArtifactRepository,
+    TTSGenerationStage,
+    TTSTurn,
+)
 from deeper_dive.user_config import UserConfigStore
 
 
@@ -456,12 +461,15 @@ def _composition_stage(
     turns = HostTurnService(database).list_turns(context.episode_id)
     if not turns:
         return
-    artifact_rows = _tts_artifacts_for_turns(database, turns)
+    composition = getattr(service, "_production_composition", None)
+    if composition is None:
+        raise RuntimeError("production composition is unavailable for audio composition")
+    artifacts = _tts_artifacts_for_turns(composition, project_id, database, turns)
     items = tuple(
         TimelineItem.clip(
             turn_id=turn.id,
             host_id=turn.speaker_id,
-            artifact_id=str(artifact_rows[turn.id]["artifact_id"]),
+            artifact_id=artifacts[turn.id].artifact_id,
             duration_seconds=max(0.1, len(turn.text.split()) / 150 * 60),
             metadata={"chapter_title": f"Turn {turn.turn_ordinal + 1}"},
         )
@@ -472,30 +480,34 @@ def _composition_stage(
     output.mkdir(parents=True, exist_ok=True)
     episode_audio = output / f"{context.episode_id}.wav"
     episode_audio.write_bytes(
-        b"".join(
-            Path(str(artifact_rows[turn.id]["path"])).read_bytes()
-            for turn in turns
-        )
+        b"".join(artifacts[turn.id].path.read_bytes() for turn in turns)
     )
 
 
 def _tts_artifacts_for_turns(
+    composition: ProductionComposition,
+    project_id: str,
     database: Database,
     turns: list[HostTurn],
-) -> dict[str, Mapping[str, object]]:
-    turn_ids = tuple(turn.id for turn in turns)
-    placeholders = ",".join("?" for _ in turn_ids)
-    with database.connection() as connection:
-        rows = connection.execute(
-            "SELECT turn_id,artifact_id,path FROM tts_artifacts "
-            f"WHERE turn_id IN ({placeholders})",
-            turn_ids,
-        ).fetchall()
-    by_turn = {str(row["turn_id"]): row for row in rows}
-    missing = [turn_id for turn_id in turn_ids if turn_id not in by_turn]
+) -> dict[str, TTSArtifact]:
+    repository = HostEpisodeRepository(database)
+    hosts = {
+        record.id: HostProfile.from_record(record)
+        for record in repository.list_hosts(project_id)
+    }
+    artifact_repository = TTSArtifactRepository(database)
+    artifacts: dict[str, TTSArtifact] = {}
+    missing: list[str] = []
+    for turn in turns:
+        tts_turn = _tts_turn_for_host(composition, hosts[turn.speaker_id], turn)
+        artifact = artifact_repository.get_by_cache_key(TTSGenerationStage.cache_key(tts_turn))
+        if artifact is None or not artifact.path.is_file() or artifact.path.stat().st_size == 0:
+            missing.append(turn.id)
+            continue
+        artifacts[turn.id] = artifact
     if missing:
         raise ValueError("missing TTS artifacts for turns: " + ", ".join(missing))
-    return by_turn
+    return artifacts
 # fmt: on
 
 
