@@ -232,7 +232,10 @@ class FakeLLMProvider:
         intent = str(payload.get("intent", "")) if isinstance(payload, dict) else ""
         marker = "Configured fake provider host turn marker; deterministic production turn."
         if "Configured fake directing decision marker" in intent:
-            marker = "Configured fake directing decision marker; provider-backed host turn."
+            marker = (
+                "Configured fake provider host turn marker; "
+                "Configured fake directing decision marker; deterministic production turn."
+            )
         return json.dumps(
             {
                 "speaker_id": speaker_id,
