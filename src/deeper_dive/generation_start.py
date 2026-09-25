@@ -53,7 +53,10 @@ class GenerationStartService:
         )
         host_records = self._episode_hosts(repository, project_id, episode_id)
         hosts = tuple(HostProfile.from_record(host) for host in host_records)
-        assignments, assignment_errors = self.composition.effective_model_role_assignments_for_episode(
+        (
+            assignments,
+            assignment_errors,
+        ) = self.composition.effective_model_role_assignments_for_episode(
             project_id,
             episode_id,
         )
