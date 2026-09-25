@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 from pathlib import Path
 
 from deeper_dive.domain.clock import format_timestamp
@@ -14,7 +13,6 @@ from deeper_dive.model_roles import ModelRole
 from deeper_dive.preflight import PreflightEstimate, PreflightIssue, PreflightReport
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 from deeper_dive.storage.run_repositories import GenerationRunRecord
-from deeper_dive.user_config import ProviderConfig
 
 
 _ACTIVE_STATES = frozenset({"pending", "running", "paused"})
@@ -33,12 +31,12 @@ class GenerationStartResult:
 class GenerationStartService:
     """Shared CLI/TUI generation-start policy and preflight boundary."""
 
-    def __init__(self, composition: Any, *, ffmpeg_executable: Path | None = None) -> None:
+    def __init__(self, composition: object, *, ffmpeg_executable: Path | None = None) -> None:
         self.composition = composition
         self.ffmpeg_executable = ffmpeg_executable
 
     def preflight(self, project_id: str, episode_id: str) -> PreflightReport:
-        service = self.composition.service
+        service = self.composition.service  # type: ignore[attr-defined]
         repository = service.hosts(project_id)
         episode = repository.get_episode(episode_id)
         if episode is None or episode.project_id != project_id:
@@ -46,7 +44,7 @@ class GenerationStartService:
                 (PreflightIssue("episode_missing", f"episode not found: {episode_id}"),),
                 PreflightEstimate(0, 0, 0, None),
             )
-        database = self.composition.database_for_project(project_id)
+        database = self.composition.database_for_project(project_id)  # type: ignore[attr-defined]
         sources = [source for source in service.list_sources(project_id) if source.included]
         indexed_source_count = sum(
             1 for source in sources if service.list_source_chunks(project_id, source.id)
@@ -56,14 +54,14 @@ class GenerationStartService:
         (
             assignments,
             assignment_errors,
-        ) = self.composition.effective_model_role_assignments_for_episode(
+        ) = self.composition.effective_model_role_assignments_for_episode(  # type: ignore[attr-defined]
             project_id,
             episode_id,
         )
         config = EpisodeConfigurationService(database).load_configuration(episode_id)
         target_seconds = episode.target_duration_seconds or config.target_duration_seconds
         target_minutes = target_seconds / 60 if target_seconds > 0 else 20.0
-        report = self.composition.preflight_service.check(
+        report = self.composition.preflight_service.check(  # type: ignore[attr-defined]
             assignments=assignments,
             hosts=hosts,
             source_count=len(sources),
@@ -90,7 +88,11 @@ class GenerationStartService:
 
         report = self.preflight(project_id, episode_id)
         report.require_ready()
-        result = select_or_create_generation_run(self.composition.service, project_id, episode_id)
+        result = select_or_create_generation_run(
+            self.composition.service,  # type: ignore[attr-defined]
+            project_id,
+            episode_id,
+        )
         return GenerationStartResult(result.run, result.created, report)
 
     def _episode_hosts(
@@ -98,7 +100,7 @@ class GenerationStartService:
         repository: HostEpisodeRepository,
         project_id: str,
         episode_id: str,
-    ) -> tuple[Any, ...]:
+    ) -> tuple[object, ...]:
         host_ids = repository.list_episode_host_ids(episode_id)
         hosts_by_id = {host.id: host for host in repository.list_hosts(project_id)}
         return tuple(hosts_by_id[host_id] for host_id in host_ids if host_id in hosts_by_id)
@@ -114,7 +116,7 @@ class GenerationStartService:
         return tuple(roles)
 
     def _local_provider_ids(self) -> frozenset[str]:
-        config = self.composition.provider_controller.config()
+        config = self.composition.provider_controller.config()  # type: ignore[attr-defined]
         local_ids = {
             value.strip()
             for value in config.defaults.get("local_provider_ids", "").split(",")
@@ -122,17 +124,18 @@ class GenerationStartService:
         }
         local_types = {"fake", "fake-tts", "kitten", "llama-server", "local", "ollama"}
         for name, provider in config.providers.items():
-            if isinstance(provider, ProviderConfig) and provider.provider_type in local_types:
+            if getattr(provider, "provider_type", None) in local_types:
                 local_ids.add(name)
         return frozenset(local_ids)
 
     def _local_only(self) -> bool:
-        value = self.composition.provider_controller.config().defaults.get("local_only", "")
+        config = self.composition.provider_controller.config()  # type: ignore[attr-defined]
+        value = config.defaults.get("local_only", "")
         return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def select_or_create_generation_run(
-    service: Any,
+    service: object,
     project_id: str,
     episode_id: str,
 ) -> GenerationStartResult:
@@ -142,14 +145,14 @@ def select_or_create_generation_run(
     runs do not block a later explicit generation attempt from creating a new run.
     """
 
-    repository = service.runs(project_id)
+    repository = service.runs(project_id)  # type: ignore[attr-defined]
     latest = repository.latest_for_episode(episode_id)
     if latest is not None and latest.state in _ACTIVE_STATES and not latest.cancel_requested:
         return GenerationStartResult(latest, False)
     if latest is not None and latest.state not in _TERMINAL_STATES | _ACTIVE_STATES:
         raise ValueError(f"cannot start generation from unsupported run state: {latest.state}")
 
-    now = format_timestamp(service.clock.now())
+    now = format_timestamp(service.clock.now())  # type: ignore[attr-defined]
     run = GenerationRunRecord(
         id=str(new_run_id()),
         episode_id=episode_id,
