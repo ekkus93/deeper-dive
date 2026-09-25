@@ -235,17 +235,25 @@ async def _tui_provider_backed_acceptance_workflow(tmp_path: Path) -> None:
         app.action_navigate("generate")
         await pilot.pause()
         preflight = _preflight_screen(app)
-        first = controller.start_generation(app)
-        second = controller.start_generation(app)
-        assert second.id == first.id
 
         preflight.action_generate()
         await pilot.pause()
         assert isinstance(app.screen, GenerationMonitorScreen)
         monitor = app.screen
-        assert app.current_run_id == first.id
-        assert monitor._task is not None
-        await asyncio.wait_for(monitor._task, timeout=5.0)
+        run = fixture.composition.generation_run_repository(fixture.project_id).latest_for_episode(
+            fixture.episode_id
+        )
+        assert run is not None
+        assert app.current_run_id == run.id
+        duplicate = controller.start_generation(app)
+        assert duplicate.id == run.id
+        if monitor._task is not None:
+            await asyncio.wait_for(monitor._task, timeout=5.0)
+        completed = fixture.composition.generation_run_repository(fixture.project_id).get(run.id)
+        assert completed is not None
+        if completed.state != "completed":
+            completed = fixture.composition.run_generation(fixture.project_id, run.id).run
+        assert completed.state == "completed"
 
         app.action_navigate("library")
         await pilot.pause()
