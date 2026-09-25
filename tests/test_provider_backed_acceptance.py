@@ -322,11 +322,11 @@ def _run_and_export(
     fixture: ProviderAcceptanceFixture,
     ffmpeg: Path,
 ) -> AcceptanceRunResult:
-    run = GenerationStartService(fixture.composition, ffmpeg_executable=ffmpeg).start(
+    start = GenerationStartService(fixture.composition, ffmpeg_executable=ffmpeg).start(
         fixture.project_id,
         fixture.episode_id,
     )
-    completed = fixture.composition.run_generation(fixture.project_id, run.id).run
+    completed = fixture.composition.run_generation(fixture.project_id, start.run.id).run
     export = EpisodeLibraryExportService(fixture.composition.service.workspaces).export(
         fixture.project_id,
         fixture.episode,
