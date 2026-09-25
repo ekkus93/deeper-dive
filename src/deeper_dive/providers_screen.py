@@ -1,3 +1,4 @@
+# fmt: off
 """Textual Providers screen."""
 
 from __future__ import annotations
@@ -11,6 +12,28 @@ from textual.widgets import Button, Footer, Header, Input, Label, Static
 
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.user_errors import user_status
+
+_DEFAULT_TIMEOUT_SECONDS = 60.0
+_PROVIDER_FORM_FIELDS = frozenset(
+    {
+        "base_url",
+        "default_model",
+        "credential_env",
+        "timeout_seconds",
+        "network_scope",
+        "response_format",
+        "voices",
+    }
+)
+_FIELD_LABELS = {
+    "base_url": "base URL",
+    "default_model": "default model",
+    "credential_env": "credential environment variable name",
+    "timeout_seconds": "timeout seconds",
+    "network_scope": "network scope",
+    "response_format": "TTS response format",
+    "voices": "voice catalog IDs",
+}
 
 
 class ProviderApp(Protocol):
@@ -44,8 +67,34 @@ class ProvidersScreen(Screen[None]):
                 placeholder="Adapter: openai, ollama, llama-server, kitten, elevenlabs, ...",
                 id="provider-type",
             )
-            yield Input(placeholder="Base URL (optional)", id="provider-base-url")
-            yield Input(placeholder="Default model (optional)", id="provider-default-model")
+            yield Input(
+                placeholder="Base URL (optional when supported)",
+                id="provider-base-url",
+            )
+            yield Input(
+                placeholder="Default model (optional when supported)",
+                id="provider-default-model",
+            )
+            yield Input(
+                placeholder="Credential env var name (optional when supported)",
+                id="provider-credential-env",
+            )
+            yield Input(
+                placeholder="Timeout seconds (optional when supported; default 60)",
+                id="provider-timeout-seconds",
+            )
+            yield Input(
+                placeholder="Network scope: local or remote (optional when supported)",
+                id="provider-network-scope",
+            )
+            yield Input(
+                placeholder="TTS response format, e.g. wav/mp3 (optional when supported)",
+                id="provider-response-format",
+            )
+            yield Input(
+                placeholder="Voice catalog IDs, comma-separated (optional when supported)",
+                id="provider-voices",
+            )
             yield Button("Add / Edit", id="action-save-provider", name="save")
             yield Button("Remove", id="action-remove-provider", name="remove")
             yield Button("Test Health", id="action-health-provider", name="health")
@@ -59,6 +108,12 @@ class ProvidersScreen(Screen[None]):
 
     def on_mount(self) -> None:
         self.refresh_providers()
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        if event.input.id == "provider-type":
+            self.query_one("#provider-details", Static).update(
+                self._provider_type_details(event.input.value.strip())
+            )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         action = event.button.name or ""
@@ -82,12 +137,42 @@ class ProvidersScreen(Screen[None]):
             self._status("Name and concrete provider adapter are required")
             return
         try:
-            self.provider_app.provider_controller.save_provider(
+            controller = self.provider_app.provider_controller
+            supported_fields = controller.configuration_fields(provider_type)
+            timeout_seconds = self._timeout_seconds(supported_fields)
+            controller.save_provider(
                 name,
                 provider_type,
-                base_url=self.query_one("#provider-base-url", Input).value.strip() or None,
-                default_model=self.query_one("#provider-default-model", Input).value.strip()
-                or None,
+                base_url=self._optional_field_value(
+                    supported_fields,
+                    "base_url",
+                    "#provider-base-url",
+                ),
+                default_model=self._optional_field_value(
+                    supported_fields,
+                    "default_model",
+                    "#provider-default-model",
+                ),
+                credential_env=self._optional_field_value(
+                    supported_fields,
+                    "credential_env",
+                    "#provider-credential-env",
+                ),
+                timeout_seconds=timeout_seconds,
+                network_scope=self._optional_field_value(
+                    supported_fields,
+                    "network_scope",
+                    "#provider-network-scope",
+                ),
+                response_format=(
+                    self._optional_field_value(
+                        supported_fields,
+                        "response_format",
+                        "#provider-response-format",
+                    )
+                    or "wav"
+                ),
+                voices=self._voice_catalog(supported_fields),
             )
         except ValueError as exc:
             self._status(user_status("provider", exc))
@@ -172,6 +257,7 @@ class ProvidersScreen(Screen[None]):
         ]
         self.query_one("#llm-provider-list", Static).update(self._list_text("LLM providers", llm))
         self.query_one("#tts-provider-list", Static).update(self._list_text("TTS providers", tts))
+        self.query_one("#provider-details", Static).update(self._details_text())
         self._status(status)
 
     def _list_text(self, title: str, names: list[str]) -> str:
@@ -193,6 +279,84 @@ class ProvidersScreen(Screen[None]):
     def _provider_type(self, name: str) -> str:
         config = self.provider_app.provider_controller.config().providers[name]
         return self.provider_app.provider_controller.capability(config.provider_type)
+
+    def _details_text(self) -> str:
+        typed_type = self.query_one("#provider-type", Input).value.strip()
+        if typed_type:
+            return self._provider_type_details(typed_type)
+        if self.selected_provider is None:
+            return "Enter a provider adapter to see supported configuration fields."
+        controller = self.provider_app.provider_controller
+        provider = controller.config().providers[self.selected_provider]
+        capability = controller.capability(provider.provider_type)
+        rows = [
+            f"Selected: {self.selected_provider}",
+            f"Adapter: {provider.provider_type}",
+            f"Capability: {capability}",
+            self._provider_type_details(provider.provider_type),
+        ]
+        if provider.base_url is not None:
+            rows.append(f"Base URL: {provider.base_url}")
+        if provider.default_model is not None:
+            rows.append(f"Default model: {provider.default_model}")
+        if provider.credential_env is not None:
+            rows.append(f"Credential env var: {provider.credential_env}")
+        if provider.network_scope is not None:
+            rows.append(f"Network scope: {provider.network_scope}")
+        if provider.response_format:
+            rows.append(f"Response format: {provider.response_format}")
+        if provider.voices:
+            rows.append("Voice catalog IDs: " + ", ".join(provider.voices))
+        return "\n".join(rows)
+
+    def _provider_type_details(self, provider_type: str) -> str:
+        if not provider_type:
+            return "Enter a provider adapter to see supported configuration fields."
+        try:
+            controller = self.provider_app.provider_controller
+            supported_fields = controller.configuration_fields(provider_type)
+        except ValueError as exc:
+            return user_status("provider", exc)
+        kind = provider_type.strip().lower().replace("_", "-")
+        supported = ", ".join(
+            _FIELD_LABELS[field]
+            for field in sorted(supported_fields)
+            if field in _FIELD_LABELS
+        )
+        ignored = ", ".join(
+            _FIELD_LABELS[field]
+            for field in sorted(_PROVIDER_FORM_FIELDS - supported_fields)
+            if field in _FIELD_LABELS
+        )
+        rows = [f"Supported optional fields for {kind}: {supported or 'none'}"]
+        if ignored:
+            rows.append(f"Ignored fields for {kind}: {ignored}")
+        return "\n".join(rows)
+
+    def _optional_field_value(
+        self, supported_fields: frozenset[str], field: str, selector: str
+    ) -> str | None:
+        if field not in supported_fields:
+            return None
+        value = self.query_one(selector, Input).value.strip()
+        return value or None
+
+    def _timeout_seconds(self, supported_fields: frozenset[str]) -> float:
+        if "timeout_seconds" not in supported_fields:
+            return _DEFAULT_TIMEOUT_SECONDS
+        raw_value = self.query_one("#provider-timeout-seconds", Input).value.strip()
+        if not raw_value:
+            return _DEFAULT_TIMEOUT_SECONDS
+        try:
+            return float(raw_value)
+        except ValueError as exc:
+            raise ValueError("timeout_seconds must be a number") from exc
+
+    def _voice_catalog(self, supported_fields: frozenset[str]) -> tuple[str, ...]:
+        if "voices" not in supported_fields:
+            return ()
+        raw_value = self.query_one("#provider-voices", Input).value
+        return tuple(value.strip() for value in raw_value.split(",") if value.strip())
 
     def _status(self, message: str) -> None:
         self.query_one("#screen-status", Static).update(f"Status: {message}")

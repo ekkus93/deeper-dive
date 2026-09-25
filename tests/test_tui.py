@@ -19,7 +19,9 @@ from deeper_dive.preflight_screen import (
     PreflightPresentation,
     PreflightScreen,
 )
+from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.provider_tui import ProviderController
+from deeper_dive.providers_screen import ProvidersScreen
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.storage.workspace import WorkspaceManager
@@ -62,6 +64,101 @@ async def _run_at_minimum_terminal_size(tmp_path: Path) -> None:
         await pilot.press("h")
         await pilot.pause()
         assert app.screen.id == "screen-home"
+
+
+def test_providers_tui_saves_extended_supported_fields(tmp_path: Path) -> None:
+    asyncio.run(_providers_tui_saves_extended_supported_fields(tmp_path))
+
+
+async def _providers_tui_saves_extended_supported_fields(tmp_path: Path) -> None:
+    secret = "local-tts-secret-value"
+    provider_controller = ProviderController(
+        UserConfigStore(tmp_path / "config.json"),
+        LLMProviderRegistry(),
+        {},
+        provider_factory=ProviderFactory(environ={"LOCAL_TTS_KEY": secret}),
+    )
+    app = DeeperDiveApp(_service(tmp_path), provider_controller=provider_controller)
+    async with app.run_test(size=(120, 36)) as pilot:
+        app.action_navigate("providers")
+        await pilot.pause()
+        screen = _providers(app)
+        screen.query_one("#provider-name", Input).value = "speech"
+        screen.query_one("#provider-type", Input).value = "openai-compatible-tts"
+        screen.query_one("#provider-base-url", Input).value = "http://127.0.0.1:9000/v1"
+        screen.query_one("#provider-default-model", Input).value = "local-tts"
+        screen.query_one("#provider-credential-env", Input).value = "LOCAL_TTS_KEY"
+        screen.query_one("#provider-timeout-seconds", Input).value = "12.5"
+        screen.query_one("#provider-network-scope", Input).value = "local"
+        screen.query_one("#provider-response-format", Input).value = "mp3"
+        screen.query_one("#provider-voices", Input).value = "alice, bob, ,"
+
+        screen.action_save()
+        await pilot.pause()
+
+        saved = provider_controller.config().providers["speech"]
+        assert saved.base_url == "http://127.0.0.1:9000/v1"
+        assert saved.default_model == "local-tts"
+        assert saved.credential_env == "LOCAL_TTS_KEY"
+        assert saved.timeout_seconds == 12.5
+        assert saved.network_scope == "local"
+        assert saved.response_format == "mp3"
+        assert saved.voices == ("alice", "bob")
+        assert tuple(voice.id for voice in provider_controller.tts("speech").voices()) == (
+            "alice",
+            "bob",
+        )
+        assert "Supported optional fields for openai-compatible-tts" in _text(
+            screen, "#provider-details"
+        )
+        assert secret not in _text(screen, "#provider-details")
+        assert secret not in _text(screen, "#screen-status")
+        assert secret not in (tmp_path / "config.json").read_text(encoding="utf-8")
+
+
+def test_providers_tui_ignores_unsupported_fields_per_adapter(tmp_path: Path) -> None:
+    asyncio.run(_providers_tui_ignores_unsupported_fields_per_adapter(tmp_path))
+
+
+async def _providers_tui_ignores_unsupported_fields_per_adapter(tmp_path: Path) -> None:
+    provider_controller = ProviderController(
+        UserConfigStore(tmp_path / "config.json"),
+        LLMProviderRegistry(),
+        {},
+        provider_factory=ProviderFactory(environ={}),
+    )
+    app = DeeperDiveApp(_service(tmp_path), provider_controller=provider_controller)
+    async with app.run_test(size=(120, 36)) as pilot:
+        app.action_navigate("providers")
+        await pilot.pause()
+        screen = _providers(app)
+        screen.query_one("#provider-name", Input).value = "kitten-local"
+        screen.query_one("#provider-type", Input).value = "kitten"
+        screen.query_one("#provider-base-url", Input).value = "http://ignored.example/v1"
+        screen.query_one("#provider-default-model", Input).value = "ignored-model"
+        screen.query_one("#provider-credential-env", Input).value = "IGNORED_SECRET"
+        screen.query_one("#provider-timeout-seconds", Input).value = "7"
+        screen.query_one("#provider-network-scope", Input).value = "local"
+        screen.query_one("#provider-response-format", Input).value = "mp3"
+        screen.query_one("#provider-voices", Input).value = "ignored-voice"
+
+        screen.action_save()
+        await pilot.pause()
+
+        saved = provider_controller.config().providers["kitten-local"]
+        assert saved.provider_type == "kitten"
+        assert saved.base_url is None
+        assert saved.default_model is None
+        assert saved.credential_env is None
+        assert saved.timeout_seconds == 60.0
+        assert saved.network_scope == "local"
+        assert saved.response_format == "wav"
+        assert saved.voices == ()
+        details = _text(screen, "#provider-details")
+        assert "Supported optional fields for kitten: network scope" in details
+        assert "Ignored fields for kitten" in details
+        assert "base URL" in details
+        assert "credential environment variable name" in details
 
 
 def test_home_projects_workflow_create_open_rename_delete_cancel(tmp_path: Path) -> None:
@@ -362,12 +459,20 @@ def _sources(app: DeeperDiveApp) -> SourcesScreen:
     return app.screen
 
 
+def _providers(app: DeeperDiveApp) -> ProvidersScreen:
+    assert isinstance(app.screen, ProvidersScreen)
+    return app.screen
+
+
 def _preflight(app: DeeperDiveApp) -> PreflightScreen:
     assert isinstance(app.screen, PreflightScreen)
     return app.screen
 
 
-def _text(screen: HomeProjectsScreen | SourcesScreen | PreflightScreen, selector: str) -> str:
+def _text(
+    screen: HomeProjectsScreen | SourcesScreen | ProvidersScreen | PreflightScreen,
+    selector: str,
+) -> str:
     return str(screen.query_one(selector, Static).render())
 
 
