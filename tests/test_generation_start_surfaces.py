@@ -80,22 +80,20 @@ def _ready_composition(tmp_path: Path) -> tuple[ProductionComposition, str, str]
     return composition, project.id, episode.id
 
 
-def _hold_generation(
-    composition: ProductionComposition,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def _hold_generation(monkeypatch: pytest.MonkeyPatch) -> None:
     def run_generation(
+        self: ProductionComposition,
         project_id: str,
         run_id: str,
         *,
         progress: object | None = None,
     ) -> PipelineResult:
         _ = progress
-        run = composition.generation_run_repository(project_id).get(run_id)
+        run = self.generation_run_repository(project_id).get(run_id)
         assert run is not None
         return PipelineResult(run, (), ())
 
-    monkeypatch.setattr(composition, "run_generation", run_generation)
+    monkeypatch.setattr(ProductionComposition, "run_generation", run_generation)
 
 
 def _patch_cli_build(
@@ -122,7 +120,7 @@ def test_repeated_cli_generate_reuses_active_run(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     composition, project_id, episode_id = _ready_composition(tmp_path)
-    _hold_generation(composition, monkeypatch)
+    _hold_generation(monkeypatch)
     _patch_cli_build(composition, monkeypatch)
     _patch_ffmpeg(monkeypatch)
     base = ["--data-dir", str(composition.service.workspaces.data_dir), "--json", "episode"]
@@ -163,7 +161,7 @@ def test_mixed_cli_then_tui_generate_reuses_active_run(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     composition, project_id, episode_id = _ready_composition(tmp_path)
-    _hold_generation(composition, monkeypatch)
+    _hold_generation(monkeypatch)
     _patch_cli_build(composition, monkeypatch)
     _patch_ffmpeg(monkeypatch)
     base = ["--data-dir", str(composition.service.workspaces.data_dir), "--json", "episode"]
