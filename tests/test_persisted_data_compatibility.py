@@ -15,7 +15,7 @@ from deeper_dive.storage.database import Database
 from deeper_dive.storage.run_repositories import GenerationRunRecord, GenerationRunRepository
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.tts_generation import TTS_ARTIFACT_STATUS_COMPLETE, TTSArtifactRepository
-from deeper_dive.user_config import UserConfigStore
+from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
 def test_existing_minimal_provider_configuration_records_still_load(tmp_path: Path) -> None:
@@ -147,12 +147,11 @@ def test_ambiguous_legacy_provider_entries_fail_with_actionable_guidance(
 
 def _write_provider_config(data_dir: Path) -> None:
     UserConfigStore(data_dir / "config.json").save(
-        {
-            "schema_version": 1,
-            "providers": {
-                "planner": {"provider_type": "fake", "default_model": "fake-v1"},
-                "speech": {"provider_type": "fake-tts"},
+        UserConfig(
+            providers={
+                "planner": ProviderConfig(provider_type="fake", default_model="fake-v1"),
+                "speech": ProviderConfig(provider_type="fake-tts"),
             },
-            "defaults": {"host_generation": "planner:fake-v1"},
-        }  # type: ignore[arg-type]
+            defaults={"host_generation": "planner:fake-v1"},
+        )
     )
