@@ -225,14 +225,14 @@ class ProviderFactory:
                 timeout=config.timeout_seconds,
             )
         if kind == "openai-compatible-tts":
+            if not config.base_url:
+                raise ProviderConfigurationError(
+                    f"provider {name!r} requires base_url for openai-compatible-tts"
+                )
             configured_voices = tuple(config.voices)
             if not configured_voices:
                 raise ProviderConfigurationError(
                     f"provider {name!r} requires at least one configured voice"
-                )
-            if not config.base_url:
-                raise ProviderConfigurationError(
-                    f"provider {name!r} requires base_url for openai-compatible-tts"
                 )
             return OpenAICompatibleTTSProvider(
                 provider_id=name,
