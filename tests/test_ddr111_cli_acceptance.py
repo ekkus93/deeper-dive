@@ -20,6 +20,7 @@ def _json_call(args: list[str], capsys: pytest.CaptureFixture[str]) -> dict[str,
 def test_cli_acceptance_create_source_host_episode_generate_export(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     data_dir = tmp_path / "data"
     planner = ProviderConfig(provider_type="fake", default_model="fake-v1")
@@ -85,6 +86,10 @@ def test_cli_acceptance_create_source_host_episode_generate_export(
     )
     assert plan["episode_id"] == episode_id
 
+    monkeypatch.setattr(
+        "deeper_dive.preflight.FFmpegConfig.detect",
+        staticmethod(lambda executable=None: executable or Path("/fake/ffmpeg")),
+    )
     generated = _json_call(
         [*base, "episode", "generate", project_id, episode_id],
         capsys,
