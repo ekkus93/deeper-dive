@@ -10,7 +10,11 @@ from deeper_dive.domain.ids import new_run_id
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.hosts import HostProfile
 from deeper_dive.model_roles import ModelRole
-from deeper_dive.preflight import PreflightEstimate, PreflightIssue, PreflightReport
+from deeper_dive.preflight import (
+    PreflightEstimate,
+    PreflightIssue,
+    PreflightReport,
+)
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 
