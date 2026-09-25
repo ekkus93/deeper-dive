@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +21,7 @@ from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.host_turn import HostTurnService
 from deeper_dive.hosts import create_host_from_preset
 from deeper_dive.model_roles import ModelRole
+from deeper_dive.pipeline import PipelineResult
 from deeper_dive.preflight import PreflightBlockedError
 from deeper_dive.preflight_screen import PreflightController, PreflightScreen
 from deeper_dive.provider_factory import ProviderFactory
@@ -437,12 +438,18 @@ def _hold_generation(monkeypatch: pytest.MonkeyPatch) -> None:
         run_id: str,
         *,
         progress: object | None = None,
-    ) -> object:
+    ) -> PipelineResult:
         _ = progress
         repository = self.generation_run_repository(project_id)
         run = repository.get(run_id)
         assert run is not None
-        return type("PipelineResult", (), {"run": run, "completed": (), "failed": ()})()
+        if run.cancel_requested:
+            run = replace(run, state="cancelled")
+            repository.update(run)
+        elif run.pause_requested:
+            run = replace(run, state="paused")
+            repository.update(run)
+        return PipelineResult(run, (), ())
 
     monkeypatch.setattr(ProductionComposition, "run_generation", run_generation)
 
