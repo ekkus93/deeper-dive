@@ -4,6 +4,7 @@ import asyncio
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
 from textual.widgets import Input, Static
 
 from deeper_dive.application.service import DeeperDiveService
@@ -159,6 +160,121 @@ async def _providers_tui_ignores_unsupported_fields_per_adapter(tmp_path: Path) 
         assert "Ignored fields for kitten" in details
         assert "base URL" in details
         assert "credential environment variable name" in details
+
+
+@pytest.mark.parametrize(
+    ("name", "provider_type", "fields", "capability"),
+    (
+        (
+            "openai-main",
+            "openai",
+            {"default_model": "gpt-test", "credential_env": "OPENAI_TEST_KEY"},
+            "llm",
+        ),
+        (
+            "ollama-local",
+            "ollama",
+            {"default_model": "qwen-test", "base_url": "http://127.0.0.1:11434"},
+            "llm",
+        ),
+        (
+            "compatible-local",
+            "llama-server",
+            {"default_model": "local-test", "base_url": "http://127.0.0.1:8080"},
+            "llm",
+        ),
+        ("kitten-local", "kitten", {"network_scope": "local"}, "tts"),
+        (
+            "openai-speech",
+            "openai-tts",
+            {"default_model": "tts-test", "credential_env": "OPENAI_TEST_KEY"},
+            "tts",
+        ),
+        (
+            "compatible-speech",
+            "openai-compatible-tts",
+            {
+                "base_url": "http://127.0.0.1:9000/v1",
+                "default_model": "local-tts",
+                "credential_env": "LOCAL_TTS_KEY",
+                "response_format": "mp3",
+                "voices": "voice-a, voice-b",
+            },
+            "tts",
+        ),
+        (
+            "eleven-speech",
+            "elevenlabs",
+            {"default_model": "eleven-test", "credential_env": "ELEVEN_TEST_KEY"},
+            "tts",
+        ),
+    ),
+)
+def test_providers_tui_save_reload_health_matrix(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    name: str,
+    provider_type: str,
+    fields: dict[str, str],
+    capability: str,
+) -> None:
+    asyncio.run(
+        _providers_tui_save_reload_health_matrix(
+            tmp_path,
+            monkeypatch,
+            name,
+            provider_type,
+            fields,
+            capability,
+        )
+    )
+
+
+async def _providers_tui_save_reload_health_matrix(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    name: str,
+    provider_type: str,
+    fields: dict[str, str],
+    capability: str,
+) -> None:
+    secrets = {
+        "OPENAI_TEST_KEY": "openai-secret-value",
+        "LOCAL_TTS_KEY": "local-secret-value",
+        "ELEVEN_TEST_KEY": "eleven-secret-value",
+    }
+    provider_controller = ProviderController(
+        UserConfigStore(tmp_path / "config.json"),
+        LLMProviderRegistry(),
+        {},
+        provider_factory=ProviderFactory(environ=secrets),
+    )
+    app = DeeperDiveApp(_service(tmp_path), provider_controller=provider_controller)
+    async with app.run_test(size=(120, 36)) as pilot:
+        app.action_navigate("providers")
+        await pilot.pause()
+        screen = _providers(app)
+        _set_provider_form(screen, name, provider_type, fields)
+
+        screen.action_save()
+        await pilot.pause()
+
+        saved = provider_controller.config().providers[name]
+        assert saved.provider_type == provider_type
+        assert provider_controller.capability(provider_type) == capability
+        provider = provider_controller.llm(name) if capability == "llm" else provider_controller.tts(name)
+        assert provider.provider_id == name
+        monkeypatch.setattr(provider, "health", lambda: ProviderHealth(True, "adapter-ready"))
+        screen.action_health()
+        await pilot.pause()
+        status = _text(screen, "#screen-status")
+        details = _text(screen, "#provider-details")
+        persisted = (tmp_path / "config.json").read_text(encoding="utf-8")
+        assert f"{name}: healthy - adapter-ready" in status
+        assert f"Supported optional fields for {provider_type}" in details
+        assert all(secret not in status for secret in secrets.values())
+        assert all(secret not in details for secret in secrets.values())
+        assert all(secret not in persisted for secret in secrets.values())
 
 
 def test_home_projects_workflow_create_open_rename_delete_cancel(tmp_path: Path) -> None:
@@ -467,6 +583,27 @@ def _providers(app: DeeperDiveApp) -> ProvidersScreen:
 def _preflight(app: DeeperDiveApp) -> PreflightScreen:
     assert isinstance(app.screen, PreflightScreen)
     return app.screen
+
+
+def _set_provider_form(
+    screen: ProvidersScreen,
+    name: str,
+    provider_type: str,
+    fields: dict[str, str],
+) -> None:
+    screen.query_one("#provider-name", Input).value = name
+    screen.query_one("#provider-type", Input).value = provider_type
+    selectors = {
+        "base_url": "#provider-base-url",
+        "default_model": "#provider-default-model",
+        "credential_env": "#provider-credential-env",
+        "timeout_seconds": "#provider-timeout-seconds",
+        "network_scope": "#provider-network-scope",
+        "response_format": "#provider-response-format",
+        "voices": "#provider-voices",
+    }
+    for field, selector in selectors.items():
+        screen.query_one(selector, Input).value = fields.get(field, "")
 
 
 def _text(
