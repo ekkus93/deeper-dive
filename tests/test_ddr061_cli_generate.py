@@ -38,7 +38,11 @@ def test_cli_generate_reaches_completed_state_and_persists_episode_artifacts(
         provider_factory=ProviderFactory(environ={}),
     )
     project = composition.service.create_project("CLI generate")
-    composition.service.add_pasted_source(project.id, "Fixture source", "Deterministic source text.")
+    composition.service.add_pasted_source(
+        project.id,
+        "Fixture source",
+        "Deterministic source text.",
+    )
     episode = composition.service.quick_deep_dive(project.id)
     database = composition.database_for_project(project.id)
     with database.transaction() as connection:
