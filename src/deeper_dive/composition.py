@@ -397,8 +397,15 @@ def _conversation_stage(
         assignments,
         model_roles.ModelRole.HOST_GENERATION,
     )
+    evidence_ids = _available_evidence_ids(service, project_id)
     turns = HostTurnService(database, LLMHostTurnProvider(provider, model))
-    decision = _director_decision(composition, assignments, episode.title, host_ids)
+    decision = _director_decision(
+        composition,
+        assignments,
+        episode.title,
+        host_ids,
+        evidence_ids,
+    )
     turns.generate(context.run_id, context.episode_id, decision)
 
 
@@ -407,11 +414,13 @@ def _director_decision(
     assignments: model_roles.ModelRoleAssignments,
     episode_title: str,
     host_ids: tuple[str, ...],
+    evidence_ids: tuple[str, ...],
 ) -> DirectorDecision:
     if assignments.resolve(model_roles.ModelRole.DIRECTING) is None:
         return DirectorDecision(
             speaker_id=host_ids[0],
             intent=f"Discuss {episode_title}",
+            evidence_ids=evidence_ids,
             target_duration_seconds=45,
             target_words=80,
         )
@@ -423,6 +432,7 @@ def _director_decision(
     return LLMDirectorDecisionProvider(provider, model).decide(
         episode_title=episode_title,
         host_ids=host_ids,
+        available_evidence_ids=evidence_ids,
     )
 
 
@@ -454,6 +464,23 @@ def _verification_stage(
         episode_id=context.episode_id,
         turns=turns,
     )
+
+
+def _available_evidence_ids(
+    service: DeeperDiveService,
+    project_id: str,
+    *,
+    limit: int = 16,
+) -> tuple[str, ...]:
+    evidence_ids: list[str] = []
+    for source in service.list_sources(project_id):
+        if not source.included:
+            continue
+        for chunk in service.list_source_chunks(project_id, source.id):
+            evidence_ids.append(chunk.id)
+            if len(evidence_ids) >= limit:
+                return tuple(evidence_ids)
+    return tuple(evidence_ids)
 
 
 def _llm_provider_for_role(
