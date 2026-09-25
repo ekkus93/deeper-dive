@@ -1,3 +1,4 @@
+# fmt: off
 """Textual Providers screen."""
 
 from __future__ import annotations
