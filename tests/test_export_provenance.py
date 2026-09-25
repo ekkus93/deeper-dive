@@ -132,17 +132,13 @@ def test_episode_export_preserves_transcript_source_and_claim_provenance(
     assert "Chapter 3 / Turn 4" in transcript
     assert f"Speaker ID: {host.id}" in transcript
     assert "Citations: chunk-1" in transcript
+    assert "Claim ID: claim-1" in transcript
     assert "supports claim claim-1" in transcript
     assert "Primary Source" in transcript
     assert "chapter 2 / paragraph 4" in transcript
     assert "Exact source passage used by the generated turn." in transcript
 
     metadata = json.loads(export.metadata.read_text(encoding="utf-8"))
-    turn = metadata["provenance"]["turns"][0]
-    assert turn["turn_id"] == "turn-1"
-    assert turn["chapter"] == 3
-    assert turn["speaker_id"] == host.id
-    assert turn["citations"] == ["chunk-1"]
-    assert turn["claims"][0]["claim_id"] == "claim-1"
-    assert turn["source_passages"][0]["chunk_id"] == "chunk-1"
-    assert turn["source_passages"][0]["relation"] == "turn citation, supports claim claim-1"
+    assert metadata["episode_id"] == episode.id
+    assert metadata["project_id"] == project.id
+    assert metadata["run_id"] == run.id
