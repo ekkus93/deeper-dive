@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 """Durable, duplicate-safe generation run creation and readiness gating."""
 
 from __future__ import annotations
