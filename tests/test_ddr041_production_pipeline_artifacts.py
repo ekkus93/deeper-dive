@@ -34,6 +34,11 @@ def test_production_pipeline_persists_reviewable_and_exportable_quick_episode(
     database = composition.database_for_project(project.id)
 
     episode = composition.service.quick_deep_dive(project.id)
+    with database.transaction() as connection:
+        connection.execute(
+            "UPDATE hosts SET tts_provider='speech',tts_voice='voice-a' WHERE project_id=?",
+            (project.id,),
+        )
     configs = EpisodeConfigurationService(database)
     quick_config = configs.load_configuration(episode.id)
     episode = configs.edit(episode.id, replace(quick_config, focus="indexed corpus"))
