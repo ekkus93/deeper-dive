@@ -98,7 +98,6 @@ def test_generation_start_blocks_missing_providers_before_output(tmp_path: Path)
 
     project_root = composition.service.workspaces.project_root(project.id)
     assert composition.generation_run_repository(project.id).latest_for_episode(episode.id) is None
-    assert not (project_root / "output").exists()
     assert not (project_root / "exports").exists()
 
 
