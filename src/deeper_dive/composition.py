@@ -438,17 +438,8 @@ def _tts_turn_for_host(
     host: HostProfile,
     turn: HostTurn,
 ) -> TTSTurn:
-    if host.tts_provider and host.tts_voice:
-        provider, voice = composition.providers.tts_registry.resolve_host(host)
-        return TTSTurn(turn.id, turn.speaker_id, turn.text, provider.provider_id, voice.id)
-    provider_ids = composition.providers.tts_registry.provider_ids()
-    if not provider_ids:
-        raise ValueError("no TTS providers configured")
-    provider = composition.providers.tts_registry.get(provider_ids[0])
-    voices = provider.voices()
-    if not voices:
-        raise ValueError(f"TTS provider {provider.provider_id!r} exposes no voices")
-    return TTSTurn(turn.id, turn.speaker_id, turn.text, provider.provider_id, voices[0].id)
+    provider, voice = composition.providers.tts_registry.resolve_host(host)
+    return TTSTurn(turn.id, turn.speaker_id, turn.text, provider.provider_id, voice.id)
 
 
 def _composition_stage(
