@@ -36,7 +36,13 @@ def test_cli_generate_reaches_completed_state_and_persists_episode_artifacts(
     )
     project = composition.service.create_project("CLI generate")
     episode = composition.service.quick_deep_dive(project.id)
-    configs = EpisodeConfigurationService(composition.database_for_project(project.id))
+    database = composition.database_for_project(project.id)
+    with database.transaction() as connection:
+        connection.execute(
+            "UPDATE hosts SET tts_provider='speech',tts_voice='voice-a' WHERE project_id=?",
+            (project.id,),
+        )
+    configs = EpisodeConfigurationService(database)
     config = configs.load_configuration(episode.id)
     configs.edit(episode.id, replace(config, focus="focused deep dive"))
     monkeypatch.setattr(
@@ -67,7 +73,6 @@ def test_cli_generate_reaches_completed_state_and_persists_episode_artifacts(
     run = composition.generation_run_repository(project.id).get(str(payload["id"]))
     assert run is not None
     assert run.state == "completed"
-    database = composition.database_for_project(project.id)
     with database.connection() as connection:
         turns = connection.execute(
             "SELECT text FROM conversation_turns WHERE episode_id=?",
