@@ -29,7 +29,13 @@ def test_cli_episode_export_uses_shared_artifact_exporter(tmp_path: Path, capsys
     )
     project = composition.service.create_project("CLI export")
     episode = composition.service.quick_deep_dive(project.id)
-    configs = EpisodeConfigurationService(composition.database_for_project(project.id))
+    database = composition.database_for_project(project.id)
+    with database.transaction() as connection:
+        connection.execute(
+            "UPDATE hosts SET tts_provider='speech',tts_voice='voice-a' WHERE project_id=?",
+            (project.id,),
+        )
+    configs = EpisodeConfigurationService(database)
     config = configs.load_configuration(episode.id)
     configs.edit(episode.id, replace(config, focus="focused deep dive"))
     run = composition.create_generation_run(project.id, episode.id)
