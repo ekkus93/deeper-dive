@@ -2,7 +2,7 @@
 
 Deeper Dive is a terminal-first, local-friendly application for turning a collection of documents into evidence-grounded research conversations and generated multi-host audio deep dives. It is designed for private project workspaces, explicit provider routing, inspectable source provenance, durable generation checkpoints, and fake-provider automation in normal CI.
 
-The design authority is [`docs/DEEP_DIVE_TUI_SPEC.md`](docs/DEEP_DIVE_TUI_SPEC.md). The ordered implementation and qualification plan is [`docs/DEEP_DIVE_TUI_TODO.md`](docs/DEEP_DIVE_TUI_TODO.md). Provider setup is documented in [`docs/PROVIDERS.md`](docs/PROVIDERS.md), research/provenance behavior is documented in [`docs/RESEARCH_PROVENANCE.md`](docs/RESEARCH_PROVENANCE.md), developer architecture notes are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), and privacy/security behavior is in [`docs/PRIVACY_SECURITY.md`](docs/PRIVACY_SECURITY.md).
+The design authority is [`docs/DEEP_DIVE_TUI_SPEC.md`](docs/DEEP_DIVE_TUI_SPEC.md). The ordered implementation and qualification plan is [`docs/DEEP_DIVE_TUI_TODO.md`](docs/DEEP_DIVE_TUI_TODO.md). Provider setup is documented in [`docs/PROVIDERS.md`](docs/PROVIDERS.md), production generation behavior is documented in [`docs/PRODUCTION_GENERATION.md`](docs/PRODUCTION_GENERATION.md), research/provenance behavior is documented in [`docs/RESEARCH_PROVENANCE.md`](docs/RESEARCH_PROVENANCE.md), developer architecture notes are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), and privacy/security behavior is in [`docs/PRIVACY_SECURITY.md`](docs/PRIVACY_SECURITY.md).
 
 ## Current interface
 
@@ -131,6 +131,12 @@ uv run deeper-dive --json episode export <project-id> <episode-id>
 ```
 
 Normal CI uses deterministic fake providers and fixtures. Live providers, live web search, GPU hardware, and model downloads are not required for ordinary test runs.
+
+## Production generation contract
+
+Generation is provider-backed through durable configuration. CLI and TUI generation share preflight/start semantics, duplicate-safe run selection, provider/TTS routing, explicit export, and sanitized failure reporting. The pipeline `export` stage means generation is ready for explicit export; concrete transcript, manifest, metadata, and audio files are created by CLI export or Episode Library export.
+
+See [`docs/PRODUCTION_GENERATION.md`](docs/PRODUCTION_GENERATION.md) for the full production-generation behavior contract.
 
 ## Development status
 

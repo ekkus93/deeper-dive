@@ -1,6 +1,6 @@
 # Architecture and developer guide
 
-This guide documents the implementation structure for developers extending Deeper Dive. The product/design contract remains `docs/DEEP_DIVE_TUI_SPEC.md`; this file focuses on the codebase conventions, layer boundaries, persistence model, provider contracts, checkpointing, and test strategy used by the current implementation.
+This guide documents the implementation structure for developers extending Deeper Dive. The product/design contract remains `docs/DEEP_DIVE_TUI_SPEC.md`; this file focuses on the codebase conventions, layer boundaries, persistence model, provider contracts, checkpointing, and test strategy used by the current implementation. Provider-backed production generation has a dedicated architecture note in `docs/PRODUCTION_GENERATION_ARCHITECTURE.md`.
 
 ## Layering and dependency direction
 
@@ -102,6 +102,8 @@ Persistence guidance:
 - Keep user configuration separate from project databases.
 - Do not store credentials in project databases, normal config records, exports, or diagnostic bundles.
 - On POSIX platforms, user config writes should preserve owner-only permissions where supported.
+- Existing concrete provider configuration records should load with defaults for newly added optional fields.
+- Ambiguous generic legacy provider types such as `llm` or `tts` must fail with actionable guidance rather than guessing a runtime adapter.
 
 When adding a schema change:
 
@@ -123,6 +125,10 @@ Checkpointing rules:
 - Retrying should not regenerate already-completed artifacts unless requested or invalidated.
 
 If a new stage is added, it should have an idempotent handler, durable outputs, progress events, and tests proving skip/resume behavior.
+
+## Production generation architecture
+
+Provider-backed production generation is documented in `docs/PRODUCTION_GENERATION_ARCHITECTURE.md`. That document covers the shared generation start service, provider-backed generation and TTS stage contracts, stage/export semantics, TTS artifact status compatibility, persisted-data compatibility policy, and deterministic provider-boundary testing strategy.
 
 ## Adding a new LLM provider
 
