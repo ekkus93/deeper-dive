@@ -66,8 +66,14 @@ class ProvidersScreen(Screen[None]):
                 placeholder="Adapter: openai, ollama, llama-server, kitten, elevenlabs, ...",
                 id="provider-type",
             )
-            yield Input(placeholder="Base URL (optional when supported)", id="provider-base-url")
-            yield Input(placeholder="Default model (optional when supported)", id="provider-default-model")
+            yield Input(
+                placeholder="Base URL (optional when supported)",
+                id="provider-base-url",
+            )
+            yield Input(
+                placeholder="Default model (optional when supported)",
+                id="provider-default-model",
+            )
             yield Input(
                 placeholder="Credential env var name (optional when supported)",
                 id="provider-credential-env",
