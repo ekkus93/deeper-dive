@@ -56,7 +56,7 @@ def test_production_composition_provider_backed_generation_and_export(
 ) -> None:
     fixture = _acceptance_fixture(tmp_path)
 
-    result = _run_and_export(fixture, tmp_path / "ffmpeg")
+    result = _run_and_export(fixture, _fake_ffmpeg(tmp_path))
 
     _assert_provider_backed_outputs(fixture, result)
 
