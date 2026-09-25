@@ -171,6 +171,13 @@ class FakeLLMProvider:
         if "choose the next podcast host turn" in prompt and "director decision" in prompt:
             return self._director_decision_response(request)
         if "verify generated podcast transcript" in prompt and "accepted" in prompt:
+            if self.response != self.DEFAULT_RESPONSE:
+                try:
+                    payload = json.loads(self.response)
+                except json.JSONDecodeError:
+                    return self.response
+                if isinstance(payload, dict) and "accepted" in payload:
+                    return self.response
             return self._verification_response()
         if "generate one podcast host turn" in prompt:
             if self.response == self.DEFAULT_RESPONSE:
