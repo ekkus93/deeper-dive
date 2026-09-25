@@ -1,6 +1,6 @@
 # Deeper Dive provider setup
 
-This document explains how provider configuration is expected to work for Deeper Dive. It covers LLM providers, TTS providers, KittenTTS Micro, and credential-storage behavior.
+This document explains how provider configuration is expected to work for Deeper Dive. It covers LLM providers, TTS providers, KittenTTS Micro, deterministic development providers, and credential-storage behavior.
 
 Provider setup is intentionally explicit. Deeper Dive should not contact a provider, send source text, download a model, or use cloud credentials merely because the package is imported.
 
@@ -8,18 +8,17 @@ Provider setup is intentionally explicit. Deeper Dive should not contact a provi
 
 Providers are configured outside project databases in user configuration. Projects and exported artifacts store non-secret provider identities, model names, routing decisions, and sanitized diagnostics, but they must not store raw API keys or credential values.
 
-The Providers screen and provider CLI expose the same concepts:
-
-```bash
-uv run deeper-dive --json provider list
-uv run deeper-dive --json provider health fake
-uv run deeper-dive --json provider models fake
-uv run deeper-dive --json provider voices fake-tts
-uv run deeper-dive --json provider kitten-status
-uv run deeper-dive --json provider kitten-benchmark
-```
+The Providers screen exposes concrete adapter types and their supported optional fields, including base URL, default model, credential environment variable reference, timeout, network scope, TTS response format, and voice catalogs when those fields are meaningful for that adapter. Unsupported fields should be ignored or explained rather than silently persisted.
 
 Generation preflight is the final safety gate. Review preflight before generation to see which stages route content to which providers and whether each route is local or remote.
+
+## Deterministic CI and development providers
+
+The `fake` LLM provider and `fake-tts` TTS provider are deterministic provider-boundary adapters for CI and development. They must be configured through the same durable user configuration and role/host assignment paths as real providers. They are not hidden production shortcuts.
+
+Use fake providers for ordinary CI, acceptance fixtures, and reproducible local development. They allow generation, TTS, preflight, export, and installed-wheel checks to run without network access, cloud credentials, GPUs, or model downloads.
+
+Do not use fake providers as a stand-in for a real production adapter unless the goal is explicitly deterministic development behavior.
 
 ## OpenAI LLM setup
 
