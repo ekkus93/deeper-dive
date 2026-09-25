@@ -33,6 +33,11 @@ def _build_project_with_episode(data_dir: Path) -> tuple[ProductionComposition, 
     )
     project = composition.service.create_project("CLI control")
     episode = composition.service.quick_deep_dive(project.id)
+    with composition.database_for_project(project.id).transaction() as connection:
+        connection.execute(
+            "UPDATE hosts SET tts_provider='speech',tts_voice='voice-a' WHERE project_id=?",
+            (project.id,),
+        )
     return composition, project.id, episode.id
 
 

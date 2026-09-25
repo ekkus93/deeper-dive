@@ -52,6 +52,17 @@ def test_cli_acceptance_create_source_host_episode_generate_export(
         [*base, "host", "create", project_id, "curious_explainer"],
         capsys,
     )
+    composition = ProductionComposition.build(
+        data_dir,
+        provider_factory=ProviderFactory(environ={}),
+    )
+    database = composition.database_for_project(project_id)
+    with database.transaction() as connection:
+        connection.execute(
+            "UPDATE hosts SET tts_provider='speech',tts_voice='voice-a' "
+            "WHERE project_id=? AND id=?",
+            (project_id, str(host["id"])),
+        )
     episode = _json_call(
         [
             *base,
@@ -128,6 +139,12 @@ def test_cli_acceptance_pause_resume_uses_durable_control_path(
     )
     project = composition.service.create_project("DDR-111 control")
     episode = composition.service.quick_deep_dive(project.id)
+    database = composition.database_for_project(project.id)
+    with database.transaction() as connection:
+        connection.execute(
+            "UPDATE hosts SET tts_provider='audio',tts_voice='voice-a' WHERE project_id=?",
+            (project.id,),
+        )
     run = composition.create_generation_run(project.id, episode.id)
     monkeypatch.setattr(
         cli_module.ProductionComposition,

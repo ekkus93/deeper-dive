@@ -36,6 +36,8 @@ def _configured_composition(tmp_path) -> ProductionComposition:
 def _configured_episode(composition: ProductionComposition):
     project = composition.service.create_project("Production integration")
     host = create_host_from_preset("skeptic", project.id)
+    host.tts_provider = "speech"
+    host.tts_voice = "voice-a"
     composition.service.hosts(project.id).create_host(host.to_record())
     database = composition.database_for_project(project.id)
     episode = EpisodeConfigurationService(database).create(

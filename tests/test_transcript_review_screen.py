@@ -40,7 +40,15 @@ def _project_with_episode(tmp_path: Path) -> tuple[DeeperDiveService, str, str]:
     project = service.create_project("Review")
     database = Database(service.workspaces.project_root(project.id) / "project.db")
     hosts = HostEpisodeRepository(database)
-    hosts.create_host(HostProfileRecord("h1", project.id, "Host One"))
+    hosts.create_host(
+        HostProfileRecord(
+            "h1",
+            project.id,
+            "Host One",
+            tts_provider="tts",
+            tts_voice="voice-a",
+        )
+    )
     episode = EpisodeConfigurationService(database).create(
         project.id,
         EpisodeConfiguration(

@@ -44,6 +44,12 @@ def test_episode_cli_create_plan_generate_status_and_export(
     project_id = str(project["id"])
     host = _json_call([*base, "host", "create", project_id, "curious_explainer"], capsys)
     host_id = str(host["id"])
+    voice = _json_call(
+        [*base, "host", "voice", project_id, host_id, "--provider", "tts", "--voice", "voice-a"],
+        capsys,
+    )
+    assert voice["tts_provider"] == "tts"
+    assert voice["tts_voice"] == "voice-a"
 
     episode = _json_call(
         [

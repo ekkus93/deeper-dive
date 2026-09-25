@@ -33,6 +33,11 @@ def _completed_episode(tmp_path: Path):
     summary = composition.service.add_file_sources(project.id, [source_path])
     assert len(summary.imported) == 1
     episode = composition.service.quick_deep_dive(project.id)
+    with composition.database_for_project(project.id).transaction() as connection:
+        connection.execute(
+            "UPDATE hosts SET tts_provider='speech',tts_voice='voice-a' WHERE project_id=?",
+            (project.id,),
+        )
     run = composition.create_generation_run(project.id, episode.id)
     result = composition.run_generation(project.id, run.id)
     assert result.run.state == "completed"
