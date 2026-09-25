@@ -37,11 +37,15 @@ def _configure_fake_episode_planning(data_dir: Path) -> None:
 def test_episode_cli_create_plan_generate_status_and_export(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _configure_fake_episode_planning(tmp_path)
     base = ["--data-dir", str(tmp_path), "--json"]
     project = _json_call([*base, "project", "create", "Episode CLI"], capsys)
     project_id = str(project["id"])
+    source = tmp_path / "source.txt"
+    source.write_text("Indexed CLI episode source.", encoding="utf-8")
+    _json_call([*base, "source", "add", project_id, str(source)], capsys)
     host = _json_call([*base, "host", "create", project_id, "curious_explainer"], capsys)
     host_id = str(host["id"])
     voice = _json_call(
@@ -101,6 +105,10 @@ def test_episode_cli_create_plan_generate_status_and_export(
     shown_plan = _json_call([*base, "episode", "show-plan", project_id, episode_id], capsys)
     assert shown_plan["id"] == plan["id"]
 
+    monkeypatch.setattr(
+        "deeper_dive.preflight.FFmpegConfig.detect",
+        staticmethod(lambda executable=None: executable or Path("/fake/ffmpeg")),
+    )
     run = _json_call([*base, "episode", "generate", project_id, episode_id], capsys)
     assert run["episode_id"] == episode_id
     assert run["state"] == "completed"
