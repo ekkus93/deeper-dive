@@ -1,3 +1,4 @@
+# fmt: off
 from __future__ import annotations
 
 import asyncio
@@ -262,7 +263,10 @@ async def _providers_tui_save_reload_health_matrix(
         saved = provider_controller.config().providers[name]
         assert saved.provider_type == provider_type
         assert provider_controller.capability(provider_type) == capability
-        provider = provider_controller.llm(name) if capability == "llm" else provider_controller.tts(name)
+        if capability == "llm":
+            provider = provider_controller.llm(name)
+        else:
+            provider = provider_controller.tts(name)
         assert provider.provider_id == name
         monkeypatch.setattr(provider, "health", lambda: ProviderHealth(True, "adapter-ready"))
         screen.action_health()
@@ -540,7 +544,10 @@ async def _preflight_tui_sanitizes_generation_start_failures(tmp_path: Path) -> 
         def start_generation(self, app: object) -> GenerationRunRecord:
             raise RuntimeError(f"provider failed {key_name}={secret}")
 
-    app = DeeperDiveApp(_service(tmp_path), preflight_controller=FailingPreflightController())  # type: ignore[arg-type]
+    app = DeeperDiveApp(  # type: ignore[arg-type]
+        _service(tmp_path),
+        preflight_controller=FailingPreflightController(),
+    )
     async with app.run_test(size=(100, 30)) as pilot:
         app.action_navigate("generate")
         await pilot.pause()
