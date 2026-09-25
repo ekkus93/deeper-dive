@@ -89,16 +89,16 @@
 - [x] Run preflight or equivalent readiness checks before CLI generation starts.
 - [x] Reject missing source, missing indexed corpus, missing hosts, missing provider/model assignments, missing TTS assignments, and FFmpeg blockers consistently with TUI.
 - [x] Ensure CLI text and JSON errors are sanitized and actionable.
-- [ ] Add tests proving CLI and TUI reject the same blocker matrix.
+- [x] Add tests proving CLI and TUI reject the same blocker matrix.
 
 ## PCG-022 — Fail fast on assignment-resolution errors
 
 - [x] Stop discarding errors returned by effective model-role assignment resolution.
 - [x] Prevent generation from producing output when required roles are unresolved.
 - [x] Persist or return a clear failed/rejected state without leaking secrets.
-- [ ] Add tests for missing role, invalid provider identity, unsupported capability, and missing TTS assignment.
+- [x] Add tests for missing role, invalid provider identity, unsupported capability, and missing TTS assignment.
 
-**Evidence:** PR #412 introduced `GenerationStartService` as a shared CLI/TUI readiness and duplicate-safe start boundary, made CLI `episode generate` call it before running generation, routed TUI Generate through it when production composition is available, made `PreflightService` accept path-specific required model roles, preserved sanitized CLI failure behavior through `PreflightBlockedError`, and made `run_generation` fail fast on model-role assignment parsing errors. It also qualified CLI generation, CLI control, DDR-111 acceptance, and episode CLI fixtures against source/indexing, host/TTS, and FFmpeg readiness expectations. Exact-head CI passed in run `36120277010`, PR #412 merged as `b9bfd6f0e6632dbb51ff6452984c3a2b5eb26e4a`, and merged-master CI passed in run `36134160719`. Full paired CLI/TUI blocker-matrix tests and explicit missing-role/invalid-provider/unsupported-capability/missing-TTS assignment matrix tests remain open.
+**Evidence:** PR #412 introduced `GenerationStartService` as a shared CLI/TUI readiness and duplicate-safe start boundary, made CLI `episode generate` call it before running generation, routed TUI Generate through it when production composition is available, made `PreflightService` accept path-specific required model roles, preserved sanitized CLI failure behavior through `PreflightBlockedError`, and made `run_generation` fail fast on model-role assignment parsing errors. It also qualified CLI generation, CLI control, DDR-111 acceptance, and episode CLI fixtures against source/indexing, host/TTS, and FFmpeg readiness expectations. Exact-head CI passed in run `36120277010`, PR #412 merged as `b9bfd6f0e6632dbb51ff6452984c3a2b5eb26e4a`, and merged-master CI passed in run `36134160719`. PR #414 routed TUI preflight presentation through the same shared start service used by CLI generation and added `tests/test_generation_start_preflight.py`, a paired CLI/TUI blocker matrix covering missing sources, unindexed sources, missing hosts, missing TTS assignment, missing host-generation role assignment, invalid provider identity, unavailable model/capability, and missing FFmpeg. It also asserts shared start blocks before creating a run and keeps installed-wheel fresh-machine preflight aligned with generation-time `host_generation`/`tts` routes. Exact-head CI passed in run `36135204965`, PR #414 merged as `54e79005991b50b03c67eaf2d48efa30882aaa43`, and merged-master CI passed in run `36135379198`.
 
 ---
 
