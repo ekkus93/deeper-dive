@@ -119,6 +119,10 @@ def test_cli_rejects_illegal_control_transitions(
     data_dir = tmp_path / "data"
     composition, project_id, episode_id = _build_project_with_episode(data_dir)
     monkeypatch.setattr(
+        "deeper_dive.preflight.FFmpegConfig.detect",
+        staticmethod(lambda executable=None: executable or Path("/fake/ffmpeg")),
+    )
+    monkeypatch.setattr(
         cli_module.ProductionComposition,
         "build",
         staticmethod(lambda data_dir=None: composition),
