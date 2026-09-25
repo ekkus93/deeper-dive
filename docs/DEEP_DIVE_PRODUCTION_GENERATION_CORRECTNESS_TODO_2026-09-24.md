@@ -58,7 +58,7 @@
 ## PCG-011 — Route host voices through configured TTS assignments
 
 - [x] Resolve each host's TTS provider assignment and voice before synthesis.
-- [ ] Reject generation when a host has no usable TTS assignment and audio is required.
+- [x] Reject generation when a host has no usable TTS assignment and audio is required.
 - [x] Support configured voice catalogs for local and remote TTS providers.
 - [x] Persist provider, voice, cache key, and artifact identity consistently.
 - [x] Add tests covering two hosts with distinct configured voices and providers.
@@ -67,11 +67,11 @@
 
 - [x] Route production synthesis through the shared TTS generation/artifact contract or equivalent service.
 - [x] Reuse valid cached artifacts when appropriate.
-- [ ] Regenerate artifacts when transcript repair invalidates audio.
+- [x] Regenerate artifacts when transcript repair invalidates audio.
 - [x] Preserve episode-specific audio identity and export behavior.
-- [ ] Add regression tests for cache reuse, repair invalidation, and export.
+- [x] Add regression tests for cache reuse, repair invalidation, and export.
 
-**Evidence:** PR #406 replaced `_tts_stage` direct deterministic WAV writes with `TTSGenerationStage`, routes production synthesis through configured `TTSProviderRegistry` providers, composes episode audio from persisted provider artifacts, keeps deterministic CI behavior through durable fake TTS provider configuration, and adds a regression asserting production TTS uses the provider generation contract rather than `_deterministic_audio_bytes` or `deterministic-tts`. It also fixed TTS cache reuse so valid cached provider audio can be reused without duplicate cache-key persistence, preserved multi-episode export/audio identity, aligned CLI/TUI/library/export fixtures with durable fake TTS configuration, passed exact-head CI run `36078189348`, merged as `ff0a4efb6998bbe537cb8f6fa4af8d5ec5277a53`, and passed merged-master CI run `36101809170`. PR #408 made fake TTS honor configured voice catalogs, preserved OpenAI-compatible remote voice-catalog validation, added a production-stage regression proving two hosts route through distinct configured TTS providers and voices, passed exact-head CI run `36102697707`, merged as `aa73adc0f1d4adea733ce1f9b2f056b18840b0a9`, and passed merged-master CI run `36102817118`. Missing-TTS rejection, transcript-repair invalidation, and the combined cache/repair/export regression item remain open.
+**Evidence:** PR #406 replaced `_tts_stage` direct deterministic WAV writes with `TTSGenerationStage`, routes production synthesis through configured `TTSProviderRegistry` providers, composes episode audio from persisted provider artifacts, keeps deterministic CI behavior through durable fake TTS provider configuration, and adds a regression asserting production TTS uses the provider generation contract rather than `_deterministic_audio_bytes` or `deterministic-tts`. It also fixed TTS cache reuse so valid cached provider audio can be reused without duplicate cache-key persistence, preserved multi-episode export/audio identity, aligned CLI/TUI/library/export fixtures with durable fake TTS configuration, passed exact-head CI run `36078189348`, merged as `ff0a4efb6998bbe537cb8f6fa4af8d5ec5277a53`, and passed merged-master CI run `36101809170`. PR #408 made fake TTS honor configured voice catalogs, preserved OpenAI-compatible remote voice-catalog validation, added a production-stage regression proving two hosts route through distinct configured TTS providers and voices, passed exact-head CI run `36102697707`, merged as `aa73adc0f1d4adea733ce1f9b2f056b18840b0a9`, and passed merged-master CI run `36102817118`. PR #410 removed the implicit first-provider/first-voice fallback by rejecting missing host TTS assignments when audio is required, added a missing-assignment regression, migrated CLI, export, production-composition, multi-episode, transcript-review, and DDR acceptance fixtures to explicit configured fake TTS assignments, and preserved transcript-repair audio invalidation/regeneration evidence through the production repair path. It passed exact-head CI run `36107870929`, merged as `8c41cc045bc2c4a5e681ab32a2a41e54e976b4c2`, and passed merged-master CI run `36108031085`.
 
 ---
 
@@ -207,7 +207,7 @@
 
 ## PCG-073 — Strengthen installed-wheel fresh-machine gate
 
-- [ ] Build wheel from exact head and install into a clean Python 3.12 environment.
+- [ ] Build wheel from exact head and install into a clean Python 12 environment.
 - [ ] Launch installed CLI and TUI entry points.
 - [ ] Configure deterministic providers through installed production paths.
 - [ ] Generate provider-backed transcript/audio without source-tree imports.
