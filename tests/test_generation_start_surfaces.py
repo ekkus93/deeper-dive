@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import pytest
@@ -89,8 +89,15 @@ def _hold_generation(monkeypatch: pytest.MonkeyPatch) -> None:
         progress: object | None = None,
     ) -> PipelineResult:
         _ = progress
-        run = self.generation_run_repository(project_id).get(run_id)
+        repository = self.generation_run_repository(project_id)
+        run = repository.get(run_id)
         assert run is not None
+        if run.cancel_requested:
+            run = replace(run, state="cancelled")
+            repository.update(run)
+        elif run.pause_requested:
+            run = replace(run, state="paused")
+            repository.update(run)
         return PipelineResult(run, (), ())
 
     monkeypatch.setattr(ProductionComposition, "run_generation", run_generation)
@@ -180,3 +187,32 @@ def test_mixed_cli_then_tui_generate_reuses_active_run(
 
     assert tui_run.id == cli_run["id"]
     assert app.current_run_id == cli_run["id"]
+
+
+def test_cli_control_commands_target_duplicate_safe_active_run(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    composition, project_id, episode_id = _ready_composition(tmp_path)
+    _hold_generation(monkeypatch)
+    _patch_cli_build(composition, monkeypatch)
+    _patch_ffmpeg(monkeypatch)
+    base = ["--data-dir", str(composition.service.workspaces.data_dir), "--json", "episode"]
+    first = _json_call([*base, "generate", project_id, episode_id], capsys)
+    duplicate = _json_call([*base, "generate", project_id, episode_id], capsys)
+
+    paused = _json_call([*base, "pause", project_id, episode_id], capsys)
+    resumed = _json_call([*base, "resume", project_id, episode_id], capsys)
+    cancelled = _json_call([*base, "cancel", project_id, episode_id], capsys)
+    status = _json_call([*base, "status", project_id, episode_id], capsys)
+
+    assert duplicate["id"] == first["id"]
+    assert paused["id"] == first["id"]
+    assert paused["state"] == "paused"
+    assert resumed["id"] == first["id"]
+    assert resumed["state"] == "pending"
+    assert cancelled["id"] == first["id"]
+    assert cancelled["state"] == "cancelled"
+    assert status["run"]["id"] == first["id"]
+    assert status["run"]["state"] == "cancelled"
