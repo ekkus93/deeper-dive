@@ -27,7 +27,10 @@ def test_cli_generate_reaches_completed_state_and_persists_episode_artifacts(
                 "planner": ProviderConfig(provider_type="fake", default_model="fake-v1"),
                 "speech": ProviderConfig(provider_type="fake-tts"),
             },
-            defaults={"host_generation": "planner:fake-v1"},
+            defaults={
+                "episode_planning": "planner:fake-v1",
+                "host_generation": "planner:fake-v1",
+            },
         )
     )
     composition = ProductionComposition.build(
@@ -35,6 +38,7 @@ def test_cli_generate_reaches_completed_state_and_persists_episode_artifacts(
         provider_factory=ProviderFactory(environ={}),
     )
     project = composition.service.create_project("CLI generate")
+    composition.service.add_pasted_source(project.id, "Fixture source", "Deterministic source text.")
     episode = composition.service.quick_deep_dive(project.id)
     database = composition.database_for_project(project.id)
     with database.transaction() as connection:
@@ -45,6 +49,9 @@ def test_cli_generate_reaches_completed_state_and_persists_episode_artifacts(
     configs = EpisodeConfigurationService(database)
     config = configs.load_configuration(episode.id)
     configs.edit(episode.id, replace(config, focus="focused deep dive"))
+    monkeypatch.setattr(
+        "deeper_dive.preflight.FFmpegConfig.detect", staticmethod(lambda executable=None: executable or Path("/fake/ffmpeg"))
+    )
     monkeypatch.setattr(
         cli_module.ProductionComposition,
         "build",
