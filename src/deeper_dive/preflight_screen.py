@@ -145,6 +145,10 @@ class PreflightController:
             result = select_or_create_generation_run(app.service, project_id, episode.id)
         else:
             composition.provider_controller = app.provider_controller
+            composition.preflight_service = PreflightService(
+                app.provider_controller.llm_registry,
+                self._tts_registry(app),
+            )
             result = GenerationStartService(
                 composition,
                 ffmpeg_executable=self.ffmpeg_executable,
@@ -213,6 +217,13 @@ class PreflightController:
                 )
         issues = tuple(PreflightIssue("llm_assignment", error) for error in errors)
         return assignments, issues
+
+    @staticmethod
+    def _tts_registry(app: PreflightApp) -> TTSProviderRegistry:
+        registry = TTSProviderRegistry()
+        for provider in app.provider_controller.tts_providers.values():
+            registry.register(provider)
+        return registry
 
     @staticmethod
     def _local_provider_ids(
