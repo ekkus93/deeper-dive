@@ -16,7 +16,10 @@ def test_library_export_creates_episode_specific_artifacts(tmp_path: Path) -> No
     data_dir = tmp_path / "data"
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
-            providers={"planner": ProviderConfig(provider_type="fake", default_model="fake-v1")},
+            providers={
+                "planner": ProviderConfig(provider_type="fake", default_model="fake-v1"),
+                "tts": ProviderConfig(provider_type="fake-tts"),
+            },
             defaults={"host_generation": "planner:fake-v1"},
         )
     )

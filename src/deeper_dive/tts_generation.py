@@ -95,8 +95,9 @@ class TTSArtifactRepository:
         with self.database.transaction() as db:
             db.execute(
                 """INSERT OR IGNORE INTO generation_run_units(run_id,stage,unit_id,completed_at)
-                VALUES (?, 'tts', ?, datetime('now'))""",
-                (run_id, turn_id),
+                SELECT ?, 'tts', ?, datetime('now')
+                WHERE EXISTS (SELECT 1 FROM generation_runs WHERE id=?)""",
+                (run_id, turn_id, run_id),
             )
 
     @staticmethod
@@ -159,7 +160,8 @@ class TTSGenerationStage:
             key = self.cache_key(turn)
             cached = self.repository.get_by_cache_key(key)
             if cached is not None and cached.path.is_file() and cached.path.stat().st_size > 0:
-                resolved[turn.turn_id] = cached
+                artifact = self._artifact_for_current_turn(turn, key, cached)
+                resolved[turn.turn_id] = artifact
                 self.repository.mark_checkpoint(run_id, turn.turn_id)
             else:
                 missing.append((turn, key))
@@ -178,6 +180,19 @@ class TTSGenerationStage:
                     artifact = future.result()
                     resolved[artifact.turn_id] = artifact
         return tuple(resolved[turn.turn_id] for turn in turns)
+
+    @staticmethod
+    def _artifact_for_current_turn(turn: TTSTurn, key: str, cached: TTSArtifact) -> TTSArtifact:
+        return TTSArtifact(
+            turn_id=turn.turn_id,
+            artifact_id=cached.artifact_id,
+            cache_key=key,
+            status=TTS_ARTIFACT_STATUS_COMPLETE,
+            path=cached.path,
+            provider_id=cached.provider_id,
+            voice=cached.voice,
+            model=cached.model,
+        )
 
     def _synthesize(self, run_id: str, turn: TTSTurn, key: str) -> TTSArtifact:
         provider = self.registry.get(turn.provider_id)

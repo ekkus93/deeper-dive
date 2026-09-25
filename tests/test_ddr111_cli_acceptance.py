@@ -24,7 +24,7 @@ def test_cli_acceptance_create_source_host_episode_generate_export(
     data_dir = tmp_path / "data"
     planner = ProviderConfig(provider_type="fake", default_model="fake-v1")
     config = UserConfig(
-        providers={"planner": planner},
+        providers={"planner": planner, "speech": ProviderConfig(provider_type="fake-tts")},
         defaults={
             "episode_planning": "planner:fake-v1",
             "host_generation": "planner:fake-v1",
@@ -115,7 +115,10 @@ def test_cli_acceptance_pause_resume_uses_durable_control_path(
     data_dir = tmp_path / "data"
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
-            providers={"planner": ProviderConfig(provider_type="fake", default_model="fake-v1")},
+            providers={
+                "planner": ProviderConfig(provider_type="fake", default_model="fake-v1"),
+                "audio": ProviderConfig(provider_type="fake-tts"),
+            },
             defaults={"host_generation": "planner:fake-v1"},
         )
     )

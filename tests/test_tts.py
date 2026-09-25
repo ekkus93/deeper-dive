@@ -13,7 +13,7 @@ def test_fake_tts_normalizes_voice_health_and_audio_metadata() -> None:
 
     result = provider.synthesize(TTSRequest("hello evidence", "voice-a"))
 
-    assert result.audio.startswith(b"FAKE-AUDIO")
+    assert result.audio.startswith(b"FAKE-WAV")
     assert result.media_type == "audio/wav"
     assert result.format == "wav"
     assert result.provider == "fake-tts"

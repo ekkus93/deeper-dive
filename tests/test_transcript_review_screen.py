@@ -65,6 +65,7 @@ def _configure_fake_repair_provider(service: DeeperDiveService) -> None:
         UserConfig(
             providers={
                 "repair": ProviderConfig(provider_type="fake", default_model="fake-v1"),
+                "tts": ProviderConfig(provider_type="fake-tts"),
             },
             defaults={"host_generation": "repair:fake-v1"},
         )
@@ -211,7 +212,7 @@ def test_transcript_review_default_repair_uses_production_service(
     assert turn["evidence_ids_json"] == '["chunk-a", "chunk-b"]'
     assert stale_claim is None
     assert regenerated_audio is not None
-    assert regenerated_audio["artifact_id"] == "turn-1-deterministic"
+    assert str(regenerated_audio["artifact_id"]).startswith("tts-")
     assert Path(str(regenerated_audio["path"])).is_file()
     assert episode_audio.exists()
     assert b"segments" in episode_audio.read_bytes()

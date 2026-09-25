@@ -114,6 +114,7 @@ def _provider_controller(service: DeeperDiveService) -> ProviderController:
     store = UserConfigStore(service.workspaces.data_dir / "config.json")
     config = store.load()
     config.providers["fake"] = ProviderConfig(provider_type="fake", default_model="fake-v1")
+    config.providers["fake-tts"] = ProviderConfig(provider_type="fake-tts")
     for role in ModelRole:
         config.defaults[role.value] = "fake:fake-v1"
     store.save(config)

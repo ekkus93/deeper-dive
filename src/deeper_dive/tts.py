@@ -123,7 +123,7 @@ class FakeTTSProvider:
 
     def synthesize(self, request: TTSRequest) -> TTSAudioResult:
         self.requests.append(request)
-        payload = f"FAKE-AUDIO\n{request.voice}\n{request.text}".encode()
+        payload = f"FAKE-WAV\n{request.voice}\n{request.text}".encode()
         return TTSAudioResult(
             audio=payload,
             media_type="audio/wav",
