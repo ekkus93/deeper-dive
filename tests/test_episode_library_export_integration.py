@@ -29,6 +29,8 @@ def test_library_export_creates_episode_specific_artifacts(tmp_path: Path) -> No
     )
     project = composition.service.create_project("Library export")
     host = create_host_from_preset("curious_explainer", project.id)
+    host.tts_provider = "tts"
+    host.tts_voice = "voice-a"
     composition.service.hosts(project.id).create_host(host.to_record())
     episode = EpisodeConfigurationService(composition.database_for_project(project.id)).create(
         project.id,
