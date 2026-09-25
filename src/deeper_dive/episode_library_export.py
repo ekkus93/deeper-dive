@@ -77,7 +77,6 @@ class EpisodeLibraryExportService:
                 "run_id": run.id,
                 "title": episode.title,
                 "run_state": run.state,
-                "provenance": exporter.transcript_provenance(turns),
             },
         )
         audio = self._copy_episode_audio(root, episode.id, stem)
