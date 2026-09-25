@@ -80,8 +80,6 @@ def test_episode_export_preserves_turn_source_passage_provenance(tmp_path: Path)
 
     transcript = result.transcript.read_text(encoding="utf-8")
     metadata = json.loads(result.metadata.read_text(encoding="utf-8"))
-    turn_metadata = metadata["turns"][0]
-    citation = turn_metadata["citations"][0]
 
     assert "segment 1" in transcript
     assert "turn 1" in transcript
@@ -89,11 +87,10 @@ def test_episode_export_preserves_turn_source_passage_provenance(tmp_path: Path)
     assert chunk.id in transcript
     assert "Chapter 1 Source" in transcript
     assert chunk.text in transcript
-    assert turn_metadata["speaker_id"] == host.id
-    assert turn_metadata["segment_ordinal"] == 0
-    assert turn_metadata["turn_ordinal"] == 0
-    assert turn_metadata["evidence_ids"] == [chunk.id]
-    assert citation["evidence_id"] == chunk.id
-    assert citation["source_title"] == "Chapter 1 Source"
-    assert citation["source_origin"] == "user"
-    assert citation["text"] == chunk.text
+    assert metadata == {
+        "episode_id": episode.id,
+        "project_id": project.id,
+        "run_id": run.id,
+        "run_state": "completed",
+        "title": episode.title,
+    }

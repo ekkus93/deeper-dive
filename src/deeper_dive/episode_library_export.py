@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -75,7 +75,6 @@ class EpisodeLibraryExportService:
                 "run_id": run.id,
                 "title": episode.title,
                 "run_state": run.state,
-                "turns": [self._turn_metadata(turn) for turn in turns],
             },
         )
         audio = self._copy_episode_audio(root, episode.id, stem)
@@ -144,17 +143,6 @@ class EpisodeLibraryExportService:
                 text=str(row["text"]),
             )
             for row in rows
-        }
-
-    @staticmethod
-    def _turn_metadata(turn: TranscriptTurn) -> dict[str, object]:
-        return {
-            "speaker_id": turn.speaker_id,
-            "speaker_name": turn.host,
-            "segment_ordinal": turn.segment_ordinal,
-            "turn_ordinal": turn.turn_ordinal,
-            "evidence_ids": list(turn.evidence_ids),
-            "citations": [asdict(citation) for citation in turn.citations],
         }
 
     @staticmethod
