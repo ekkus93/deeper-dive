@@ -207,7 +207,7 @@
 
 ## PCG-073 — Strengthen installed-wheel fresh-machine gate
 
-- [ ] Build wheel from exact head and install into a clean Python 12 environment.
+- [ ] Build wheel from exact head and install into a clean Python 3.12 environment.
 - [ ] Launch installed CLI and TUI entry points.
 - [ ] Configure deterministic providers through installed production paths.
 - [ ] Generate provider-backed transcript/audio without source-tree imports.
