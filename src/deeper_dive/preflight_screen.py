@@ -91,23 +91,25 @@ class PreflightController:
         config = app.provider_controller.config()
         assignments, assignment_issues = self._assignments(app, project_id, episode)
 
-        tts_registry = TTSProviderRegistry()
-        for provider in app.provider_controller.tts_providers.values():
-            tts_registry.register(provider)
-        report = PreflightService(
-            app.provider_controller.llm_registry,
-            tts_registry,
-        ).check(
-            assignments=assignments,
-            hosts=hosts,
-            source_count=len(sources),
-            indexed_source_count=indexed_source_count,
-            target_minutes=target_minutes,
-            ffmpeg_executable=self.ffmpeg_executable,
-            local_provider_ids=self._local_provider_ids(config.providers, config.defaults),
-            local_only=self._local_only(config.defaults),
-        )
-        extra_issues = list(assignment_issues)
+        shared_start = self._shared_generation_start(app)
+        if shared_start is not None and episode is not None:
+            report = shared_start.preflight(project_id, episode.id)
+            extra_issues: list[PreflightIssue] = []
+        else:
+            report = PreflightService(
+                app.provider_controller.llm_registry,
+                self._tts_registry(app),
+            ).check(
+                assignments=assignments,
+                hosts=hosts,
+                source_count=len(sources),
+                indexed_source_count=indexed_source_count,
+                target_minutes=target_minutes,
+                ffmpeg_executable=self.ffmpeg_executable,
+                local_provider_ids=self._local_provider_ids(config.providers, config.defaults),
+                local_only=self._local_only(config.defaults),
+            )
+            extra_issues = list(assignment_issues)
         if episode is None:
             extra_issues.append(
                 PreflightIssue("episode_missing", "create/build an episode before generation")
@@ -140,22 +142,28 @@ class PreflightController:
         episode = self._selected_episode(repository, project_id, app.current_episode_id)
         if episode is None:
             raise ValueError("create/build an episode before generation")
-        composition = getattr(app.service, "_production_composition", None)
-        if composition is None:
+        shared_start = self._shared_generation_start(app)
+        if shared_start is None:
             result = select_or_create_generation_run(app.service, project_id, episode.id)
         else:
-            composition.provider_controller = app.provider_controller
-            composition.preflight_service = PreflightService(
-                app.provider_controller.llm_registry,
-                self._tts_registry(app),
-            )
-            result = GenerationStartService(
-                composition,
-                ffmpeg_executable=self.ffmpeg_executable,
-            ).start(project_id, episode.id)
+            result = shared_start.start(project_id, episode.id)
         app.current_episode_id = episode.id
         app.current_run_id = result.run.id
         return result.run
+
+    def _shared_generation_start(self, app: PreflightApp) -> GenerationStartService | None:
+        composition = getattr(app.service, "_production_composition", None)
+        if composition is None:
+            return None
+        composition.provider_controller = app.provider_controller
+        composition.preflight_service = PreflightService(
+            app.provider_controller.llm_registry,
+            self._tts_registry(app),
+        )
+        return GenerationStartService(
+            composition,
+            ffmpeg_executable=self.ffmpeg_executable,
+        )
 
     def _selected_episode(
         self,
