@@ -231,28 +231,30 @@
 
 ## PCG-080 — Update user documentation
 
-- [ ] Document provider-backed production generation behavior.
-- [ ] Document deterministic CI/development providers separately from production adapters.
-- [ ] Document CLI/TUI preflight and generation-start parity.
-- [ ] Document duplicate-run behavior.
-- [ ] Document TTS provider, voice, and audio artifact behavior.
-- [ ] Document export semantics and pipeline stage semantics.
+- [x] Document provider-backed production generation behavior.
+- [x] Document deterministic CI/development providers separately from production adapters.
+- [x] Document CLI/TUI preflight and generation-start parity.
+- [x] Document duplicate-run behavior.
+- [x] Document TTS provider, voice, and audio artifact behavior.
+- [x] Document export semantics and pipeline stage semantics.
 
 ## PCG-081 — Update developer architecture documentation
 
-- [ ] Document the shared generation start service.
-- [ ] Document provider-backed generation stage contracts.
-- [ ] Document provider-backed TTS stage contracts.
-- [ ] Document stage boundary semantics and export semantics.
-- [ ] Document TTS artifact status canonicalization and migration behavior.
-- [ ] Document deterministic provider-boundary testing strategy.
+- [x] Document the shared generation start service.
+- [x] Document provider-backed generation stage contracts.
+- [x] Document provider-backed TTS stage contracts.
+- [x] Document stage boundary semantics and export semantics.
+- [x] Document TTS artifact status canonicalization and migration behavior.
+- [x] Document deterministic provider-boundary testing strategy.
 
 ## PCG-082 — Persisted-data compatibility
 
-- [ ] Test existing provider configuration records still load.
-- [ ] Test existing episodes/runs/transcripts/audio artifacts still load.
-- [ ] Add migration/normalization for TTS artifact statuses if needed.
-- [ ] Reject ambiguous legacy provider/TTS entries with actionable guidance where automatic migration is unsafe.
+- [x] Test existing provider configuration records still load.
+- [x] Test existing episodes/runs/transcripts/audio artifacts still load.
+- [x] Add migration/normalization for TTS artifact statuses if needed.
+- [x] Reject ambiguous legacy provider/TTS entries with actionable guidance where automatic migration is unsafe.
+
+**Evidence:** PR #431 added `docs/PRODUCTION_GENERATION.md` for user-facing provider-backed generation behavior, deterministic CI/development providers, CLI/TUI preflight and generation-start parity, duplicate-run behavior, TTS provider/voice/audio artifacts, and explicit export versus pipeline-stage semantics. It added `docs/PRODUCTION_GENERATION_ARCHITECTURE.md` for the shared `GenerationStartService`, provider-backed LLM generation contracts, provider-backed TTS generation contracts, stage/export boundaries, TTS artifact status canonicalization/migration behavior, and deterministic provider-boundary testing strategy. It linked these documents from `README.md`, `docs/PROVIDERS.md`, and `docs/ARCHITECTURE.md`. PR #431 also added `tests/test_persisted_data_compatibility.py`, proving existing concrete provider configuration records load with newly defaulted fields, existing episodes/runs/transcripts/provider identities/TTS artifacts still load, legacy TTS artifact status rows normalize to canonical `complete`, and ambiguous legacy generic `llm`/`tts` provider types fail with concrete-adapter guidance. Exact-head CI passed in run `36185484757`, PR #431 merged as `13291c9ec1cd2a102bb20e194b91cffb1bcf3734`, and merged-master CI passed in run `36185688161`.
 
 ---
 
