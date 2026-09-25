@@ -136,22 +136,34 @@ class ProvidersScreen(Screen[None]):
                 name,
                 provider_type,
                 base_url=self._optional_field_value(
-                    supported_fields, "base_url", "#provider-base-url"
+                    supported_fields,
+                    "base_url",
+                    "#provider-base-url",
                 ),
                 default_model=self._optional_field_value(
-                    supported_fields, "default_model", "#provider-default-model"
+                    supported_fields,
+                    "default_model",
+                    "#provider-default-model",
                 ),
                 credential_env=self._optional_field_value(
-                    supported_fields, "credential_env", "#provider-credential-env"
+                    supported_fields,
+                    "credential_env",
+                    "#provider-credential-env",
                 ),
                 timeout_seconds=timeout_seconds,
                 network_scope=self._optional_field_value(
-                    supported_fields, "network_scope", "#provider-network-scope"
+                    supported_fields,
+                    "network_scope",
+                    "#provider-network-scope",
                 ),
-                response_format=self._optional_field_value(
-                    supported_fields, "response_format", "#provider-response-format"
-                )
-                or "wav",
+                response_format=(
+                    self._optional_field_value(
+                        supported_fields,
+                        "response_format",
+                        "#provider-response-format",
+                    )
+                    or "wav"
+                ),
                 voices=self._voice_catalog(supported_fields),
             )
         except ValueError as exc:
@@ -296,7 +308,9 @@ class ProvidersScreen(Screen[None]):
             return user_status("provider", exc)
         kind = provider_type.strip().lower().replace("_", "-")
         supported = ", ".join(
-            _FIELD_LABELS[field] for field in sorted(supported_fields) if field in _FIELD_LABELS
+            _FIELD_LABELS[field]
+            for field in sorted(supported_fields)
+            if field in _FIELD_LABELS
         )
         ignored = ", ".join(
             _FIELD_LABELS[field]
