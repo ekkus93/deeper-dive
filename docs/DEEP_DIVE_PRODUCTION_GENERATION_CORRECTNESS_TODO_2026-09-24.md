@@ -79,24 +79,26 @@
 
 ## PCG-020 — Introduce shared generation start service
 
-- [ ] Create a shared generation readiness/start service used by both CLI and TUI.
-- [ ] Fold existing TUI generation-start selection logic into this service or wrap it thinly.
-- [ ] Make CLI `episode generate` call the shared service instead of directly creating a run.
-- [ ] Return structured results suitable for CLI JSON/text and TUI status/monitor navigation.
+- [x] Create a shared generation readiness/start service used by both CLI and TUI.
+- [x] Fold existing TUI generation-start selection logic into this service or wrap it thinly.
+- [x] Make CLI `episode generate` call the shared service instead of directly creating a run.
+- [x] Return structured results suitable for CLI JSON/text and TUI status/monitor navigation.
 
 ## PCG-021 — Enforce preflight-equivalent blockers in CLI generation
 
-- [ ] Run preflight or equivalent readiness checks before CLI generation starts.
-- [ ] Reject missing source, missing indexed corpus, missing hosts, missing provider/model assignments, missing TTS assignments, and FFmpeg blockers consistently with TUI.
-- [ ] Ensure CLI text and JSON errors are sanitized and actionable.
+- [x] Run preflight or equivalent readiness checks before CLI generation starts.
+- [x] Reject missing source, missing indexed corpus, missing hosts, missing provider/model assignments, missing TTS assignments, and FFmpeg blockers consistently with TUI.
+- [x] Ensure CLI text and JSON errors are sanitized and actionable.
 - [ ] Add tests proving CLI and TUI reject the same blocker matrix.
 
 ## PCG-022 — Fail fast on assignment-resolution errors
 
-- [ ] Stop discarding errors returned by effective model-role assignment resolution.
-- [ ] Prevent generation from producing output when required roles are unresolved.
-- [ ] Persist or return a clear failed/rejected state without leaking secrets.
+- [x] Stop discarding errors returned by effective model-role assignment resolution.
+- [x] Prevent generation from producing output when required roles are unresolved.
+- [x] Persist or return a clear failed/rejected state without leaking secrets.
 - [ ] Add tests for missing role, invalid provider identity, unsupported capability, and missing TTS assignment.
+
+**Evidence:** PR #412 introduced `GenerationStartService` as a shared CLI/TUI readiness and duplicate-safe start boundary, made CLI `episode generate` call it before running generation, routed TUI Generate through it when production composition is available, made `PreflightService` accept path-specific required model roles, preserved sanitized CLI failure behavior through `PreflightBlockedError`, and made `run_generation` fail fast on model-role assignment parsing errors. It also qualified CLI generation, CLI control, DDR-111 acceptance, and episode CLI fixtures against source/indexing, host/TTS, and FFmpeg readiness expectations. Exact-head CI passed in run `36120277010`, PR #412 merged as `b9bfd6f0e6632dbb51ff6452984c3a2b5eb26e4a`, and merged-master CI passed in run `36134160719`. Full paired CLI/TUI blocker-matrix tests and explicit missing-role/invalid-provider/unsupported-capability/missing-TTS assignment matrix tests remain open.
 
 ---
 
@@ -105,8 +107,8 @@
 ## PCG-030 — Define one generation run selection policy
 
 - [ ] Document the run selection policy for pending, running, paused, failed, cancelled, and completed runs.
-- [ ] Reuse or reject active pending/running/paused runs consistently across CLI and TUI.
-- [ ] Allow new attempts after terminal states only through documented behavior.
+- [x] Reuse or reject active pending/running/paused runs consistently across CLI and TUI.
+- [x] Allow new attempts after terminal states only through documented behavior.
 - [ ] Add tests for repeated CLI generate, repeated TUI Generate click, and mixed CLI/TUI starts.
 
 ## PCG-031 — Align status/control with duplicate-safe runs
@@ -115,6 +117,8 @@
 - [ ] Ensure pause/cancel/resume target the intended run.
 - [ ] Ensure Episode Library resume/export target the intended run and episode identity.
 - [ ] Add state-transition tests that include duplicate-start attempts.
+
+**Evidence:** PR #412 extended `tests/test_generation_start.py` to cover the shared run-selection state matrix: pending/running/paused active runs are reused, completed/failed/cancelled terminal runs allow new pending attempts, cancellation-requested active runs are replaced by new attempts, and unknown persisted states fail closed. Exact-head CI passed in run `36120277010`, PR #412 merged as `b9bfd6f0e6632dbb51ff6452984c3a2b5eb26e4a`, and merged-master CI passed in run `36134160719`. Human-facing run-selection documentation, repeated CLI/TUI/mixed start tests, and status/control/library targeting remain open.
 
 ---
 
