@@ -16,7 +16,7 @@ from deeper_dive.preflight import (
     PreflightIssue,
     PreflightReport,
 )
-from deeper_dive.storage.episode_repositories import HostEpisodeRepository
+from deeper_dive.storage.episode_repositories import HostEpisodeRepository, HostProfileRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 
 
@@ -66,7 +66,7 @@ class GenerationStartService:
         config = EpisodeConfigurationService(database).load_configuration(episode_id)
         target_seconds = episode.target_duration_seconds or config.target_duration_seconds
         target_minutes = target_seconds / 60 if target_seconds > 0 else 20.0
-        report = self.composition.preflight_service.check(  # type: ignore[attr-defined]
+        report: PreflightReport = self.composition.preflight_service.check(  # type: ignore[attr-defined]
             assignments=assignments,
             hosts=hosts,
             source_count=len(sources),
@@ -105,7 +105,7 @@ class GenerationStartService:
         repository: HostEpisodeRepository,
         project_id: str,
         episode_id: str,
-    ) -> tuple[object, ...]:
+    ) -> tuple[HostProfileRecord, ...]:
         host_ids = repository.list_episode_host_ids(episode_id)
         hosts_by_id = {host.id: host for host in repository.list_hosts(project_id)}
         return tuple(hosts_by_id[host_id] for host_id in host_ids if host_id in hosts_by_id)
