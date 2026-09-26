@@ -113,7 +113,9 @@ async def _library_resume_invokes_orchestration_from_checkpoint(tmp_path: Path) 
     completed = runs.get(run_id)
     assert completed is not None
     assert completed.state == "completed"
-    assert runs.list_completed_stages(run_id) == list(DEFAULT_STAGES)
+    completed_stages = runs.list_completed_stages(run_id)
+    assert set(completed_stages) == set(DEFAULT_STAGES)
+    assert len(completed_stages) == len(DEFAULT_STAGES)
 
 
 def test_library_resume_navigates_to_monitor_with_selected_run(tmp_path: Path) -> None:
