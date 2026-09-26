@@ -353,19 +353,20 @@ def _planning_stage(
         return
     composition = getattr(service, "_production_composition", None)
     if composition is None:
-        return
-    provider_ids = composition.provider_controller.llm_registry.provider_ids()
-    if not provider_ids:
-        return
-    provider_id = provider_ids[0]
-    provider = composition.provider_controller.llm_registry.get(provider_id)
-    models = provider.models()
-    model = models[0].model if models else None
-    planner = composition.configured_planning_service(project_id, provider_id, model)
-    try:
-        planner.build_plan(context.episode_id)
-    except ValueError:
-        return
+        raise RuntimeError("production composition is unavailable for episode planning")
+    assignments, errors = composition.effective_model_role_assignments_for_episode(
+        project_id,
+        context.episode_id,
+    )
+    if errors:
+        raise ValueError("invalid model-role configuration: " + "; ".join(errors))
+    provider, model = _llm_provider_for_role(
+        composition,
+        assignments,
+        model_roles.ModelRole.EPISODE_PLANNING,
+    )
+    planner = composition.planning_service(project_id, LLMEpisodePlanGenerator(provider, model))
+    planner.build_plan(context.episode_id)
 
 
 def _conversation_stage(
