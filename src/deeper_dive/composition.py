@@ -155,8 +155,26 @@ class ProductionComposition:
             benchmark_service=TTSBenchmarkService(),
             playback_controller=AudioPlaybackController(playback_backend),
         )
+        composition.attach_provider_controller(provider_controller)
         app_service._production_composition = composition  # type: ignore[attr-defined]
         return composition
+
+    def attach_provider_controller(self, provider_controller: ProviderController) -> None:
+        """Attach a provider controller to the production runtime refresh boundary."""
+
+        self.provider_controller = provider_controller
+        self.provider_controller.on_reload = self.refresh_providers
+
+    def refresh_providers(self, providers: ProviderBuildResult) -> None:
+        """Refresh every production provider consumer after a config rebuild."""
+
+        self.providers = providers
+        self.provider_controller.llm_registry = providers.llm_registry
+        self.provider_controller.tts_providers = providers.tts_providers
+        self.preflight_service = PreflightService(
+            providers.llm_registry,
+            providers.tts_registry,
+        )
 
     def database_for_project(self, project_id: str) -> Database:
         """Return the production database boundary for one project workspace."""
@@ -175,7 +193,7 @@ class ProductionComposition:
     ) -> EpisodePlannerService:
         """Construct planning from the same configured provider registry used in production."""
 
-        provider = self.provider_controller.llm_registry.get(provider_id)
+        provider = self.providers.llm_registry.get(provider_id)
         return self.planning_service(project_id, LLMEpisodePlanGenerator(provider, model))
 
     def effective_model_role_assignments(
