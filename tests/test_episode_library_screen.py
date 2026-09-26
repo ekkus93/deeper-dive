@@ -163,6 +163,7 @@ def _paused_resume_fixture(tmp_path: Path) -> tuple[DeeperDiveService, str, str,
         )
     )
     runs.complete_unit(CompletedUnitRecord(run_id, "sources", "stage", timestamp))
+    runs.complete_unit(CompletedUnitRecord(run_id, "planning", "stage", timestamp))
     return service, project.id, episode.id, run_id
 
 
