@@ -43,21 +43,21 @@
 
 ## PCG-FU-010 — Route pipeline auto-planning through `episode_planning`
 
-- [ ] Replace first-provider/first-model selection in pipeline planning with configured `ModelRole.EPISODE_PLANNING` resolution.
-- [ ] Use the same user > project > episode override precedence used by CLI `episode plan`.
+- [x] Replace first-provider/first-model selection in pipeline planning with configured `ModelRole.EPISODE_PLANNING` resolution.
+- [x] Use the same user > project > episode override precedence used by CLI `episode plan`.
 - [ ] Construct the planning provider through the refreshed production provider registry.
-- [ ] Preserve idempotent skip behavior when a valid plan already exists.
-- [ ] Add a two-provider regression proving auto-planning uses the configured provider/model, not the sorted-first provider.
+- [x] Preserve idempotent skip behavior when a valid plan already exists.
+- [x] Add a two-provider regression proving auto-planning uses the configured provider/model, not the sorted-first provider.
 
 ## PCG-FU-011 — Fail durably when auto-planning cannot produce a valid plan
 
-- [ ] Remove silent `ValueError` swallowing from production planning.
-- [ ] Fail the durable run with sanitized actionable diagnostics when planning provider output is invalid.
-- [ ] Fail before conversation/TTS/composition when required planning provider/model assignments are missing or invalid.
+- [x] Remove silent `ValueError` swallowing from production planning.
+- [x] Fail the durable run with sanitized actionable diagnostics when planning provider output is invalid.
+- [x] Fail before conversation/TTS/composition when required planning provider/model assignments are missing or invalid.
 - [ ] Add tests for invalid planning JSON, empty segments, unknown provider, unavailable model, and provider exception.
 - [ ] Ensure CLI `episode generate`, TUI Generate, and monitor background generation expose consistent planning failures.
 
-**Evidence:** _Pending._
+**Evidence:** PR #440 routed production pipeline auto-planning through the configured `episode_planning` model role instead of selecting the sorted-first provider/model, preserved the existing plan skip boundary, removed silent planning `ValueError` swallowing, and added `tests/test_followup_planning_runtime.py` coverage proving configured-provider selection and durable failed-run behavior for invalid provider output. It also updated legacy pipeline, monitor, CLI-control/export, and preflight/generate fixtures to use explicit configured planning providers and valid episode configurations. Exact-head CI passed for PR #440 in run `36218606905`, PR #440 merged as `e13e4c42150817562a5ebdb99d77b1d393263584`, and merged-master CI passed in run `36218734135`. Remaining R2 work: refreshed registry coupling belongs to R1, and the full invalid JSON/unknown-provider/unavailable-model/provider-exception exposure matrix remains unchecked.
 
 ---
 
