@@ -193,7 +193,7 @@ class ProductionComposition:
     ) -> EpisodePlannerService:
         """Construct planning from the same configured provider registry used in production."""
 
-        provider = self.providers.llm_registry.get(provider_id)
+        provider = self.provider_controller.llm_registry.get(provider_id)
         return self.planning_service(project_id, LLMEpisodePlanGenerator(provider, model))
 
     def effective_model_role_assignments(
@@ -484,7 +484,7 @@ def _llm_provider_for_role(
     if assignment is None:
         raise ValueError(f"no provider/model assignment for {role.value}")
     try:
-        provider = composition.providers.llm_registry.get(assignment.provider)
+        provider = composition.provider_controller.llm_registry.get(assignment.provider)
     except KeyError as exc:
         raise ValueError(f"unknown provider {assignment.provider!r} for {role.value}") from exc
     return provider, assignment.model
