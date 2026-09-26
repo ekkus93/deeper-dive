@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 import wave
 
+# ruff: noqa: I001
+
 import pytest
 
 from deeper_dive import cli as cli_module
