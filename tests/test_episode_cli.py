@@ -143,7 +143,7 @@ def test_episode_cli_create_plan_generate_status_and_export(
     metadata = json.loads(Path(str(export["metadata"])).read_text(encoding="utf-8"))
     assert metadata["episode_id"] == episode_id
     assert metadata["run_id"] == run["id"]
-    assert Path(str(export["audio"])).read_bytes().startswith(b"FAKE-WAV")
+    with wave.open(str(export["audio"]), "rb") as audio:\n        assert audio.getnframes() > 0
 
 
 def test_episode_cli_show_plan_reads_persisted_plan_without_configured_provider(
