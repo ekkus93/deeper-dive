@@ -11,6 +11,7 @@ from typing import Any
 from deeper_dive import model_roles
 from deeper_dive.application.events import ProgressSink
 from deeper_dive.application.service import DeeperDiveService
+from deeper_dive.audio_normalization import AudioNormalizationError, CanonicalAudio, normalize_wav
 from deeper_dive.audio_playback import AudioPlaybackBackend, AudioPlaybackController
 from deeper_dive.audio_timeline import AudioTimeline, AudioTimelineRepository, TimelineItem
 from deeper_dive.director_decision import DirectorDecision
@@ -544,22 +545,60 @@ def _composition_stage(
     if composition is None:
         raise RuntimeError("production composition is unavailable for audio composition")
     artifacts = _tts_artifacts_for_turns(composition, project_id, database, turns)
+    audio_by_turn = {
+        turn.id: _normalized_wav_artifact(turn.id, artifacts[turn.id]) for turn in turns
+    }
     items = tuple(
         TimelineItem.clip(
             turn_id=turn.id,
             host_id=turn.speaker_id,
             artifact_id=artifacts[turn.id].artifact_id,
-            duration_seconds=max(0.1, len(turn.text.split()) / 150 * 60),
+            duration_seconds=audio_by_turn[turn.id].duration_seconds,
             metadata={"chapter_title": f"Turn {turn.turn_ordinal + 1}"},
         )
         for turn in turns
     )
     AudioTimelineRepository(database).save(AudioTimeline.build(context.episode_id, items))
     output = root / "output"
-    output.mkdir(parents=True, exist_ok=True)
     episode_audio = output / f"{context.episode_id}.wav"
-    episode_audio.write_bytes(
-        b"".join(artifacts[turn.id].path.read_bytes() for turn in turns)
+    EpisodeExporter.write_wav(
+        episode_audio,
+        _combine_wav_audio(tuple(audio_by_turn[turn.id] for turn in turns)),
+    )
+
+
+def _normalized_wav_artifact(turn_id: str, artifact: TTSArtifact) -> CanonicalAudio:
+    suffix = artifact.path.suffix.lower().lstrip(".")
+    if suffix != "wav":
+        raise ValueError(
+            f"unsupported TTS artifact format for turn {turn_id}: "
+            f"{suffix or 'unknown'}; WAV composition is supported"
+        )
+    try:
+        audio = artifact.path.read_bytes()
+    except OSError as exc:
+        raise ValueError(f"unreadable TTS artifact for turn {turn_id}: {exc}") from exc
+    try:
+        return normalize_wav(audio)
+    except AudioNormalizationError as exc:
+        raise ValueError(f"invalid WAV TTS artifact for turn {turn_id}: {exc}") from exc
+
+
+def _combine_wav_audio(chunks: tuple[CanonicalAudio, ...]) -> CanonicalAudio:
+    if not chunks:
+        raise ValueError("cannot compose an episode with no TTS audio")
+    first = chunks[0]
+    pcm = b"".join(chunk.pcm for chunk in chunks)
+    frame_size = first.channels * first.sample_width_bytes
+    duration = len(pcm) / frame_size / first.sample_rate_hz
+    return CanonicalAudio(
+        pcm=pcm,
+        sample_rate_hz=first.sample_rate_hz,
+        channels=first.channels,
+        sample_width_bytes=first.sample_width_bytes,
+        duration_seconds=duration,
+        source_format="wav",
+        source_media_type="audio/wav",
     )
 
 
