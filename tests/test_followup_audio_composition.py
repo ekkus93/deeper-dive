@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+import wave
 from dataclasses import replace
 from pathlib import Path
-import wave
 
 import pytest
 
 from deeper_dive.audio_normalization import CanonicalAudio
 from deeper_dive.audio_timeline import AudioTimelineRepository
-from deeper_dive.composition import ProductionComposition, _composition_stage
+from deeper_dive.composition import _composition_stage, ProductionComposition
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.export import EpisodeExporter
 from deeper_dive.hosts import create_host_from_preset
