@@ -23,19 +23,19 @@
 ## PCG-FU-001 — Make provider runtime state coherent after same-session TUI saves
 
 - [ ] Identify every runtime provider registry consumed by preflight, planning, conversation generation, TTS generation, provider health, and export/composition.
-- [ ] Add a single refresh/access boundary so provider saves/removes update all production runtime consumers in the same process.
-- [ ] Ensure `ProductionComposition.providers`, `ProviderController`, `PreflightService`, and TTS/LLM registries cannot diverge after provider save/reload.
+- [x] Add a single refresh/access boundary so provider saves/removes update all production runtime consumers in the same process.
+- [x] Ensure `ProductionComposition.providers`, `ProviderController`, `PreflightService`, and TTS/LLM registries cannot diverge after provider save/reload.
 - [ ] Preserve credential non-persistence and credential redaction in TUI status, diagnostics, logs, CLI output, metadata, and exports.
 - [ ] Add a same-session regression that saves a provider through the TUI/controller and immediately runs preflight/generation/export without restarting.
 
 ## PCG-FU-002 — Align preflight and generation provider resolution
 
 - [ ] Prove preflight and generation agree on unknown providers, unavailable models, unhealthy providers, TTS voice catalogs, and local/remote network scope.
-- [ ] Add a regression where preflight passes only if generation can use the same freshly reloaded LLM/TTS providers.
-- [ ] Add a regression where preflight blocks a provider removed in the same session and generation cannot continue with stale providers.
+- [x] Add a regression where preflight passes only if generation can use the same freshly reloaded LLM/TTS providers.
+- [x] Add a regression where preflight blocks a provider removed in the same session and generation cannot continue with stale providers.
 - [ ] Ensure provider refresh behavior works for both CLI-created compositions and TUI app compositions.
 
-**Evidence:** _Pending._
+**Evidence:** PR #442 added `ProductionComposition.attach_provider_controller()` and `refresh_providers()` as a single runtime refresh boundary, wired `ProviderController.reload()` callbacks into both default composition construction and injected TUI provider-controller attachment, and refreshes `ProductionComposition.providers`, the controller LLM/TTS registries, and `PreflightService` together. `tests/test_followup_provider_runtime.py` proves same-session provider saves make freshly configured LLM/TTS providers visible to preflight and production generation without restart, removed LLM providers block preflight and stale generation, removed TTS providers update the preflight TTS registry, and pipeline LLM-role resolution uses the refreshed production provider registry. Exact-head CI passed for PR #442 in run `36225487822`, PR #442 merged as `70194c681cc36b5604dbd87543445b3df731663e`, and merged-master CI passed in run `36229938457`. Remaining R1 work: complete the broader provider-consumer inventory, credential-redaction/non-persistence confirmation, export/provider-health coverage, unavailable/unhealthy/network-scope agreement matrix, and explicit CLI/TUI acceptance coverage.
 
 ---
 
@@ -45,7 +45,7 @@
 
 - [x] Replace first-provider/first-model selection in pipeline planning with configured `ModelRole.EPISODE_PLANNING` resolution.
 - [x] Use the same user > project > episode override precedence used by CLI `episode plan`.
-- [ ] Construct the planning provider through the refreshed production provider registry.
+- [x] Construct the planning provider through the refreshed production provider registry.
 - [x] Preserve idempotent skip behavior when a valid plan already exists.
 - [x] Add a two-provider regression proving auto-planning uses the configured provider/model, not the sorted-first provider.
 
@@ -57,7 +57,7 @@
 - [ ] Add tests for invalid planning JSON, empty segments, unknown provider, unavailable model, and provider exception.
 - [ ] Ensure CLI `episode generate`, TUI Generate, and monitor background generation expose consistent planning failures.
 
-**Evidence:** PR #440 routed production pipeline auto-planning through the configured `episode_planning` model role instead of selecting the sorted-first provider/model, preserved the existing plan skip boundary, removed silent planning `ValueError` swallowing, and added `tests/test_followup_planning_runtime.py` coverage proving configured-provider selection and durable failed-run behavior for invalid provider output. It also updated legacy pipeline, monitor, CLI-control/export, and preflight/generate fixtures to use explicit configured planning providers and valid episode configurations. Exact-head CI passed for PR #440 in run `36218606905`, PR #440 merged as `e13e4c42150817562a5ebdb99d77b1d393263584`, and merged-master CI passed in run `36218734135`. Remaining R2 work: refreshed registry coupling belongs to R1, and the full invalid JSON/unknown-provider/unavailable-model/provider-exception exposure matrix remains unchecked.
+**Evidence:** PR #440 routed production pipeline auto-planning through the configured `episode_planning` model role instead of selecting the sorted-first provider/model, preserved the existing plan skip boundary, removed silent planning `ValueError` swallowing, and added `tests/test_followup_planning_runtime.py` coverage proving configured-provider selection and durable failed-run behavior for invalid provider output. It also updated legacy pipeline, monitor, CLI-control/export, and preflight/generate fixtures to use explicit configured planning providers and valid episode configurations. Exact-head CI passed for PR #440 in run `36218606905`, PR #440 merged as `e13e4c42150817562a5ebdb99d77b1d393263584`, and merged-master CI passed in run `36218734135`. PR #442 then tied pipeline role resolution to the refreshed `ProductionComposition.providers.llm_registry`, preserving injected TUI planning while ensuring durable pipeline planning uses the atomically refreshed production registry. Exact-head CI passed for PR #442 in run `36225487822`, PR #442 merged as `70194c681cc36b5604dbd87543445b3df731663e`, and merged-master CI passed in run `36229938457`. Remaining R2 work: the full invalid JSON/empty-segments/unknown-provider/unavailable-model/provider-exception exposure matrix and cross-surface planning-failure display remain unchecked.
 
 ---
 
