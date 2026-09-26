@@ -20,7 +20,10 @@ def test_cli_episode_export_uses_shared_artifact_exporter(tmp_path: Path, capsys
                 "planner": ProviderConfig(provider_type="fake", default_model="fake-v1"),
                 "speech": ProviderConfig(provider_type="fake-tts"),
             },
-            defaults={"host_generation": "planner:fake-v1"},
+            defaults={
+                "episode_planning": "planner:fake-v1",
+                "host_generation": "planner:fake-v1",
+            },
         )
     )
     composition = ProductionComposition.build(

@@ -5,15 +5,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from deeper_dive.application.service import DeeperDiveService
-from deeper_dive.domain.clock import FrozenClock, format_timestamp
-from deeper_dive.domain.ids import new_episode_id
+from deeper_dive.domain.clock import FrozenClock
+from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.hosts import HostProfile
 from deeper_dive.llm import FakeLLMProvider, LLMProviderRegistry
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.pipeline import DEFAULT_STAGES
 from deeper_dive.preflight_screen import PreflightController
 from deeper_dive.provider_tui import ProviderController
-from deeper_dive.storage.episode_repositories import EpisodeRecord
+from deeper_dive.storage.database import Database
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.tts import FakeTTSProvider
 from deeper_dive.tui import DeeperDiveApp
@@ -40,17 +40,15 @@ async def _generate_starts_real_pipeline_and_reuses_active_run(tmp_path: Path) -
             tts_voice="voice-a",
         ).to_record()
     )
-    timestamp = format_timestamp(service.clock.now())
-    episode_id = str(new_episode_id())
-    service.hosts(project.id).create_episode(
-        EpisodeRecord(
-            id=episode_id,
-            project_id=project.id,
+    database = Database(service.workspaces.project_root(project.id) / "project.db")
+    episode = EpisodeConfigurationService(database, clock=service.clock).create(
+        project.id,
+        EpisodeConfiguration(
             title="Episode",
-            created_at=timestamp,
-            modified_at=timestamp,
+            focus="Generate through preflight",
+            target_duration_seconds=60,
+            host_ids=("host-1",),
         ),
-        ["host-1"],
     )
 
     ffmpeg = tmp_path / "ffmpeg"
@@ -80,7 +78,7 @@ async def _generate_starts_real_pipeline_and_reuses_active_run(tmp_path: Path) -
     )
     app.current_project_id = project.id
     app.current_project_name = project.name
-    app.current_episode_id = episode_id
+    app.current_episode_id = episode.id
 
     first = preflight_controller.start_generation(app)
     repeated = preflight_controller.start_generation(app)

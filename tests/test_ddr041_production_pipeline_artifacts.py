@@ -22,7 +22,10 @@ def test_production_pipeline_persists_reviewable_and_exportable_quick_episode(
     config_store.save(
         UserConfig(
             providers={"planner": planner, "speech": speech},
-            defaults={"host_generation": "planner:fake-v1"},
+            defaults={
+                "episode_planning": "planner:fake-v1",
+                "host_generation": "planner:fake-v1",
+            },
         )
     )
     composition = ProductionComposition.build(
