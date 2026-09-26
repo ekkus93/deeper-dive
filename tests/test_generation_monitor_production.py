@@ -11,6 +11,7 @@ from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.tui import DeeperDiveApp
+from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
 def test_production_composed_monitor_runner_executes_durable_pipeline(tmp_path: Path) -> None:
@@ -18,7 +19,14 @@ def test_production_composed_monitor_runner_executes_durable_pipeline(tmp_path: 
 
 
 async def _exercise_production_composed_monitor_runner(tmp_path: Path) -> None:
-    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    data_dir = tmp_path / "data"
+    UserConfigStore(data_dir / "config.json").save(
+        UserConfig(
+            providers={"planner": ProviderConfig(provider_type="fake", default_model="fake-v1")},
+            defaults={"episode_planning": "planner:fake-v1"},
+        )
+    )
+    service = DeeperDiveService(WorkspaceManager(data_dir))
     project = service.create_project("Production monitor")
     now = format_timestamp(service.clock.now())
     episode_id = str(new_episode_id())
