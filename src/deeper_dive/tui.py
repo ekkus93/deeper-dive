@@ -517,7 +517,7 @@ class DeeperDiveApp(App[None]):
         composition = ProductionComposition.build(service=service)
         self.service = composition.service
         self.provider_controller = provider_controller or composition.provider_controller
-        composition.provider_controller = self.provider_controller
+        composition.attach_provider_controller(self.provider_controller)
         self.research_controller = research_controller or composition.research_controller
         self.current_project_id: str | None = None
         self.current_project_name: str | None = None
