@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import wave
 from dataclasses import replace
 from pathlib import Path
+import wave
 
 import pytest
 
