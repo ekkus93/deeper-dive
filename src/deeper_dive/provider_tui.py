@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from deeper_dive.llm import LLMProvider, LLMProviderRegistry
@@ -70,6 +71,7 @@ class ProviderController:
     llm_registry: LLMProviderRegistry
     tts_providers: dict[str, TTSProvider]
     provider_factory: ProviderFactory | None = None
+    on_reload: Callable[[ProviderBuildResult], None] | None = None
 
     def config(self) -> UserConfig:
         return self.config_store.load()
@@ -138,6 +140,8 @@ class ProviderController:
         providers = self.provider_factory.build(self.config())
         self.llm_registry = providers.llm_registry
         self.tts_providers = providers.tts_providers
+        if self.on_reload is not None:
+            self.on_reload(providers)
         return providers
 
     def llm(self, name: str) -> LLMProvider:
