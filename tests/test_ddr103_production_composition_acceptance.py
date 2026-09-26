@@ -99,4 +99,4 @@ def test_production_composition_plan_preflight_generate_review_export(tmp_path: 
     assert exported.metadata.is_file()
     assert exported.audio is not None
     assert exported.audio.is_file()
-    assert exported.audio.read_bytes().startswith(b"FAKE-WAV")
+    assert exported.audio.read_bytes().startswith(b"RIFF")

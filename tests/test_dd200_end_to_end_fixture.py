@@ -137,7 +137,7 @@ def test_dd200_deterministic_fake_provider_pipeline(tmp_path: Path) -> None:
     assert result.executed_stages == DEFAULT_STAGES
     assert len(llm.requests) == 3
     assert len(tts.requests) == 3
-    assert (output / "episode.wav").read_bytes().startswith(b"FAKE-WAV")
+    assert (output / "episode.wav").read_bytes().startswith(b"RIFF")
     assert "explainer" in (output / "transcript.md").read_text(encoding="utf-8")
     manifest = json.loads((output / "source-manifest.json").read_text(encoding="utf-8"))
     assert [item["kind"] for item in manifest] == ["primary", "supplemental"]

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import io
+import wave
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -123,7 +126,13 @@ class FakeTTSProvider:
 
     def synthesize(self, request: TTSRequest) -> TTSAudioResult:
         self.requests.append(request)
-        payload = f"FAKE-WAV\n{request.voice}\n{request.text}".encode()
+        duration_seconds = max(0.1, len(request.text.split()) / 150 * 60)
+        sample_rate_hz = request.sample_rate_hz or 24000
+        payload = _deterministic_wav_bytes(
+            f"{self.provider_id}|{request.voice}|{request.text}",
+            sample_rate_hz=sample_rate_hz,
+            duration_seconds=duration_seconds,
+        )
         return TTSAudioResult(
             audio=payload,
             media_type="audio/wav",
@@ -131,6 +140,31 @@ class FakeTTSProvider:
             provider=self.provider_id,
             voice=request.voice,
             model=request.model or "fake-v1",
-            sample_rate_hz=request.sample_rate_hz or 24000,
-            duration_seconds=max(0.1, len(request.text.split()) / 150 * 60),
+            sample_rate_hz=sample_rate_hz,
+            duration_seconds=duration_seconds,
         )
+
+
+def _deterministic_wav_bytes(
+    marker: str,
+    *,
+    sample_rate_hz: int,
+    duration_seconds: float,
+) -> bytes:
+    """Return a small deterministic 16-bit mono WAV for fake-provider tests."""
+
+    digest = hashlib.sha256(marker.encode("utf-8")).digest()
+    amplitude = 800 + digest[0] * 8
+    period = 20 + digest[1] % 60
+    frame_count = max(1, int(sample_rate_hz * duration_seconds))
+    pcm = bytearray()
+    for index in range(frame_count):
+        sample = amplitude if (index // period) % 2 == 0 else -amplitude
+        pcm.extend(sample.to_bytes(2, "little", signed=True))
+    output = io.BytesIO()
+    with wave.open(output, "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(sample_rate_hz)
+        wav.writeframes(bytes(pcm))
+    return output.getvalue()

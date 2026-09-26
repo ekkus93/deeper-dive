@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import wave
 from dataclasses import replace
 from pathlib import Path
 
@@ -65,7 +66,8 @@ def test_library_export_creates_episode_specific_artifacts(tmp_path: Path) -> No
     metadata = json.loads(result.metadata.read_text(encoding="utf-8"))
     assert metadata["episode_id"] == episode.id
     assert metadata["run_id"] == completed.id
-    assert result.audio.read_bytes().startswith(b"FAKE-WAV")
+    with wave.open(str(result.audio), "rb") as audio:
+        assert audio.getnframes() > 0
 
 
 def test_library_export_targets_selected_episode_run_identity(tmp_path: Path) -> None:

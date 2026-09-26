@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import wave
+
+# ruff: noqa: I001
 
 import pytest
 
@@ -116,7 +119,8 @@ def test_cli_acceptance_create_source_host_episode_generate_export(
     paths = [Path(str(path)) for path in exported["paths"]]
     assert paths and all(path.is_file() for path in paths)
     audio = Path(str(exported["audio"]))
-    assert audio.read_bytes().startswith(b"FAKE-WAV")
+    with wave.open(str(audio), "rb") as wav_file:
+        assert wav_file.getnframes() > 0
     metadata_path = Path(str(exported["metadata"]))
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     assert metadata["episode_id"] == episode_id
