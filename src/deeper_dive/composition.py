@@ -484,7 +484,7 @@ def _llm_provider_for_role(
     if assignment is None:
         raise ValueError(f"no provider/model assignment for {role.value}")
     try:
-        provider = composition.provider_controller.llm_registry.get(assignment.provider)
+        provider = composition.providers.llm_registry.get(assignment.provider)
     except KeyError as exc:
         raise ValueError(f"unknown provider {assignment.provider!r} for {role.value}") from exc
     return provider, assignment.model
