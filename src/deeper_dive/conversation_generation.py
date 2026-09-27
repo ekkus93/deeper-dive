@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 """Bounded, resumable production conversation generation across episode segments."""
 
 from __future__ import annotations
