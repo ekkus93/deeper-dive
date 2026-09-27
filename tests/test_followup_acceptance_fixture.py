@@ -10,10 +10,13 @@ from followup_acceptance_fixture import (
 )
 
 from deeper_dive import cli
+from deeper_dive.episode_library_screen import EpisodeLibraryController
 from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.host_turn import HostTurnService
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
+from deeper_dive.transcript_review_screen import TranscriptReviewController
 from deeper_dive.tts_generation import TTSArtifactRepository
+from deeper_dive.tui import DeeperDiveApp
 
 
 def test_reusable_followup_fixture_runs_generation_composition_and_export(
@@ -107,3 +110,57 @@ def test_followup_fixture_supports_duplicate_start_pause_resume_and_cli_export(
 
     episode = HostEpisodeRepository(ready.database).get_episode(ready.episode_id)
     assert episode is not None
+
+
+def test_followup_fixture_drives_tui_preflight_generation_monitor_review_and_export(
+    tmp_path: Path,
+) -> None:
+    ready = create_ready_followup_fixture(tmp_path)
+    app = DeeperDiveApp(service=ready.composition.service)
+    app.current_project_id = ready.project_id
+    app.current_project_name = "R6 shared acceptance"
+    app.current_episode_id = ready.episode_id
+    app.preflight_controller.ffmpeg_executable = ready.ffmpeg
+
+    app.provider_controller.save_provider(
+        "dialogue",
+        "fake",
+        default_model="fake-v1",
+    )
+    app.provider_controller.reload()
+
+    presentation = app.preflight_controller.build(app)
+    assert presentation.report.ready
+
+    first = app.preflight_controller.start_generation(app)
+    second = app.preflight_controller.start_generation(app)
+    assert first.id == second.id
+
+    composition = app.service._production_composition  # type: ignore[attr-defined]
+    completed = composition.run_generation(ready.project_id, first.id).run
+    assert completed.state == "completed"
+
+    snapshot = app.generation_monitor_controller.snapshot(app)
+    assert snapshot.run is not None
+    assert snapshot.run.id == completed.id
+    assert snapshot.run.state == "completed"
+    assert snapshot.recent_turns
+    assert "Configured fake provider host turn marker" in snapshot.recent_turns[0]
+
+    review = TranscriptReviewController()
+    turns = review.turns(app)
+    assert len(turns) == 1
+    assert turns[0].evidence_ids == ("chunk-r6",)
+    passages = review.passages(app, turns[0].evidence_ids)
+    assert len(passages) == 1
+    assert "R6 acceptance source marker" in passages[0].text
+
+    items = EpisodeLibraryController.items(app)
+    item = next(item for item in items if item.episode.id == ready.episode_id)
+    assert item.run is not None
+    assert item.run.state == "completed"
+    exported = EpisodeLibraryController.export(app, item)
+    assert exported.audio is not None
+    assert exported.audio.is_file()
+    assert exported.transcript.is_file()
+    assert "Citations: chunk-r6" in exported.transcript.read_text(encoding="utf-8")
