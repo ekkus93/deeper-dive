@@ -138,7 +138,9 @@ def test_repair_rejects_turn_without_repair_worthy_claim(tmp_path: Path) -> None
         raise AssertionError("expected repair to reject unaffected turn")
 
 
-def test_repair_regenerates_changed_turn_without_breaking_shared_cache(tmp_path: Path) -> None:
+def test_repair_regenerates_changed_turn_without_breaking_shared_cache(
+    tmp_path: Path,
+) -> None:
     database = _database(tmp_path)
     with database.transaction() as db:
         db.execute(
@@ -152,8 +154,24 @@ def test_repair_regenerates_changed_turn_without_breaking_shared_cache(tmp_path:
     stage = TTSGenerationStage(registry, repository, tmp_path / "tts-cache", max_workers=1)
     settings = {"response_format": "wav"}
     original_turns = (
-        TTSTurn("t1", "h1", "The figure is 10 participants.", provider.provider_id, "v", "m", settings),
-        TTSTurn("t2", "h1", "The figure is 10 participants.", provider.provider_id, "v", "m", settings),
+        TTSTurn(
+            "t1",
+            "h1",
+            "The figure is 10 participants.",
+            provider.provider_id,
+            "v",
+            "m",
+            settings,
+        ),
+        TTSTurn(
+            "t2",
+            "h1",
+            "The figure is 10 participants.",
+            provider.provider_id,
+            "v",
+            "m",
+            settings,
+        ),
     )
 
     initial = stage.generate("no-run", original_turns)
@@ -166,7 +184,17 @@ def test_repair_regenerates_changed_turn_without_breaking_shared_cache(tmp_path:
     repaired = service.repair("t1")
     regenerated = stage.generate(
         "no-run",
-        (TTSTurn("t1", "h1", repaired.text, provider.provider_id, "v", "m", settings),),
+        (
+            TTSTurn(
+                "t1",
+                "h1",
+                repaired.text,
+                provider.provider_id,
+                "v",
+                "m",
+                settings,
+            ),
+        ),
     )
 
     assert len(provider.requests) == 2

@@ -40,7 +40,6 @@ class TTSArtifact:
     format: str = ""
 
 
-
 class TTSArtifactRepository:
     """Durable TTS artifact/status boundary."""
 
@@ -189,7 +188,9 @@ class TTSGenerationStage:
             for key, pending_turns in missing_by_key.items():
                 artifact = self._synthesize(run_id, pending_turns[0], key)
                 resolved[artifact.turn_id] = artifact
-                self._reuse_for_duplicate_turns(run_id, key, pending_turns[1:], artifact, resolved)
+                self._reuse_for_duplicate_turns(
+                    run_id, key, pending_turns[1:], artifact, resolved
+                )
         else:
             with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
                 futures = {
@@ -227,7 +228,9 @@ class TTSGenerationStage:
             self.repository.mark_checkpoint(run_id, turn.turn_id)
 
     @staticmethod
-    def _artifact_for_current_turn(turn: TTSTurn, key: str, cached: TTSArtifact) -> TTSArtifact:
+    def _artifact_for_current_turn(
+        turn: TTSTurn, key: str, cached: TTSArtifact
+    ) -> TTSArtifact:
         return TTSArtifact(
             turn_id=turn.turn_id,
             artifact_id=cached.artifact_id,
