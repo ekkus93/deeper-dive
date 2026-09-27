@@ -10,9 +10,12 @@ from followup_acceptance_fixture import (
 )
 
 from deeper_dive import cli
+from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_library_screen import EpisodeLibraryController
 from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.host_turn import HostTurnService
+from deeper_dive.model_roles import ModelRole
+from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 from deeper_dive.transcript_review_screen import TranscriptReviewController
 from deeper_dive.tts_generation import TTSArtifactRepository
@@ -164,3 +167,87 @@ def test_followup_fixture_drives_tui_preflight_generation_monitor_review_and_exp
     assert exported.audio.is_file()
     assert exported.transcript.is_file()
     assert "Citations: chunk-r6" in exported.transcript.read_text(encoding="utf-8")
+
+
+def test_followup_fixture_drives_explicit_cli_generation_status_and_export(
+    tmp_path: Path, capsys
+) -> None:
+    ready = create_ready_followup_fixture(tmp_path)
+
+    generate_code = cli.main(
+        [
+            "--data-dir",
+            str(ready.data_dir),
+            "--json",
+            "episode",
+            "generate",
+            ready.project_id,
+            ready.episode_id,
+        ]
+    )
+    generated = json.loads(capsys.readouterr().out)
+    assert generate_code == 0
+    assert generated["state"] == "completed"
+
+    composition = ProductionComposition.build(
+        ready.data_dir,
+        provider_factory=ProviderFactory(environ={}),
+    )
+    assignments, errors = composition.effective_model_role_assignments_for_episode(
+        ready.project_id, ready.episode_id
+    )
+    assert not errors
+    planning = assignments.resolve(ModelRole.EPISODE_PLANNING)
+    assert planning is not None
+    assert (planning.provider, planning.model) == ("dialogue", "fake-v1")
+
+    database = composition.database_for_project(ready.project_id)
+    turns = HostTurnService(database).list_turns(ready.episode_id)
+    assert len(turns) == 1
+    assert turns[0].evidence_ids == ("chunk-r6",)
+    artifact = TTSArtifactRepository(database).get_by_turn_id(turns[0].id)
+    assert artifact is not None
+    assert (artifact.provider_id, artifact.voice, artifact.format) == (
+        "speech",
+        "voice-a",
+        "wav",
+    )
+
+    status_code = cli.main(
+        [
+            "--data-dir",
+            str(ready.data_dir),
+            "--json",
+            "episode",
+            "status",
+            ready.project_id,
+            ready.episode_id,
+        ]
+    )
+    status = json.loads(capsys.readouterr().out)
+    assert status_code == 0
+    assert status["run"]["state"] == "completed"
+
+    output_dir = tmp_path / "explicit-cli-export"
+    export_code = cli.main(
+        [
+            "--data-dir",
+            str(ready.data_dir),
+            "--json",
+            "episode",
+            "export",
+            ready.project_id,
+            ready.episode_id,
+            "--output-dir",
+            str(output_dir),
+        ]
+    )
+    exported = json.loads(capsys.readouterr().out)
+    assert export_code == 0
+    transcript = Path(exported["transcript"])
+    audio = Path(exported["audio"])
+    assert transcript.is_file()
+    assert "Citations: chunk-r6" in transcript.read_text(encoding="utf-8")
+    assert audio.is_file()
+    with wave.open(str(audio), "rb") as wav:
+        assert wav.getnframes() > 0
