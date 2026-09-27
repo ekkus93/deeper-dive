@@ -11,6 +11,7 @@ from deeper_dive.domain.ids import new_run_id
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.hosts import HostProfile
 from deeper_dive.model_roles import ModelRole
+from deeper_dive.network_scope import ProviderNetworkPolicy
 from deeper_dive.preflight import (
     PreflightEstimate,
     PreflightIssue,
@@ -121,27 +122,13 @@ class GenerationStartService:
         return tuple(roles)
 
     def _local_provider_ids(self) -> frozenset[str]:
-        config = self.composition.provider_controller.config()  # type: ignore[attr-defined]
-        local_ids = {
-            value.strip()
-            for value in config.defaults.get("local_provider_ids", "").split(",")
-            if value.strip()
-        }
-        local_types = {"fake", "fake-tts", "kitten", "llama-server", "local", "ollama"}
-        for name, provider in config.providers.items():
-            scope = (provider.network_scope or "").strip().lower()
-            if scope == "local":
-                local_ids.add(name)
-            elif scope == "remote":
-                local_ids.discard(name)
-            elif getattr(provider, "provider_type", None) in local_types:
-                local_ids.add(name)
-        return frozenset(local_ids)
+        return ProviderNetworkPolicy.local_provider_ids(
+            self.composition.provider_controller.config()  # type: ignore[attr-defined]
+        )
 
     def _local_only(self) -> bool:
         config = self.composition.provider_controller.config()  # type: ignore[attr-defined]
-        value = config.defaults.get("local_only", "")
-        return value.strip().lower() in {"1", "true", "yes", "on"}
+        return ProviderNetworkPolicy.local_only(config.defaults)
 
 
 def select_or_create_generation_run(
