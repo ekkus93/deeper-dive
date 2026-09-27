@@ -4,15 +4,16 @@ import json
 import wave
 from pathlib import Path
 
+from followup_acceptance_fixture import (
+    create_ready_followup_fixture,
+    run_followup_fixture,
+)
+
 from deeper_dive import cli
 from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.host_turn import HostTurnService
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 from deeper_dive.tts_generation import TTSArtifactRepository
-from followup_acceptance_fixture import (
-    create_ready_followup_fixture,
-    run_followup_fixture,
-)
 
 
 def test_reusable_followup_fixture_runs_generation_composition_and_export(
