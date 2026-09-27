@@ -7,7 +7,10 @@ from pathlib import Path
 from deeper_dive import model_roles
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
-from deeper_dive.episode_library_export import EpisodeExportResult, EpisodeLibraryExportService
+from deeper_dive.episode_library_export import (
+    EpisodeExportResult,
+    EpisodeLibraryExportService,
+)
 from deeper_dive.hosts import create_host_from_preset
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.storage.database import Database
@@ -53,7 +56,10 @@ def create_ready_followup_fixture(tmp_path: Path) -> ReadyFollowupFixture:
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
             providers={
-                "dialogue": ProviderConfig(provider_type="fake", default_model="fake-v1"),
+                "dialogue": ProviderConfig(
+                    provider_type="fake",
+                    default_model="fake-v1",
+                ),
                 "speech": ProviderConfig(
                     provider_type="fake-tts",
                     voices=("voice-a",),
