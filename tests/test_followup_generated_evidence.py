@@ -48,8 +48,8 @@ def test_provider_backed_generation_uses_plan_evidence_and_exports_source_passag
     turns = HostTurnService(database).list_turns(episode_id)
     assert completed.state == "completed"
     assert _episode_evidence_ids(database, episode_id) == ("chunk-r3",)
-    assert len(turns) == 1
-    assert turns[0].evidence_ids == ("chunk-r3",)
+    assert len(turns) > 1
+    assert all(turn.evidence_ids == ("chunk-r3",) for turn in turns)
 
     episode = HostEpisodeRepository(database).get_episode(episode_id)
     assert episode is not None

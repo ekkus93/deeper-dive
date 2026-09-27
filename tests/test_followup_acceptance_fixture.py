@@ -33,7 +33,7 @@ def test_reusable_followup_fixture_runs_generation_composition_and_export(
     turns = HostTurnService(database).list_turns(completed.episode_id)
 
     assert completed.run.state == "completed"
-    assert len(turns) == 1
+    assert len(turns) > 1
     assert "Configured fake provider host turn marker" in turns[0].text
     assert "Configured fake directing decision marker" in turns[0].text
     assert turns[0].evidence_ids == ("chunk-r6",)
@@ -153,8 +153,8 @@ def test_followup_fixture_drives_tui_preflight_generation_monitor_review_and_exp
 
     review = TranscriptReviewController()
     turns = review.turns(app)
-    assert len(turns) == 1
-    assert turns[0].evidence_ids == ("chunk-r6",)
+    assert len(turns) > 1
+    assert all(turn.evidence_ids == ("chunk-r6",) for turn in turns)
     passages = review.passages(app, turns[0].evidence_ids)
     assert len(passages) == 1
     assert "R6 acceptance source marker" in passages[0].text

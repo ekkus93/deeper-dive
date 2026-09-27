@@ -9,7 +9,7 @@ from typing import Protocol
 from uuid import uuid4
 
 from deeper_dive.conversation_state import ConversationState, ConversationStateRepository
-from deeper_dive.director_decision import DirectorDecision
+from deeper_dive.director_decision import DirectorDecision, SegmentSignal
 from deeper_dive.storage.database import Database
 
 
@@ -47,7 +47,14 @@ class HostTurnService:
         self.states = ConversationStateRepository(database)
         self._ensure_schema()
 
-    def generate(self, run_id: str, episode_id: str, decision: DirectorDecision) -> HostTurn:
+    def generate(
+        self,
+        run_id: str,
+        episode_id: str,
+        decision: DirectorDecision,
+        *,
+        segment_count: int | None = None,
+    ) -> HostTurn:
         state = self.states.get(episode_id) or ConversationState(episode_id)
         unit_id = self._unit_id(state)
         existing = self._checkpointed_turn(run_id, unit_id)
@@ -84,7 +91,15 @@ class HostTurnService:
             text=text,
             evidence_ids=evidence_ids,
         )
-        self._commit(run_id, unit_id, turn, state, provider_identity)
+        self._commit(
+            run_id,
+            unit_id,
+            turn,
+            state,
+            provider_identity,
+            decision,
+            segment_count,
+        )
         return turn
 
     def list_turns(self, episode_id: str) -> list[HostTurn]:
@@ -118,10 +133,23 @@ class HostTurnService:
         turn: HostTurn,
         previous: ConversationState,
         provider_identity: tuple[str, str] | None,
+        decision: DirectorDecision,
+        segment_count: int | None,
     ) -> None:
         participation = dict(previous.participation)
         participation[turn.speaker_id] = participation.get(turn.speaker_id, 0) + 1
         refs = (*previous.recent_context_refs, turn.id)[-8:]
+        next_segment_ordinal = previous.segment_ordinal
+        next_segment_turn = previous.segment_turn + 1
+        if segment_count is not None:
+            if segment_count < 1:
+                raise ValueError("segment_count must be positive")
+            if decision.segment_signal is SegmentSignal.COMPLETE_EPISODE:
+                next_segment_ordinal = segment_count
+                next_segment_turn = 0
+            elif decision.segment_signal is SegmentSignal.COMPLETE_SEGMENT:
+                next_segment_ordinal = min(segment_count, previous.segment_ordinal + 1)
+                next_segment_turn = 0
         with self.database.transaction() as db:
             db.execute(
                 """INSERT INTO conversation_turns(
@@ -157,8 +185,8 @@ class HostTurnService:
                     participation_json=excluded.participation_json""",
                 (
                     turn.episode_id,
-                    previous.segment_ordinal,
-                    previous.segment_turn + 1,
+                    next_segment_ordinal,
+                    next_segment_turn,
                     previous.running_summary,
                     json.dumps(previous.unresolved_topics),
                     json.dumps(refs),

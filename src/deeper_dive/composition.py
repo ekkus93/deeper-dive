@@ -14,11 +14,12 @@ from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.audio_normalization import AudioNormalizationError, CanonicalAudio, normalize_wav
 from deeper_dive.audio_playback import AudioPlaybackBackend, AudioPlaybackController
 from deeper_dive.audio_timeline import AudioTimeline, AudioTimelineRepository, TimelineItem
-from deeper_dive.director_decision import DirectorDecision
+from deeper_dive.conversation_generation import ConversationGenerationService
+from deeper_dive.conversation_state import ConversationState
 from deeper_dive.domain.clock import SystemClock, format_timestamp
 from deeper_dive.domain.ids import new_run_id
 from deeper_dive.episode_config import EpisodeConfigurationService
-from deeper_dive.episode_planner import EpisodePlanGenerator, EpisodePlannerService
+from deeper_dive.episode_planner import EpisodePlanGenerator, EpisodePlannerService, PlannedSegment
 from deeper_dive.export import EpisodeExporter
 from deeper_dive.generation_monitor import GenerationMonitorController
 from deeper_dive.generation_role_providers import (
@@ -394,9 +395,6 @@ def _conversation_stage(
     context: PipelineContext,
 ) -> None:
     database = Database(service.workspaces.project_root(project_id) / "project.db")
-    existing_turns = HostTurnService(database)
-    if existing_turns.list_turns(context.episode_id):
-        return
     repository = HostEpisodeRepository(database)
     host_ids = tuple(repository.list_episode_host_ids(context.episode_id))
     if not host_ids:
@@ -417,37 +415,39 @@ def _conversation_stage(
         assignments,
         model_roles.ModelRole.HOST_GENERATION,
     )
-    turns = HostTurnService(database, LLMHostTurnProvider(provider, model))
-    evidence_ids = _episode_evidence_ids(database, context.episode_id)
-    decision = _director_decision(composition, assignments, episode.title, host_ids, evidence_ids)
-    turns.generate(context.run_id, context.episode_id, decision)
 
-
-def _director_decision(
-    composition: ProductionComposition,
-    assignments: model_roles.ModelRoleAssignments,
-    episode_title: str,
-    host_ids: tuple[str, ...],
-    available_evidence_ids: tuple[str, ...] = (),
-) -> DirectorDecision:
-    if assignments.resolve(model_roles.ModelRole.DIRECTING) is None:
-        return DirectorDecision(
-            speaker_id=host_ids[0],
-            intent=f"Discuss {episode_title}",
-            evidence_ids=available_evidence_ids,
-            target_duration_seconds=45,
-            target_words=80,
+    decision_provider = None
+    if assignments.resolve(model_roles.ModelRole.DIRECTING) is not None:
+        director_provider, director_model = _llm_provider_for_role(
+            composition,
+            assignments,
+            model_roles.ModelRole.DIRECTING,
         )
-    provider, model = _llm_provider_for_role(
-        composition,
-        assignments,
-        model_roles.ModelRole.DIRECTING,
-    )
-    return LLMDirectorDecisionProvider(provider, model).decide(
-        episode_title=episode_title,
-        host_ids=host_ids,
-        available_evidence_ids=available_evidence_ids,
-    )
+        director = LLMDirectorDecisionProvider(director_provider, director_model)
+
+        def decide(
+            segment: PlannedSegment,
+            hosts: tuple[HostProfile, ...],
+            state: ConversationState,
+            remaining_seconds: int,
+        ):
+            return director.decide(
+                episode_title=episode.title,
+                host_ids=tuple(host.id for host in hosts),
+                available_evidence_ids=segment.evidence_ids,
+                segment=segment,
+                state=state,
+                remaining_seconds=remaining_seconds,
+            )
+
+        decision_provider = decide
+
+    ConversationGenerationService(
+        database,
+        LLMHostTurnProvider(provider, model),
+        decision_provider=decision_provider,
+        available_evidence_ids=_project_indexed_evidence_ids(database, project_id),
+    ).run(context.run_id, context.episode_id)
 
 
 def _episode_evidence_ids(database: Database, episode_id: str) -> tuple[str, ...]:

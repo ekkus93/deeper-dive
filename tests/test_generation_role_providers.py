@@ -102,7 +102,7 @@ def test_generation_uses_configured_directing_and_verification_roles(tmp_path: P
     turns = HostTurnService(composition.database_for_project(project_id)).list_turns(
         episode_id
     )
-    assert len(turns) == 1
+    assert len(turns) > 1
     assert "Configured fake provider host turn marker" in turns[0].text
     assert "Configured fake directing decision marker" in turns[0].text
     assert factory.director.requests

@@ -6,7 +6,9 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 
+from deeper_dive.conversation_state import ConversationState
 from deeper_dive.director_decision import DirectorDecision
+from deeper_dive.episode_planner import PlannedSegment
 from deeper_dive.host_turn import HostTurn
 from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
 
@@ -24,6 +26,9 @@ class LLMDirectorDecisionProvider:
         episode_title: str,
         host_ids: tuple[str, ...],
         available_evidence_ids: tuple[str, ...] = (),
+        segment: PlannedSegment | None = None,
+        state: ConversationState | None = None,
+        remaining_seconds: int | None = None,
     ) -> DirectorDecision:
         response = self.provider.generate(
             LLMRequest(
@@ -42,6 +47,28 @@ class LLMDirectorDecisionProvider:
                                 "episode_title": episode_title,
                                 "host_ids": list(host_ids),
                                 "available_evidence_ids": list(available_evidence_ids),
+                                "segment": (
+                                    None
+                                    if segment is None
+                                    else {
+                                        "title": segment.title,
+                                        "purpose": segment.purpose,
+                                        "target_duration_seconds": (
+                                            segment.target_duration_seconds
+                                        ),
+                                        "questions": list(segment.questions),
+                                    }
+                                ),
+                                "conversation_state": (
+                                    None
+                                    if state is None
+                                    else {
+                                        "segment_ordinal": state.segment_ordinal,
+                                        "segment_turn": state.segment_turn,
+                                        "participation": state.participation,
+                                    }
+                                ),
+                                "remaining_seconds": remaining_seconds,
                             },
                             sort_keys=True,
                         ),
