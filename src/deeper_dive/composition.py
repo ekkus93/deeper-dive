@@ -16,6 +16,7 @@ from deeper_dive.audio_playback import AudioPlaybackBackend, AudioPlaybackContro
 from deeper_dive.audio_timeline import AudioTimeline, AudioTimelineRepository, TimelineItem
 from deeper_dive.conversation_generation import ConversationGenerationService
 from deeper_dive.conversation_state import ConversationState
+from deeper_dive.director_decision import DirectorDecision
 from deeper_dive.domain.clock import SystemClock, format_timestamp
 from deeper_dive.domain.ids import new_run_id
 from deeper_dive.episode_config import EpisodeConfigurationService
@@ -430,7 +431,7 @@ def _conversation_stage(
             hosts: tuple[HostProfile, ...],
             state: ConversationState,
             remaining_seconds: int,
-        ):
+        ) -> DirectorDecision:
             return director.decide(
                 episode_title=episode.title,
                 host_ids=tuple(host.id for host in hosts),
