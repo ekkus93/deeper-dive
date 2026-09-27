@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+# fmt: off
+
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, replace
@@ -218,3 +220,5 @@ class ConversationGenerationService:
             evidence_ids=evidence_ids,
             lead_host_ids=tuple(str(value) for value in payload.get("lead_host_ids", ())),
         )
+
+# fmt: on

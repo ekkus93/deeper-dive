@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+# fmt: off
+
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -237,3 +239,5 @@ def test_episode_turn_safety_bound_fails_predictably(tmp_path: Path) -> None:
 
     with pytest.raises(RuntimeError, match="maximum episode turn safety bound"):
         service.run("r", "e")
+
+# fmt: on
