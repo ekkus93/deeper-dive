@@ -91,6 +91,107 @@ def test_successful_provider_save_publishes_built_candidate_after_persistence(
     assert factory.builds[-1] == ("next", "speech", "stable")
 
 
+def test_missing_credential_env_provider_save_rolls_back_config_and_runtime(
+    tmp_path: Path,
+) -> None:
+    controller, _factory = _controller(tmp_path)
+    previous_llm = controller.llm_registry
+    previous_tts = controller.tts_providers
+
+    class CredentialRejectingFactory(TransactionFactory):
+        def build(self, config: UserConfig) -> ProviderBuildResult:
+            provider = config.providers.get("remote")
+            if provider is not None and not provider.credential_env:
+                raise ValueError("credential_env is required for remote")
+            return super().build(config)
+
+    controller.provider_factory = CredentialRejectingFactory()
+
+    with pytest.raises(ValueError, match="credential_env is required"):
+        controller.save_provider(
+            "remote",
+            "openai",
+            base_url="https://api.example.invalid/v1",
+            default_model="gpt-test",
+        )
+
+    assert set(controller.config().providers) == {"stable", "speech"}
+    assert controller.llm_registry is previous_llm
+    assert controller.tts_providers is previous_tts
+    assert controller.llm("stable").provider_id == "stable"
+
+
+def test_missing_tts_base_url_or_voice_catalog_rolls_back_config_and_runtime(
+    tmp_path: Path,
+) -> None:
+    controller, _factory = _controller(tmp_path)
+    previous_tts = controller.tts_providers
+
+    class CatalogRejectingFactory(TransactionFactory):
+        def build(self, config: UserConfig) -> ProviderBuildResult:
+            provider = config.providers.get("remote-speech")
+            if provider is not None and (not provider.base_url or not provider.voices):
+                raise ValueError("base URL and voice catalog are required")
+            return super().build(config)
+
+    controller.provider_factory = CatalogRejectingFactory()
+
+    with pytest.raises(ValueError, match="base URL and voice catalog are required"):
+        controller.save_provider(
+            "remote-speech",
+            "openai-compatible-tts",
+            credential_env="REMOTE_TTS_KEY",
+            default_model="tts-test",
+        )
+
+    assert set(controller.config().providers) == {"stable", "speech"}
+    assert controller.tts_providers is previous_tts
+    assert controller.tts("speech").provider_id == "speech"
+
+
+def test_unsupported_provider_adapter_save_rolls_back_without_building(
+    tmp_path: Path,
+) -> None:
+    controller, factory = _controller(tmp_path)
+    previous_builds = list(factory.builds)
+    previous_llm = controller.llm_registry
+
+    with pytest.raises(ValueError, match="unsupported provider adapter"):
+        controller.save_provider("broken", "not-a-provider")
+
+    assert set(controller.config().providers) == {"stable", "speech"}
+    assert controller.llm_registry is previous_llm
+    assert factory.builds == previous_builds
+
+
+def test_failed_provider_save_cannot_break_next_startup(tmp_path: Path) -> None:
+    controller, _factory = _controller(tmp_path)
+
+    class CredentialRejectingFactory(TransactionFactory):
+        def build(self, config: UserConfig) -> ProviderBuildResult:
+            provider = config.providers.get("remote")
+            if provider is not None and not provider.credential_env:
+                raise ValueError("credential_env is required for remote")
+            return super().build(config)
+
+    controller.provider_factory = CredentialRejectingFactory()
+
+    with pytest.raises(ValueError, match="credential_env is required"):
+        controller.save_provider(
+            "remote",
+            "openai",
+            base_url="https://api.example.invalid/v1",
+            default_model="gpt-test",
+        )
+
+    restarted_store = UserConfigStore(tmp_path / "config.json")
+    restarted_factory = TransactionFactory()
+    restarted = restarted_factory.build(restarted_store.load())
+
+    assert restarted.llm_registry.provider_ids() == ("stable",)
+    assert set(restarted.tts_providers) == {"speech"}
+
+
 def test_failed_provider_removal_preserves_durable_config_and_live_runtime(
     tmp_path: Path,
 ) -> None:
