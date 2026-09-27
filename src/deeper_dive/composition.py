@@ -452,17 +452,32 @@ def _director_decision(
 
 def _episode_evidence_ids(database: Database, episode_id: str) -> tuple[str, ...]:
     repository = HostEpisodeRepository(database)
+    episode = repository.get_episode(episode_id)
+    if episode is None:
+        return ()
     plan = repository.get_plan(episode_id)
     if plan is None:
         return ()
+    valid_evidence_ids = _project_indexed_evidence_ids(database, episode.project_id)
     evidence: list[str] = []
     for segment in repository.list_segments(plan.id):
         payload = json.loads(segment.segment_json)
         for evidence_id in payload.get("evidence_ids", ()):
             normalized = str(evidence_id)
-            if normalized and normalized not in evidence:
+            if normalized and normalized in valid_evidence_ids and normalized not in evidence:
                 evidence.append(normalized)
     return tuple(evidence)
+
+
+def _project_indexed_evidence_ids(database: Database, project_id: str) -> set[str]:
+    with database.connection() as db:
+        rows = db.execute(
+            """SELECT c.id FROM source_chunks c JOIN sources s ON s.id=c.source_id
+            WHERE s.project_id=? AND s.included=1 AND s.status='indexed'
+            ORDER BY s.imported_at,s.id,c.ordinal,c.id""",
+            (project_id,),
+        ).fetchall()
+    return {str(row["id"]) for row in rows}
 
 
 def _verification_stage(
