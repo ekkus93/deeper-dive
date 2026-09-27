@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import wave
 from pathlib import Path
 
 from textual.widgets import Static
@@ -223,7 +224,8 @@ def test_transcript_review_default_repair_uses_production_service(
     assert str(regenerated_audio["artifact_id"]).startswith("tts-")
     assert Path(str(regenerated_audio["path"])).is_file()
     assert episode_audio.exists()
-    assert b"segments" in episode_audio.read_bytes()
+    with wave.open(str(episode_audio), "rb") as wav:
+        assert wav.getnframes() > 0
     timeline = AudioTimelineRepository(database).get(episode_id)
     assert timeline is not None
     assert timeline.placements[0].item.turn_id == "turn-1"
