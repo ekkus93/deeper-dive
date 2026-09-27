@@ -68,7 +68,7 @@
 - [x] Define the production evidence source for generation, such as plan segment evidence IDs, retrieval results, or another documented service.
 - [x] Make valid evidence IDs available to directing decisions when indexed source evidence exists.
 - [x] Make valid evidence IDs available to host-turn generation and constrain provider citations to that set.
-- [ ] Preserve multi-episode and multi-project evidence isolation.
+- [x] Preserve multi-episode and multi-project evidence isolation.
 - [x] Add regression coverage showing generated turns include non-empty evidence IDs when the configured provider selects valid evidence.
 
 ## PCG-FU-021 — Validate and export generated provenance end to end
@@ -77,9 +77,9 @@
 - [x] Persist valid generated evidence IDs on conversation turns.
 - [x] Resolve cited source chunks to source passage metadata/text during export.
 - [x] Add an end-to-end provider-backed acceptance test proving exported transcript markdown contains generated citations and source passages without manually seeding turn provenance.
-- [ ] Add a negative test proving cross-episode or cross-project evidence IDs are not accepted.
+- [x] Add a negative test proving cross-episode or cross-project evidence IDs are not accepted.
 
-**Evidence:** PR #447 wires production conversation generation to derive available evidence IDs from the durable episode plan's segment evidence and passes that evidence scope into both the director decision and host-turn generation path. `tests/test_followup_generated_evidence.py::test_provider_backed_generation_uses_plan_evidence_and_exports_source_passages` proves configured provider-backed generation persists non-empty evidence IDs on generated turns and that Episode Library export resolves those citations into transcript source passages from the indexed source chunk. `tests/test_followup_generated_evidence.py::test_generated_turn_rejects_evidence_outside_director_scope` proves generated host turns cannot cite evidence outside the supplied director scope. Exact-head CI for PR #447 passed in run `36313059185`; PR #447 merged as `5a9947b26dd8e30b44ca2ed9970613b66357beea`; merged-master CI passed in run `36313168607`. Remaining R3 work: filter supplied plan evidence against project-local indexed source chunks and add explicit cross-episode/cross-project negative coverage before checking the isolation item and final negative-test item.
+**Evidence:** PR #447 wires production conversation generation to derive available evidence IDs from the durable episode plan's segment evidence and passes that evidence scope into both the director decision and host-turn generation path. `tests/test_followup_generated_evidence.py::test_provider_backed_generation_uses_plan_evidence_and_exports_source_passages` proves configured provider-backed generation persists non-empty evidence IDs on generated turns and that Episode Library export resolves those citations into transcript source passages from the indexed source chunk. `tests/test_followup_generated_evidence.py::test_generated_turn_rejects_evidence_outside_director_scope` proves generated host turns cannot cite evidence outside the supplied director scope. Exact-head CI for PR #447 passed in run `36313059185`; PR #447 merged as `5a9947b26dd8e30b44ca2ed9970613b66357beea`; merged-master CI passed in run `36313168607`. PR #450 then filters supplied plan evidence against indexed chunks in the current project database before exposing it to production directing/host-turn generation. `tests/test_followup_generated_evidence.py::test_episode_evidence_ids_filter_cross_project_plan_evidence` proves cross-project plan evidence is not supplied and cannot be cited, and `tests/test_followup_generated_evidence.py::test_episode_evidence_ids_do_not_leak_other_episode_plan` proves one episode's plan evidence does not leak into another episode's generated-evidence scope. Exact-head CI for PR #450 passed in run `36314072318`; PR #450 merged as `7bffee9344f4c0f93c8cb91a7aa3a423d0515f24`; merged-master CI passed in run `36314171529`.
 
 ---
 
