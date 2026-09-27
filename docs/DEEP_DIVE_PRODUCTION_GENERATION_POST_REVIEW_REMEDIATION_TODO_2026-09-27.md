@@ -69,10 +69,10 @@ This checklist is the source of completion truth for the post-review remediation
 - [x] Publish runtime only after persistence succeeds.
 - [x] Preserve prior durable config on failure.
 - [x] Preserve prior live runtime on failure.
-- [ ] Test missing credential-env rollback.
-- [ ] Test missing base URL/voice catalog rollback.
-- [ ] Test unsupported/invalid adapter rollback.
-- [ ] Prove failed save cannot break next startup.
+- [x] Test missing credential-env rollback.
+- [x] Test missing base URL/voice catalog rollback.
+- [x] Test unsupported/invalid adapter rollback.
+- [x] Prove failed save cannot break next startup.
 
 ## PRR-111 — Transactional provider removal
 
@@ -497,13 +497,13 @@ This checklist is the source of completion truth for the post-review remediation
 
 Populate during implementation; do not pre-check.
 
-- Implementation head SHA: partial R1/R2 foundation merged via `8976210f23a5b6035063cc65a3902c93d0865ed5` (PR #467, head `aa15e956e6f0d5b5f6fc79358eb54c032e0b0085`).
-- Exact-head CI run: `36345119231` on `8976210f23a5b6035063cc65a3902c93d0865ed5`, conclusion `success`.
+- Implementation head SHA: R1/R2 foundation merged via `8976210f23a5b6035063cc65a3902c93d0865ed5` (PR #467, head `aa15e956e6f0d5b5f6fc79358eb54c032e0b0085`); remaining PRR-110 provider rollback coverage merged via `226c20c7bc58f72fbc7da4ac4e9656921cd86068` (PR #468, head `7e3325d332134ecd2077d28f56ffef9b856ba4e4`).
+- Exact-head CI run: `36345119231` on `8976210f23a5b6035063cc65a3902c93d0865ed5`, conclusion `success`; `36345978069` on `226c20c7bc58f72fbc7da4ac4e9656921cd86068`, conclusion `success`.
 - Current/final `master` SHA:
 - Current/final `master` CI run:
-- Relevant PRs if policy required: #467 for R1 and R2 transactional-provider foundation.
+- Relevant PRs if policy required: #467 for R1 and R2 transactional-provider foundation; #468 for remaining PRR-110 provider rollback regressions.
 - Multi-turn generation tests: `tests/test_conversation_generation.py::test_multi_segment_generation_honors_completion_signals_atomically`, `tests/test_conversation_generation.py::test_conversation_resume_after_failure_does_not_duplicate_prior_turn`, `tests/test_conversation_generation.py::test_non_completing_director_is_bounded_per_segment`, `tests/test_conversation_generation.py::test_episode_turn_safety_bound_fails_predictably`; `tests/test_followup_acceptance_fixture.py` updated to expect multiple conversation turns.
-- Provider transaction/runtime tests: `tests/test_provider_transactions.py::test_failed_provider_save_preserves_durable_config_and_live_runtime`, `tests/test_provider_transactions.py::test_successful_provider_save_publishes_built_candidate_after_persistence`, `tests/test_provider_transactions.py::test_failed_provider_removal_preserves_durable_config_and_live_runtime`, `tests/test_provider_transactions.py::test_successful_provider_removal_drops_provider_from_live_runtime`.
+- Provider transaction/runtime tests: `tests/test_provider_transactions.py::test_failed_provider_save_preserves_durable_config_and_live_runtime`, `tests/test_provider_transactions.py::test_successful_provider_save_publishes_built_candidate_after_persistence`, `tests/test_provider_transactions.py::test_missing_credential_env_provider_save_rolls_back_config_and_runtime`, `tests/test_provider_transactions.py::test_missing_tts_base_url_or_voice_catalog_rolls_back_config_and_runtime`, `tests/test_provider_transactions.py::test_unsupported_provider_adapter_save_rolls_back_without_building`, `tests/test_provider_transactions.py::test_failed_provider_save_cannot_break_next_startup`, `tests/test_provider_transactions.py::test_failed_provider_removal_preserves_durable_config_and_live_runtime`, `tests/test_provider_transactions.py::test_successful_provider_removal_drops_provider_from_live_runtime`.
 - Preflight/durable-failure tests:
 - Plan/evidence tests:
 - Security/redaction tests:
