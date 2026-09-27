@@ -69,6 +69,42 @@ def test_same_session_provider_save_refreshes_preflight_generation_and_export(
     assert exported.audio.is_file()
 
 
+def test_cli_created_composition_uses_persisted_provider_config_for_generation(
+    tmp_path: Path,
+) -> None:
+    data_dir = tmp_path / "cli-data"
+    UserConfigStore(data_dir / "config.json").save(
+        UserConfig(
+            providers={
+                "fresh": ProviderConfig(provider_type="fake", default_model="fake-v1"),
+                "speech": ProviderConfig(provider_type="fake-tts", voices=("voice-a",)),
+            },
+            defaults={
+                ModelRole.EPISODE_PLANNING.value: "fresh:fake-v1",
+                ModelRole.HOST_GENERATION.value: "fresh:fake-v1",
+            },
+        )
+    )
+    composition = ProductionComposition.build(
+        data_dir,
+        provider_factory=ProviderFactory(environ={}),
+    )
+    project_id, episode_id = _ready_episode(composition)
+    starter = GenerationStartService(composition, ffmpeg_executable=_fake_ffmpeg(tmp_path))
+
+    report = starter.preflight(project_id, episode_id)
+    run = starter.start(project_id, episode_id)
+    result = composition.run_generation(project_id, run.run.id)
+
+    assert report.ready
+    assert composition.provider_controller.llm_registry is composition.providers.llm_registry
+    assert composition.preflight_service.llm_registry is composition.providers.llm_registry
+    assert result.run.state == "completed"
+    turns = HostTurnService(composition.database_for_project(project_id)).list_turns(episode_id)
+    assert turns
+    assert "Configured fake provider host turn marker" in turns[0].text
+
+
 def test_provider_save_persists_credential_env_name_not_secret(tmp_path: Path) -> None:
     secret = "credential-value-that-must-not-persist"
     composition = _empty_composition(
