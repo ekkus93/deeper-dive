@@ -70,6 +70,109 @@ def test_tts_stage_caches_and_checkpoints_each_turn(tmp_path: Path) -> None:
     assert [row["unit_id"] for row in rows] == ["t1", "t2"]
 
 
+def test_duplicate_cache_reuse_persists_one_row_per_turn(tmp_path: Path) -> None:
+    provider = FakeTTSProvider(voices=(TTSVoice("v", "Voice"),))
+    registry = TTSProviderRegistry()
+    registry.register(provider)
+    database = _database(tmp_path / "project.db")
+    repository = TTSArtifactRepository(database)
+    stage = TTSGenerationStage(registry, repository, tmp_path / "cache", max_workers=2)
+    turns = (
+        TTSTurn("t1", "h", "same text", provider.provider_id, "v"),
+        TTSTurn("t2", "h", "same text", provider.provider_id, "v"),
+    )
+
+    first = stage.generate("run", turns)
+    second = stage.generate("run", turns)
+
+    assert len(provider.requests) == 1
+    assert [item.turn_id for item in first] == ["t1", "t2"]
+    assert first[0].cache_key == first[1].cache_key
+    assert first[0].artifact_id == first[1].artifact_id
+    assert first[0].path == first[1].path
+    assert [item.artifact_id for item in second] == [item.artifact_id for item in first]
+    with database.connection() as db:
+        rows = db.execute(
+            """SELECT turn_id,cache_key,artifact_id,path
+            FROM tts_artifacts ORDER BY turn_id"""
+        ).fetchall()
+    assert [str(row["turn_id"]) for row in rows] == ["t1", "t2"]
+    assert len({str(row["cache_key"]) for row in rows}) == 1
+    assert len({str(row["artifact_id"]) for row in rows}) == 1
+    assert len({str(row["path"]) for row in rows}) == 1
+
+
+def test_cache_identity_covers_all_synthesis_inputs() -> None:
+    base = TTSTurn(
+        "t",
+        "h",
+        "text",
+        "provider-a",
+        "voice-a",
+        model="model-a",
+        settings={"response_format": "mp3", "sample_rate_hz": 24000},
+    )
+    variants = (
+        TTSTurn(
+            "t",
+            "h",
+            "changed text",
+            "provider-a",
+            "voice-a",
+            model="model-a",
+            settings={"response_format": "mp3", "sample_rate_hz": 24000},
+        ),
+        TTSTurn(
+            "t",
+            "h",
+            "text",
+            "provider-b",
+            "voice-a",
+            model="model-a",
+            settings={"response_format": "mp3", "sample_rate_hz": 24000},
+        ),
+        TTSTurn(
+            "t",
+            "h",
+            "text",
+            "provider-a",
+            "voice-b",
+            model="model-a",
+            settings={"response_format": "mp3", "sample_rate_hz": 24000},
+        ),
+        TTSTurn(
+            "t",
+            "h",
+            "text",
+            "provider-a",
+            "voice-a",
+            model="model-b",
+            settings={"response_format": "mp3", "sample_rate_hz": 24000},
+        ),
+        TTSTurn(
+            "t",
+            "h",
+            "text",
+            "provider-a",
+            "voice-a",
+            model="model-a",
+            settings={"response_format": "wav", "sample_rate_hz": 24000},
+        ),
+        TTSTurn(
+            "t",
+            "h",
+            "text",
+            "provider-a",
+            "voice-a",
+            model="model-a",
+            settings={"response_format": "mp3", "sample_rate_hz": 48000},
+        ),
+    )
+
+    base_key = TTSGenerationStage.cache_key(base)
+    assert all(TTSGenerationStage.cache_key(variant) != base_key for variant in variants)
+
+
 def test_failure_resumes_without_resynthesizing_completed_turns(tmp_path: Path) -> None:
     class FailingProvider(FakeTTSProvider):
         fail = True

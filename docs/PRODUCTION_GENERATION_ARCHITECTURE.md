@@ -32,7 +32,9 @@ Deterministic fake providers are valid only as explicitly configured provider ad
 
 The TTS stage resolves every generated turn through the selected host's configured provider and voice. Missing host TTS assignment, unknown providers, unknown voices, empty provider audio, and provider/runtime failures should fail through actionable, sanitized errors.
 
-TTS generation writes durable artifacts through `TTSArtifactRepository` and `TTSGenerationStage`. Reuse is cache-key based and valid only when the cached artifact is successful, exists on disk, and is non-empty. Transcript repair or other text-changing operations must invalidate affected audio or force regeneration through the same artifact contract.
+TTS generation writes durable artifacts through `TTSArtifactRepository` and `TTSGenerationStage`. Reuse is cache-key based and valid only when the cached artifact is successful, exists on disk, and is non-empty. The cache key includes text, provider, voice, model, and non-default synthesis settings such as response format, so transcript repair or provider/voice/model/settings changes force the affected turn through regeneration.
+
+`tts_artifacts` is a per-turn artifact-reference table. Every generated turn has its own persisted row. Multiple turns may intentionally share the same `cache_key`, `artifact_id`, and filesystem path when synthesis input is identical; the cache key is therefore indexed but not unique. This preserves per-turn lookup while allowing duplicate speech to reuse one physical artifact. Provider-returned format and provider/voice/model metadata are recorded from the actual synthesis result, and the stored format matches the artifact filename extension.
 
 ## Stage boundary and export semantics
 

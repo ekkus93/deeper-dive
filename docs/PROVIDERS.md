@@ -90,6 +90,7 @@ Typical setup steps:
 
 Operational notes:
 
+- KittenTTS Micro emits WAV only. Configuring a non-WAV response format is rejected before synthesis is recorded as successful.
 - The base package must not bundle model weights.
 - Model installation/download lifecycle should be explicit and recover safely from partial downloads.
 - KittenTTS runs locally and is suitable for local-only speech when available.
@@ -126,6 +127,8 @@ Typical setup steps:
 
 Operational notes:
 
+- The configured response format is sent through the production TTS request. For example, `response_format = "mp3"` produces an `mp3` request and an `.mp3` cached artifact when the endpoint returns MP3.
+- Artifact format/provider metadata is taken from the actual provider response rather than inferred from the configured request alone.
 - Compatibility deviations are expected; failures should be recoverable configuration/provider errors.
 - Local compatible endpoints can be used for local-only workflows when they are actually local.
 
