@@ -29,6 +29,7 @@ from deeper_dive.preflight import (
     PreflightReport,
     PreflightService,
 )
+from deeper_dive.provider_network import local_only_from_defaults, local_provider_ids
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.storage.episode_repositories import (
     EpisodeRecord,
@@ -155,7 +156,10 @@ class PreflightController:
         composition = getattr(app.service, "_production_composition", None)
         if composition is None:
             return None
-        composition.provider_controller = app.provider_controller
+        if hasattr(composition, "attach_provider_controller"):
+            composition.attach_provider_controller(app.provider_controller)
+        else:
+            composition.provider_controller = app.provider_controller
         composition.preflight_service = PreflightService(
             app.provider_controller.llm_registry,
             self._tts_registry(app),
@@ -215,7 +219,10 @@ class PreflightController:
                 project_defaults=project_defaults,
             )
         else:
-            composition.provider_controller = app.provider_controller
+            if hasattr(composition, "attach_provider_controller"):
+                composition.attach_provider_controller(app.provider_controller)
+            else:
+                composition.provider_controller = app.provider_controller
             if episode is None:
                 assignments, errors = composition.effective_model_role_assignments(project_id)
             else:
@@ -237,20 +244,11 @@ class PreflightController:
     def _local_provider_ids(
         providers: dict[str, ProviderConfig], defaults: dict[str, str]
     ) -> frozenset[str]:
-        local_ids = {
-            value.strip()
-            for value in defaults.get("local_provider_ids", "").split(",")
-            if value.strip()
-        }
-        local_types = {"fake", "fake-tts", "kitten", "llama-server", "local", "ollama"}
-        for name, provider in providers.items():
-            if provider.provider_type in local_types:
-                local_ids.add(name)
-        return frozenset(local_ids)
+        return local_provider_ids(providers, defaults)
 
     @staticmethod
     def _local_only(defaults: dict[str, str]) -> bool:
-        return defaults.get("local_only", "").strip().lower() in {"1", "true", "yes", "on"}
+        return local_only_from_defaults(defaults)
 
     @staticmethod
     def _llm_rows(assignments: ModelRoleAssignments) -> tuple[str, ...]:
