@@ -95,6 +95,48 @@ def test_cloud_cost_absent_without_explicit_pricing(tmp_path: Path) -> None:
     assert report.estimate.estimated_cloud_cost_usd is None
 
 
+def test_local_routes_do_not_trigger_local_only_remote_blockers(tmp_path: Path) -> None:
+    ffmpeg = tmp_path / "ffmpeg"
+    ffmpeg.write_text("fake")
+
+    report = service().check(
+        assignments=assignments(),
+        hosts=(host(),),
+        source_count=1,
+        indexed_source_count=1,
+        target_minutes=10,
+        ffmpeg_executable=ffmpeg,
+        local_provider_ids=frozenset({"fake", "fake-tts"}),
+        local_only=True,
+    )
+
+    assert {route.provider: route.local for route in report.routes} == {
+        "fake": True,
+        "fake-tts": True,
+    }
+    assert not any(issue.code == "local_only_violation" for issue in report.issues)
+
+
+def test_remote_routes_are_disclosed_and_blocked_in_local_only_mode(tmp_path: Path) -> None:
+    ffmpeg = tmp_path / "ffmpeg"
+    ffmpeg.write_text("fake")
+
+    report = service().check(
+        assignments=assignments(),
+        hosts=(host(),),
+        source_count=1,
+        indexed_source_count=1,
+        target_minutes=10,
+        ffmpeg_executable=ffmpeg,
+        local_provider_ids=frozenset(),
+        local_only=True,
+    )
+
+    assert any(route.provider == "fake" and not route.local for route in report.routes)
+    codes = {issue.code for issue in report.blockers}
+    assert {"source_content_remote", "local_only_violation"} <= codes
+
+
 class UnhealthyLLM(FakeLLMProvider):
     def health(self) -> ProviderHealth:
         return ProviderHealth(False, "offline")
