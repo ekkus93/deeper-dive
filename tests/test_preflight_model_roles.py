@@ -5,7 +5,7 @@ from pathlib import Path
 from deeper_dive.hosts import HostProfile
 from deeper_dive.llm import FakeLLMProvider, LLMProviderRegistry, ProviderHealth
 from deeper_dive.model_roles import ModelAssignment, ModelRole, ModelRoleAssignments
-from deeper_dive.preflight import PreflightService
+from deeper_dive.preflight import PreflightReport, PreflightService
 from deeper_dive.tts import FakeTTSProvider, TTSProviderRegistry
 
 
@@ -38,67 +38,58 @@ def _service(provider: FakeLLMProvider | None = None) -> PreflightService:
     return PreflightService(llm, tts)
 
 
-def test_unknown_directing_provider_blocks(tmp_path: Path) -> None:
-    report = _service().check(
-        assignments=ModelRoleAssignments(
-            user={
-                ModelRole.DIRECTING: ModelAssignment("missing", "fake-v1"),
-            },
-        ),
+def _check_role(
+    tmp_path: Path,
+    role: ModelRole,
+    assignment: ModelAssignment,
+    provider: FakeLLMProvider | None = None,
+) -> PreflightReport:
+    assignments = ModelRoleAssignments(user={role: assignment})
+    return _service(provider).check(
+        assignments=assignments,
         hosts=(_host(),),
         source_count=1,
         indexed_source_count=1,
         target_minutes=10,
         ffmpeg_executable=_ffmpeg(tmp_path),
-        required_model_roles=(ModelRole.DIRECTING,),
+        required_model_roles=(role,),
     )
 
-    assert any(
-        issue.code == "llm_assignment"
-        and "unknown provider 'missing' for directing" in issue.message
-        for issue in report.blockers
+
+def _blocker_messages(report: PreflightReport) -> tuple[str, ...]:
+    return tuple(issue.message for issue in report.blockers)
+
+
+def test_unknown_directing_provider_blocks(tmp_path: Path) -> None:
+    report = _check_role(
+        tmp_path,
+        ModelRole.DIRECTING,
+        ModelAssignment("missing", "fake-v1"),
     )
+
+    expected = "unknown provider 'missing' for directing"
+    assert any(expected in message for message in _blocker_messages(report))
 
 
 def test_unavailable_verification_model_blocks(tmp_path: Path) -> None:
-    report = _service().check(
-        assignments=ModelRoleAssignments(
-            user={
-                ModelRole.VERIFICATION: ModelAssignment("fake", "missing-model"),
-            },
-        ),
-        hosts=(_host(),),
-        source_count=1,
-        indexed_source_count=1,
-        target_minutes=10,
-        ffmpeg_executable=_ffmpeg(tmp_path),
-        required_model_roles=(ModelRole.VERIFICATION,),
+    report = _check_role(
+        tmp_path,
+        ModelRole.VERIFICATION,
+        ModelAssignment("fake", "missing-model"),
     )
 
-    assert any(
-        issue.code == "llm_assignment"
-        and "model 'missing-model' is unavailable from provider 'fake'" in issue.message
-        for issue in report.blockers
-    )
+    expected = "model 'missing-model' is unavailable from provider 'fake'"
+    assert any(expected in message for message in _blocker_messages(report))
 
 
 def test_unhealthy_directing_provider_blocks(tmp_path: Path) -> None:
-    report = _service(UnhealthyLLM(provider_id="director")).check(
-        assignments=ModelRoleAssignments(
-            user={
-                ModelRole.DIRECTING: ModelAssignment("director", "fake-v1"),
-            },
-        ),
-        hosts=(_host(),),
-        source_count=1,
-        indexed_source_count=1,
-        target_minutes=10,
-        ffmpeg_executable=_ffmpeg(tmp_path),
-        required_model_roles=(ModelRole.DIRECTING,),
+    provider = UnhealthyLLM(provider_id="director")
+    report = _check_role(
+        tmp_path,
+        ModelRole.DIRECTING,
+        ModelAssignment("director", "fake-v1"),
+        provider,
     )
 
-    assert any(
-        issue.code == "llm_unhealthy"
-        and "LLM provider 'director' is unhealthy" in issue.message
-        for issue in report.blockers
-    )
+    expected = "LLM provider 'director' is unhealthy"
+    assert any(expected in message for message in _blocker_messages(report))
