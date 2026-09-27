@@ -44,7 +44,10 @@ class TuiAppStub:
         self.last_navigation = destination
 
 
-def test_cli_episode_generate_exposes_planning_preflight_failure(tmp_path: Path, capsys) -> None:
+def test_cli_episode_generate_exposes_planning_preflight_failure(
+    tmp_path: Path,
+    capsys,
+) -> None:
     composition = composition_with_missing_planning_model(tmp_path)
     project_id, episode_id = ready_episode(composition)
 
@@ -81,7 +84,9 @@ def test_tui_generate_controller_exposes_planning_preflight_failure(tmp_path: Pa
     presentation = controller.build(app)
 
     assert not presentation.report.ready
-    assert any(UNAVAILABLE_MODEL in blocker.message for blocker in presentation.report.blockers)
+    assert any(
+        UNAVAILABLE_MODEL in blocker.message for blocker in presentation.report.blockers
+    )
     with pytest.raises(PreflightBlockedError, match="generation blocked by preflight"):
         controller.start_generation(app)
     assert app.current_run_id is None
@@ -117,7 +122,9 @@ def test_generation_monitor_background_run_exposes_planning_failure(tmp_path: Pa
     assert failed.failure_message is not None
     assert "non-empty segments" in failed.failure_message
     assert monitor.snapshot(app).run == failed
-    assert any(event.operation == "planning" and event.state == "failed" for event in monitor.events)
+    assert any(
+        event.operation == "planning" and event.state == "failed" for event in monitor.events
+    )
 
 
 def composition_with_missing_planning_model(tmp_path: Path) -> ProductionComposition:
