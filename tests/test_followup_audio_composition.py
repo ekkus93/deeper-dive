@@ -9,7 +9,11 @@ import pytest
 
 from deeper_dive.audio_normalization import CanonicalAudio
 from deeper_dive.audio_timeline import AudioTimelineRepository
-from deeper_dive.composition import _composition_stage, ProductionComposition
+from deeper_dive.composition import (
+    ProductionComposition,
+    _composition_stage,
+    _normalized_wav_artifact,
+)
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.export import EpisodeExporter
 from deeper_dive.hosts import create_host_from_preset
@@ -104,6 +108,114 @@ def test_composition_stage_rejects_unsupported_non_wav_artifacts(tmp_path: Path)
         )
 
 
+def test_composition_stage_rejects_missing_and_empty_artifacts(tmp_path: Path) -> None:
+    composition, project_id, episode_id, host_id = _composition_with_episode(tmp_path)
+    database = composition.database_for_project(project_id)
+    _insert_turn(database, episode_id, "turn-missing", 0, host_id, "missing artifact")
+
+    with pytest.raises(ValueError, match="missing TTS artifacts for turns: turn-missing"):
+        _composition_stage(
+            composition.service,
+            project_id,
+            PipelineContext("run-r4", episode_id, "composition"),
+        )
+
+    empty_path = tmp_path / "turn-missing.wav"
+    empty_path.write_bytes(b"")
+    turn = TTSTurn("turn-missing", host_id, "missing artifact", "speech", "voice-a")
+    TTSArtifactRepository(database).save(
+        TTSArtifact(
+            turn_id=turn.turn_id,
+            artifact_id="artifact-turn-missing",
+            cache_key=TTSGenerationStage.cache_key(turn),
+            status=TTS_ARTIFACT_STATUS_COMPLETE,
+            path=empty_path,
+            provider_id=turn.provider_id,
+            voice=turn.voice,
+            model=turn.model,
+        )
+    )
+
+    with pytest.raises(ValueError, match="missing TTS artifacts for turns: turn-missing"):
+        _composition_stage(
+            composition.service,
+            project_id,
+            PipelineContext("run-r4", episode_id, "composition"),
+        )
+
+
+def test_composition_stage_reports_unreadable_wav_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    composition, project_id, episode_id, host_id = _composition_with_episode(tmp_path)
+    database = composition.database_for_project(project_id)
+    _insert_turn(database, episode_id, "turn-unreadable", 0, host_id, "unreadable artifact")
+    repository = TTSArtifactRepository(database)
+    _save_artifact(
+        repository,
+        tmp_path,
+        turn_id="turn-unreadable",
+        host_id=host_id,
+        text="unreadable artifact",
+        frame_count=4,
+    )
+    turn = TTSTurn("turn-unreadable", host_id, "unreadable artifact", "speech", "voice-a")
+    artifact = repository.get_by_cache_key(TTSGenerationStage.cache_key(turn))
+    assert artifact is not None
+    original_read_bytes = Path.read_bytes
+
+    def fail_target_read(path: Path) -> bytes:
+        if path == artifact.path:
+            raise OSError("synthetic read failure")
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", fail_target_read)
+
+    with pytest.raises(ValueError, match="unreadable TTS artifact for turn turn-unreadable"):
+        _normalized_wav_artifact("turn-unreadable", artifact)
+
+
+def test_composition_stage_normalizes_mismatched_wav_parameters(tmp_path: Path) -> None:
+    composition, project_id, episode_id, host_id = _composition_with_episode(tmp_path)
+    database = composition.database_for_project(project_id)
+    _insert_turn(database, episode_id, "turn-canonical", 0, host_id, "canonical artifact")
+    _insert_turn(database, episode_id, "turn-mismatched", 1, host_id, "mismatched artifact")
+    repository = TTSArtifactRepository(database)
+    _save_artifact(
+        repository,
+        tmp_path,
+        turn_id="turn-canonical",
+        host_id=host_id,
+        text="canonical artifact",
+        frame_count=4,
+    )
+    _save_artifact(
+        repository,
+        tmp_path,
+        turn_id="turn-mismatched",
+        host_id=host_id,
+        text="mismatched artifact",
+        frame_count=3,
+        sample_rate_hz=12000,
+        channels=2,
+    )
+
+    _composition_stage(
+        composition.service,
+        project_id,
+        PipelineContext("run-r4", episode_id, "composition"),
+    )
+
+    episode_audio = (
+        composition.service.workspaces.project_root(project_id) / "output" / f"{episode_id}.wav"
+    )
+    with wave.open(str(episode_audio), "rb") as wav:
+        assert wav.getnchannels() == 1
+        assert wav.getsampwidth() == 2
+        assert wav.getframerate() == 24000
+        assert wav.getnframes() == 10
+
+
 def _composition_with_episode(tmp_path: Path) -> tuple[ProductionComposition, str, str, str]:
     data_dir = tmp_path / "data"
     UserConfigStore(data_dir / "config.json").save(
@@ -150,6 +262,8 @@ def _save_artifact(
     host_id: str,
     text: str,
     frame_count: int,
+    sample_rate_hz: int = 24000,
+    channels: int = 1,
 ) -> int:
     audio_path = tmp_path / f"{turn_id}.wav"
     EpisodeExporter.write_wav(
