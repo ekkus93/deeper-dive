@@ -13,6 +13,8 @@ from deeper_dive.storage.episode_repositories import (
 )
 from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord
 from deeper_dive.targeted_repair import TargetedRepairService
+from deeper_dive.tts import FakeTTSProvider, TTSProviderRegistry, TTSVoice
+from deeper_dive.tts_generation import TTSArtifactRepository, TTSGenerationStage, TTSTurn
 
 
 class RepairProvider:
@@ -134,3 +136,46 @@ def test_repair_rejects_turn_without_repair_worthy_claim(tmp_path: Path) -> None
         assert "no claims requiring repair" in str(error)
     else:
         raise AssertionError("expected repair to reject unaffected turn")
+
+
+def test_repair_regenerates_changed_turn_without_breaking_shared_cache(tmp_path: Path) -> None:
+    database = _database(tmp_path)
+    with database.transaction() as db:
+        db.execute(
+            "UPDATE conversation_turns SET text=? WHERE id='t2'",
+            ("The figure is 10 participants.",),
+        )
+    provider = FakeTTSProvider(voices=(TTSVoice("v", "Voice"),))
+    registry = TTSProviderRegistry()
+    registry.register(provider)
+    repository = TTSArtifactRepository(database)
+    stage = TTSGenerationStage(registry, repository, tmp_path / "tts-cache", max_workers=1)
+    settings = {"response_format": "wav"}
+    original_turns = (
+        TTSTurn("t1", "h1", "The figure is 10 participants.", provider.provider_id, "v", "m", settings),
+        TTSTurn("t2", "h1", "The figure is 10 participants.", provider.provider_id, "v", "m", settings),
+    )
+
+    initial = stage.generate("no-run", original_turns)
+    assert len(provider.requests) == 1
+    assert initial[0].cache_key == initial[1].cache_key
+    old_t2 = repository.get_by_turn_id("t2")
+    assert old_t2 is not None
+
+    service = TargetedRepairService(database, RepairProvider(), Rechecker(), SummaryUpdater())
+    repaired = service.repair("t1")
+    regenerated = stage.generate(
+        "no-run",
+        (TTSTurn("t1", "h1", repaired.text, provider.provider_id, "v", "m", settings),),
+    )
+
+    assert len(provider.requests) == 2
+    new_t1 = repository.get_by_turn_id("t1")
+    still_old_t2 = repository.get_by_turn_id("t2")
+    assert new_t1 is not None
+    assert still_old_t2 is not None
+    assert new_t1.cache_key == regenerated[0].cache_key
+    assert new_t1.cache_key != old_t2.cache_key
+    assert still_old_t2.cache_key == old_t2.cache_key
+    assert still_old_t2.path == old_t2.path
+    assert new_t1.path != old_t2.path

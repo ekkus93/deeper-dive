@@ -66,3 +66,52 @@ def test_older_fixture_database_migrates_safely(tmp_path: Path) -> None:
         assert version_row is not None
         assert legacy_row[0] == "preserved"
         assert version_row[0] == LATEST_SCHEMA_VERSION
+
+
+def test_v7_tts_artifact_schema_migrates_to_per_turn_cache_rows(tmp_path: Path) -> None:
+    path = tmp_path / "v7.db"
+    with sqlite3.connect(path) as connection:
+        connection.execute("CREATE TABLE schema_version (version INTEGER NOT NULL)")
+        connection.execute("INSERT INTO schema_version(version) VALUES (7)")
+        connection.execute(
+            """CREATE TABLE tts_artifacts (
+                turn_id TEXT PRIMARY KEY,
+                artifact_id TEXT NOT NULL,
+                cache_key TEXT NOT NULL UNIQUE,
+                status TEXT NOT NULL,
+                path TEXT NOT NULL,
+                provider_id TEXT NOT NULL,
+                voice TEXT NOT NULL,
+                model TEXT
+            )"""
+        )
+        connection.execute(
+            """INSERT INTO tts_artifacts(
+                turn_id,artifact_id,cache_key,status,path,provider_id,voice,model
+            ) VALUES (?,?,?,?,?,?,?,?)""",
+            ("t1", "a1", "shared", "complete", "/tmp/a.wav", "p", "v", "m"),
+        )
+        connection.commit()
+
+    database = Database(path)
+    assert database.initialize() == LATEST_SCHEMA_VERSION
+
+    with database.transaction() as connection:
+        columns = {
+            str(row["name"])
+            for row in connection.execute("PRAGMA table_info(tts_artifacts)").fetchall()
+        }
+        assert "format" in columns
+        connection.execute(
+            """INSERT INTO tts_artifacts(
+                turn_id,artifact_id,cache_key,status,path,provider_id,voice,model,format
+            ) VALUES (?,?,?,?,?,?,?,?,?)""",
+            ("t2", "a1", "shared", "complete", "/tmp/a.wav", "p", "v", "m", "wav"),
+        )
+        rows = connection.execute(
+            "SELECT turn_id,cache_key FROM tts_artifacts ORDER BY turn_id"
+        ).fetchall()
+    assert [(str(row["turn_id"]), str(row["cache_key"])) for row in rows] == [
+        ("t1", "shared"),
+        ("t2", "shared"),
+    ]
