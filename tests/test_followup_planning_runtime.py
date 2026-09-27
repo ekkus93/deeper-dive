@@ -181,7 +181,8 @@ def test_generation_start_blocks_unavailable_planning_model(tmp_path: Path) -> N
 
 
 def test_cli_episode_generate_exposes_planning_preflight_failure(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     composition = _composition_with_planning_model(
         tmp_path,
@@ -245,13 +246,11 @@ def test_generation_monitor_background_run_exposes_planning_failure(
     composition = _composition_with_planning_model(tmp_path, "bad-v1")
     project_id, episode_id = _ready_episode(composition)
     run = composition.create_generation_run(project_id, episode_id)
-    monitor = GenerationMonitorController(
-        runner=lambda run_id, progress: composition.run_generation(
-            project_id,
-            run_id,
-            progress=progress,
-        )
-    )
+
+    def _run_from_monitor(run_id: str, progress: Any) -> None:
+        composition.run_generation(project_id, run_id, progress=progress)
+
+    monitor = GenerationMonitorController(runner=_run_from_monitor)
     app = _TuiAppStub(
         composition=composition,
         preflight_controller=PreflightController(ffmpeg_executable=_fake_ffmpeg(tmp_path)),
