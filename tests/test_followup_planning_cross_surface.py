@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.generation_monitor import GenerationMonitorController
 from deeper_dive.hosts import create_host_from_preset
+from deeper_dive.llm import FakeLLMProvider, LLMProvider
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.preflight import PreflightBlockedError
 from deeper_dive.preflight_screen import PreflightController
@@ -20,6 +22,13 @@ from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 UNAVAILABLE_MODEL = "model 'missing-v1' is unavailable from provider 'planner'"
 EMPTY_SEGMENTS = "episode plan must contain a non-empty segments list"
+
+
+class CrossSurfacePlanningFactory(ProviderFactory):
+    def _llm(self, kind: str, config: ProviderConfig) -> LLMProvider:
+        if kind == "fake" and config.default_model == "bad-v1":
+            return FakeLLMProvider(model="bad-v1", response=json.dumps({"segments": []}))
+        return super()._llm(kind, config)
 
 
 @dataclass(slots=True)
@@ -155,7 +164,7 @@ def configured_composition(
     )
     return ProductionComposition.build(
         data_dir,
-        provider_factory=ProviderFactory(environ={}),
+        provider_factory=CrossSurfacePlanningFactory(environ={}),
     )
 
 
