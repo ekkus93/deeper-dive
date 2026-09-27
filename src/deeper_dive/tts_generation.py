@@ -37,6 +37,8 @@ class TTSArtifact:
     provider_id: str
     voice: str
     model: str | None
+    format: str = ""
+
 
 
 class TTSArtifactRepository:
@@ -63,8 +65,18 @@ class TTSArtifactRepository:
         placeholders = ",".join("?" for _ in accepted)
         with self.database.connection() as db:
             row = db.execute(
-                f"SELECT * FROM tts_artifacts WHERE cache_key=? AND status IN ({placeholders})",
+                f"""SELECT * FROM tts_artifacts
+                WHERE cache_key=? AND status IN ({placeholders})
+                ORDER BY turn_id LIMIT 1""",
                 (cache_key, *accepted),
+            ).fetchone()
+        return None if row is None else self._from_row(row)
+
+    def get_by_turn_id(self, turn_id: str) -> TTSArtifact | None:
+        with self.database.connection() as db:
+            row = db.execute(
+                "SELECT * FROM tts_artifacts WHERE turn_id=?",
+                (turn_id,),
             ).fetchone()
         return None if row is None else self._from_row(row)
 
@@ -73,12 +85,13 @@ class TTSArtifactRepository:
         with self.database.transaction() as db:
             db.execute(
                 """INSERT INTO tts_artifacts(
-                    turn_id,artifact_id,cache_key,status,path,provider_id,voice,model
-                ) VALUES (?,?,?,?,?,?,?,?)
+                    turn_id,artifact_id,cache_key,status,path,provider_id,voice,model,format
+                ) VALUES (?,?,?,?,?,?,?,?,?)
                 ON CONFLICT(turn_id) DO UPDATE SET
                     artifact_id=excluded.artifact_id, cache_key=excluded.cache_key,
                     status=excluded.status, path=excluded.path,
-                    provider_id=excluded.provider_id, voice=excluded.voice, model=excluded.model""",
+                    provider_id=excluded.provider_id, voice=excluded.voice,
+                    model=excluded.model, format=excluded.format""",
                 (
                     artifact.turn_id,
                     artifact.artifact_id,
@@ -88,6 +101,7 @@ class TTSArtifactRepository:
                     artifact.provider_id,
                     artifact.voice,
                     artifact.model,
+                    artifact.format,
                 ),
             )
 
@@ -114,6 +128,7 @@ class TTSArtifactRepository:
                 provider_id=artifact.provider_id,
                 voice=artifact.voice,
                 model=artifact.model,
+                format=artifact.format,
             )
         return artifact
 
@@ -122,15 +137,18 @@ class TTSArtifactRepository:
         status = str(row["status"])
         if status in TTS_ARTIFACT_LEGACY_SUCCESS_STATUSES:
             status = TTS_ARTIFACT_STATUS_COMPLETE
+        path = Path(str(row["path"]))
+        stored_format = str(row["format"]).strip().lower()
         return TTSArtifact(
             turn_id=str(row["turn_id"]),
             artifact_id=str(row["artifact_id"]),
             cache_key=str(row["cache_key"]),
             status=status,
-            path=Path(str(row["path"])),
+            path=path,
             provider_id=str(row["provider_id"]),
             voice=str(row["voice"]),
             model=None if row["model"] is None else str(row["model"]),
+            format=stored_format or path.suffix.lower().lstrip("."),
         )
 
 
@@ -155,31 +173,58 @@ class TTSGenerationStage:
     def generate(self, run_id: str, turns: tuple[TTSTurn, ...]) -> tuple[TTSArtifact, ...]:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         resolved: dict[str, TTSArtifact] = {}
-        missing: list[tuple[TTSTurn, str]] = []
+        missing_by_key: dict[str, list[TTSTurn]] = {}
         for turn in turns:
             key = self.cache_key(turn)
             cached = self.repository.get_by_cache_key(key)
             if cached is not None and cached.path.is_file() and cached.path.stat().st_size > 0:
                 artifact = self._artifact_for_current_turn(turn, key, cached)
                 resolved[turn.turn_id] = artifact
+                self.repository.save(artifact)
                 self.repository.mark_checkpoint(run_id, turn.turn_id)
             else:
-                missing.append((turn, key))
+                missing_by_key.setdefault(key, []).append(turn)
 
         if self.max_workers == 1:
-            for turn, key in missing:
-                artifact = self._synthesize(run_id, turn, key)
+            for key, pending_turns in missing_by_key.items():
+                artifact = self._synthesize(run_id, pending_turns[0], key)
                 resolved[artifact.turn_id] = artifact
+                self._reuse_for_duplicate_turns(run_id, key, pending_turns[1:], artifact, resolved)
         else:
             with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
                 futures = {
-                    executor.submit(self._synthesize, run_id, turn, key): turn.turn_id
-                    for turn, key in missing
+                    executor.submit(self._synthesize, run_id, pending_turns[0], key): (
+                        key,
+                        pending_turns,
+                    )
+                    for key, pending_turns in missing_by_key.items()
                 }
                 for future in as_completed(futures):
+                    key, pending_turns = futures[future]
                     artifact = future.result()
                     resolved[artifact.turn_id] = artifact
+                    self._reuse_for_duplicate_turns(
+                        run_id,
+                        key,
+                        pending_turns[1:],
+                        artifact,
+                        resolved,
+                    )
         return tuple(resolved[turn.turn_id] for turn in turns)
+
+    def _reuse_for_duplicate_turns(
+        self,
+        run_id: str,
+        key: str,
+        turns: list[TTSTurn],
+        cached: TTSArtifact,
+        resolved: dict[str, TTSArtifact],
+    ) -> None:
+        for turn in turns:
+            artifact = self._artifact_for_current_turn(turn, key, cached)
+            resolved[turn.turn_id] = artifact
+            self.repository.save(artifact)
+            self.repository.mark_checkpoint(run_id, turn.turn_id)
 
     @staticmethod
     def _artifact_for_current_turn(turn: TTSTurn, key: str, cached: TTSArtifact) -> TTSArtifact:
@@ -192,6 +237,7 @@ class TTSGenerationStage:
             provider_id=cached.provider_id,
             voice=cached.voice,
             model=cached.model,
+            format=cached.format,
         )
 
     def _synthesize(self, run_id: str, turn: TTSTurn, key: str) -> TTSArtifact:
@@ -206,6 +252,16 @@ class TTSGenerationStage:
                 sample_rate_hz=settings.get("sample_rate_hz"),
             )
         )
+        if result.provider != turn.provider_id:
+            raise ValueError(
+                f"TTS provider identity mismatch for turn {turn.turn_id}: "
+                f"expected {turn.provider_id!r}, got {result.provider!r}"
+            )
+        if result.voice != turn.voice:
+            raise ValueError(
+                f"TTS voice identity mismatch for turn {turn.turn_id}: "
+                f"expected {turn.voice!r}, got {result.voice!r}"
+            )
         artifact = self._persist_result(turn, key, result)
         self.repository.save(artifact)
         self.repository.mark_checkpoint(run_id, turn.turn_id)
@@ -226,9 +282,10 @@ class TTSGenerationStage:
             cache_key=key,
             status=TTS_ARTIFACT_STATUS_COMPLETE,
             path=path,
-            provider_id=turn.provider_id,
-            voice=turn.voice,
-            model=turn.model,
+            provider_id=result.provider,
+            voice=result.voice,
+            model=result.model,
+            format=suffix,
         )
 
     @staticmethod

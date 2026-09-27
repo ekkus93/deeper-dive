@@ -46,7 +46,9 @@ Each host must have an explicit TTS provider and voice when audio generation is 
 
 The canonical successful TTS artifact status is `complete`. Legacy successful rows with status `completed` are read and normalized to `complete` by the artifact repository. Cache lookup and export should treat normalized legacy success rows as valid only when the artifact file still exists and is non-empty.
 
-TTS artifacts record the turn ID, artifact ID, cache key, status, path, provider ID, voice, and optional model. Export uses those artifacts and the episode audio produced by the composition stage rather than re-synthesizing by default.
+TTS artifacts record the turn ID, artifact ID, cache key, status, path, provider ID, voice, optional model, and actual returned audio format. Every turn receives a persisted artifact-reference row. Identical synthesis inputs may share the same cache key, artifact ID, and physical file, while retaining separate per-turn rows. Text, provider, voice, model, and non-default synthesis settings such as response format participate in cache identity, so a repaired or reconfigured turn cannot silently reuse stale audio.
+
+Configured TTS response format is carried into production synthesis. WAV is the implicit default; a configured non-default format such as `mp3` is included in the synthesis request and cache identity. Providers may reject formats they do not support before a successful artifact is recorded. Artifact filename extensions and format/provider metadata come from the actual provider result. Export uses those artifacts and the episode audio produced by the composition stage rather than re-synthesizing by default.
 
 ## Export semantics and pipeline stage semantics
 

@@ -528,7 +528,22 @@ def _tts_turn_for_host(
     turn: HostTurn,
 ) -> TTSTurn:
     provider, voice = composition.providers.tts_registry.resolve_host(host)
-    return TTSTurn(turn.id, turn.speaker_id, turn.text, provider.provider_id, voice.id)
+    provider_config = composition.provider_controller.config().providers.get(provider.provider_id)
+    model = None if provider_config is None else provider_config.default_model
+    settings: dict[str, Any] | None = None
+    if provider_config is not None:
+        response_format = provider_config.response_format.strip().lower() or "wav"
+        if response_format != "wav":
+            settings = {"response_format": response_format}
+    return TTSTurn(
+        turn.id,
+        turn.speaker_id,
+        turn.text,
+        provider.provider_id,
+        voice.id,
+        model=model,
+        settings=settings,
+    )
 
 
 def _composition_stage(
