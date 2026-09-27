@@ -25,7 +25,7 @@ jobs:
       - name: Sync locked environment
         run: uv sync --frozen
       - name: Ruff format
-        run: uv run ruff format --check .
+        run: uv run ruff format --diff .
       - name: Ruff lint
         run: uv run ruff check .
       - name: Static typing
