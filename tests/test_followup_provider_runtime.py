@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+# fmt: off
 from pathlib import Path
 
 import pytest
