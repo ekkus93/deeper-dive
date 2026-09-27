@@ -68,6 +68,28 @@ def test_same_session_provider_save_refreshes_preflight_generation_and_export(
     assert exported.audio.is_file()
 
 
+def test_provider_save_persists_credential_env_name_not_secret(tmp_path: Path) -> None:
+    secret = "credential-value-that-must-not-persist"
+    composition = _empty_composition(
+        tmp_path,
+        environ={"DEEP_DIVE_TEST_TTS_KEY": secret},
+    )
+
+    composition.provider_controller.save_provider(
+        "credentialed-speech",
+        "openai-compatible-tts",
+        base_url="http://127.0.0.1:9999/v1",
+        default_model="tts-1",
+        credential_env="DEEP_DIVE_TEST_TTS_KEY",
+        voices=("voice-a",),
+    )
+
+    persisted = composition.config_store.path.read_text(encoding="utf-8")
+    assert "DEEP_DIVE_TEST_TTS_KEY" in persisted
+    assert secret not in persisted
+    assert composition.provider_controller.tts("credentialed-speech") is not None
+
+
 def test_same_session_provider_remove_blocks_preflight_and_generation(
     tmp_path: Path,
 ) -> None:
@@ -122,12 +144,16 @@ def test_same_session_tts_remove_updates_preflight_registry(tmp_path: Path) -> N
     assert "tts_assignment" in {issue.code for issue in blocked.blockers}
 
 
-def _empty_composition(tmp_path: Path) -> ProductionComposition:
+def _empty_composition(
+    tmp_path: Path,
+    *,
+    environ: dict[str, str] | None = None,
+) -> ProductionComposition:
     data_dir = tmp_path / "data"
     UserConfigStore(data_dir / "config.json").save(UserConfig())
     return ProductionComposition.build(
         data_dir,
-        provider_factory=ProviderFactory(environ={}),
+        provider_factory=ProviderFactory(environ=environ or {}),
     )
 
 
