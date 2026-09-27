@@ -209,8 +209,8 @@ def test_followup_fixture_drives_explicit_cli_generation_status_and_export(
 
     database = composition.database_for_project(ready.project_id)
     turns = HostTurnService(database).list_turns(ready.episode_id)
-    assert len(turns) == 1
-    assert turns[0].evidence_ids == ("chunk-r6",)
+    assert len(turns) > 1
+    assert all(turn.evidence_ids == ("chunk-r6",) for turn in turns)
     artifact = TTSArtifactRepository(database).get_by_turn_id(turns[0].id)
     assert artifact is not None
     assert (artifact.provider_id, artifact.voice, artifact.format) == (

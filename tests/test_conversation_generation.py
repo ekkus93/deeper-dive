@@ -22,7 +22,10 @@ from deeper_dive.storage.episode_repositories import (
     SegmentPlanRecord,
 )
 from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord
-from deeper_dive.storage.run_repositories import GenerationRunRecord, GenerationRunRepository
+from deeper_dive.storage.run_repositories import (
+    GenerationRunRecord,
+    GenerationRunRepository,
+)
 
 
 @dataclass
@@ -72,9 +75,7 @@ def _database(tmp_path: Path, *, segments: int = 2) -> Database:
                 "Advance the evidence",
                 120,
                 (
-                    '{"title":"Segment '
-                    + str(ordinal)
-                    + '","purpose":"Advance the evidence",'
+                    '{"title":"Segment ' + str(ordinal) + '","purpose":"Advance the evidence",'
                     '"target_duration_seconds":120,"evidence_ids":[],"lead_host_ids":[]}'
                 ),
             )
@@ -149,9 +150,7 @@ def test_conversation_resume_after_failure_does_not_duplicate_prior_turn(
     ) -> DirectorDecision:
         _ = (segment, remaining_seconds)
         signal = (
-            SegmentSignal.CONTINUE
-            if state.segment_turn == 0
-            else SegmentSignal.COMPLETE_EPISODE
+            SegmentSignal.CONTINUE if state.segment_turn == 0 else SegmentSignal.COMPLETE_EPISODE
         )
         return DirectorDecision(hosts[0].id, "continue safely", segment_signal=signal)
 

@@ -14,7 +14,10 @@ from deeper_dive.host_turn import HostTurn, HostTurnProvider, HostTurnService
 from deeper_dive.hosts import HostProfile, HostRelationship
 from deeper_dive.pacing import DurationPacingController, PacingPolicy, PacingState
 from deeper_dive.storage.database import Database
-from deeper_dive.storage.episode_repositories import HostEpisodeRepository, SegmentPlanRecord
+from deeper_dive.storage.episode_repositories import (
+    HostEpisodeRepository,
+    SegmentPlanRecord,
+)
 
 ConversationDecisionProvider = Callable[
     [PlannedSegment, tuple[HostProfile, ...], ConversationState, int],
@@ -154,13 +157,10 @@ class ConversationGenerationService:
             )
             decision.validate_scope(host_id_set, set(segment.evidence_ids))
 
-            if (
-                decision.segment_signal is SegmentSignal.CONTINUE
-                and (
-                    state.segment_turn + 1 >= self.policy.max_turns_per_segment
-                    or pacing.remaining_words
-                    <= max(decision.target_words, self.policy.minimum_turn_words)
-                )
+            if decision.segment_signal is SegmentSignal.CONTINUE and (
+                state.segment_turn + 1 >= self.policy.max_turns_per_segment
+                or pacing.remaining_words
+                <= max(decision.target_words, self.policy.minimum_turn_words)
             ):
                 decision = replace(decision, segment_signal=SegmentSignal.COMPLETE_SEGMENT)
 
@@ -194,9 +194,7 @@ class ConversationGenerationService:
         try:
             payload = json.loads(record.segment_json)
         except json.JSONDecodeError as exc:
-            raise ValueError(
-                f"invalid persisted segment JSON at ordinal {record.ordinal}"
-            ) from exc
+            raise ValueError(f"invalid persisted segment JSON at ordinal {record.ordinal}") from exc
         if not isinstance(payload, dict):
             raise ValueError(f"invalid persisted segment payload at ordinal {record.ordinal}")
         evidence_ids = tuple(str(value) for value in payload.get("evidence_ids", ()))
