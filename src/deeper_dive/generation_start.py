@@ -129,7 +129,12 @@ class GenerationStartService:
         }
         local_types = {"fake", "fake-tts", "kitten", "llama-server", "local", "ollama"}
         for name, provider in config.providers.items():
-            if getattr(provider, "provider_type", None) in local_types:
+            scope = (provider.network_scope or "").strip().lower()
+            if scope == "local":
+                local_ids.add(name)
+            elif scope == "remote":
+                local_ids.discard(name)
+            elif getattr(provider, "provider_type", None) in local_types:
                 local_ids.add(name)
         return frozenset(local_ids)
 

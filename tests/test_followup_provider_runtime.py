@@ -10,11 +10,12 @@ from deeper_dive.episode_library_export import EpisodeLibraryExportService
 from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.host_turn import HostTurnService
 from deeper_dive.hosts import create_host_from_preset
+from deeper_dive.llm import FakeLLMProvider, ProviderHealth
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.preflight import PreflightBlockedError
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
-from deeper_dive.user_config import UserConfig, UserConfigStore
+from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
 def test_same_session_provider_save_refreshes_preflight_generation_and_export(
@@ -90,6 +91,103 @@ def test_provider_save_persists_credential_env_name_not_secret(tmp_path: Path) -
     assert composition.provider_controller.tts("credentialed-speech") is not None
 
 
+def test_preflight_blocks_unavailable_model_after_same_session_provider_save(
+    tmp_path: Path,
+) -> None:
+    composition = _empty_composition(tmp_path)
+    _save_runtime_providers(composition)
+    project_id, episode_id = _ready_episode(composition)
+    config = composition.provider_controller.config()
+    config.defaults[ModelRole.HOST_GENERATION.value] = "fresh:missing-v1"
+    composition.config_store.save(config)
+    composition.provider_controller.reload()
+    starter = GenerationStartService(composition, ffmpeg_executable=_fake_ffmpeg(tmp_path))
+
+    blocked = starter.preflight(project_id, episode_id)
+
+    assert not blocked.ready
+    assert any(
+        issue.code == "llm_assignment" and "missing-v1" in issue.message
+        for issue in blocked.blockers
+    )
+    with pytest.raises(PreflightBlockedError, match="generation blocked by preflight"):
+        starter.start(project_id, episode_id)
+
+
+def test_preflight_honors_explicit_remote_network_scope_in_local_only_mode(
+    tmp_path: Path,
+) -> None:
+    composition = _empty_composition(tmp_path)
+    composition.provider_controller.save_provider(
+        "fresh",
+        "fake",
+        default_model="fake-v1",
+        network_scope="remote",
+    )
+    composition.provider_controller.save_provider(
+        "speech",
+        "fake-tts",
+        network_scope="local",
+        voices=("voice-a",),
+    )
+    config = composition.provider_controller.config()
+    config.defaults.update(
+        {
+            ModelRole.EPISODE_PLANNING.value: "fresh:fake-v1",
+            ModelRole.HOST_GENERATION.value: "fresh:fake-v1",
+            "local_only": "true",
+        }
+    )
+    composition.config_store.save(config)
+    composition.provider_controller.reload()
+    project_id, episode_id = _ready_episode(composition)
+    starter = GenerationStartService(composition, ffmpeg_executable=_fake_ffmpeg(tmp_path))
+
+    blocked = starter.preflight(project_id, episode_id)
+
+    assert any(route.provider == "fresh" and not route.local for route in blocked.routes)
+    assert "local_only_violation" in {issue.code for issue in blocked.blockers}
+    assert "source_content_remote" in {issue.code for issue in blocked.blockers}
+    with pytest.raises(PreflightBlockedError, match="generation blocked by preflight"):
+        starter.start(project_id, episode_id)
+
+
+def test_preflight_blocks_unhealthy_provider_after_same_session_reload(
+    tmp_path: Path,
+) -> None:
+    composition = _empty_composition(
+        tmp_path,
+        provider_factory=_UnhealthyProviderFactory(environ={}),
+    )
+    composition.provider_controller.save_provider(
+        "fresh",
+        "fake",
+        default_model="unhealthy-v1",
+    )
+    composition.provider_controller.save_provider(
+        "speech",
+        "fake-tts",
+        voices=("voice-a",),
+    )
+    config = composition.provider_controller.config()
+    config.defaults.update(
+        {
+            ModelRole.EPISODE_PLANNING.value: "fresh:unhealthy-v1",
+            ModelRole.HOST_GENERATION.value: "fresh:unhealthy-v1",
+        }
+    )
+    composition.config_store.save(config)
+    composition.provider_controller.reload()
+    project_id, episode_id = _ready_episode(composition)
+    starter = GenerationStartService(composition, ffmpeg_executable=_fake_ffmpeg(tmp_path))
+
+    blocked = starter.preflight(project_id, episode_id)
+
+    assert "llm_unhealthy" in {issue.code for issue in blocked.blockers}
+    with pytest.raises(PreflightBlockedError, match="generation blocked by preflight"):
+        starter.start(project_id, episode_id)
+
+
 def test_same_session_provider_remove_blocks_preflight_and_generation(
     tmp_path: Path,
 ) -> None:
@@ -144,16 +242,29 @@ def test_same_session_tts_remove_updates_preflight_registry(tmp_path: Path) -> N
     assert "tts_assignment" in {issue.code for issue in blocked.blockers}
 
 
+class _UnhealthyFakeLLMProvider(FakeLLMProvider):
+    def health(self) -> ProviderHealth:
+        return ProviderHealth(False, "synthetic unhealthy provider")
+
+
+class _UnhealthyProviderFactory(ProviderFactory):
+    def _llm(self, kind: str, config: ProviderConfig):
+        if kind == "fake" and config.default_model == "unhealthy-v1":
+            return _UnhealthyFakeLLMProvider(model="unhealthy-v1")
+        return super()._llm(kind, config)
+
+
 def _empty_composition(
     tmp_path: Path,
     *,
     environ: dict[str, str] | None = None,
+    provider_factory: ProviderFactory | None = None,
 ) -> ProductionComposition:
     data_dir = tmp_path / "data"
     UserConfigStore(data_dir / "config.json").save(UserConfig())
     return ProductionComposition.build(
         data_dir,
-        provider_factory=ProviderFactory(environ=environ or {}),
+        provider_factory=provider_factory or ProviderFactory(environ=environ or {}),
     )
 
 
