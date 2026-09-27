@@ -59,7 +59,11 @@ def test_provider_factory_uses_shared_network_scope_policy() -> None:
         providers={
             "fake": ProviderConfig(provider_type="fake"),
             "remote_fake": ProviderConfig(provider_type="fake", network_scope="remote"),
-            "local_cloud": ProviderConfig(provider_type="openai", network_scope="local"),
+            "local_cloud": ProviderConfig(
+                provider_type="openai",
+                default_model="gpt-test",
+                network_scope="local",
+            ),
         }
     )
 
