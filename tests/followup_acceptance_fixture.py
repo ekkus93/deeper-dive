@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -70,20 +69,41 @@ def create_ready_followup_fixture(tmp_path: Path) -> ReadyFollowupFixture:
     host.tts_provider = "speech"
     host.tts_voice = "voice-a"
     composition.service.hosts(project.id).create_host(host.to_record())
-    episode = _create_episode(
-        database,
+    episode = EpisodeConfigurationService(database).create(
         project.id,
-        host.id,
-        title="R6 acceptance episode",
-        focus="deterministic production acceptance marker",
+        EpisodeConfiguration(
+            title="R6 acceptance episode",
+            focus="deterministic production acceptance marker",
+            target_duration_seconds=60,
+            host_ids=(host.id,),
+            research_overrides={"policy": "off"},
+        ),
     )
-    _save_plan(
-        database,
-        episode.id,
-        plan_id="plan-r6",
-        segment_id="segment-r6",
-        chunk_id="chunk-r6",
-        purpose="Exercise the full configured fake-provider workflow.",
+    HostEpisodeRepository(database).save_plan(
+        EpisodePlanRecord(
+            id="plan-r6",
+            episode_id=episode.id,
+            status="approved",
+            plan_json='{"target_duration_seconds":60}',
+            created_at="2026-09-27T00:00:00Z",
+            modified_at="2026-09-27T00:00:00Z",
+        ),
+        [
+            SegmentPlanRecord(
+                id="segment-r6",
+                episode_plan_id="plan-r6",
+                ordinal=0,
+                title="Acceptance segment",
+                purpose="Exercise the full configured fake-provider workflow.",
+                target_duration_seconds=60,
+                segment_json=(
+                    '{"title":"Acceptance segment","purpose":"Exercise the full configured '
+                    'fake-provider workflow.","target_duration_seconds":60,'
+                    '"questions":["What marker proves production routing?"],'
+                    '"evidence_ids":["chunk-r6"],"lead_host_ids":[]}'
+                ),
+            )
+        ],
     )
     ffmpeg = tmp_path / "ffmpeg"
     ffmpeg.write_text("fake ffmpeg", encoding="utf-8")
@@ -97,51 +117,10 @@ def create_ready_followup_fixture(tmp_path: Path) -> ReadyFollowupFixture:
     )
 
 
-def create_additional_followup_episode(
-    ready: ReadyFollowupFixture,
-    *,
-    suffix: str,
-    chunk_id: str,
-    source_text: str,
-) -> str:
-    """Add another planned episode to the same fixture project."""
-
-    _create_indexed_source(
-        ready.database,
-        ready.project_id,
-        source_id=f"source-{suffix}",
-        chunk_id=chunk_id,
-        text=source_text,
-    )
-    episode = _create_episode(
-        ready.database,
-        ready.project_id,
-        ready.host_id,
-        title=f"R6 acceptance episode {suffix}",
-        focus=f"deterministic production acceptance marker {suffix}",
-    )
-    _save_plan(
-        ready.database,
-        episode.id,
-        plan_id=f"plan-{suffix}",
-        segment_id=f"segment-{suffix}",
-        chunk_id=chunk_id,
-        purpose=f"Exercise isolated follow-up fixture workflow {suffix}.",
-    )
-    return episode.id
-
-
 def run_followup_fixture(ready: ReadyFollowupFixture) -> CompletedFollowupFixture:
-    return run_followup_episode(ready, ready.episode_id)
-
-
-def run_followup_episode(
-    ready: ReadyFollowupFixture,
-    episode_id: str,
-) -> CompletedFollowupFixture:
-    run = ready.composition.create_generation_run(ready.project_id, episode_id)
+    run = ready.composition.create_generation_run(ready.project_id, ready.episode_id)
     completed = ready.composition.run_generation(ready.project_id, run.id).run
-    episode = HostEpisodeRepository(ready.database).get_episode(episode_id)
+    episode = HostEpisodeRepository(ready.database).get_episode(ready.episode_id)
     assert episode is not None
     exported = EpisodeLibraryExportService(ready.composition.service.workspaces).export(
         ready.project_id,
@@ -153,107 +132,37 @@ def run_followup_episode(
         ffmpeg=ready.ffmpeg,
         composition=ready.composition,
         project_id=ready.project_id,
-        episode_id=episode_id,
+        episode_id=ready.episode_id,
         host_id=ready.host_id,
-        chunk_id=ready.chunk_id if episode_id == ready.episode_id else "",
+        chunk_id=ready.chunk_id,
         run=completed,
         export=exported,
     )
 
 
-def _create_episode(
-    database: Database,
-    project_id: str,
-    host_id: str,
-    *,
-    title: str,
-    focus: str,
-):
-    return EpisodeConfigurationService(database).create(
-        project_id,
-        EpisodeConfiguration(
-            title=title,
-            focus=focus,
-            target_duration_seconds=60,
-            host_ids=(host_id,),
-            research_overrides={"policy": "off"},
-        ),
-    )
-
-
-def _save_plan(
-    database: Database,
-    episode_id: str,
-    *,
-    plan_id: str,
-    segment_id: str,
-    chunk_id: str,
-    purpose: str,
-) -> None:
-    plan_json = json.dumps({"target_duration_seconds": 60})
-    segment_json = json.dumps(
-        {
-            "title": "Acceptance segment",
-            "purpose": purpose,
-            "target_duration_seconds": 60,
-            "questions": ["What marker proves production routing?"],
-            "evidence_ids": [chunk_id],
-            "lead_host_ids": [],
-        }
-    )
-    HostEpisodeRepository(database).save_plan(
-        EpisodePlanRecord(
-            id=plan_id,
-            episode_id=episode_id,
-            status="approved",
-            plan_json=plan_json,
-            created_at="2026-09-27T00:00:00Z",
-            modified_at="2026-09-27T00:00:00Z",
-        ),
-        [
-            SegmentPlanRecord(
-                id=segment_id,
-                episode_plan_id=plan_id,
-                ordinal=0,
-                title="Acceptance segment",
-                purpose=purpose,
-                target_duration_seconds=60,
-                segment_json=segment_json,
-            )
-        ],
-    )
-
-
-def _create_indexed_source(
-    database: Database,
-    project_id: str,
-    *,
-    source_id: str = "source-r6",
-    chunk_id: str = "chunk-r6",
-    text: str = (
-        "R6 acceptance source marker with evidence, voice, format, artifact, and "
-        "export identity."
-    ),
-) -> None:
+def _create_indexed_source(database: Database, project_id: str) -> None:
     corpus = CorpusRepository(database)
     corpus.create_source(
         SourceRecord(
-            id=source_id,
+            id="source-r6",
             project_id=project_id,
             origin="user",
             source_type="text/plain",
-            title=f"R6 deterministic source {source_id}",
+            title="R6 deterministic source",
             imported_at="2026-09-27T00:00:00Z",
             status="indexed",
         )
     )
     corpus.create_chunk(
         SourceChunkRecord(
-            id=chunk_id,
-            source_id=source_id,
+            id="chunk-r6",
+            source_id="source-r6",
             ordinal=0,
-            text=text,
-            content_hash=f"hash-{chunk_id}",
+            text=(
+                "R6 acceptance source marker with evidence, voice, format, artifact, and "
+                "export identity."
+            ),
+            content_hash="hash-r6",
             location="line 1",
         )
     )
