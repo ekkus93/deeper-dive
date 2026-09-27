@@ -114,8 +114,8 @@ class ProviderController:
             raise ValueError(
                 f"unsupported provider adapter {provider_type!r}; choose one of: {supported}"
             )
-        config = self.config()
-        config.providers[name] = ProviderConfig(
+        candidate = self.config().model_copy(deep=True)
+        candidate.providers[name] = ProviderConfig(
             provider_type=kind,
             base_url=base_url or None,
             default_model=default_model or None,
@@ -125,23 +125,35 @@ class ProviderController:
             response_format=response_format,
             voices=voices,
         )
-        self.config_store.save(config)
-        self.reload()
+        self._commit_candidate(candidate)
 
     def remove_provider(self, name: str) -> None:
-        config = self.config()
-        config.providers.pop(name, None)
-        self.config_store.save(config)
-        self.reload()
+        candidate = self.config().model_copy(deep=True)
+        candidate.providers.pop(name, None)
+        self._commit_candidate(candidate)
+
+    def _commit_candidate(self, candidate: UserConfig) -> ProviderBuildResult | None:
+        """Build first, persist second, and publish only a fully durable runtime."""
+
+        if self.provider_factory is None:
+            self.config_store.save(candidate)
+            return None
+        providers = self.provider_factory.build(candidate)
+        self.config_store.save(candidate)
+        self._publish(providers)
+        return providers
+
+    def _publish(self, providers: ProviderBuildResult) -> None:
+        self.llm_registry = providers.llm_registry
+        self.tts_providers = providers.tts_providers
+        if self.on_reload is not None:
+            self.on_reload(providers)
 
     def reload(self) -> ProviderBuildResult | None:
         if self.provider_factory is None:
             return None
         providers = self.provider_factory.build(self.config())
-        self.llm_registry = providers.llm_registry
-        self.tts_providers = providers.tts_providers
-        if self.on_reload is not None:
-            self.on_reload(providers)
+        self._publish(providers)
         return providers
 
     def llm(self, name: str) -> LLMProvider:
