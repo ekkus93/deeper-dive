@@ -43,7 +43,7 @@ def test_unknown_directing_provider_blocks(tmp_path: Path) -> None:
         assignments=ModelRoleAssignments(
             user={
                 ModelRole.DIRECTING: ModelAssignment("missing", "fake-v1"),
-            }
+            },
         ),
         hosts=(_host(),),
         source_count=1,
@@ -65,7 +65,7 @@ def test_unavailable_verification_model_blocks(tmp_path: Path) -> None:
         assignments=ModelRoleAssignments(
             user={
                 ModelRole.VERIFICATION: ModelAssignment("fake", "missing-model"),
-            }
+            },
         ),
         hosts=(_host(),),
         source_count=1,
@@ -87,7 +87,7 @@ def test_unhealthy_directing_provider_blocks(tmp_path: Path) -> None:
         assignments=ModelRoleAssignments(
             user={
                 ModelRole.DIRECTING: ModelAssignment("director", "fake-v1"),
-            }
+            },
         ),
         hosts=(_host(),),
         source_count=1,

@@ -77,7 +77,7 @@ def test_generation_start_requires_configured_execution_roles(tmp_path: Path) ->
             ModelRole.HOST_GENERATION: ModelAssignment("fake", "fake-v1"),
             ModelRole.DIRECTING: ModelAssignment("fake", "fake-v1"),
             ModelRole.VERIFICATION: ModelAssignment("fake", "fake-v1"),
-        }
+        },
     )
 
     roles = GenerationStartService(object())._required_model_roles(
