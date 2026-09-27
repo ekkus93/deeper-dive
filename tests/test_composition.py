@@ -10,6 +10,7 @@ from deeper_dive.llm import FakeLLMProvider
 from deeper_dive.model_roles import ModelAssignment, ModelRole
 from deeper_dive.pipeline import DEFAULT_STAGES, PipelineContext
 from deeper_dive.provider_factory import ProviderFactory
+from deeper_dive.provider_tui import ProviderController
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
@@ -39,6 +40,7 @@ def test_production_composition_loads_persisted_providers(tmp_path) -> None:
 
     assert composition.provider_controller.llm_registry.provider_ids() == ("planner",)
     assert tuple(composition.provider_controller.tts_providers) == ("speech",)
+    assert composition.provider_runtime.providers is composition.providers
     assert composition.preflight_service.llm_registry is composition.providers.llm_registry
     assert composition.preflight_service.tts_registry is composition.providers.tts_registry
     assert composition.benchmark_service is not None
@@ -49,6 +51,56 @@ def test_production_composition_loads_persisted_providers(tmp_path) -> None:
         ).name
         == "project.db"
     )
+
+
+def test_provider_runtime_refresh_updates_same_session_consumers(tmp_path) -> None:
+    data_dir = tmp_path / "data"
+    UserConfigStore(data_dir / "config.json").save(
+        UserConfig(providers={"planner": ProviderConfig(provider_type="fake")})
+    )
+    composition = ProductionComposition.build(
+        data_dir,
+        provider_factory=ProviderFactory(environ={}),
+    )
+    previous = composition.providers
+
+    composition.provider_controller.save_provider("next", "fake", default_model="fake-v2")
+
+    assert composition.providers is not previous
+    assert composition.provider_runtime.providers is composition.providers
+    assert composition.provider_controller.llm_registry is composition.providers.llm_registry
+    assert composition.preflight_service.llm_registry is composition.providers.llm_registry
+    assert composition.preflight_service.tts_registry is composition.providers.tts_registry
+    assert composition.providers.llm_registry.provider_ids() == ("next", "planner")
+    project = composition.service.create_project("Runtime refresh project")
+    planner = composition.configured_planning_service(project.id, "next", "fake-v2")
+    assert isinstance(planner.generator, LLMEpisodePlanGenerator)
+    assert planner.generator.provider.provider_id == "next"
+
+
+def test_injected_provider_controller_refreshes_composition_consumers(tmp_path) -> None:
+    data_dir = tmp_path / "data"
+    composition = ProductionComposition.build(
+        data_dir,
+        provider_factory=ProviderFactory(environ={}),
+    )
+    injected = ProviderController(
+        composition.config_store,
+        composition.providers.llm_registry,
+        composition.providers.tts_providers,
+        provider_factory=ProviderFactory(environ={}),
+    )
+
+    composition.attach_provider_controller(injected)
+    injected.save_provider("planner", "fake", default_model="fake-v3")
+
+    assert composition.provider_controller is injected
+    assert injected.llm_registry is composition.providers.llm_registry
+    assert composition.preflight_service.llm_registry is composition.providers.llm_registry
+    project = composition.service.create_project("Injected runtime refresh")
+    planner = composition.configured_planning_service(project.id, "planner", "fake-v3")
+    assert isinstance(planner.generator, LLMEpisodePlanGenerator)
+    assert planner.generator.provider.provider_id == "planner"
 
 
 def test_production_composition_constructs_planner_with_injectable_provider_boundary(
