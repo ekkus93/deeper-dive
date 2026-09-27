@@ -164,7 +164,9 @@ def test_preflight_blocks_unavailable_configured_verification_model(
     )
 
 
-def test_preflight_blocks_unhealthy_configured_directing_provider(tmp_path: Path) -> None:
+def test_preflight_blocks_unhealthy_configured_directing_provider(
+    tmp_path: Path,
+) -> None:
     llm = LLMProviderRegistry()
     llm.register(UnhealthyLLM(provider_id="director"))
     tts = TTSProviderRegistry()
