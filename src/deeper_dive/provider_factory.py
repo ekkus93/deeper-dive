@@ -131,9 +131,7 @@ class ProviderFactory:
         network_scopes: dict[str, str] = {}
         for name, provider_config in sorted(config.providers.items()):
             kind = self._normalized_type(provider_config.provider_type)
-            network_scopes[name] = ProviderNetworkPolicy.scope_for_config(
-                provider_config
-            )
+            network_scopes[name] = ProviderNetworkPolicy.scope_for_config(provider_config)
             if kind in LLM_PROVIDER_TYPES:
                 llm_registry.register(
                     _AliasedLLMProvider(

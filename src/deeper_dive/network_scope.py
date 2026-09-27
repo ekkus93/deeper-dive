@@ -9,7 +9,13 @@ class ProviderNetworkPolicy:
     """Classify provider routes consistently across CLI, TUI, and preflight."""
 
     LOCAL_PROVIDER_TYPES = frozenset(
-        {"fake", "fake-tts", "kitten", "ollama", "llama-server"}
+        (
+            "fake",
+            "fake-tts",
+            "kitten",
+            "ollama",
+            "llama-server",
+        )
     )
     TRUE_VALUES = frozenset({"1", "true", "yes", "on"})
 
