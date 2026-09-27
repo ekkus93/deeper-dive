@@ -4,7 +4,6 @@ import asyncio
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -51,11 +50,11 @@ class _TuiAppStub:
     last_navigation: str | None = None
 
     @property
-    def service(self) -> Any:
+    def service(self):
         return self.composition.service
 
     @property
-    def provider_controller(self) -> Any:
+    def provider_controller(self):
         return self.composition.provider_controller
 
     def action_navigate(self, destination: str) -> None:
@@ -165,8 +164,7 @@ def test_generation_start_blocks_unavailable_planning_model(tmp_path: Path) -> N
         assignment_model="missing-v1",
     )
     project_id, episode_id = _ready_episode(composition)
-    ffmpeg = _fake_ffmpeg(tmp_path)
-    starter = GenerationStartService(composition, ffmpeg_executable=ffmpeg)
+    starter = GenerationStartService(composition, ffmpeg_executable=_fake_ffmpeg(tmp_path))
 
     report = starter.preflight(project_id, episode_id)
 
@@ -180,10 +178,7 @@ def test_generation_start_blocks_unavailable_planning_model(tmp_path: Path) -> N
     assert composition.service.hosts(project_id).get_plan(episode_id) is None
 
 
-def test_cli_episode_generate_exposes_planning_preflight_failure(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
+def test_cli_episode_generate_exposes_planning_preflight_failure(tmp_path: Path, capsys) -> None:
     composition = _composition_with_planning_model(
         tmp_path,
         "fake-v1",
@@ -240,14 +235,12 @@ def test_tui_generate_controller_exposes_same_planning_preflight_failure(
     assert composition.service.hosts(project_id).get_plan(episode_id) is None
 
 
-def test_generation_monitor_background_run_exposes_planning_failure(
-    tmp_path: Path,
-) -> None:
+def test_generation_monitor_background_run_exposes_planning_failure(tmp_path: Path) -> None:
     composition = _composition_with_planning_model(tmp_path, "bad-v1")
     project_id, episode_id = _ready_episode(composition)
     run = composition.create_generation_run(project_id, episode_id)
 
-    def _run_from_monitor(run_id: str, progress: Any) -> None:
+    def _run_from_monitor(run_id, progress) -> None:
         composition.run_generation(project_id, run_id, progress=progress)
 
     monitor = GenerationMonitorController(runner=_run_from_monitor)
