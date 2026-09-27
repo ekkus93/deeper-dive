@@ -1,7 +1,7 @@
 # Deeper Dive Production Generation Post-Review Remediation TODO
 
 **Created:** 2026-09-27  
-**Status:** Ready for implementation  
+**Status:** In implementation  
 **Authority:** `docs/DEEP_DIVE_PRODUCTION_GENERATION_POST_REVIEW_REMEDIATION_SPEC_2026-09-27.md`  
 **Predecessor:** `docs/DEEP_DIVE_PRODUCTION_GENERATION_FOLLOWUP_TODO_2026-09-25.md`
 
@@ -26,35 +26,35 @@ This checklist is the source of completion truth for the post-review remediation
 
 ## PRR-100 — Replace one-turn conversation generation
 
-- [ ] Inventory current conversation-stage durable state and checkpoints.
-- [ ] Introduce a public conversation-generation service.
-- [ ] Load ordered durable plan segments.
-- [ ] Load/resume `ConversationState`.
-- [ ] Generate successive turns until completion rather than exactly one turn.
-- [ ] Stop treating any existing turn as stage completion.
-- [ ] Persist each turn + evidence + provider/model identity + state + checkpoint atomically.
-- [ ] Resume from first incomplete unit after interruption.
-- [ ] Add partial-run resume regression proving no duplicate turns.
+- [x] Inventory current conversation-stage durable state and checkpoints.
+- [x] Introduce a public conversation-generation service.
+- [x] Load ordered durable plan segments.
+- [x] Load/resume `ConversationState`.
+- [x] Generate successive turns until completion rather than exactly one turn.
+- [x] Stop treating any existing turn as stage completion.
+- [x] Persist each turn + evidence + provider/model identity + state + checkpoint atomically.
+- [x] Resume from first incomplete unit after interruption.
+- [x] Add partial-run resume regression proving no duplicate turns.
 
 ## PRR-101 — Segment/episode completion
 
-- [ ] Honor `CONTINUE`.
-- [ ] Honor `COMPLETE_SEGMENT` and persist segment advancement.
-- [ ] Honor `COMPLETE_EPISODE`.
-- [ ] Define bounded fallback behavior when directing is unassigned.
-- [ ] Keep speakers restricted to participating episode hosts.
-- [ ] Keep evidence restricted to the current episode evidence scope.
-- [ ] Add deterministic completion-signal matrix tests.
+- [x] Honor `CONTINUE`.
+- [x] Honor `COMPLETE_SEGMENT` and persist segment advancement.
+- [x] Honor `COMPLETE_EPISODE`.
+- [x] Define bounded fallback behavior when directing is unassigned.
+- [x] Keep speakers restricted to participating episode hosts.
+- [x] Keep evidence restricted to the current episode evidence scope.
+- [x] Add deterministic completion-signal matrix tests.
 
 ## PRR-102 — Safety and duration bounds
 
-- [ ] Define maximum turns per segment.
-- [ ] Define maximum turns per episode.
-- [ ] Integrate target word/duration budgeting.
-- [ ] Define behavior for a provider that never completes.
-- [ ] Define early-completion behavior.
-- [ ] Add non-completing-provider safety test.
-- [ ] Add multi-host/multi-segment acceptance producing multiple durable turns.
+- [x] Define maximum turns per segment.
+- [x] Define maximum turns per episode.
+- [x] Integrate target word/duration budgeting.
+- [x] Define behavior for a provider that never completes.
+- [x] Define early-completion behavior.
+- [x] Add non-completing-provider safety test.
+- [x] Add multi-host/multi-segment acceptance producing multiple durable turns.
 
 ---
 
@@ -62,13 +62,13 @@ This checklist is the source of completion truth for the post-review remediation
 
 ## PRR-110 — Transactional save/edit
 
-- [ ] Build candidate config in memory before persistence.
-- [ ] Validate candidate `ProviderConfig`.
-- [ ] Build complete candidate `ProviderBuildResult`.
-- [ ] Persist only after runtime build succeeds.
-- [ ] Publish runtime only after persistence succeeds.
-- [ ] Preserve prior durable config on failure.
-- [ ] Preserve prior live runtime on failure.
+- [x] Build candidate config in memory before persistence.
+- [x] Validate candidate `ProviderConfig`.
+- [x] Build complete candidate `ProviderBuildResult`.
+- [x] Persist only after runtime build succeeds.
+- [x] Publish runtime only after persistence succeeds.
+- [x] Preserve prior durable config on failure.
+- [x] Preserve prior live runtime on failure.
 - [ ] Test missing credential-env rollback.
 - [ ] Test missing base URL/voice catalog rollback.
 - [ ] Test unsupported/invalid adapter rollback.
@@ -76,11 +76,11 @@ This checklist is the source of completion truth for the post-review remediation
 
 ## PRR-111 — Transactional provider removal
 
-- [ ] Build/validate remaining candidate config before persisting removal.
-- [ ] Preserve previous durable/runtime state on failure.
-- [ ] Add successful removal test.
-- [ ] Add failed removal rollback test.
-- [ ] Prove removed provider cannot remain usable from stale registries.
+- [x] Build/validate remaining candidate config before persisting removal.
+- [x] Preserve previous durable/runtime state on failure.
+- [x] Add successful removal test.
+- [x] Add failed removal rollback test.
+- [x] Prove removed provider cannot remain usable from stale registries.
 
 ## PRR-112 — One provider-runtime owner
 
@@ -444,9 +444,9 @@ This checklist is the source of completion truth for the post-review remediation
 
 ## PRR-211 — Focused regression matrices
 
-- [ ] Multi-turn/multi-segment generation.
+- [x] Multi-turn/multi-segment generation.
 - [ ] Pause/resume/cancel/resume-after-failure.
-- [ ] Provider transaction rollback.
+- [x] Provider transaction rollback.
 - [ ] Provider runtime coherence.
 - [ ] Local/remote route matrix.
 - [ ] Directing/verification preflight matrix.
@@ -497,13 +497,13 @@ This checklist is the source of completion truth for the post-review remediation
 
 Populate during implementation; do not pre-check.
 
-- Implementation head SHA:
-- Exact-head CI run:
+- Implementation head SHA: partial R1/R2 foundation merged via `8976210f23a5b6035063cc65a3902c93d0865ed5` (PR #467, head `aa15e956e6f0d5b5f6fc79358eb54c032e0b0085`).
+- Exact-head CI run: `36345119231` on `8976210f23a5b6035063cc65a3902c93d0865ed5`, conclusion `success`.
 - Current/final `master` SHA:
 - Current/final `master` CI run:
-- Relevant PRs if policy required:
-- Multi-turn generation tests:
-- Provider transaction/runtime tests:
+- Relevant PRs if policy required: #467 for R1 and R2 transactional-provider foundation.
+- Multi-turn generation tests: `tests/test_conversation_generation.py::test_multi_segment_generation_honors_completion_signals_atomically`, `tests/test_conversation_generation.py::test_conversation_resume_after_failure_does_not_duplicate_prior_turn`, `tests/test_conversation_generation.py::test_non_completing_director_is_bounded_per_segment`, `tests/test_conversation_generation.py::test_episode_turn_safety_bound_fails_predictably`; `tests/test_followup_acceptance_fixture.py` updated to expect multiple conversation turns.
+- Provider transaction/runtime tests: `tests/test_provider_transactions.py::test_failed_provider_save_preserves_durable_config_and_live_runtime`, `tests/test_provider_transactions.py::test_successful_provider_save_publishes_built_candidate_after_persistence`, `tests/test_provider_transactions.py::test_failed_provider_removal_preserves_durable_config_and_live_runtime`, `tests/test_provider_transactions.py::test_successful_provider_removal_drops_provider_from_live_runtime`.
 - Preflight/durable-failure tests:
 - Plan/evidence tests:
 - Security/redaction tests:
