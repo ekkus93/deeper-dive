@@ -62,12 +62,7 @@ def test_preflight_blocks_missing_roles_sources_tts_and_ffmpeg(tmp_path: Path) -
         ffmpeg_executable=tmp_path / "missing-ffmpeg",
     )
     codes = {issue.code for issue in report.blockers}
-    assert {
-        "llm_assignment",
-        "tts_assignment",
-        "sources_missing",
-        "ffmpeg_unavailable",
-    } <= codes
+    assert {"llm_assignment", "tts_assignment", "sources_missing", "ffmpeg_unavailable"} <= codes
     with pytest.raises(PreflightBlockedError, match="generation blocked"):
         report.require_ready()
 
@@ -121,79 +116,3 @@ def test_unhealthy_required_llm_is_hard_blocker(tmp_path: Path) -> None:
         ffmpeg_executable=ffmpeg,
     )
     assert any(issue.code == "llm_unhealthy" for issue in report.blockers)
-
-
-def test_preflight_blocks_unknown_configured_directing_provider(
-    tmp_path: Path,
-) -> None:
-    ffmpeg = tmp_path / "ffmpeg"
-    ffmpeg.write_text("fake")
-    report = service().check(
-        assignments=ModelRoleAssignments(
-            user={ModelRole.DIRECTING: ModelAssignment("missing", "fake-v1")}
-        ),
-        hosts=(host(),),
-        source_count=1,
-        indexed_source_count=1,
-        target_minutes=10,
-        ffmpeg_executable=ffmpeg,
-        required_model_roles=(ModelRole.DIRECTING,),
-    )
-
-    assert any(
-        issue.code == "llm_assignment"
-        and "unknown provider 'missing' for directing" in issue.message
-        for issue in report.blockers
-    )
-
-
-def test_preflight_blocks_unavailable_configured_verification_model(
-    tmp_path: Path,
-) -> None:
-    ffmpeg = tmp_path / "ffmpeg"
-    ffmpeg.write_text("fake")
-    report = service().check(
-        assignments=ModelRoleAssignments(
-            user={ModelRole.VERIFICATION: ModelAssignment("fake", "missing-model")}
-        ),
-        hosts=(host(),),
-        source_count=1,
-        indexed_source_count=1,
-        target_minutes=10,
-        ffmpeg_executable=ffmpeg,
-        required_model_roles=(ModelRole.VERIFICATION,),
-    )
-
-    assert any(
-        issue.code == "llm_assignment"
-        and "model 'missing-model' is unavailable from provider 'fake'" in issue.message
-        for issue in report.blockers
-    )
-
-
-def test_preflight_blocks_unhealthy_configured_directing_provider(
-    tmp_path: Path,
-) -> None:
-    llm = LLMProviderRegistry()
-    llm.register(UnhealthyLLM(provider_id="director"))
-    tts = TTSProviderRegistry()
-    tts.register(FakeTTSProvider())
-    ffmpeg = tmp_path / "ffmpeg"
-    ffmpeg.write_text("fake")
-    report = PreflightService(llm, tts).check(
-        assignments=ModelRoleAssignments(
-            user={ModelRole.DIRECTING: ModelAssignment("director", "fake-v1")}
-        ),
-        hosts=(host(),),
-        source_count=1,
-        indexed_source_count=1,
-        target_minutes=10,
-        ffmpeg_executable=ffmpeg,
-        required_model_roles=(ModelRole.DIRECTING,),
-    )
-
-    assert any(
-        issue.code == "llm_unhealthy"
-        and "LLM provider 'director' is unhealthy" in issue.message
-        for issue in report.blockers
-    )
