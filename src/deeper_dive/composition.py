@@ -418,7 +418,8 @@ def _conversation_stage(
         model_roles.ModelRole.HOST_GENERATION,
     )
     turns = HostTurnService(database, LLMHostTurnProvider(provider, model))
-    decision = _director_decision(composition, assignments, episode.title, host_ids)
+    evidence_ids = _episode_evidence_ids(database, context.episode_id)
+    decision = _director_decision(composition, assignments, episode.title, host_ids, evidence_ids)
     turns.generate(context.run_id, context.episode_id, decision)
 
 
@@ -427,11 +428,13 @@ def _director_decision(
     assignments: model_roles.ModelRoleAssignments,
     episode_title: str,
     host_ids: tuple[str, ...],
+    available_evidence_ids: tuple[str, ...] = (),
 ) -> DirectorDecision:
     if assignments.resolve(model_roles.ModelRole.DIRECTING) is None:
         return DirectorDecision(
             speaker_id=host_ids[0],
             intent=f"Discuss {episode_title}",
+            evidence_ids=available_evidence_ids,
             target_duration_seconds=45,
             target_words=80,
         )
@@ -443,7 +446,23 @@ def _director_decision(
     return LLMDirectorDecisionProvider(provider, model).decide(
         episode_title=episode_title,
         host_ids=host_ids,
+        available_evidence_ids=available_evidence_ids,
     )
+
+
+def _episode_evidence_ids(database: Database, episode_id: str) -> tuple[str, ...]:
+    repository = HostEpisodeRepository(database)
+    plan = repository.get_plan(episode_id)
+    if plan is None:
+        return ()
+    evidence: list[str] = []
+    for segment in repository.list_segments(plan.id):
+        payload = json.loads(segment.segment_json)
+        for evidence_id in payload.get("evidence_ids", ()):
+            normalized = str(evidence_id)
+            if normalized and normalized not in evidence:
+                evidence.append(normalized)
+    return tuple(evidence)
 
 
 def _verification_stage(
