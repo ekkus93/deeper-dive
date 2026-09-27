@@ -71,6 +71,28 @@ def test_unknown_directing_provider_blocks(tmp_path: Path) -> None:
     assert any(expected in message for message in _blocker_messages(report))
 
 
+def test_unknown_verification_provider_blocks(tmp_path: Path) -> None:
+    report = _check_role(
+        tmp_path,
+        ModelRole.VERIFICATION,
+        ModelAssignment("missing", "fake-v1"),
+    )
+
+    expected = "unknown provider 'missing' for verification"
+    assert any(expected in message for message in _blocker_messages(report))
+
+
+def test_unavailable_directing_model_blocks(tmp_path: Path) -> None:
+    report = _check_role(
+        tmp_path,
+        ModelRole.DIRECTING,
+        ModelAssignment("fake", "missing-model"),
+    )
+
+    expected = "model 'missing-model' is unavailable from provider 'fake'"
+    assert any(expected in message for message in _blocker_messages(report))
+
+
 def test_unavailable_verification_model_blocks(tmp_path: Path) -> None:
     report = _check_role(
         tmp_path,
@@ -92,4 +114,17 @@ def test_unhealthy_directing_provider_blocks(tmp_path: Path) -> None:
     )
 
     expected = "LLM provider 'director' is unhealthy"
+    assert any(expected in message for message in _blocker_messages(report))
+
+
+def test_unhealthy_verification_provider_blocks(tmp_path: Path) -> None:
+    provider = UnhealthyLLM(provider_id="verifier")
+    report = _check_role(
+        tmp_path,
+        ModelRole.VERIFICATION,
+        ModelAssignment("verifier", "fake-v1"),
+        provider,
+    )
+
+    expected = "LLM provider 'verifier' is unhealthy"
     assert any(expected in message for message in _blocker_messages(report))
