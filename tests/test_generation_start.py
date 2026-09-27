@@ -9,7 +9,10 @@ import pytest
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.domain.clock import FrozenClock, format_timestamp
 from deeper_dive.domain.ids import new_episode_id, new_run_id
-from deeper_dive.generation_start import GenerationStartService, select_or_create_generation_run
+from deeper_dive.generation_start import (
+    GenerationStartService,
+    select_or_create_generation_run,
+)
 from deeper_dive.model_roles import ModelAssignment, ModelRole, ModelRoleAssignments
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord

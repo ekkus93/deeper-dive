@@ -140,7 +140,9 @@ def test_preflight_blocks_unknown_configured_directing_provider(tmp_path: Path) 
     )
 
 
-def test_preflight_blocks_unavailable_configured_verification_model(tmp_path: Path) -> None:
+def test_preflight_blocks_unavailable_configured_verification_model(
+    tmp_path: Path,
+) -> None:
     ffmpeg = tmp_path / "ffmpeg"
     ffmpeg.write_text("fake")
     report = service().check(
