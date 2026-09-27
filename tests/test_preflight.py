@@ -62,7 +62,12 @@ def test_preflight_blocks_missing_roles_sources_tts_and_ffmpeg(tmp_path: Path) -
         ffmpeg_executable=tmp_path / "missing-ffmpeg",
     )
     codes = {issue.code for issue in report.blockers}
-    assert {"llm_assignment", "tts_assignment", "sources_missing", "ffmpeg_unavailable"} <= codes
+    assert {
+        "llm_assignment",
+        "tts_assignment",
+        "sources_missing",
+        "ffmpeg_unavailable",
+    } <= codes
     with pytest.raises(PreflightBlockedError, match="generation blocked"):
         report.require_ready()
 
@@ -118,7 +123,9 @@ def test_unhealthy_required_llm_is_hard_blocker(tmp_path: Path) -> None:
     assert any(issue.code == "llm_unhealthy" for issue in report.blockers)
 
 
-def test_preflight_blocks_unknown_configured_directing_provider(tmp_path: Path) -> None:
+def test_preflight_blocks_unknown_configured_directing_provider(
+    tmp_path: Path,
+) -> None:
     ffmpeg = tmp_path / "ffmpeg"
     ffmpeg.write_text("fake")
     report = service().check(
