@@ -7,17 +7,29 @@ import pytest
 
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
+from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.hosts import create_host_from_preset
-from deeper_dive.llm import FakeLLMProvider, LLMProvider
+from deeper_dive.llm import FakeLLMProvider, LLMProvider, LLMRequest, LLMResponse
 from deeper_dive.model_roles import ModelRole
+from deeper_dive.preflight import PreflightBlockedError
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
+
+
+class _ExplodingPlanningProvider(FakeLLMProvider):
+    def generate(self, request: LLMRequest) -> LLMResponse:
+        _ = request
+        raise RuntimeError("synthetic planning provider failure")
 
 
 class _PlanningResponseFactory(ProviderFactory):
     def _llm(self, kind: str, config: ProviderConfig) -> LLMProvider:
         if kind == "fake" and config.default_model == "bad-v1":
             return FakeLLMProvider(model="bad-v1", response=json.dumps({"segments": []}))
+        if kind == "fake" and config.default_model == "invalid-json-v1":
+            return FakeLLMProvider(model="invalid-json-v1", response="not-json")
+        if kind == "fake" and config.default_model == "explode-v1":
+            return _ExplodingPlanningProvider(model="explode-v1")
         return super()._llm(kind, config)
 
 
@@ -40,37 +52,124 @@ def test_pipeline_auto_planning_uses_configured_episode_planning_role(
 def test_pipeline_auto_planning_fails_durably_on_invalid_configured_output(
     tmp_path: Path,
 ) -> None:
-    data_dir = tmp_path / "data-invalid"
-    UserConfigStore(data_dir / "config.json").save(
-        UserConfig(
-            providers={
-                "planner": ProviderConfig(provider_type="fake", default_model="bad-v1"),
-                "speech": ProviderConfig(provider_type="fake-tts"),
-            },
-            defaults={role.value: "planner:bad-v1" for role in ModelRole},
-        )
-    )
-    composition = ProductionComposition.build(
-        data_dir,
-        provider_factory=_PlanningResponseFactory(environ={}),
-    )
+    composition = _composition_with_planning_model(tmp_path, "bad-v1")
     project_id, episode_id = _ready_episode(composition)
     run = composition.create_generation_run(project_id, episode_id)
 
     with pytest.raises(ValueError, match="episode plan must contain a non-empty segments list"):
         composition.run_generation(project_id, run.id)
 
-    failed = composition.generation_run_repository(project_id).get(run.id)
+    _assert_failed_planning(
+        composition,
+        project_id,
+        episode_id,
+        run.id,
+        "non-empty segments",
+    )
+
+
+def test_pipeline_auto_planning_fails_durably_on_invalid_json(
+    tmp_path: Path,
+) -> None:
+    composition = _composition_with_planning_model(tmp_path, "invalid-json-v1")
+    project_id, episode_id = _ready_episode(composition)
+    run = composition.create_generation_run(project_id, episode_id)
+
+    with pytest.raises(json.JSONDecodeError):
+        composition.run_generation(project_id, run.id)
+
+    _assert_failed_planning(
+        composition,
+        project_id,
+        episode_id,
+        run.id,
+        "Expecting value",
+    )
+
+
+def test_pipeline_auto_planning_fails_durably_on_provider_exception(
+    tmp_path: Path,
+) -> None:
+    composition = _composition_with_planning_model(tmp_path, "explode-v1")
+    project_id, episode_id = _ready_episode(composition)
+    run = composition.create_generation_run(project_id, episode_id)
+
+    with pytest.raises(RuntimeError, match="synthetic planning provider failure"):
+        composition.run_generation(project_id, run.id)
+
+    _assert_failed_planning(
+        composition,
+        project_id,
+        episode_id,
+        run.id,
+        "synthetic planning provider failure",
+    )
+
+
+def test_pipeline_auto_planning_fails_durably_on_unknown_provider(
+    tmp_path: Path,
+) -> None:
+    composition = _composition_with_planning_model(
+        tmp_path,
+        "fake-v1",
+        assignment_provider="missing",
+    )
+    project_id, episode_id = _ready_episode(composition)
+    run = composition.create_generation_run(project_id, episode_id)
+
+    with pytest.raises(ValueError, match="unknown provider 'missing' for episode_planning"):
+        composition.run_generation(project_id, run.id)
+
+    _assert_failed_planning(
+        composition,
+        project_id,
+        episode_id,
+        run.id,
+        "unknown provider 'missing'",
+    )
+
+
+def test_generation_start_blocks_unavailable_planning_model(tmp_path: Path) -> None:
+    composition = _composition_with_planning_model(
+        tmp_path,
+        "fake-v1",
+        assignment_model="missing-v1",
+    )
+    project_id, episode_id = _ready_episode(composition)
+    ffmpeg = tmp_path / "ffmpeg"
+    ffmpeg.write_text("fake", encoding="utf-8")
+    starter = GenerationStartService(composition, ffmpeg_executable=ffmpeg)
+
+    report = starter.preflight(project_id, episode_id)
+
+    assert not report.ready
+    assert any(
+        "model 'missing-v1' is unavailable from provider 'planner'" in blocker.message
+        for blocker in report.blockers
+    )
+    with pytest.raises(PreflightBlockedError, match="generation blocked by preflight"):
+        starter.start(project_id, episode_id)
+    assert composition.service.hosts(project_id).get_plan(episode_id) is None
+
+
+def _assert_failed_planning(
+    composition: ProductionComposition,
+    project_id: str,
+    episode_id: str,
+    run_id: str,
+    expected_message: str,
+) -> None:
+    failed = composition.generation_run_repository(project_id).get(run_id)
     assert failed is not None
     assert failed.state == "failed"
     assert failed.stage == "planning"
     assert failed.failure_message is not None
-    assert "non-empty segments" in failed.failure_message
+    assert expected_message in failed.failure_message
     assert composition.service.hosts(project_id).get_plan(episode_id) is None
 
 
 def _composition_with_two_planners(tmp_path: Path) -> ProductionComposition:
-    data_dir = tmp_path / "data"
+    data_dir = tmp_path / "data-two-planners"
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
             providers={
@@ -82,6 +181,30 @@ def _composition_with_two_planners(tmp_path: Path) -> ProductionComposition:
                 "speech": ProviderConfig(provider_type="fake-tts"),
             },
             defaults={role.value: "planner:fake-v1" for role in ModelRole},
+        )
+    )
+    return ProductionComposition.build(
+        data_dir,
+        provider_factory=_PlanningResponseFactory(environ={}),
+    )
+
+
+def _composition_with_planning_model(
+    tmp_path: Path,
+    provider_model: str,
+    *,
+    assignment_provider: str = "planner",
+    assignment_model: str | None = None,
+) -> ProductionComposition:
+    data_dir = tmp_path / f"data-{provider_model}-{assignment_provider}-{assignment_model}"
+    model = assignment_model or provider_model
+    UserConfigStore(data_dir / "config.json").save(
+        UserConfig(
+            providers={
+                "planner": ProviderConfig(provider_type="fake", default_model=provider_model),
+                "speech": ProviderConfig(provider_type="fake-tts"),
+            },
+            defaults={role.value: f"{assignment_provider}:{model}" for role in ModelRole},
         )
     )
     return ProductionComposition.build(
