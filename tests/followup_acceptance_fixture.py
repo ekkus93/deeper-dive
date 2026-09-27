@@ -16,7 +16,11 @@ from deeper_dive.storage.episode_repositories import (
     HostEpisodeRepository,
     SegmentPlanRecord,
 )
-from deeper_dive.storage.repositories import CorpusRepository, SourceChunkRecord, SourceRecord
+from deeper_dive.storage.repositories import (
+    CorpusRepository,
+    SourceChunkRecord,
+    SourceRecord,
+)
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
@@ -74,7 +78,6 @@ def create_ready_followup_fixture(tmp_path: Path) -> ReadyFollowupFixture:
         database,
         project.id,
         host.id,
-        suffix="r6",
         title="R6 acceptance episode",
         focus="deterministic production acceptance marker",
     )
@@ -118,7 +121,6 @@ def create_additional_followup_episode(
         ready.database,
         ready.project_id,
         ready.host_id,
-        suffix=suffix,
         title=f"R6 acceptance episode {suffix}",
         focus=f"deterministic production acceptance marker {suffix}",
     )
@@ -168,7 +170,6 @@ def _create_episode(
     project_id: str,
     host_id: str,
     *,
-    suffix: str,
     title: str,
     focus: str,
 ):
@@ -193,12 +194,23 @@ def _save_plan(
     chunk_id: str,
     purpose: str,
 ) -> None:
+    plan_json = json.dumps({"target_duration_seconds": 60})
+    segment_json = json.dumps(
+        {
+            "title": "Acceptance segment",
+            "purpose": purpose,
+            "target_duration_seconds": 60,
+            "questions": ["What marker proves production routing?"],
+            "evidence_ids": [chunk_id],
+            "lead_host_ids": [],
+        }
+    )
     HostEpisodeRepository(database).save_plan(
         EpisodePlanRecord(
             id=plan_id,
             episode_id=episode_id,
             status="approved",
-            plan_json=json.dumps({"target_duration_seconds": 60}),
+            plan_json=plan_json,
             created_at="2026-09-27T00:00:00Z",
             modified_at="2026-09-27T00:00:00Z",
         ),
@@ -210,16 +222,7 @@ def _save_plan(
                 title="Acceptance segment",
                 purpose=purpose,
                 target_duration_seconds=60,
-                segment_json=json.dumps(
-                    {
-                        "title": "Acceptance segment",
-                        "purpose": purpose,
-                        "target_duration_seconds": 60,
-                        "questions": ["What marker proves production routing?"],
-                        "evidence_ids": [chunk_id],
-                        "lead_host_ids": [],
-                    },
-                ),
+                segment_json=segment_json,
             )
         ],
     )
