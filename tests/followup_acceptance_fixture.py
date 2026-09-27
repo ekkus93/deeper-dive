@@ -1,0 +1,168 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+
+from deeper_dive import model_roles
+from deeper_dive.composition import ProductionComposition
+from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
+from deeper_dive.episode_library_export import EpisodeExportResult, EpisodeLibraryExportService
+from deeper_dive.hosts import create_host_from_preset
+from deeper_dive.provider_factory import ProviderFactory
+from deeper_dive.storage.database import Database
+from deeper_dive.storage.episode_repositories import (
+    EpisodePlanRecord,
+    HostEpisodeRepository,
+    SegmentPlanRecord,
+)
+from deeper_dive.storage.repositories import CorpusRepository, SourceChunkRecord, SourceRecord
+from deeper_dive.storage.run_repositories import GenerationRunRecord
+from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
+
+
+@dataclass(frozen=True, slots=True)
+class ReadyFollowupFixture:
+    data_dir: Path
+    ffmpeg: Path
+    composition: ProductionComposition
+    project_id: str
+    episode_id: str
+    host_id: str
+    chunk_id: str = "chunk-r6"
+
+    @property
+    def database(self) -> Database:
+        return self.composition.database_for_project(self.project_id)
+
+
+@dataclass(frozen=True, slots=True)
+class CompletedFollowupFixture(ReadyFollowupFixture):
+    run: GenerationRunRecord | None = None
+    export: EpisodeExportResult | None = None
+
+
+def create_ready_followup_fixture(tmp_path: Path) -> ReadyFollowupFixture:
+    """Create the shared deterministic follow-up production workflow fixture."""
+
+    data_dir = tmp_path / "data"
+    UserConfigStore(data_dir / "config.json").save(
+        UserConfig(
+            providers={
+                "dialogue": ProviderConfig(provider_type="fake", default_model="fake-v1"),
+                "speech": ProviderConfig(
+                    provider_type="fake-tts",
+                    voices=("voice-a",),
+                    response_format="wav",
+                ),
+            },
+            defaults={role.value: "dialogue:fake-v1" for role in model_roles.ModelRole},
+        )
+    )
+    composition = ProductionComposition.build(
+        data_dir,
+        provider_factory=ProviderFactory(environ={}),
+    )
+    project = composition.service.create_project("R6 shared acceptance")
+    database = composition.database_for_project(project.id)
+    _create_indexed_source(database, project.id)
+    host = create_host_from_preset("curious_explainer", project.id)
+    host.tts_provider = "speech"
+    host.tts_voice = "voice-a"
+    composition.service.hosts(project.id).create_host(host.to_record())
+    episode = EpisodeConfigurationService(database).create(
+        project.id,
+        EpisodeConfiguration(
+            title="R6 acceptance episode",
+            focus="deterministic production acceptance marker",
+            target_duration_seconds=60,
+            host_ids=(host.id,),
+            research_overrides={"policy": "off"},
+        ),
+    )
+    HostEpisodeRepository(database).save_plan(
+        EpisodePlanRecord(
+            id="plan-r6",
+            episode_id=episode.id,
+            status="approved",
+            plan_json='{"target_duration_seconds":60}',
+            created_at="2026-09-27T00:00:00Z",
+            modified_at="2026-09-27T00:00:00Z",
+        ),
+        [
+            SegmentPlanRecord(
+                id="segment-r6",
+                episode_plan_id="plan-r6",
+                ordinal=0,
+                title="Acceptance segment",
+                purpose="Exercise the full configured fake-provider workflow.",
+                target_duration_seconds=60,
+                segment_json=(
+                    '{"title":"Acceptance segment","purpose":"Exercise the full configured '
+                    'fake-provider workflow.","target_duration_seconds":60,'
+                    '"questions":["What marker proves production routing?"],'
+                    '"evidence_ids":["chunk-r6"],"lead_host_ids":[]}'
+                ),
+            )
+        ],
+    )
+    ffmpeg = tmp_path / "ffmpeg"
+    ffmpeg.write_text("fake ffmpeg", encoding="utf-8")
+    return ReadyFollowupFixture(
+        data_dir=data_dir,
+        ffmpeg=ffmpeg,
+        composition=composition,
+        project_id=project.id,
+        episode_id=episode.id,
+        host_id=host.id,
+    )
+
+
+def run_followup_fixture(ready: ReadyFollowupFixture) -> CompletedFollowupFixture:
+    run = ready.composition.create_generation_run(ready.project_id, ready.episode_id)
+    completed = ready.composition.run_generation(ready.project_id, run.id).run
+    episode = HostEpisodeRepository(ready.database).get_episode(ready.episode_id)
+    assert episode is not None
+    exported = EpisodeLibraryExportService(ready.composition.service.workspaces).export(
+        ready.project_id,
+        episode,
+        completed,
+    )
+    return CompletedFollowupFixture(
+        data_dir=ready.data_dir,
+        ffmpeg=ready.ffmpeg,
+        composition=ready.composition,
+        project_id=ready.project_id,
+        episode_id=ready.episode_id,
+        host_id=ready.host_id,
+        chunk_id=ready.chunk_id,
+        run=completed,
+        export=exported,
+    )
+
+
+def _create_indexed_source(database: Database, project_id: str) -> None:
+    corpus = CorpusRepository(database)
+    corpus.create_source(
+        SourceRecord(
+            id="source-r6",
+            project_id=project_id,
+            origin="user",
+            source_type="text/plain",
+            title="R6 deterministic source",
+            imported_at="2026-09-27T00:00:00Z",
+            status="indexed",
+        )
+    )
+    corpus.create_chunk(
+        SourceChunkRecord(
+            id="chunk-r6",
+            source_id="source-r6",
+            ordinal=0,
+            text=(
+                "R6 acceptance source marker with evidence, voice, format, artifact, and "
+                "export identity."
+            ),
+            content_hash="hash-r6",
+            location="line 1",
+        )
+    )
