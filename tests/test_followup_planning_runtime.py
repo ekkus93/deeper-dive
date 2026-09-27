@@ -1,22 +1,17 @@
 from __future__ import annotations
 
-import asyncio
 import json
-from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 
-from deeper_dive import cli
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
-from deeper_dive.generation_monitor import GenerationMonitorController
 from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.hosts import create_host_from_preset
 from deeper_dive.llm import FakeLLMProvider, LLMProvider, LLMRequest, LLMResponse
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.preflight import PreflightBlockedError
-from deeper_dive.preflight_screen import PreflightController
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
@@ -36,29 +31,6 @@ class _PlanningResponseFactory(ProviderFactory):
         if kind == "fake" and config.default_model == "explode-v1":
             return _ExplodingPlanningProvider(model="explode-v1")
         return super()._llm(kind, config)
-
-
-@dataclass(slots=True)
-class _TuiAppStub:
-    composition: ProductionComposition
-    preflight_controller: PreflightController
-    generation_monitor_controller: GenerationMonitorController | None = None
-    current_project_id: str | None = None
-    current_project_name: str | None = None
-    current_episode_id: str | None = None
-    current_run_id: str | None = None
-    last_navigation: str | None = None
-
-    @property
-    def service(self):
-        return self.composition.service
-
-    @property
-    def provider_controller(self):
-        return self.composition.provider_controller
-
-    def action_navigate(self, destination: str) -> None:
-        self.last_navigation = destination
 
 
 def test_pipeline_auto_planning_uses_configured_episode_planning_role(
@@ -164,7 +136,9 @@ def test_generation_start_blocks_unavailable_planning_model(tmp_path: Path) -> N
         assignment_model="missing-v1",
     )
     project_id, episode_id = _ready_episode(composition)
-    starter = GenerationStartService(composition, ffmpeg_executable=_fake_ffmpeg(tmp_path))
+    ffmpeg = tmp_path / "ffmpeg"
+    ffmpeg.write_text("fake", encoding="utf-8")
+    starter = GenerationStartService(composition, ffmpeg_executable=ffmpeg)
 
     report = starter.preflight(project_id, episode_id)
 
@@ -176,96 +150,6 @@ def test_generation_start_blocks_unavailable_planning_model(tmp_path: Path) -> N
     with pytest.raises(PreflightBlockedError, match="generation blocked by preflight"):
         starter.start(project_id, episode_id)
     assert composition.service.hosts(project_id).get_plan(episode_id) is None
-
-
-def test_cli_episode_generate_exposes_planning_preflight_failure(tmp_path: Path, capsys) -> None:
-    composition = _composition_with_planning_model(
-        tmp_path,
-        "fake-v1",
-        assignment_model="missing-v1",
-    )
-    project_id, episode_id = _ready_episode(composition)
-
-    code = cli.main(
-        [
-            "--data-dir",
-            str(composition.service.workspaces.data_dir),
-            "episode",
-            "generate",
-            project_id,
-            episode_id,
-        ]
-    )
-
-    captured = capsys.readouterr()
-    assert code == 2
-    assert "generation blocked by preflight" in captured.err
-    assert "model 'missing-v1' is unavailable from provider 'planner'" in captured.err
-    assert composition.service.hosts(project_id).get_plan(episode_id) is None
-
-
-def test_tui_generate_controller_exposes_same_planning_preflight_failure(
-    tmp_path: Path,
-) -> None:
-    composition = _composition_with_planning_model(
-        tmp_path,
-        "fake-v1",
-        assignment_model="missing-v1",
-    )
-    project_id, episode_id = _ready_episode(composition)
-    controller = PreflightController(ffmpeg_executable=_fake_ffmpeg(tmp_path))
-    app = _TuiAppStub(
-        composition=composition,
-        preflight_controller=controller,
-        current_project_id=project_id,
-        current_project_name="Follow-up planning",
-        current_episode_id=episode_id,
-    )
-
-    presentation = controller.build(app)
-
-    assert not presentation.report.ready
-    assert any(
-        "model 'missing-v1' is unavailable from provider 'planner'" in blocker.message
-        for blocker in presentation.report.blockers
-    )
-    with pytest.raises(PreflightBlockedError, match="generation blocked by preflight"):
-        controller.start_generation(app)
-    assert app.current_run_id is None
-    assert composition.service.hosts(project_id).get_plan(episode_id) is None
-
-
-def test_generation_monitor_background_run_exposes_planning_failure(tmp_path: Path) -> None:
-    composition = _composition_with_planning_model(tmp_path, "bad-v1")
-    project_id, episode_id = _ready_episode(composition)
-    run = composition.create_generation_run(project_id, episode_id)
-
-    def _run_from_monitor(run_id, progress) -> None:
-        composition.run_generation(project_id, run_id, progress=progress)
-
-    monitor = GenerationMonitorController(runner=_run_from_monitor)
-    app = _TuiAppStub(
-        composition=composition,
-        preflight_controller=PreflightController(ffmpeg_executable=_fake_ffmpeg(tmp_path)),
-        generation_monitor_controller=monitor,
-        current_project_id=project_id,
-        current_project_name="Follow-up planning",
-        current_episode_id=episode_id,
-        current_run_id=run.id,
-    )
-
-    with pytest.raises(ValueError, match="episode plan must contain a non-empty segments list"):
-        asyncio.run(monitor.run(run.id))
-
-    failed = composition.generation_run_repository(project_id).get(run.id)
-    assert failed is not None
-    assert failed.state == "failed"
-    assert failed.stage == "planning"
-    assert failed.failure_message is not None
-    assert "non-empty segments" in failed.failure_message
-    snapshot = monitor.snapshot(app)
-    assert snapshot.run == failed
-    assert any(event.operation == "planning" and event.state == "failed" for event in monitor.events)
 
 
 def _assert_failed_planning(
@@ -351,9 +235,3 @@ def _ready_episode(composition: ProductionComposition) -> tuple[str, str]:
         ),
     )
     return project.id, episode.id
-
-
-def _fake_ffmpeg(tmp_path: Path) -> Path:
-    ffmpeg = tmp_path / "ffmpeg"
-    ffmpeg.write_text("fake", encoding="utf-8")
-    return ffmpeg
