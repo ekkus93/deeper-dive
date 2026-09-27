@@ -16,6 +16,7 @@ from deeper_dive.preflight import (
     PreflightIssue,
     PreflightReport,
 )
+from deeper_dive.provider_network import local_only_from_defaults, local_provider_ids
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository, HostProfileRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 
@@ -122,26 +123,11 @@ class GenerationStartService:
 
     def _local_provider_ids(self) -> frozenset[str]:
         config = self.composition.provider_controller.config()  # type: ignore[attr-defined]
-        local_ids = {
-            value.strip()
-            for value in config.defaults.get("local_provider_ids", "").split(",")
-            if value.strip()
-        }
-        local_types = {"fake", "fake-tts", "kitten", "llama-server", "local", "ollama"}
-        for name, provider in config.providers.items():
-            scope = (provider.network_scope or "").strip().lower()
-            if scope == "local":
-                local_ids.add(name)
-            elif scope == "remote":
-                local_ids.discard(name)
-            elif getattr(provider, "provider_type", None) in local_types:
-                local_ids.add(name)
-        return frozenset(local_ids)
+        return local_provider_ids(config.providers, config.defaults)
 
     def _local_only(self) -> bool:
         config = self.composition.provider_controller.config()  # type: ignore[attr-defined]
-        value = config.defaults.get("local_only", "")
-        return value.strip().lower() in {"1", "true", "yes", "on"}
+        return local_only_from_defaults(config.defaults)
 
 
 def select_or_create_generation_run(
