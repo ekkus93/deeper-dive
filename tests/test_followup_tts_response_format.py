@@ -188,6 +188,7 @@ def _episode_with_turn(
         EpisodeConfiguration(title="R5 episode", host_ids=(host.id,)),
     )
     database = composition.database_for_project(project.id)
+    HostTurnService(database)
     with database.transaction() as db:
         db.execute(
             """INSERT INTO conversation_turns(
