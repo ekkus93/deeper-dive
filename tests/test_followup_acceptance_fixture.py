@@ -12,6 +12,7 @@ from followup_acceptance_fixture import (
 from deeper_dive import cli
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_library_screen import EpisodeLibraryController
+from deeper_dive.ffmpeg import FFmpegConfig
 from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.host_turn import HostTurnService
 from deeper_dive.model_roles import ModelRole
@@ -170,9 +171,14 @@ def test_followup_fixture_drives_tui_preflight_generation_monitor_review_and_exp
 
 
 def test_followup_fixture_drives_explicit_cli_generation_status_and_export(
-    tmp_path: Path, capsys
+    tmp_path: Path, capsys, monkeypatch
 ) -> None:
     ready = create_ready_followup_fixture(tmp_path)
+    monkeypatch.setattr(
+        FFmpegConfig,
+        "detect",
+        classmethod(lambda cls, configured=None: cls(ready.ffmpeg)),
+    )
 
     generate_code = cli.main(
         [
