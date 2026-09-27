@@ -194,13 +194,9 @@ class ConversationGenerationService:
         try:
             payload = json.loads(record.segment_json)
         except json.JSONDecodeError as exc:
-            raise ValueError(
-                f"invalid persisted segment JSON at ordinal {record.ordinal}"
-            ) from exc
+            raise ValueError(f"invalid persisted segment JSON at ordinal {record.ordinal}") from exc
         if not isinstance(payload, dict):
-            raise ValueError(
-                f"invalid persisted segment payload at ordinal {record.ordinal}"
-            )
+            raise ValueError(f"invalid persisted segment payload at ordinal {record.ordinal}")
         evidence_ids = tuple(str(value) for value in payload.get("evidence_ids", ()))
         if self.available_evidence_ids is not None:
             evidence_ids = tuple(
