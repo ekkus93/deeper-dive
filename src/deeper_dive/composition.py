@@ -41,6 +41,7 @@ from deeper_dive.pipeline import (
 from deeper_dive.preflight import PreflightService
 from deeper_dive.preflight_screen import PreflightController
 from deeper_dive.provider_factory import ProviderBuildResult, ProviderFactory
+from deeper_dive.provider_runtime import ProviderRuntime
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.research_controller import PersistentResearchController
 from deeper_dive.research_execution import execute_research_gaps
@@ -99,7 +100,7 @@ class ProductionComposition:
 
     service: DeeperDiveService
     config_store: UserConfigStore
-    providers: ProviderBuildResult
+    provider_runtime: ProviderRuntime
     provider_controller: ProviderController
     research_controller: PersistentResearchController
     preflight_service: PreflightService
@@ -107,6 +108,12 @@ class ProductionComposition:
     generation_monitor_controller: GenerationMonitorController
     benchmark_service: TTSBenchmarkService
     playback_controller: AudioPlaybackController
+
+    @property
+    def providers(self) -> ProviderBuildResult:
+        """Return the current provider runtime snapshot through one owner."""
+
+        return self.provider_runtime.providers
 
     @classmethod
     def build(
@@ -146,7 +153,7 @@ class ProductionComposition:
         composition = cls(
             service=app_service,
             config_store=config_store,
-            providers=providers,
+            provider_runtime=ProviderRuntime(providers),
             provider_controller=provider_controller,
             research_controller=research_controller,
             preflight_service=PreflightService(
@@ -171,7 +178,7 @@ class ProductionComposition:
     def refresh_providers(self, providers: ProviderBuildResult) -> None:
         """Refresh every production provider consumer after a config rebuild."""
 
-        self.providers = providers
+        self.provider_runtime.publish(providers)
         self.provider_controller.llm_registry = providers.llm_registry
         self.provider_controller.tts_providers = providers.tts_providers
         self.preflight_service = PreflightService(
