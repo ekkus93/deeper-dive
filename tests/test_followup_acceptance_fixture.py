@@ -9,7 +9,7 @@ from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.host_turn import HostTurnService
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 from deeper_dive.tts_generation import TTSArtifactRepository
-from tests.followup_acceptance_fixture import (
+from followup_acceptance_fixture import (
     create_ready_followup_fixture,
     run_followup_fixture,
 )
