@@ -101,7 +101,9 @@ def test_multi_segment_generation_honors_completion_signals_atomically(
     ) -> DirectorDecision:
         _ = (segment, remaining_seconds)
         if state.segment_ordinal == 0 and state.segment_turn == 0:
-            return DirectorDecision(hosts[0].id, "open", segment_signal=SegmentSignal.CONTINUE)
+            return DirectorDecision(
+                hosts[0].id, "open", segment_signal=SegmentSignal.CONTINUE
+            )
         if state.segment_ordinal == 0:
             return DirectorDecision(
                 hosts[1].id,

@@ -97,7 +97,9 @@ class ConversationGenerationService:
             record.id: HostProfile.from_record(record)
             for record in self.repository.list_hosts(episode.project_id)
         }
-        hosts = tuple(hosts_by_id[host_id] for host_id in host_ids if host_id in hosts_by_id)
+        hosts = tuple(
+            hosts_by_id[host_id] for host_id in host_ids if host_id in hosts_by_id
+        )
         if len(hosts) != len(host_ids) or not hosts:
             raise ValueError("conversation generation requires all participating episode hosts")
         host_id_set = {host.id for host in hosts}
@@ -198,7 +200,9 @@ class ConversationGenerationService:
                 f"invalid persisted segment JSON at ordinal {record.ordinal}"
             ) from exc
         if not isinstance(payload, dict):
-            raise ValueError(f"invalid persisted segment payload at ordinal {record.ordinal}")
+            raise ValueError(
+                f"invalid persisted segment payload at ordinal {record.ordinal}"
+            )
         evidence_ids = tuple(str(value) for value in payload.get("evidence_ids", ()))
         if self.available_evidence_ids is not None:
             evidence_ids = tuple(
