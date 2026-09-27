@@ -3,9 +3,11 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 
 from deeper_dive import command
 from deeper_dive.diagnostics import redact
+from deeper_dive.export import EpisodeExporter
 from deeper_dive.user_errors import actionable_error, user_status
 
 
@@ -62,3 +64,36 @@ def test_debug_and_repr_diagnostic_fields_are_redacted_recursively() -> None:
     assert rendered.count("[REDACTED]") == 2
     assert "ClientError" in rendered
     assert "RequestError" in rendered
+
+
+def test_export_metadata_removes_secret_fields_recursively(tmp_path: Path) -> None:
+    secret = "metadata-secret-456"
+    metadata_path = tmp_path / "metadata.json"
+
+    EpisodeExporter.write_metadata(
+        metadata_path,
+        {
+            "title": "safe export",
+            "provider": {
+                "credential_env": "DEEP_DIVE_PROVIDER_KEY",
+                "api_key": secret,
+                "nested": [
+                    {
+                        "token": secret,
+                        "safe": "kept",
+                    }
+                ],
+            },
+            "authorization": secret,
+        },
+    )
+
+    rendered = metadata_path.read_text(encoding="utf-8")
+    payload = json.loads(rendered)
+
+    assert secret not in rendered
+    assert "api_key" not in rendered
+    assert "token" not in rendered
+    assert "authorization" not in rendered
+    assert payload["provider"]["credential_env"] == "DEEP_DIVE_PROVIDER_KEY"
+    assert payload["provider"]["nested"] == [{"safe": "kept"}]
