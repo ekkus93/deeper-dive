@@ -1,6 +1,6 @@
 # Production generation architecture
 
-This note documents the developer-facing contracts behind provider-backed production generation. It complements `docs/ARCHITECTURE.md`, `docs/GENERATION_PIPELINE_STAGE_SEMANTICS.md`, and `docs/GENERATION_RUN_SELECTION_POLICY.md`.
+This note documents the developer-facing contracts behind provider-backed production generation. It complements `docs/ARCHITECTURE.md`, `docs/GENERATION_PIPELINE_STAGE_SEMANTICS.md`, `docs/GENERATION_RUN_SELECTION_POLICY.md`, and the follow-up remediation spec `docs/DEEP_DIVE_PRODUCTION_GENERATION_FOLLOWUP_SPEC_2026-09-25.md`.
 
 ## Shared generation start service
 
@@ -16,25 +16,47 @@ Responsibilities:
 
 The CLI `episode generate` path and the TUI Generate screen are expected to share this boundary. Surface-specific code may format the result differently, but should not implement a separate readiness matrix.
 
+## Runtime provider refresh boundary
+
+`ProductionComposition`, `ProviderController`, `PreflightService`, and the LLM/TTS provider registries share one refresh/access boundary. Same-session provider saves, removals, and reloads must atomically refresh the production registries consumed by preflight, planning, conversation generation, TTS generation, provider health, and export/composition. A surface may inject or attach a provider controller, but it must not leave a stale `ProductionComposition.providers` snapshot behind after the controller reloads.
+
+Credential values remain secret material. Provider refresh must preserve credential non-persistence and must route status, diagnostics, CLI/TUI messages, metadata, logs, and exports through the sanitizer/redaction boundary before user-visible or durable output is written.
+
 ## Provider-backed generation stage contracts
 
 Production stages must resolve provider/model assignments through durable configuration and provider registries.
 
-- Planning uses `EpisodePlannerService` with a configured LLM provider/model.
+- Planning uses `EpisodePlannerService` with a configured `episode_planning` LLM provider/model resolved through the same user > project > episode precedence as CLI `episode plan`.
 - Conversation generation uses the configured `host_generation` role and optional configured `directing` role.
 - Verification uses the configured `verification` role when present.
 - Generated host turns are persisted through `HostTurnService` with transcript/evidence data and provider/model identity where supplied.
 - Malformed structured provider output fails before downstream audio output is produced and must be reported through sanitized diagnostics.
 
+Pipeline auto-planning must never fall back to the first sorted provider/model when a configured planning assignment is required. Missing assignments, unknown providers, unavailable models, provider exceptions, invalid JSON, empty segment output, and unhealthy planning providers are terminal planning failures for the durable run. These failures must stop before conversation, TTS, or composition stages and must be exposed consistently through CLI `episode generate`, TUI Generate/preflight, and monitor/background generation.
+
 Deterministic fake providers are valid only as explicitly configured provider adapters. Do not add hidden deterministic production paths that bypass the provider factory/registry boundary.
+
+## Evidence and generated provenance contracts
+
+Provider-backed directing and host-turn generation receive an explicit evidence scope derived from durable episode planning and indexed source chunks. The supplied evidence IDs must be valid for the current project and episode scope. Provider-returned citations outside that supplied scope are rejected rather than persisted.
+
+Valid generated evidence IDs are persisted on transcript turns. Export resolves those citations back to source passage metadata and text so transcript markdown, provenance manifests, and review/export surfaces can show the generated claim/citation relationship without manually seeded turn provenance. Multi-project and multi-episode isolation is part of the evidence contract: one project or episode must not leak plan evidence into another generation run.
 
 ## Provider-backed TTS stage contracts
 
 The TTS stage resolves every generated turn through the selected host's configured provider and voice. Missing host TTS assignment, unknown providers, unknown voices, empty provider audio, and provider/runtime failures should fail through actionable, sanitized errors.
 
-TTS generation writes durable artifacts through `TTSArtifactRepository` and `TTSGenerationStage`. Reuse is cache-key based and valid only when the cached artifact is successful, exists on disk, and is non-empty. The cache key includes text, provider, voice, model, and non-default synthesis settings such as response format, so transcript repair or provider/voice/model/settings changes force the affected turn through regeneration.
+TTS generation writes durable artifacts through `TTSArtifactRepository` and `TTSGenerationStage`. Reuse is cache-key based and valid only when the cached artifact is successful, exists on disk, and is non-empty. The cache key includes text, provider, voice, model, response format, and non-default synthesis settings, so transcript repair or provider/voice/model/settings changes force the affected turn through regeneration.
 
 `tts_artifacts` is a per-turn artifact-reference table. Every generated turn has its own persisted row. Multiple turns may intentionally share the same `cache_key`, `artifact_id`, and filesystem path when synthesis input is identical; the cache key is therefore indexed but not unique. This preserves per-turn lookup while allowing duplicate speech to reuse one physical artifact. Provider-returned format and provider/voice/model metadata are recorded from the actual synthesis result, and the stored format matches the artifact filename extension.
+
+Provider-configured response format must be threaded into production synthesis requests. OpenAI-compatible TTS configured for `mp3` must receive `response_format="mp3"` and produce matching metadata/extension records. WAV-only providers such as KittenTTS Micro must reject unsupported response formats before recording success.
+
+## Audio composition contracts
+
+Production episode audio composition operates on resolved per-turn TTS artifact references, not raw byte concatenation. Supported WAV artifacts are validated, normalized, ordered by transcript turn/timeline identity, and written through `EpisodeExporter.write_wav()` so the final episode `.wav` has one coherent header and combined PCM frames.
+
+Compressed/container artifacts, including MP3, are not composed in this follow-up path unless a future FFmpeg-backed composition service explicitly supports them. Missing, empty, unreadable, unsupported, compressed/container, or mismatched TTS artifacts must fail with sanitized actionable diagnostics before composition is marked complete.
 
 ## Stage boundary and export semantics
 
