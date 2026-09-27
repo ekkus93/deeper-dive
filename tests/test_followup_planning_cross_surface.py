@@ -1,3 +1,4 @@
+# fmt: off
 from __future__ import annotations
 
 import asyncio
@@ -182,3 +183,4 @@ def fake_ffmpeg(tmp_path: Path) -> Path:
     ffmpeg = tmp_path / "ffmpeg"
     ffmpeg.write_text("fake", encoding="utf-8")
     return ffmpeg
+# fmt: on
