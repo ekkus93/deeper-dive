@@ -5,11 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from deeper_dive.composition import (
-    ProductionComposition,
-    _tts_stage,
-    _tts_turn_for_host,
-)
+from deeper_dive.composition import ProductionComposition, _tts_stage, _tts_turn_for_host
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.host_turn import HostTurnService
 from deeper_dive.hosts import HostProfile, create_host_from_preset
@@ -50,9 +46,7 @@ class RecordingCompatibleFactory(ProviderFactory):
         )
 
 
-def test_production_tts_honors_configured_openai_compatible_mp3(
-    tmp_path: Path,
-) -> None:
+def test_production_tts_honors_configured_openai_compatible_mp3(tmp_path: Path) -> None:
     data_dir = tmp_path / "data"
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
@@ -105,9 +99,7 @@ def test_production_tts_honors_configured_openai_compatible_mp3(
     assert artifact.model == "tts-model"
 
 
-def test_production_tts_default_wav_keeps_implicit_default_identity(
-    tmp_path: Path,
-) -> None:
+def test_production_tts_default_wav_keeps_implicit_default_identity(tmp_path: Path) -> None:
     data_dir = tmp_path / "data"
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
@@ -146,9 +138,7 @@ def test_production_tts_default_wav_keeps_implicit_default_identity(
     assert artifact.format == "wav"
 
 
-def test_production_kitten_rejects_configured_non_wav_before_success(
-    tmp_path: Path,
-) -> None:
+def test_production_kitten_rejects_configured_non_wav_before_success(tmp_path: Path) -> None:
     data_dir = tmp_path / "data"
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
@@ -171,9 +161,7 @@ def test_production_kitten_rejects_configured_non_wav_before_success(
     )
     database = composition.database_for_project(project_id)
     turn = HostTurnService(database).list_turns(episode_id)[0]
-    assert _tts_turn_for_host(composition, host, turn).settings == {
-        "response_format": "mp3"
-    }
+    assert _tts_turn_for_host(composition, host, turn).settings == {"response_format": "mp3"}
 
     with pytest.raises(ValueError, match="WAV only"):
         _tts_stage(
