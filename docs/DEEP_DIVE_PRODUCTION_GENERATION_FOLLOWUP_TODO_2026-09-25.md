@@ -153,10 +153,10 @@
 
 ## PCG-FU-060 — Update documentation
 
-- [ ] Update user documentation for same-session provider changes, planning role behavior, citation/provenance generation, TTS response formats, and audio composition support.
-- [ ] Update architecture documentation for provider runtime refresh, planning-stage failure semantics, evidence selection, audio composition, and artifact/cache identity.
-- [ ] Update provider documentation for supported response formats and WAV-only provider limitations.
-- [ ] Link this follow-up from relevant production generation docs without reopening the completed prior TODO.
+- [x] Update user documentation for same-session provider changes, planning role behavior, citation/provenance generation, TTS response formats, and audio composition support.
+- [x] Update architecture documentation for provider runtime refresh, planning-stage failure semantics, evidence selection, audio composition, and artifact/cache identity.
+- [x] Update provider documentation for supported response formats and WAV-only provider limitations.
+- [x] Link this follow-up from relevant production generation docs without reopening the completed prior TODO.
 
 ## PCG-FU-061 — Final qualification and TODO reconciliation
 
@@ -180,4 +180,4 @@
 - [ ] Exact merged-master CI passes.
 - [ ] Only then mark this follow-up remediation complete.
 
-**Evidence:** _Pending._
+**Evidence:** Direct-to-master commit `26f61c0fbf96ecf471cb5f3aa63e8ea27fc69f46` updated `docs/V1_USER_WORKFLOWS.md` with user-facing same-session provider refresh semantics, configured `episode_planning` behavior, generated citation/provenance rules, TTS response-format and Kitten WAV-only behavior, per-turn artifact/cache identity, and WAV-only composition support. Direct-to-master commit `44eab6788848201d9782b6429f24ee2a20ddc598` updated `docs/PRODUCTION_GENERATION_ARCHITECTURE.md` with developer-facing provider refresh, planning failure, evidence/provenance, TTS response-format/cache identity, and audio-composition contracts, and linked the follow-up spec from the production architecture doc. Exact-head CI for the documentation head passed in run `36318093772`.
