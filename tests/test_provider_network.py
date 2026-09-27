@@ -56,9 +56,10 @@ def test_legacy_local_provider_ids_still_work_when_scope_is_unspecified() -> Non
         "other": ProviderConfig(provider_type="openai"),
     }
 
-    assert local_provider_ids(providers, {"local_provider_ids": " remote , missing "}) == frozenset(
-        {"remote"}
-    )
+    assert local_provider_ids(
+        providers,
+        {"local_provider_ids": " remote , missing "},
+    ) == frozenset({"remote"})
 
 
 @pytest.mark.parametrize("value", ["1", "true", "TRUE", "yes", "on"])

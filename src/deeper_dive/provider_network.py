@@ -41,7 +41,11 @@ def configured_local_provider_ids(defaults: Mapping[str, str]) -> set[str]:
     }
 
 
-def provider_is_local(provider_id: str, provider: ProviderConfig, defaults: Mapping[str, str]) -> bool:
+def provider_is_local(
+    provider_id: str,
+    provider: ProviderConfig,
+    defaults: Mapping[str, str],
+) -> bool:
     """Classify one provider using explicit scope before defaults and adapter type."""
 
     scope = (provider.network_scope or "").strip().lower()
