@@ -269,11 +269,11 @@ def _save_artifact(
     EpisodeExporter.write_wav(
         audio_path,
         CanonicalAudio(
-            pcm=b"\x01\x00" * frame_count,
-            sample_rate_hz=24000,
-            channels=1,
+            pcm=b"\x01\x00" * frame_count * channels,
+            sample_rate_hz=sample_rate_hz,
+            channels=channels,
             sample_width_bytes=2,
-            duration_seconds=frame_count / 24000,
+            duration_seconds=frame_count / sample_rate_hz,
             source_format="pcm_s16le",
             source_media_type="audio/wav",
         ),
