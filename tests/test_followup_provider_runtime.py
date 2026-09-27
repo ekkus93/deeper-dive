@@ -6,16 +6,18 @@ import pytest
 
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
+from deeper_dive.episode_library_export import EpisodeLibraryExportService
 from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.host_turn import HostTurnService
 from deeper_dive.hosts import create_host_from_preset
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.preflight import PreflightBlockedError
 from deeper_dive.provider_factory import ProviderFactory
+from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 from deeper_dive.user_config import UserConfig, UserConfigStore
 
 
-def test_same_session_provider_save_refreshes_preflight_and_generation(
+def test_same_session_provider_save_refreshes_preflight_generation_and_export(
     tmp_path: Path,
 ) -> None:
     composition = _empty_composition(tmp_path)
@@ -26,6 +28,8 @@ def test_same_session_provider_save_refreshes_preflight_and_generation(
     assert composition.provider_controller.llm_registry is composition.providers.llm_registry
     assert composition.preflight_service.llm_registry is composition.providers.llm_registry
     assert composition.preflight_service.tts_registry is composition.providers.tts_registry
+    assert composition.provider_controller.health("fresh") is not None
+    assert composition.provider_controller.health("speech") is not None
 
     report = GenerationStartService(composition, ffmpeg_executable=ffmpeg).preflight(
         project_id,
@@ -45,9 +49,23 @@ def test_same_session_provider_save_refreshes_preflight_and_generation(
     result = composition.run_generation(project_id, run.run.id)
 
     assert result.run.state == "completed"
-    turns = HostTurnService(composition.database_for_project(project_id)).list_turns(episode_id)
+    database = composition.database_for_project(project_id)
+    turns = HostTurnService(database).list_turns(episode_id)
     assert turns
     assert "Configured fake provider host turn marker" in turns[0].text
+
+    episode = HostEpisodeRepository(database).get_episode(episode_id)
+    assert episode is not None
+    exported = EpisodeLibraryExportService(composition.service.workspaces).export(
+        project_id,
+        episode,
+        result.run,
+    )
+    assert exported.transcript.is_file()
+    assert exported.metadata.is_file()
+    assert exported.manifest.is_file()
+    assert exported.audio is not None
+    assert exported.audio.is_file()
 
 
 def test_same_session_provider_remove_blocks_preflight_and_generation(
