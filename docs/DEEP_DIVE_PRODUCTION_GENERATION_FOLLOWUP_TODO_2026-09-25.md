@@ -109,22 +109,22 @@
 
 ## PCG-FU-040 — Honor configured TTS response formats in production synthesis
 
-- [ ] Thread provider-configured TTS response format/settings into `TTSTurn` or an equivalent production synthesis request.
-- [ ] Ensure OpenAI-compatible TTS configured for `mp3` receives `response_format="mp3"` during production generation.
-- [ ] Ensure artifact file extension and recorded format/provider metadata match the actual provider result.
-- [ ] Ensure WAV-only providers, including KittenTTS Micro, reject unsupported response formats before claiming success.
-- [ ] Add regressions for OpenAI-compatible `mp3`, default WAV, and Kitten WAV-only behavior.
+- [x] Thread provider-configured TTS response format/settings into `TTSTurn` or an equivalent production synthesis request.
+- [x] Ensure OpenAI-compatible TTS configured for `mp3` receives `response_format="mp3"` during production generation.
+- [x] Ensure artifact file extension and recorded format/provider metadata match the actual provider result.
+- [x] Ensure WAV-only providers, including KittenTTS Micro, reject unsupported response formats before claiming success.
+- [x] Add regressions for OpenAI-compatible `mp3`, default WAV, and Kitten WAV-only behavior.
 
 ## PCG-FU-041 — Clarify and enforce TTS artifact/cache identity semantics
 
-- [ ] Document whether `tts_artifacts` is a per-turn table, a cache table, or a combined compatibility table.
-- [ ] If every turn should have a persisted artifact row, add or migrate the schema/logic needed to represent duplicate cache reuse across multiple turns.
-- [ ] If `tts_artifacts` remains cache-centric, update downstream code and docs so no path assumes one row per turn.
-- [ ] Ensure composition/export can locate the correct artifact for every turn after cache reuse.
-- [ ] Ensure transcript repair invalidates stale audio when text, provider, voice, model, response format, or synthesis settings change.
-- [ ] Add tests for duplicate text/voice cache reuse, per-turn lookup behavior, and repair invalidation/regeneration.
+- [x] Document whether `tts_artifacts` is a per-turn table, a cache table, or a combined compatibility table.
+- [x] If every turn should have a persisted artifact row, add or migrate the schema/logic needed to represent duplicate cache reuse across multiple turns.
+- [x] If `tts_artifacts` remains cache-centric, update downstream code and docs so no path assumes one row per turn. (N/A: it is explicitly a per-turn artifact-reference table.)
+- [x] Ensure composition/export can locate the correct artifact for every turn after cache reuse.
+- [x] Ensure transcript repair invalidates stale audio when text, provider, voice, model, response format, or synthesis settings change.
+- [x] Add tests for duplicate text/voice cache reuse, per-turn lookup behavior, and repair invalidation/regeneration.
 
-**Evidence:** _Pending._
+**Evidence:** PR #446 threads configured non-default TTS response formats through production `TTSTurn.settings`, proves OpenAI-compatible `mp3` reaches the provider request, preserves implicit default WAV behavior, rejects non-WAV KittenTTS requests before recording success, and records artifact extension/format/provider/voice/model identity from the actual provider result. Schema v8 makes `tts_artifacts` explicitly per-turn while allowing duplicate turns to share cache key, artifact ID, and physical file; `get_by_turn_id()` and duplicate-cache persistence preserve per-turn composition/export lookup. Cache identity covers text, provider, voice, model, response format, and synthesis settings, while targeted-repair coverage proves changed text regenerates without corrupting another turn that shares the old cache artifact. Production-generation, architecture, and provider docs record these semantics. Exact-head CI for PR #446 passed before merge; PR #446 merged as `0ea12d9ad3fa4f88225769e2748f126fd8aabc9b`, and merged-master CI passed in run `36309239056`.
 
 ---
 
