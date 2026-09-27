@@ -160,7 +160,9 @@ def test_production_kitten_rejects_configured_non_wav_before_success(
             }
         )
     )
-    composition = ProductionComposition.build(data_dir, provider_factory=ProviderFactory(environ={}))
+    composition = ProductionComposition.build(
+        data_dir, provider_factory=ProviderFactory(environ={})
+    )
     project_id, episode_id, host = _episode_with_turn(
         composition,
         provider_id="speech",
