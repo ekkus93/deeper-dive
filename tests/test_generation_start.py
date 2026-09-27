@@ -7,16 +7,21 @@ from pathlib import Path
 import pytest
 
 from deeper_dive.application.service import DeeperDiveService
+from deeper_dive.composition import ProductionComposition
 from deeper_dive.domain.clock import FrozenClock, format_timestamp
 from deeper_dive.domain.ids import new_episode_id, new_run_id
+from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.generation_start import (
     GenerationStartService,
     select_or_create_generation_run,
 )
 from deeper_dive.model_roles import ModelAssignment, ModelRole, ModelRoleAssignments
+from deeper_dive.preflight import PreflightBlockedError
+from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.storage.workspace import WorkspaceManager
+from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
 @pytest.mark.parametrize("state", ["pending", "running", "paused"])
@@ -92,6 +97,37 @@ def test_generation_start_requires_configured_execution_roles(tmp_path: Path) ->
         ModelRole.DIRECTING,
         ModelRole.VERIFICATION,
     )
+
+
+def test_generation_start_preflight_blocks_before_run_creation(tmp_path: Path) -> None:
+    data_dir = tmp_path / "data"
+    UserConfigStore(data_dir / "config.json").save(
+        UserConfig(
+            providers={"fake": ProviderConfig(provider_type="fake")},
+            defaults={
+                "episode_planning": "fake:fake-v1",
+                "host_generation": "fake:fake-v1",
+                "directing": "missing:fake-v1",
+            },
+        )
+    )
+    composition = ProductionComposition.build(
+        data_dir,
+        provider_factory=ProviderFactory(environ={}),
+    )
+    project = composition.service.create_project("Preflight gate")
+    episode = EpisodeConfigurationService(composition.database_for_project(project.id)).create(
+        project.id,
+        EpisodeConfiguration(title="Episode", target_duration_seconds=1200),
+    )
+    ffmpeg = tmp_path / "ffmpeg"
+    ffmpeg.write_text("fake")
+
+    starter = GenerationStartService(composition, ffmpeg_executable=ffmpeg)
+
+    with pytest.raises(PreflightBlockedError, match="unknown provider"):
+        starter.start(project.id, episode.id)
+    assert composition.service.runs(project.id).latest_for_episode(episode.id) is None
 
 
 def _run(
