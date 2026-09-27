@@ -65,21 +65,21 @@
 
 ## PCG-FU-020 — Supply source/plan evidence IDs to provider-backed generation
 
-- [ ] Define the production evidence source for generation, such as plan segment evidence IDs, retrieval results, or another documented service.
-- [ ] Make valid evidence IDs available to directing decisions when indexed source evidence exists.
-- [ ] Make valid evidence IDs available to host-turn generation and constrain provider citations to that set.
+- [x] Define the production evidence source for generation, such as plan segment evidence IDs, retrieval results, or another documented service.
+- [x] Make valid evidence IDs available to directing decisions when indexed source evidence exists.
+- [x] Make valid evidence IDs available to host-turn generation and constrain provider citations to that set.
 - [ ] Preserve multi-episode and multi-project evidence isolation.
-- [ ] Add regression coverage showing generated turns include non-empty evidence IDs when the configured provider selects valid evidence.
+- [x] Add regression coverage showing generated turns include non-empty evidence IDs when the configured provider selects valid evidence.
 
 ## PCG-FU-021 — Validate and export generated provenance end to end
 
-- [ ] Reject provider-returned evidence IDs outside the supplied evidence scope.
-- [ ] Persist valid generated evidence IDs on conversation turns.
-- [ ] Resolve cited source chunks to source passage metadata/text during export.
-- [ ] Add an end-to-end provider-backed acceptance test proving exported transcript markdown contains generated citations and source passages without manually seeding turn provenance.
+- [x] Reject provider-returned evidence IDs outside the supplied evidence scope.
+- [x] Persist valid generated evidence IDs on conversation turns.
+- [x] Resolve cited source chunks to source passage metadata/text during export.
+- [x] Add an end-to-end provider-backed acceptance test proving exported transcript markdown contains generated citations and source passages without manually seeding turn provenance.
 - [ ] Add a negative test proving cross-episode or cross-project evidence IDs are not accepted.
 
-**Evidence:** _Pending._
+**Evidence:** PR #447 wires production conversation generation to derive available evidence IDs from the durable episode plan's segment evidence and passes that evidence scope into both the director decision and host-turn generation path. `tests/test_followup_generated_evidence.py::test_provider_backed_generation_uses_plan_evidence_and_exports_source_passages` proves configured provider-backed generation persists non-empty evidence IDs on generated turns and that Episode Library export resolves those citations into transcript source passages from the indexed source chunk. `tests/test_followup_generated_evidence.py::test_generated_turn_rejects_evidence_outside_director_scope` proves generated host turns cannot cite evidence outside the supplied director scope. Exact-head CI for PR #447 passed in run `36313059185`; PR #447 merged as `5a9947b26dd8e30b44ca2ed9970613b66357beea`; merged-master CI passed in run `36313168607`. Remaining R3 work: filter supplied plan evidence against project-local indexed source chunks and add explicit cross-episode/cross-project negative coverage before checking the isolation item and final negative-test item.
 
 ---
 
@@ -87,21 +87,21 @@
 
 ## PCG-FU-030 — Replace byte concatenation with valid episode audio composition
 
-- [ ] Identify all production paths that compose final episode audio from per-turn TTS artifacts.
-- [ ] Replace container-byte concatenation with a valid composition path for supported WAV artifacts.
-- [ ] Ensure the final episode `.wav` has one coherent WAV header and combined PCM frames.
-- [ ] Preserve timeline items, episode identity, turn ordering, host identity, and artifact references.
-- [ ] Add tests with two valid WAV turn artifacts proving the final episode WAV opens with `wave.open()` and has expected nonzero combined frames.
+- [x] Identify all production paths that compose final episode audio from per-turn TTS artifacts.
+- [x] Replace container-byte concatenation with a valid composition path for supported WAV artifacts.
+- [x] Ensure the final episode `.wav` has one coherent WAV header and combined PCM frames.
+- [x] Preserve timeline items, episode identity, turn ordering, host identity, and artifact references.
+- [x] Add tests with two valid WAV turn artifacts proving the final episode WAV opens with `wave.open()` and has expected nonzero combined frames.
 
 ## PCG-FU-031 — Define compressed/unsupported audio composition behavior
 
-- [ ] Decide whether MP3 and other compressed/container artifacts are composed through FFmpeg or rejected before completion.
-- [ ] If supported, route compressed composition through the existing FFmpeg/audio abstraction and add deterministic tests.
-- [ ] If not supported, fail with sanitized actionable diagnostics before marking composition complete.
-- [ ] Add tests for missing, empty, unreadable, unsupported, and mismatched TTS artifacts.
-- [ ] Keep normal CI free of live paid-provider or external-service requirements.
+- [x] Decide whether MP3 and other compressed/container artifacts are composed through FFmpeg or rejected before completion.
+- [x] If supported, route compressed composition through the existing FFmpeg/audio abstraction and add deterministic tests. (N/A: compressed/container artifacts are rejected before completion for this follow-up.)
+- [x] If not supported, fail with sanitized actionable diagnostics before marking composition complete.
+- [x] Add tests for missing, empty, unreadable, unsupported, and mismatched TTS artifacts.
+- [x] Keep normal CI free of live paid-provider or external-service requirements.
 
-**Evidence:** _Pending._
+**Evidence:** PR #444 (`698db310d2634b338b6341cdd5626d5a73abb1f9`) replaced production episode-audio byte concatenation with WAV-aware composition in `src/deeper_dive/composition.py`. `_composition_stage()` now resolves per-turn TTS artifacts through the production artifact repository, normalizes supported `.wav` artifacts, preserves timeline entries with episode/turn/host/artifact identity, and writes the final episode file through `EpisodeExporter.write_wav()` so the output has one coherent WAV header and combined PCM frames. `tests/test_followup_audio_composition.py::test_composition_stage_writes_single_valid_wav_from_two_turn_artifacts` proves two valid turn WAV artifacts compose into a single `wave.open()`-readable episode WAV with expected frame count and timeline artifact/turn ordering. PR #444 also records the compressed/container policy by rejecting non-WAV artifacts before completion with sanitized actionable diagnostics rather than byte-concatenating them. PR #445 (`37ce36e04436fb39b126169cb5d07f21b871d325`) completed the artifact-error matrix with deterministic missing, empty, unreadable, unsupported, and mismatched-parameter coverage. Exact-head CI passed for PR #444 in run `36305445325`; merged-master CI passed for PR #444 in run `36306224064`. Exact-head CI passed for PR #445 in run `36307149518`; merged-master CI passed for PR #445 in run `36307257952`. Normal CI uses deterministic fake providers and no paid/live external TTS services for this coverage.
 
 ---
 
