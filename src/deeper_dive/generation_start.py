@@ -10,7 +10,7 @@ from deeper_dive.domain.clock import format_timestamp
 from deeper_dive.domain.ids import new_run_id
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.hosts import HostProfile
-from deeper_dive.model_roles import ModelRole
+from deeper_dive.model_roles import ModelRole, ModelRoleAssignments
 from deeper_dive.network_scope import ProviderNetworkPolicy
 from deeper_dive.preflight import (
     PreflightEstimate,
@@ -76,7 +76,11 @@ class GenerationStartService:
             ffmpeg_executable=self.ffmpeg_executable,
             local_provider_ids=self._local_provider_ids(),
             local_only=self._local_only(),
-            required_model_roles=self._required_model_roles(repository, episode_id),
+            required_model_roles=self._required_model_roles(
+                repository,
+                episode_id,
+                assignments,
+            ),
         )
         if assignment_errors:
             report = PreflightReport(
@@ -115,10 +119,14 @@ class GenerationStartService:
         self,
         repository: HostEpisodeRepository,
         episode_id: str,
+        assignments: ModelRoleAssignments,
     ) -> tuple[ModelRole, ...]:
         roles = [ModelRole.HOST_GENERATION]
         if repository.get_plan(episode_id) is None:
             roles.insert(0, ModelRole.EPISODE_PLANNING)
+        for optional_role in (ModelRole.DIRECTING, ModelRole.VERIFICATION):
+            if assignments.resolve(optional_role) is not None:
+                roles.append(optional_role)
         return tuple(roles)
 
     def _local_provider_ids(self) -> frozenset[str]:

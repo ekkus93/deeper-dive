@@ -9,7 +9,11 @@ import pytest
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.domain.clock import FrozenClock, format_timestamp
 from deeper_dive.domain.ids import new_episode_id, new_run_id
-from deeper_dive.generation_start import select_or_create_generation_run
+from deeper_dive.generation_start import (
+    GenerationStartService,
+    select_or_create_generation_run,
+)
+from deeper_dive.model_roles import ModelAssignment, ModelRole, ModelRoleAssignments
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.storage.workspace import WorkspaceManager
@@ -63,6 +67,31 @@ def test_generation_start_rejects_unknown_persisted_state(tmp_path: Path) -> Non
 
     with pytest.raises(ValueError, match="unsupported run state"):
         select_or_create_generation_run(service, project_id, episode_id)
+
+
+def test_generation_start_requires_configured_execution_roles(tmp_path: Path) -> None:
+    service, project_id, episode_id = _episode(tmp_path)
+    assignments = ModelRoleAssignments(
+        user={
+            ModelRole.EPISODE_PLANNING: ModelAssignment("fake", "fake-v1"),
+            ModelRole.HOST_GENERATION: ModelAssignment("fake", "fake-v1"),
+            ModelRole.DIRECTING: ModelAssignment("fake", "fake-v1"),
+            ModelRole.VERIFICATION: ModelAssignment("fake", "fake-v1"),
+        },
+    )
+
+    roles = GenerationStartService(object())._required_model_roles(
+        service.hosts(project_id),
+        episode_id,
+        assignments,
+    )
+
+    assert roles == (
+        ModelRole.EPISODE_PLANNING,
+        ModelRole.HOST_GENERATION,
+        ModelRole.DIRECTING,
+        ModelRole.VERIFICATION,
+    )
 
 
 def _run(
