@@ -23,6 +23,7 @@ from deeper_dive.model_roles import (
     effective_model_role_assignments,
     project_model_defaults_from_instructions,
 )
+from deeper_dive.network_scope import ProviderNetworkPolicy
 from deeper_dive.preflight import (
     PreflightEstimate,
     PreflightIssue,
@@ -37,7 +38,6 @@ from deeper_dive.storage.episode_repositories import (
 )
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.tts import TTSProviderRegistry
-from deeper_dive.user_config import ProviderConfig
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,8 +106,8 @@ class PreflightController:
                 indexed_source_count=indexed_source_count,
                 target_minutes=target_minutes,
                 ffmpeg_executable=self.ffmpeg_executable,
-                local_provider_ids=self._local_provider_ids(config.providers, config.defaults),
-                local_only=self._local_only(config.defaults),
+                local_provider_ids=ProviderNetworkPolicy.local_provider_ids(config),
+                local_only=ProviderNetworkPolicy.local_only(config.defaults),
             )
             extra_issues = list(assignment_issues)
         if episode is None:
@@ -232,25 +232,6 @@ class PreflightController:
         for provider in app.provider_controller.tts_providers.values():
             registry.register(provider)
         return registry
-
-    @staticmethod
-    def _local_provider_ids(
-        providers: dict[str, ProviderConfig], defaults: dict[str, str]
-    ) -> frozenset[str]:
-        local_ids = {
-            value.strip()
-            for value in defaults.get("local_provider_ids", "").split(",")
-            if value.strip()
-        }
-        local_types = {"fake", "fake-tts", "kitten", "llama-server", "local", "ollama"}
-        for name, provider in providers.items():
-            if provider.provider_type in local_types:
-                local_ids.add(name)
-        return frozenset(local_ids)
-
-    @staticmethod
-    def _local_only(defaults: dict[str, str]) -> bool:
-        return defaults.get("local_only", "").strip().lower() in {"1", "true", "yes", "on"}
 
     @staticmethod
     def _llm_rows(assignments: ModelRoleAssignments) -> tuple[str, ...]:

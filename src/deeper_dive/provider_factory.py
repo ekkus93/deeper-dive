@@ -19,6 +19,7 @@ from deeper_dive.llm import (
     LLMStreamChunk,
     ProviderHealth,
 )
+from deeper_dive.network_scope import ProviderNetworkPolicy
 from deeper_dive.ollama_llm import OllamaLLMProvider
 from deeper_dive.openai_compatible_tts import OpenAICompatibleTTSProvider
 from deeper_dive.openai_llm import OpenAILLMProvider
@@ -130,8 +131,8 @@ class ProviderFactory:
         network_scopes: dict[str, str] = {}
         for name, provider_config in sorted(config.providers.items()):
             kind = self._normalized_type(provider_config.provider_type)
-            network_scopes[name] = provider_config.network_scope or self._default_network_scope(
-                kind
+            network_scopes[name] = ProviderNetworkPolicy.scope_for_config(
+                provider_config
             )
             if kind in LLM_PROVIDER_TYPES:
                 llm_registry.register(
@@ -158,11 +159,6 @@ class ProviderFactory:
             tts_providers,
             network_scopes,
         )
-
-    @staticmethod
-    def _default_network_scope(kind: str) -> str:
-        local_types = {"fake", "fake-tts", "kitten", "ollama", "llama-server"}
-        return "local" if kind in local_types else "remote"
 
     @staticmethod
     def _normalized_type(value: str) -> str:
