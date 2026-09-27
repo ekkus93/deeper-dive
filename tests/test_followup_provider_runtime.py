@@ -224,6 +224,42 @@ def test_preflight_blocks_unhealthy_provider_after_same_session_reload(
         starter.start(project_id, episode_id)
 
 
+def test_preflight_blocks_missing_tts_voice_after_same_session_reload(
+    tmp_path: Path,
+) -> None:
+    composition = _empty_composition(tmp_path)
+    composition.provider_controller.save_provider(
+        "fresh",
+        "fake",
+        default_model="fake-v1",
+    )
+    composition.provider_controller.save_provider(
+        "speech",
+        "fake-tts",
+        voices=("other-voice",),
+    )
+    config = composition.provider_controller.config()
+    config.defaults.update(
+        {
+            ModelRole.EPISODE_PLANNING.value: "fresh:fake-v1",
+            ModelRole.HOST_GENERATION.value: "fresh:fake-v1",
+        }
+    )
+    composition.config_store.save(config)
+    composition.provider_controller.reload()
+    project_id, episode_id = _ready_episode(composition)
+    starter = GenerationStartService(composition, ffmpeg_executable=_fake_ffmpeg(tmp_path))
+
+    blocked = starter.preflight(project_id, episode_id)
+
+    assert any(
+        issue.code == "tts_assignment" and "voice-a" in issue.message
+        for issue in blocked.blockers
+    )
+    with pytest.raises(PreflightBlockedError, match="generation blocked by preflight"):
+        starter.start(project_id, episode_id)
+
+
 def test_same_session_provider_remove_blocks_preflight_and_generation(
     tmp_path: Path,
 ) -> None:
