@@ -63,8 +63,11 @@ def local_provider_ids(
 ) -> frozenset[str]:
     """Return provider ids considered local by the shared network-scope policy."""
 
-    return frozenset(
-        provider_id
-        for provider_id, provider in providers.items()
-        if provider_is_local(provider_id, provider, defaults)
-    )
+    local_ids = configured_local_provider_ids(defaults)
+    for provider_id, provider in providers.items():
+        scope = (provider.network_scope or "").strip().lower()
+        if scope == "remote":
+            local_ids.discard(provider_id)
+        elif provider_is_local(provider_id, provider, defaults):
+            local_ids.add(provider_id)
+    return frozenset(local_ids)
