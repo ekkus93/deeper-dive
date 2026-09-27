@@ -1,0 +1,516 @@
+# Deeper Dive Production Generation Post-Review Remediation TODO
+
+**Created:** 2026-09-27  
+**Status:** Ready for implementation  
+**Authority:** `docs/DEEP_DIVE_PRODUCTION_GENERATION_POST_REVIEW_REMEDIATION_SPEC_2026-09-27.md`  
+**Predecessor:** `docs/DEEP_DIVE_PRODUCTION_GENERATION_FOLLOWUP_TODO_2026-09-25.md`
+
+This checklist is the source of completion truth for the post-review remediation. A checkbox requires production wiring, focused regression evidence, exact-head CI, and reconciliation on `master`.
+
+---
+
+## Execution rules
+
+- [ ] Reload this TODO and companion spec from current `master` at the start of every run and after every successful merge/direct-master write.
+- [ ] Inspect current `master`, relevant Ralph branches/open PRs, and CI before implementing duplicate work.
+- [ ] Do not rewrite the previous completed follow-up TODO to hide review findings.
+- [ ] Prefer direct `master` work when Ralph Bridge policy permits; if policy requires a branch/PR, batch coherent clusters rather than one PR per checkbox.
+- [ ] Route CLI/TUI/background/repair behavior through shared production services.
+- [ ] Keep deterministic fake providers behind the same provider config/factory/registry boundaries as real providers.
+- [ ] Do not mark a task complete because a class/function exists; prove the end-to-end production behavior.
+- [ ] Keep compatibility with existing persisted data unless an explicit tested migration is required.
+
+---
+
+# R1 — Multi-turn/multi-segment production conversation
+
+## PRR-100 — Replace one-turn conversation generation
+
+- [ ] Inventory current conversation-stage durable state and checkpoints.
+- [ ] Introduce a public conversation-generation service.
+- [ ] Load ordered durable plan segments.
+- [ ] Load/resume `ConversationState`.
+- [ ] Generate successive turns until completion rather than exactly one turn.
+- [ ] Stop treating any existing turn as stage completion.
+- [ ] Persist each turn + evidence + provider/model identity + state + checkpoint atomically.
+- [ ] Resume from first incomplete unit after interruption.
+- [ ] Add partial-run resume regression proving no duplicate turns.
+
+## PRR-101 — Segment/episode completion
+
+- [ ] Honor `CONTINUE`.
+- [ ] Honor `COMPLETE_SEGMENT` and persist segment advancement.
+- [ ] Honor `COMPLETE_EPISODE`.
+- [ ] Define bounded fallback behavior when directing is unassigned.
+- [ ] Keep speakers restricted to participating episode hosts.
+- [ ] Keep evidence restricted to the current episode evidence scope.
+- [ ] Add deterministic completion-signal matrix tests.
+
+## PRR-102 — Safety and duration bounds
+
+- [ ] Define maximum turns per segment.
+- [ ] Define maximum turns per episode.
+- [ ] Integrate target word/duration budgeting.
+- [ ] Define behavior for a provider that never completes.
+- [ ] Define early-completion behavior.
+- [ ] Add non-completing-provider safety test.
+- [ ] Add multi-host/multi-segment acceptance producing multiple durable turns.
+
+---
+
+# R2 — Transactional provider config/runtime
+
+## PRR-110 — Transactional save/edit
+
+- [ ] Build candidate config in memory before persistence.
+- [ ] Validate candidate `ProviderConfig`.
+- [ ] Build complete candidate `ProviderBuildResult`.
+- [ ] Persist only after runtime build succeeds.
+- [ ] Publish runtime only after persistence succeeds.
+- [ ] Preserve prior durable config on failure.
+- [ ] Preserve prior live runtime on failure.
+- [ ] Test missing credential-env rollback.
+- [ ] Test missing base URL/voice catalog rollback.
+- [ ] Test unsupported/invalid adapter rollback.
+- [ ] Prove failed save cannot break next startup.
+
+## PRR-111 — Transactional provider removal
+
+- [ ] Build/validate remaining candidate config before persisting removal.
+- [ ] Preserve previous durable/runtime state on failure.
+- [ ] Add successful removal test.
+- [ ] Add failed removal rollback test.
+- [ ] Prove removed provider cannot remain usable from stale registries.
+
+## PRR-112 — One provider-runtime owner
+
+- [ ] Define a typed authoritative provider-runtime owner/accessor.
+- [ ] Remove stale snapshots between controller and composition.
+- [ ] Refresh planning/directing/host-generation/verification/TTS/repair/preflight/health together.
+- [ ] Fix injected/custom TUI controller synchronization.
+- [ ] Add same-session injected-controller acceptance.
+- [ ] Add same-session provider edit proving new identity is used without restart.
+
+## PRR-113 — One locality/network-scope policy
+
+- [ ] Centralize local/remote classification.
+- [ ] Use it in `GenerationStartService`.
+- [ ] Use it in TUI preflight.
+- [ ] Use it in routing/security display.
+- [ ] Explicit local override wins.
+- [ ] Explicit remote override wins.
+- [ ] Add matrix covering fake, fake-tts, kitten, Ollama, llama-server, OpenAI, OpenAI TTS, compatible TTS, ElevenLabs, overrides.
+
+---
+
+# R3 — Complete preflight and durable failures
+
+## PRR-120 — Validate every executed model role
+
+- [ ] Replace incomplete hard-coded role selection.
+- [ ] Require `episode_planning` when no valid plan exists.
+- [ ] Require `host_generation` when conversation work remains.
+- [ ] Validate configured `directing`.
+- [ ] Validate configured `verification`.
+- [ ] Keep resolver extensible to future research/source roles.
+- [ ] Negative test: unknown directing provider.
+- [ ] Negative test: unavailable directing model.
+- [ ] Negative test: unhealthy directing provider.
+- [ ] Equivalent verification-role negatives.
+- [ ] Prove blockers occur before expensive generation/run creation where applicable.
+
+## PRR-121 — Preflight/production parity
+
+- [ ] Provider existence parity.
+- [ ] Model availability parity.
+- [ ] Voice availability parity.
+- [ ] Network/local-only parity.
+- [ ] Provider-health parity.
+- [ ] Reuse one table-driven routing/preflight matrix across CLI/TUI tests.
+
+## PRR-122 — Durable post-run failure boundary
+
+- [ ] Inventory execution-time checks that can currently escape before orchestrator failure persistence.
+- [ ] Move/wrap them inside a durable run execution boundary.
+- [ ] Persist failed state/stage/code/sanitized message/timestamp.
+- [ ] Prevent stale `pending` or `running` state after execution failure.
+- [ ] Regression: create run → invalidate assignment → execute → durable failed.
+- [ ] Verify no downstream checkpoint after failure.
+
+---
+
+# R4 — Plan validity and evidence integrity
+
+## PRR-130 — Shared valid-plan policy
+
+- [ ] Require plan row belonging to episode.
+- [ ] Require at least one segment.
+- [ ] Validate persisted JSON.
+- [ ] Validate coherent ordinals.
+- [ ] Validate non-empty titles.
+- [ ] Validate positive durations.
+- [ ] Validate lead-host membership.
+- [ ] Validate evidence scope.
+- [ ] Define allowed plan statuses for generation.
+- [ ] Make planning skip only valid usable plans.
+- [ ] Make generation-start role derivation use same validity result.
+- [ ] Test empty/corrupt/invalid/disallowed plans.
+
+## PRR-131 — Fix evidence-validation semantics
+
+- [ ] Replace “empty set disables validation” behavior.
+- [ ] Make disabled/unavailable validation explicit.
+- [ ] Make active empty scope reject all evidence IDs.
+- [ ] Validate `regenerate_segment()`.
+- [ ] Validate `edit_segment()`.
+- [ ] Reject nonexistent evidence IDs.
+- [ ] Reject cross-project evidence IDs.
+- [ ] Preserve valid evidence IDs.
+
+---
+
+# R5 — Security/redaction
+
+## PRR-140 — Canonical recursive sanitizer
+
+- [ ] One sanitizer API for all durable/user-visible output.
+- [ ] Cover authorization/API-key variants/token/access-token/refresh-token/secret/client-secret/password/cookie keys.
+- [ ] Preserve Bearer redaction.
+- [ ] Preserve assignment redaction.
+- [ ] Preserve quoted-map redaction.
+- [ ] Preserve credential-URL redaction.
+- [ ] Preserve nested collection redaction.
+- [ ] Preserve exception cause/context sanitization.
+- [ ] Add non-secret false-positive tests.
+
+## PRR-141 — Export metadata uses canonical sanitizer
+
+- [ ] Remove bespoke `EpisodeExporter.write_metadata()` secret vocabulary.
+- [ ] Recursively sanitize before serialization.
+- [ ] Test nested `access_token`.
+- [ ] Test nested `refresh_token`.
+- [ ] Test `client_secret`.
+- [ ] Test cookie/authorization.
+- [ ] Test URL credentials/Bearer strings.
+- [ ] Preserve normal provenance/identity metadata.
+
+## PRR-142 — Provider-originated UI/status sanitization
+
+- [ ] Audit health/model/voice/provider messages to CLI/TUI/preflight.
+- [ ] Sanitize before presentation/persistence.
+- [ ] Health-message synthetic-secret regression.
+- [ ] Discovery-exception synthetic-secret regression.
+- [ ] Verify `[REDACTED]` is shown and secret is absent.
+
+## PRR-143 — Credential non-persistence matrix
+
+- [ ] Provider config stores references, not values.
+- [ ] Failed provider save stores no values.
+- [ ] Structured diagnostics store no values.
+- [ ] Run failures store no values.
+- [ ] Export metadata stores no values.
+- [ ] CLI/TUI status stores/displays no values.
+- [ ] Add representative end-to-end security matrix.
+
+---
+
+# R6 — TTS/composition correctness
+
+## PRR-150 — Resolve MP3/WAV incompatibility before expensive work
+
+- [ ] Choose WAV-only preflight or supported multi-format composition policy.
+- [ ] Implement the chosen policy.
+- [ ] Make CLI/TUI behavior identical.
+- [ ] Test OpenAI-compatible TTS configured for MP3.
+- [ ] Prove unsupported configuration does not invoke expensive TTS synthesis.
+- [ ] Preserve Kitten WAV-only contract.
+
+## PRR-151 — Validate full returned TTS identity
+
+- [ ] Validate provider.
+- [ ] Validate voice.
+- [ ] Validate explicitly requested model.
+- [ ] Define adapter behavior when model identity cannot be reported.
+- [ ] Validate persisted format/path extension.
+- [ ] Do not save success on identity mismatch.
+- [ ] Add mismatched-model regression.
+- [ ] Add positive model-identity coverage.
+
+## PRR-152 — Production-quality resampling
+
+- [ ] Select FFmpeg/libswresample or another appropriate deterministic resampler.
+- [ ] Route production normalization through it.
+- [ ] Preserve canonical 24 kHz mono signed-16-bit contract unless intentionally revised.
+- [ ] Preserve actionable unreadable/unsupported failures.
+- [ ] Add 12 kHz stereo conversion test.
+- [ ] Add second nontrivial rate conversion test.
+- [ ] Avoid exact PCM assertions that vary by runtime version.
+- [ ] Document dependency/fresh-machine coverage.
+
+## PRR-153 — Public FFmpeg API
+
+- [ ] Stop calling `FFmpegComposer._run()` externally.
+- [ ] Add public transcode/conversion API or audio export service.
+- [ ] Test command/error behavior through public API.
+- [ ] Keep FFmpeg errors sanitized/actionable.
+
+---
+
+# R7 — Transcript repair and TTS cache lifecycle
+
+## PRR-160 — Real production repair recheck/update
+
+- [ ] Remove production `_NoOpRepairRechecker`.
+- [ ] Remove production `_NoOpSummaryUpdater`.
+- [ ] Route repaired text through real claim extraction/verification/recheck.
+- [ ] Update conversation summary/context where required.
+- [ ] Preserve unaffected turns.
+- [ ] Regression proving stale claims are replaced/reverified.
+- [ ] Regression proving required summary/context update.
+
+## PRR-161 — Public audio regeneration after repair
+
+- [ ] Remove imports/calls of private `_tts_stage` and `_composition_stage` from review code.
+- [ ] Add public service operation for affected TTS + episode audio regeneration.
+- [ ] Use shared provider runtime.
+- [ ] Preserve timeline/playback identity.
+- [ ] Sanitize repair provider/runtime failures.
+- [ ] TUI/controller repair → audio → timeline → export regression.
+
+## PRR-162 — Reference-aware physical cache cleanup
+
+- [ ] Define cleanup policy.
+- [ ] Preserve physical artifact still referenced by another turn.
+- [ ] Delete/collect unreferenced obsolete artifact.
+- [ ] Preserve active artifact files.
+- [ ] Duplicate-cache repair regression.
+- [ ] Unique-cache repair regression.
+- [ ] Repeated-repair no-unbounded-orphan regression.
+
+---
+
+# R8 — Explicit composition architecture and style
+
+## PRR-170 — Remove hidden composition service-locator state
+
+- [ ] Make production composition/application context explicit and typed.
+- [ ] Inject it into controllers that need it.
+- [ ] Remove production `getattr(service, "_production_composition", ...)`.
+- [ ] Remove test/TUI reach-through `app.service._production_composition`.
+- [ ] Remove obsolete `type: ignore[attr-defined]`.
+- [ ] Test normal app construction.
+- [ ] Test injected service/controller construction.
+- [ ] Prove CLI/TUI still share production services.
+
+## PRR-171 — Public service boundaries
+
+- [ ] Replace cross-module private stage calls with public operations.
+- [ ] Keep stage handlers thin adapters around public services where practical.
+- [ ] Prefer public service tests over private-function contract tests.
+
+## PRR-172 — Style suppression cleanup
+
+- [ ] Audit touched `# fmt: off/on`.
+- [ ] Remove avoidable formatter suppressions.
+- [ ] Audit touched broad Ruff import-order suppressions.
+- [ ] Remove avoidable suppressions.
+- [ ] Run formatter/lint after cleanup.
+- [ ] Avoid unrelated style churn.
+
+## PRR-173 — Consolidate duplicated raw SQL where useful
+
+- [ ] Inventory transcript/claim/source-passage raw SQL overlapping repository/service responsibilities.
+- [ ] Consolidate repeated production reads where it reduces drift.
+- [ ] Keep compatibility-specific direct SQL when it clearly serves legacy-state testing.
+- [ ] Add regressions around consolidated paths.
+
+---
+
+# R9 — Shared acceptance fixture
+
+## PRR-180 — Build fixture through public production services
+
+- [ ] Configure providers through durable config/factory.
+- [ ] Create/index corpus through production source/corpus APIs where practical.
+- [ ] Create hosts through public host APIs.
+- [ ] Create episode through public episode APIs.
+- [ ] Build plan through `EpisodePlannerService`/public plan entry point.
+- [ ] Remove direct normal-acceptance `save_plan()` seeding.
+- [ ] Generate through shared generation-start/pipeline.
+- [ ] Produce multiple turns when plan requires them.
+- [ ] Generate TTS/timeline/audio through production services.
+- [ ] Export through shared export service.
+
+## PRR-181 — Reuse fixture family
+
+- [ ] CLI plan/generate/status/export.
+- [ ] TUI provider save/reload/preflight/generate/monitor/review/library/export.
+- [ ] Duplicate start/pause/resume/cancel.
+- [ ] Multi-episode isolation.
+- [ ] Evidence/provenance.
+- [ ] TTS cache/artifact identity.
+- [ ] Installed-wheel workflow where practical.
+- [ ] Remove redundant one-off setup that no longer provides independent coverage.
+
+## PRR-182 — True auto-planning acceptance
+
+- [ ] CLI `episode generate` starts without a persisted plan.
+- [ ] Prove configured `episode_planning` provider/model is invoked.
+- [ ] Prove plan is persisted.
+- [ ] Prove conversation consumes the generated plan.
+- [ ] Prove TUI shares the same boundary.
+- [ ] Negative auto-planning-output acceptance.
+
+## PRR-183 — Multi-episode isolation with fixture family
+
+- [ ] Two episodes in one project.
+- [ ] No turn crossover.
+- [ ] No evidence/source-passage crossover.
+- [ ] No TTS/timeline crossover.
+- [ ] Playback resolves selected episode only.
+- [ ] Review export isolation.
+- [ ] Episode Library export isolation.
+- [ ] Filename/metadata run+episode identity isolation.
+
+---
+
+# R10 — CI/fresh-machine policy
+
+## PRR-190 — External Kitten qualification policy
+
+- [ ] Decide mandatory external-network gate vs separate opt-in/scheduled gate.
+- [ ] Document decision in workflow/developer docs.
+- [ ] If mandatory, explicitly state fresh-machine CI downloads external runtime assets.
+- [ ] If separate, retain deterministic mandatory fake/local TTS coverage.
+- [ ] Do not claim mandatory CI has no external dependency when it does.
+- [ ] Keep paid credentials/cloud calls out of mandatory deterministic tests.
+
+## PRR-191 — Installed-wheel fresh-machine gate
+
+- [ ] Build wheel from exact remediation head.
+- [ ] Install into clean environment.
+- [ ] Launch installed CLI.
+- [ ] Launch installed TUI.
+- [ ] Exercise project/source/host/episode path.
+- [ ] Exercise planning/auto-planning through installed code.
+- [ ] Exercise generation.
+- [ ] Exercise export.
+- [ ] Validate non-empty transcript/manifest/metadata/audio.
+- [ ] Validate installed sanitizer behavior.
+- [ ] Record exact CI evidence.
+
+---
+
+# R11 — Documentation and compatibility
+
+## PRR-200 — Documentation
+
+- [ ] Document multi-turn/multi-segment generation.
+- [ ] Document completion signals/safety bounds.
+- [ ] Document transactional provider save/remove rollback.
+- [ ] Document exact role preflight policy.
+- [ ] Document valid-plan policy.
+- [ ] Document plan evidence edit/regeneration validation.
+- [ ] Document TTS/composition format policy.
+- [ ] Document canonical redaction/export guarantees.
+- [ ] Document repair reverification/audio regeneration.
+- [ ] Document cache cleanup.
+- [ ] Document explicit composition ownership.
+- [ ] Document Kitten qualification policy.
+
+## PRR-201 — Persisted compatibility matrix
+
+- [ ] Current provider config loads.
+- [ ] Legacy TTS `completed` remains readable/normalizable.
+- [ ] Existing episodes/runs/turns/provider-identity rows load.
+- [ ] Existing timelines load.
+- [ ] Existing exports remain readable.
+- [ ] Add migration only if required.
+- [ ] If migration exists, prove idempotent/failure-safe behavior.
+
+---
+
+# R12 — Qualification
+
+## PRR-210 — Static/quality gates
+
+- [ ] `uv lock --check`
+- [ ] `uv run ruff format --check .`
+- [ ] `uv run ruff check .`
+- [ ] `uv run mypy`
+- [ ] `uv run pytest`
+- [ ] `uv build`
+- [ ] CLI/import smoke
+
+## PRR-211 — Focused regression matrices
+
+- [ ] Multi-turn/multi-segment generation.
+- [ ] Pause/resume/cancel/resume-after-failure.
+- [ ] Provider transaction rollback.
+- [ ] Provider runtime coherence.
+- [ ] Local/remote route matrix.
+- [ ] Directing/verification preflight matrix.
+- [ ] Valid/corrupt plan matrix.
+- [ ] Plan evidence edit/regeneration isolation.
+- [ ] Security/redaction.
+- [ ] TTS format/composition compatibility.
+- [ ] TTS returned identity.
+- [ ] Cache invalidation/orphan cleanup.
+- [ ] Transcript repair/reverification/regeneration.
+- [ ] CLI acceptance.
+- [ ] TUI acceptance.
+- [ ] Multi-episode isolation.
+- [ ] Installed-wheel fresh-machine.
+- [ ] Chosen real-Kitten qualification.
+
+---
+
+# R13 — Final reconciliation
+
+## PRR-220 — Reconcile implementation evidence
+
+- [ ] Record implementation commit SHA(s) for R1–R12.
+- [ ] Record PR number(s) only where Ralph Bridge policy required them.
+- [ ] Record focused test names per cluster.
+- [ ] Record exact-head CI run ID/conclusion.
+- [ ] Confirm every checked item is production behavior, not only fixture behavior.
+- [ ] Confirm every issue in the companion spec is addressed.
+- [ ] Confirm zero unchecked items before declaring remediation complete.
+
+## PRR-221 — Final current-`master` qualification
+
+- [ ] Completed remediation and reconciled TODO are on `master`.
+- [ ] Reload this TODO from current `master`.
+- [ ] Reload companion spec from current `master`.
+- [ ] Confirm zero unchecked tasks.
+- [ ] Observe exact current-`master` CI.
+- [ ] Quality job passes.
+- [ ] Fresh-machine installed-wheel gate passes.
+- [ ] Chosen Kitten qualification gate passes.
+- [ ] Record current/final `master` SHA.
+- [ ] Record final CI run ID/conclusion.
+- [ ] Only then mark remediation complete.
+
+---
+
+## Closeout evidence
+
+Populate during implementation; do not pre-check.
+
+- Implementation head SHA:
+- Exact-head CI run:
+- Current/final `master` SHA:
+- Current/final `master` CI run:
+- Relevant PRs if policy required:
+- Multi-turn generation tests:
+- Provider transaction/runtime tests:
+- Preflight/durable-failure tests:
+- Plan/evidence tests:
+- Security/redaction tests:
+- TTS/audio/cache tests:
+- Transcript-repair tests:
+- CLI acceptance:
+- TUI acceptance:
+- Multi-episode acceptance:
+- Installed-wheel gate:
+- Kitten qualification policy/evidence:
