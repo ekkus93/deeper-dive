@@ -93,13 +93,13 @@ This checklist is the source of completion truth for the post-review remediation
 
 ## PRR-113 — One locality/network-scope policy
 
-- [ ] Centralize local/remote classification.
-- [ ] Use it in `GenerationStartService`.
-- [ ] Use it in TUI preflight.
-- [ ] Use it in routing/security display.
-- [ ] Explicit local override wins.
-- [ ] Explicit remote override wins.
-- [ ] Add matrix covering fake, fake-tts, kitten, Ollama, llama-server, OpenAI, OpenAI TTS, compatible TTS, ElevenLabs, overrides.
+- [x] Centralize local/remote classification.
+- [x] Use it in `GenerationStartService`.
+- [x] Use it in TUI preflight.
+- [x] Use it in routing/security display.
+- [x] Explicit local override wins.
+- [x] Explicit remote override wins.
+- [x] Add matrix covering fake, fake-tts, kitten, Ollama, llama-server, OpenAI, OpenAI TTS, compatible TTS, ElevenLabs, overrides.
 
 ---
 
@@ -448,7 +448,7 @@ This checklist is the source of completion truth for the post-review remediation
 - [ ] Pause/resume/cancel/resume-after-failure.
 - [x] Provider transaction rollback.
 - [x] Provider runtime coherence.
-- [ ] Local/remote route matrix.
+- [x] Local/remote route matrix.
 - [ ] Directing/verification preflight matrix.
 - [ ] Valid/corrupt plan matrix.
 - [ ] Plan evidence edit/regeneration isolation.
@@ -497,13 +497,13 @@ This checklist is the source of completion truth for the post-review remediation
 
 Populate during implementation; do not pre-check.
 
-- Implementation head SHA: R1/R2 foundation merged via `8976210f23a5b6035063cc65a3902c93d0865ed5` (PR #467, head `aa15e956e6f0d5b5f6fc79358eb54c032e0b0085`); remaining PRR-110 provider rollback coverage merged via `226c20c7bc58f72fbc7da4ac4e9656921cd86068` (PR #468, head `7e3325d332134ecd2077d28f56ffef9b856ba4e4`); PRR-112 provider runtime ownership merged via `d4ca66af9ee4a8e0d59ad66c7b18af9c6bc5f383` (PR #470, head `82729af3162b723176b39b21f14788d2c3ee221e`).
-- Exact-head CI run: `36345119231` on `8976210f23a5b6035063cc65a3902c93d0865ed5`, conclusion `success`; `36345978069` on `226c20c7bc58f72fbc7da4ac4e9656921cd86068`, conclusion `success`; `36346718464` on `d4ca66af9ee4a8e0d59ad66c7b18af9c6bc5f383`, conclusion `success`.
+- Implementation head SHA: R1/R2 foundation merged via `8976210f23a5b6035063cc65a3902c93d0865ed5` (PR #467, head `aa15e956e6f0d5b5f6fc79358eb54c032e0b0085`); remaining PRR-110 provider rollback coverage merged via `226c20c7bc58f72fbc7da4ac4e9656921cd86068` (PR #468, head `7e3325d332134ecd2077d28f56ffef9b856ba4e4`); PRR-112 provider runtime ownership merged via `d4ca66af9ee4a8e0d59ad66c7b18af9c6bc5f383` (PR #470, head `82729af3162b723176b39b21f14788d2c3ee221e`); PRR-113 locality/network-scope policy merged via `9fe2a03ba2f243aed083e42f1cac26b48e6f2761` (PR #473, head `ea532e2f9e632646535712b5d09c7acb30a0a2e9`).
+- Exact-head CI run: `36345119231` on `8976210f23a5b6035063cc65a3902c93d0865ed5`, conclusion `success`; `36345978069` on `226c20c7bc58f72fbc7da4ac4e9656921cd86068`, conclusion `success`; `36346718464` on `d4ca66af9ee4a8e0d59ad66c7b18af9c6bc5f383`, conclusion `success`; `36347992192` on `9fe2a03ba2f243aed083e42f1cac26b48e6f2761`, conclusion `success`.
 - Current/final `master` SHA:
 - Current/final `master` CI run:
-- Relevant PRs if policy required: #467 for R1 and R2 transactional-provider foundation; #468 for remaining PRR-110 provider rollback regressions; #470 for PRR-112 provider runtime ownership/coherence.
+- Relevant PRs if policy required: #467 for R1 and R2 transactional-provider foundation; #468 for remaining PRR-110 provider rollback regressions; #470 for PRR-112 provider runtime ownership/coherence; #473 for PRR-113 shared locality/network-scope policy.
 - Multi-turn generation tests: `tests/test_conversation_generation.py::test_multi_segment_generation_honors_completion_signals_atomically`, `tests/test_conversation_generation.py::test_conversation_resume_after_failure_does_not_duplicate_prior_turn`, `tests/test_conversation_generation.py::test_non_completing_director_is_bounded_per_segment`, `tests/test_conversation_generation.py::test_episode_turn_safety_bound_fails_predictably`; `tests/test_followup_acceptance_fixture.py` updated to expect multiple conversation turns.
-- Provider transaction/runtime tests: `tests/test_provider_transactions.py::test_failed_provider_save_preserves_durable_config_and_live_runtime`, `tests/test_provider_transactions.py::test_successful_provider_save_publishes_built_candidate_after_persistence`, `tests/test_provider_transactions.py::test_missing_credential_env_provider_save_rolls_back_config_and_runtime`, `tests/test_provider_transactions.py::test_missing_tts_base_url_or_voice_catalog_rolls_back_config_and_runtime`, `tests/test_provider_transactions.py::test_unsupported_provider_adapter_save_rolls_back_without_building`, `tests/test_provider_transactions.py::test_failed_provider_save_cannot_break_next_startup`, `tests/test_provider_transactions.py::test_failed_provider_removal_preserves_durable_config_and_live_runtime`, `tests/test_provider_transactions.py::test_successful_provider_removal_drops_provider_from_live_runtime`, `tests/test_composition.py::test_provider_runtime_refresh_updates_same_session_consumers`, `tests/test_composition.py::test_injected_provider_controller_refreshes_composition_consumers`, `tests/test_composition.py::test_production_composition_loads_persisted_providers`.
+- Provider transaction/runtime tests: `tests/test_provider_transactions.py::test_failed_provider_save_preserves_durable_config_and_live_runtime`, `tests/test_provider_transactions.py::test_successful_provider_save_publishes_built_candidate_after_persistence`, `tests/test_provider_transactions.py::test_missing_credential_env_provider_save_rolls_back_config_and_runtime`, `tests/test_provider_transactions.py::test_missing_tts_base_url_or_voice_catalog_rolls_back_config_and_runtime`, `tests/test_provider_transactions.py::test_unsupported_provider_adapter_save_rolls_back_without_building`, `tests/test_provider_transactions.py::test_failed_provider_save_cannot_break_next_startup`, `tests/test_provider_transactions.py::test_failed_provider_removal_preserves_durable_config_and_live_runtime`, `tests/test_provider_transactions.py::test_successful_provider_removal_drops_provider_from_live_runtime`, `tests/test_composition.py::test_provider_runtime_refresh_updates_same_session_consumers`, `tests/test_composition.py::test_injected_provider_controller_refreshes_composition_consumers`, `tests/test_composition.py::test_production_composition_loads_persisted_providers`, `tests/test_network_scope.py::test_provider_network_policy_default_scope_matrix`, `tests/test_network_scope.py::test_explicit_network_scope_overrides_adapter_default`, `tests/test_network_scope.py::test_local_provider_ids_respect_defaults_and_explicit_remote_override`, `tests/test_network_scope.py::test_provider_factory_uses_shared_network_scope_policy`.
 - Preflight/durable-failure tests:
 - Plan/evidence tests:
 - Security/redaction tests:
