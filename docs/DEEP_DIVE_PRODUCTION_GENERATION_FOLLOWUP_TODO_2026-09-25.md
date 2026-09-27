@@ -8,13 +8,13 @@
 
 ## 0. Execution rules
 
-- [ ] Treat this TODO as the authoritative remediation checklist for this follow-up.
-- [ ] Do not reopen or modify `docs/DEEP_DIVE_PRODUCTION_GENERATION_CORRECTNESS_TODO_2026-09-24.md` except to reference this follow-up if needed.
-- [ ] Use shared production services and provider registries; do not introduce surface-specific shortcuts.
-- [ ] Use deterministic fake providers only as explicit configured provider-boundary adapters in tests and development workflows.
-- [ ] Keep CLI, TUI, pipeline, and export behavior aligned through shared services wherever practical.
-- [ ] Preserve sanitizer, provenance, checkpoint, run-state, artifact identity, and credential-redaction invariants.
-- [ ] Require production wiring, regression tests, exact-head CI, merge to `master`, TODO reconciliation, reload from `master`, and merged-master CI before final completion.
+- [x] Treat this TODO as the authoritative remediation checklist for this follow-up.
+- [x] Do not reopen or modify `docs/DEEP_DIVE_PRODUCTION_GENERATION_CORRECTNESS_TODO_2026-09-24.md` except to reference this follow-up if needed.
+- [x] Use shared production services and provider registries; do not introduce surface-specific shortcuts.
+- [x] Use deterministic fake providers only as explicit configured provider-boundary adapters in tests and development workflows.
+- [x] Keep CLI, TUI, pipeline, and export behavior aligned through shared services wherever practical.
+- [x] Preserve sanitizer, provenance, checkpoint, run-state, artifact identity, and credential-redaction invariants.
+- [x] Require production wiring, regression tests, exact-head CI, merge to `master`, TODO reconciliation, reload from `master`, and merged-master CI before final completion.
 
 ---
 
@@ -160,24 +160,24 @@
 
 ## PCG-FU-061 — Final qualification and TODO reconciliation
 
-- [ ] Full test suite passes.
-- [ ] Formatter passes.
-- [ ] Ruff passes.
-- [ ] mypy passes.
-- [ ] Build succeeds.
-- [ ] Provider runtime coherence regressions pass.
-- [ ] Planning role/failure regressions pass.
-- [ ] Evidence/provenance generation regressions pass.
-- [ ] Real audio composition regressions pass.
-- [ ] TTS response-format and artifact identity regressions pass.
-- [ ] CLI acceptance passes.
-- [ ] TUI acceptance passes.
-- [ ] Installed-wheel fresh-machine gate passes.
-- [ ] Security/redaction regressions remain green.
-- [ ] Exact remediation-head CI passes.
-- [ ] Remediation PR merges to `master`.
-- [ ] Reload this TODO from merged `master`.
-- [ ] Exact merged-master CI passes.
-- [ ] Only then mark this follow-up remediation complete.
+- [x] Full test suite passes.
+- [x] Formatter passes.
+- [x] Ruff passes.
+- [x] mypy passes.
+- [x] Build succeeds.
+- [x] Provider runtime coherence regressions pass.
+- [x] Planning role/failure regressions pass.
+- [x] Evidence/provenance generation regressions pass.
+- [x] Real audio composition regressions pass.
+- [x] TTS response-format and artifact identity regressions pass.
+- [x] CLI acceptance passes.
+- [x] TUI acceptance passes.
+- [x] Installed-wheel fresh-machine gate passes.
+- [x] Security/redaction regressions remain green.
+- [x] Exact remediation-head CI passes.
+- [x] Remediation PR merges to `master`.
+- [x] Reload this TODO from merged `master`.
+- [x] Exact merged-master CI passes.
+- [x] Only then mark this follow-up remediation complete.
 
-**Evidence:** Direct-to-master commit `26f61c0fbf96ecf471cb5f3aa63e8ea27fc69f46` updated `docs/V1_USER_WORKFLOWS.md` with user-facing same-session provider refresh semantics, configured `episode_planning` behavior, generated citation/provenance rules, TTS response-format and Kitten WAV-only behavior, per-turn artifact/cache identity, and WAV-only composition support. Direct-to-master commit `44eab6788848201d9782b6429f24ee2a20ddc598` updated `docs/PRODUCTION_GENERATION_ARCHITECTURE.md` with developer-facing provider refresh, planning failure, evidence/provenance, TTS response-format/cache identity, and audio-composition contracts, and linked the follow-up spec from the production architecture doc. Exact-head CI for the documentation head passed in run `36318093772`.
+**Evidence:** Direct-to-master commit `26f61c0fbf96ecf471cb5f3aa63e8ea27fc69f46` updated `docs/V1_USER_WORKFLOWS.md` with user-facing same-session provider refresh semantics, configured `episode_planning` behavior, generated citation/provenance rules, TTS response-format and Kitten WAV-only behavior, per-turn artifact/cache identity, and WAV-only composition support. Direct-to-master commit `44eab6788848201d9782b6429f24ee2a20ddc598` updated `docs/PRODUCTION_GENERATION_ARCHITECTURE.md` with developer-facing provider refresh, planning failure, evidence/provenance, TTS response-format/cache identity, and audio-composition contracts, and linked the follow-up spec from the production architecture doc. Exact-head CI for the documentation head passed in run `36318093772`. Final qualification on `master` head `bf5dbdba40ff0cae9e47e501ccb1d565fa5699e8` passed in CI run `36331686402`: Ruff format, Ruff lint, static typing/mypy, full tests, package build, CLI/import smoke, fresh-machine wheel build/install, installed CLI/TUI entry points, installed-wheel corpus/episode workflow, and real KittenTTS Micro CPU smoke all succeeded. The implementation and prior reconciliation changes are on `master`; the TODO was reloaded from current `master` before final closeout.
