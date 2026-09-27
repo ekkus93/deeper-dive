@@ -64,7 +64,7 @@ def test_episode_library_export_writes_complete_episode_specific_artifact_set(
     assert episode.id in result.metadata.name
     assert result.audio is not None
     assert episode.id in result.audio.name
-    assert result.audio.read_bytes().startswith(b"FAKE-WAV")
+    assert result.audio.read_bytes().startswith(b"RIFF")
     assert "Configured fake provider host turn marker" in result.transcript.read_text(
         encoding="utf-8"
     )

@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import sqlite3
+import wave
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -383,7 +384,15 @@ def _assert_export_result(
     assert metadata["run_id"] == run_id
     assert metadata["episode_id"] == episode_id
     assert metadata["project_id"] == project_id
-    assert b"FAKE-WAV" in export.audio.read_bytes()
+    _assert_real_wav(export.audio)
+
+
+def _assert_real_wav(audio_path: Path) -> None:
+    payload = audio_path.read_bytes()
+    assert payload.startswith(b"RIFF")
+    assert b"WAVE" in payload[:16]
+    with wave.open(str(audio_path), "rb") as wav:
+        assert wav.getnframes() > 0
 
 
 def _assert_export_paths(export: dict[str, object]) -> None:

@@ -77,4 +77,4 @@ def test_cli_episode_export_uses_shared_artifact_exporter(tmp_path: Path, capsys
     metadata = json.loads(Path(payload["metadata"]).read_text(encoding="utf-8"))
     assert metadata["episode_id"] == episode.id
     assert metadata["run_id"] == result.run.id
-    assert Path(payload["audio"]).read_bytes().startswith(b"FAKE-WAV")
+    assert Path(payload["audio"]).read_bytes().startswith(b"RIFF")

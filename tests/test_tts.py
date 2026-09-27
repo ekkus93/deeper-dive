@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import io
+import wave
+
 import pytest
 
 from deeper_dive.hosts import HostProfile
@@ -13,7 +16,11 @@ def test_fake_tts_normalizes_voice_health_and_audio_metadata() -> None:
 
     result = provider.synthesize(TTSRequest("hello evidence", "voice-a"))
 
-    assert result.audio.startswith(b"FAKE-WAV")
+    assert result.audio.startswith(b"RIFF")
+    with wave.open(io.BytesIO(result.audio), "rb") as wav:
+        assert wav.getnchannels() == 1
+        assert wav.getframerate() == 24000
+        assert wav.getnframes() > 0
     assert result.media_type == "audio/wav"
     assert result.format == "wav"
     assert result.provider == "fake-tts"

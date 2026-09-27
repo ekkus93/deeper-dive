@@ -113,5 +113,5 @@ def test_multi_episode_review_playback_and_export_artifacts_are_isolated(tmp_pat
     assert second_metadata["run_id"] == second_run.id
     assert first_export.audio is not None
     assert second_export.audio is not None
-    assert first_export.audio.read_bytes().startswith(b"FAKE-WAV")
-    assert second_export.audio.read_bytes().startswith(b"FAKE-WAV")
+    assert first_export.audio.read_bytes().startswith(b"RIFF")
+    assert second_export.audio.read_bytes().startswith(b"RIFF")
