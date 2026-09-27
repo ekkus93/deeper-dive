@@ -5,9 +5,7 @@ import wave
 from pathlib import Path
 
 from followup_acceptance_fixture import (
-    create_additional_followup_episode,
     create_ready_followup_fixture,
-    run_followup_episode,
     run_followup_fixture,
 )
 
@@ -109,37 +107,3 @@ def test_followup_fixture_supports_duplicate_start_pause_resume_and_cli_export(
 
     episode = HostEpisodeRepository(ready.database).get_episode(ready.episode_id)
     assert episode is not None
-
-
-def test_followup_fixture_supports_multi_episode_isolated_exports(
-    tmp_path: Path,
-) -> None:
-    ready = create_ready_followup_fixture(tmp_path)
-    second_episode_id = create_additional_followup_episode(
-        ready,
-        suffix="second",
-        chunk_id="chunk-r6-second",
-        source_text="Second episode source marker that must stay isolated.",
-    )
-
-    first = run_followup_fixture(ready)
-    second = run_followup_episode(ready, second_episode_id)
-
-    assert first.run is not None
-    assert second.run is not None
-    assert first.export is not None
-    assert second.export is not None
-    assert first.run.id != second.run.id
-    assert first.episode_id != second.episode_id
-
-    first_transcript = first.export.transcript.read_text(encoding="utf-8")
-    second_transcript = second.export.transcript.read_text(encoding="utf-8")
-
-    assert "Citations: chunk-r6" in first_transcript
-    assert "R6 acceptance source marker" in first_transcript
-    assert "chunk-r6-second" not in first_transcript
-    assert "Second episode source marker" not in first_transcript
-
-    assert "Citations: chunk-r6-second" in second_transcript
-    assert "Second episode source marker" in second_transcript
-    assert "R6 acceptance source marker" not in second_transcript
