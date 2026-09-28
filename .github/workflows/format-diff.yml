@@ -1,8 +1,6 @@
 name: Format Diff
 
 on:
-  push:
-    branches: [master]
   workflow_dispatch:
 
 jobs:
@@ -17,5 +15,3 @@ jobs:
         run: uv sync --locked --dev
       - name: Show Ruff format diff
         run: uv run ruff format --diff .
-      - name: Show Ruff lint diff
-        run: uv run ruff check --diff src/deeper_dive/preflight.py

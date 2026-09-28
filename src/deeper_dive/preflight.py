@@ -18,7 +18,6 @@ from deeper_dive.model_roles import (
 )
 from deeper_dive.tts import TTSProviderRegistry
 
-
 COMPOSITION_TTS_FORMAT = "wav"
 
 
