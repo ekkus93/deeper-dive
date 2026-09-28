@@ -303,13 +303,10 @@ class TranscriptReviewController:
         database = self._database(app)
         episode_id = self._episode_id(app)
         removed = False
+        artifact_repository = TTSArtifactRepository(database)
+        for turn_id in turn_ids:
+            removed = artifact_repository.delete_turn(turn_id) is not None or removed
         with database.transaction() as connection:
-            table = connection.execute(
-                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='tts_artifacts'"
-            ).fetchone()
-            if table is not None:
-                for turn_id in turn_ids:
-                    removed = TTSArtifactRepository(database).delete_turn(turn_id) is not None
             timeline_table = connection.execute(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name='audio_timelines'"
             ).fetchone()
