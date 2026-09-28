@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 from pathlib import Path
 
+from deeper_dive.conversation_state import ConversationStateRepository
 from deeper_dive.domain.clock import format_timestamp
 from deeper_dive.domain.ids import new_run_id
 from deeper_dive.episode_config import EpisodeConfigurationService
@@ -121,13 +123,59 @@ class GenerationStartService:
         episode_id: str,
         assignments: ModelRoleAssignments,
     ) -> tuple[ModelRole, ...]:
-        roles = [ModelRole.HOST_GENERATION]
-        if repository.get_plan(episode_id) is None:
-            roles.insert(0, ModelRole.EPISODE_PLANNING)
-        for optional_role in (ModelRole.DIRECTING, ModelRole.VERIFICATION):
-            if assignments.resolve(optional_role) is not None:
-                roles.append(optional_role)
-        return tuple(roles)
+        plan = repository.get_plan(episode_id)
+        segments = () if plan is None else tuple(repository.list_segments(plan.id))
+        plan_usable = self._plan_is_usable(plan, segments)
+        roles: list[ModelRole] = []
+        if not plan_usable:
+            roles.append(ModelRole.EPISODE_PLANNING)
+        if not plan_usable or self._conversation_work_remains(
+            repository, episode_id, len(segments)
+        ):
+            roles.append(ModelRole.HOST_GENERATION)
+
+        # Configured optional roles execute as part of the production pipeline and
+        # therefore participate in the same preflight. This is intentionally one
+        # centralized rule rather than separate CLI/TUI role lists.
+        roles.extend(
+            role
+            for role in (ModelRole.DIRECTING, ModelRole.VERIFICATION)
+            if assignments.resolve(role) is not None
+        )
+        return tuple(dict.fromkeys(roles))
+
+    @staticmethod
+    def _plan_is_usable(plan: object | None, segments: tuple[object, ...]) -> bool:
+        if plan is None or not segments:
+            return False
+        if getattr(plan, "status", None) not in {"draft", "approved"}:
+            return False
+        try:
+            payload = json.loads(getattr(plan, "plan_json"))
+            if not isinstance(payload, dict):
+                return False
+            for expected_ordinal, segment in enumerate(segments):
+                if getattr(segment, "ordinal", None) != expected_ordinal:
+                    return False
+                if not str(getattr(segment, "title", "")).strip():
+                    return False
+                if int(getattr(segment, "target_duration_seconds", 0)) <= 0:
+                    return False
+                segment_payload = json.loads(getattr(segment, "segment_json"))
+                if not isinstance(segment_payload, dict):
+                    return False
+        except (AttributeError, TypeError, ValueError, json.JSONDecodeError):
+            return False
+        return True
+
+    @staticmethod
+    def _conversation_work_remains(
+        repository: HostEpisodeRepository,
+        episode_id: str,
+        segment_count: int,
+    ) -> bool:
+        state = ConversationStateRepository(repository.database).get(episode_id)
+        return state is None or state.segment_ordinal < segment_count
 
     def _local_provider_ids(self) -> frozenset[str]:
         return ProviderNetworkPolicy.local_provider_ids(
