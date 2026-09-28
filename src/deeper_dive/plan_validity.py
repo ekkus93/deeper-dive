@@ -8,7 +8,10 @@ from dataclasses import dataclass
 
 from deeper_dive.conversation_state import ConversationStateRepository
 from deeper_dive.storage.database import Database
-from deeper_dive.storage.episode_repositories import HostEpisodeRepository, SegmentPlanRecord
+from deeper_dive.storage.episode_repositories import (
+    HostEpisodeRepository,
+    SegmentPlanRecord,
+)
 
 ALLOWED_GENERATION_PLAN_STATUSES = frozenset({"draft", "approved"})
 
@@ -100,7 +103,8 @@ def _validate_segments(
 
 
 def _segment_payload(
-    segment: SegmentPlanRecord, issues: list[str]
+    segment: SegmentPlanRecord,
+    issues: list[str],
 ) -> Mapping[str, object] | None:
     try:
         payload = json.loads(segment.segment_json)

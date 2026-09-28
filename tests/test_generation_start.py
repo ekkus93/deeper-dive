@@ -144,10 +144,8 @@ def test_generation_start_omits_host_generation_after_completed_conversation(
                 0,
                 "Intro",
                 target_duration_seconds=60,
-                segment_json=json.dumps(
-                    {"title": "Intro", "target_duration_seconds": 60}
-                ),
-            )
+                segment_json=json.dumps({"title": "Intro", "target_duration_seconds": 60}),
+            ),
         ],
     )
     ConversationStateRepository(repository.database).save(
