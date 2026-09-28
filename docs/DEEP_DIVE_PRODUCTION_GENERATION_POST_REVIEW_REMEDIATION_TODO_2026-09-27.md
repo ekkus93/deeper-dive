@@ -107,12 +107,12 @@ This checklist is the source of completion truth for the post-review remediation
 
 ## PRR-120 — Validate every executed model role
 
-- [ ] Replace incomplete hard-coded role selection.
-- [ ] Require `episode_planning` when no valid plan exists.
-- [ ] Require `host_generation` when conversation work remains.
+- [x] Replace incomplete hard-coded role selection.
+- [x] Require `episode_planning` when no valid plan exists.
+- [x] Require `host_generation` when conversation work remains.
 - [x] Validate configured `directing`.
 - [x] Validate configured `verification`.
-- [ ] Keep resolver extensible to future research/source roles.
+- [x] Keep resolver extensible to future research/source roles.
 - [x] Negative test: unknown directing provider.
 - [x] Negative test: unavailable directing model.
 - [x] Negative test: unhealthy directing provider.
@@ -130,12 +130,12 @@ This checklist is the source of completion truth for the post-review remediation
 
 ## PRR-122 — Durable post-run failure boundary
 
-- [ ] Inventory execution-time checks that can currently escape before orchestrator failure persistence.
-- [ ] Move/wrap them inside a durable run execution boundary.
-- [ ] Persist failed state/stage/code/sanitized message/timestamp.
-- [ ] Prevent stale `pending` or `running` state after execution failure.
-- [ ] Regression: create run → invalidate assignment → execute → durable failed.
-- [ ] Verify no downstream checkpoint after failure.
+- [x] Inventory execution-time checks that can currently escape before orchestrator failure persistence.
+- [x] Move/wrap them inside a durable run execution boundary.
+- [x] Persist failed state/stage/code/sanitized message/timestamp.
+- [x] Prevent stale `pending` or `running` state after execution failure.
+- [x] Regression: create run → invalidate assignment → execute → durable failed.
+- [x] Verify no downstream checkpoint after failure.
 
 ---
 
@@ -449,7 +449,7 @@ This checklist is the source of completion truth for the post-review remediation
 - [x] Provider transaction rollback.
 - [x] Provider runtime coherence.
 - [x] Local/remote route matrix.
-- [ ] Directing/verification preflight matrix.
+- [x] Directing/verification preflight matrix.
 - [ ] Valid/corrupt plan matrix.
 - [ ] Plan evidence edit/regeneration isolation.
 - [ ] Security/redaction.
@@ -497,14 +497,14 @@ This checklist is the source of completion truth for the post-review remediation
 
 Populate during implementation; do not pre-check.
 
-- Implementation head SHA: R1/R2 foundation merged via `8976210f23a5b6035063cc65a3902c93d0865ed5` (PR #467, head `aa15e956e6f0d5b5f6fc79358eb54c032e0b0085`); remaining PRR-110 provider rollback coverage merged via `226c20c7bc58f72fbc7da4ac4e9656921cd86068` (PR #468, head `7e3325d332134ecd2077d28f56ffef9b856ba4e4`); PRR-112 provider runtime ownership merged via `d4ca66af9ee4a8e0d59ad66c7b18af9c6bc5f383` (PR #470, head `82729af3162b723176b39b21f14788d2c3ee221e`); PRR-113 locality/network-scope policy merged via `9fe2a03ba2f243aed083e42f1cac26b48e6f2761` (PR #473, head `ea532e2f9e632646535712b5d09c7acb30a0a2e9`).
-- Exact-head CI run: `36345119231` on `8976210f23a5b6035063cc65a3902c93d0865ed5`, conclusion `success`; `36345978069` on `226c20c7bc58f72fbc7da4ac4e9656921cd86068`, conclusion `success`; `36346718464` on `d4ca66af9ee4a8e0d59ad66c7b18af9c6bc5f383`, conclusion `success`; `36347992192` on `9fe2a03ba2f243aed083e42f1cac26b48e6f2761`, conclusion `success`.
+- Implementation head SHA: R1/R2 foundation merged via `8976210f23a5b6035063cc65a3902c93d0865ed5` (PR #467, head `aa15e956e6f0d5b5f6fc79358eb54c032e0b0085`); remaining PRR-110 provider rollback coverage merged via `226c20c7bc58f72fbc7da4ac4e9656921cd86068` (PR #468, head `7e3325d332134ecd2077d28f56ffef9b856ba4e4`); PRR-112 provider runtime ownership merged via `d4ca66af9ee4a8e0d59ad66c7b18af9c6bc5f383` (PR #470, head `82729af3162b723176b39b21f14788d2c3ee221e`); PRR-113 locality/network-scope policy merged via `9fe2a03ba2f243aed083e42f1cac26b48e6f2761` (PR #473, head `ea532e2f9e632646535712b5d09c7acb30a0a2e9`); PRR-120 role-preflight/role-derivation work merged via `89bd15523611ca90257fdacaea85e1ee47e6df20` (PR #475), `561d31427f02e8c1973ac72f76143c4725569c2b` (PR #476), `725b1e4483a7b88c94b6cae95694ca4f3783443e` (PR #477), and direct-master commits `1136a1138f5cabedb4febdb9ee9c3caa7ab39d54` / `de5ee9cc3bbabedfe86b378a7876f81e19c3502f`; PRR-122 durable failure boundary merged via direct-master commits `f004da1f6c516bcfba8553a45b991856dc19a80f` / `72c12f4d14ff4be7634af694a8a88df3b56d3bf3`.
+- Exact-head CI run: `36345119231` on `8976210f23a5b6035063cc65a3902c93d0865ed5`, conclusion `success`; `36345978069` on `226c20c7bc58f72fbc7da4ac4e9656921cd86068`, conclusion `success`; `36346718464` on `d4ca66af9ee4a8e0d59ad66c7b18af9c6bc5f383`, conclusion `success`; `36347992192` on `9fe2a03ba2f243aed083e42f1cac26b48e6f2761`, conclusion `success`; `36349695698` on `89bd15523611ca90257fdacaea85e1ee47e6df20`, conclusion `success`; `36349972095` on `561d31427f02e8c1973ac72f76143c4725569c2b`, conclusion `success`; `36371811648` on `725b1e4483a7b88c94b6cae95694ca4f3783443e`, conclusion `success`; `36372724055` on `de5ee9cc3bbabedfe86b378a7876f81e19c3502f`, conclusion `success`; `36373152115` on `72c12f4d14ff4be7634af694a8a88df3b56d3bf3`, conclusion `success`.
 - Current/final `master` SHA:
 - Current/final `master` CI run:
-- Relevant PRs if policy required: #467 for R1 and R2 transactional-provider foundation; #468 for remaining PRR-110 provider rollback regressions; #470 for PRR-112 provider runtime ownership/coherence; #473 for PRR-113 shared locality/network-scope policy.
+- Relevant PRs if policy required: #467 for R1 and R2 transactional-provider foundation; #468 for remaining PRR-110 provider rollback regressions; #470 for PRR-112 provider runtime ownership/coherence; #473 for PRR-113 shared locality/network-scope policy; #475/#476/#477 for PRR-120 role-preflight evidence.
 - Multi-turn generation tests: `tests/test_conversation_generation.py::test_multi_segment_generation_honors_completion_signals_atomically`, `tests/test_conversation_generation.py::test_conversation_resume_after_failure_does_not_duplicate_prior_turn`, `tests/test_conversation_generation.py::test_non_completing_director_is_bounded_per_segment`, `tests/test_conversation_generation.py::test_episode_turn_safety_bound_fails_predictably`; `tests/test_followup_acceptance_fixture.py` updated to expect multiple conversation turns.
 - Provider transaction/runtime tests: `tests/test_provider_transactions.py::test_failed_provider_save_preserves_durable_config_and_live_runtime`, `tests/test_provider_transactions.py::test_successful_provider_save_publishes_built_candidate_after_persistence`, `tests/test_provider_transactions.py::test_missing_credential_env_provider_save_rolls_back_config_and_runtime`, `tests/test_provider_transactions.py::test_missing_tts_base_url_or_voice_catalog_rolls_back_config_and_runtime`, `tests/test_provider_transactions.py::test_unsupported_provider_adapter_save_rolls_back_without_building`, `tests/test_provider_transactions.py::test_failed_provider_save_cannot_break_next_startup`, `tests/test_provider_transactions.py::test_failed_provider_removal_preserves_durable_config_and_live_runtime`, `tests/test_provider_transactions.py::test_successful_provider_removal_drops_provider_from_live_runtime`, `tests/test_composition.py::test_provider_runtime_refresh_updates_same_session_consumers`, `tests/test_composition.py::test_injected_provider_controller_refreshes_composition_consumers`, `tests/test_composition.py::test_production_composition_loads_persisted_providers`, `tests/test_network_scope.py::test_provider_network_policy_default_scope_matrix`, `tests/test_network_scope.py::test_explicit_network_scope_overrides_adapter_default`, `tests/test_network_scope.py::test_local_provider_ids_respect_defaults_and_explicit_remote_override`, `tests/test_network_scope.py::test_provider_factory_uses_shared_network_scope_policy`.
-- Preflight/durable-failure tests:
+- Preflight/durable-failure tests: `tests/test_preflight_model_roles.py::test_unknown_directing_provider_blocks`, `tests/test_preflight_model_roles.py::test_unavailable_verification_model_blocks`, `tests/test_preflight_model_roles.py::test_unhealthy_directing_provider_blocks`, `tests/test_preflight_model_roles.py::test_unknown_verification_provider_blocks`, `tests/test_preflight_model_roles.py::test_unhealthy_verification_provider_blocks`, `tests/test_generation_start.py::test_generation_start_requires_configured_execution_roles`, `tests/test_generation_start.py::test_generation_start_preflight_blocks_before_run_creation`, `tests/test_generation_roles.py::test_required_generation_roles_follow_plan_conversation_and_configured_roles`, `tests/test_generation_roles.py::test_required_generation_roles_are_extensible_and_deduplicated`, `tests/test_generation_start.py::test_generation_start_treats_invalid_persisted_plan_as_missing`, `tests/test_generation_start.py::test_generation_start_omits_host_generation_after_completed_conversation`, `tests/test_durable_generation_failure.py::test_run_generation_persists_assignment_failure_after_run_creation`.
 - Plan/evidence tests:
 - Security/redaction tests:
 - TTS/audio/cache tests:
