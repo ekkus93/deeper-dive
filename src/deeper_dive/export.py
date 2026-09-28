@@ -102,7 +102,10 @@ class EpisodeExporter:
 
     @staticmethod
     def write_metadata(path: Path, metadata: dict[str, object]) -> Path:
-        path.write_text(json.dumps(redact(metadata, drop_secret_keys=True), indent=2, sort_keys=True), encoding="utf-8")
+        path.write_text(
+            json.dumps(redact(metadata, drop_secret_keys=True), indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
         return path
 
     @staticmethod
