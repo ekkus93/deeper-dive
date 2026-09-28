@@ -100,6 +100,11 @@ class UnhealthyLLM(FakeLLMProvider):
         return ProviderHealth(False, "offline")
 
 
+class UnhealthyTTS(FakeTTSProvider):
+    def health(self) -> ProviderHealth:
+        return ProviderHealth(False, "offline")
+
+
 def test_unhealthy_required_llm_is_hard_blocker(tmp_path: Path) -> None:
     llm = LLMProviderRegistry()
     llm.register(UnhealthyLLM())
@@ -116,3 +121,65 @@ def test_unhealthy_required_llm_is_hard_blocker(tmp_path: Path) -> None:
         ffmpeg_executable=ffmpeg,
     )
     assert any(issue.code == "llm_unhealthy" for issue in report.blockers)
+
+
+@pytest.mark.parametrize(
+    ("case", "expected_code"),
+    (
+        ("unknown_llm_provider", "llm_assignment"),
+        ("unavailable_llm_model", "llm_assignment"),
+        ("unknown_tts_provider", "tts_assignment"),
+        ("unknown_tts_voice", "tts_assignment"),
+        ("unhealthy_llm", "llm_unhealthy"),
+        ("unhealthy_tts", "tts_unhealthy"),
+        ("local_only_remote_llm", "local_only_violation"),
+        ("local_only_remote_tts", "local_only_violation"),
+    ),
+)
+def test_provider_routing_preflight_parity_matrix(
+    tmp_path: Path,
+    case: str,
+    expected_code: str,
+) -> None:
+    report = _provider_routing_report(tmp_path, case)
+
+    assert expected_code in {issue.code for issue in report.blockers}
+
+
+def _provider_routing_report(tmp_path: Path, case: str):
+    llm = LLMProviderRegistry()
+    llm.register(UnhealthyLLM() if case == "unhealthy_llm" else FakeLLMProvider())
+    tts = TTSProviderRegistry()
+    tts.register(UnhealthyTTS() if case == "unhealthy_tts" else FakeTTSProvider())
+    provider = "missing" if case == "unknown_llm_provider" else "fake"
+    model = "missing-model" if case == "unavailable_llm_model" else "fake-v1"
+    tts_provider = "missing" if case == "unknown_tts_provider" else "fake-tts"
+    tts_voice = "missing" if case == "unknown_tts_voice" else "voice-a"
+    local_provider_ids = {"fake", "fake-tts"}
+    if case == "local_only_remote_llm":
+        local_provider_ids.remove("fake")
+    if case == "local_only_remote_tts":
+        local_provider_ids.remove("fake-tts")
+    ffmpeg = tmp_path / "ffmpeg"
+    ffmpeg.write_text("fake")
+    return PreflightService(llm, tts).check(
+        assignments=ModelRoleAssignments(
+            user={ModelRole.HOST_GENERATION: ModelAssignment(provider, model)}
+        ),
+        hosts=(
+            HostProfile(
+                id="host-1",
+                project_id="project-1",
+                display_name="Host",
+                tts_provider=tts_provider,
+                tts_voice=tts_voice,
+            ),
+        ),
+        source_count=1,
+        indexed_source_count=1,
+        target_minutes=10,
+        ffmpeg_executable=ffmpeg,
+        local_provider_ids=frozenset(local_provider_ids),
+        local_only=True,
+        required_model_roles=(ModelRole.HOST_GENERATION,),
+    )
