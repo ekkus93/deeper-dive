@@ -34,7 +34,9 @@ def _default_fake_ffmpeg(
     test_name = request.node.name.lower()
     if any(part in test_name for part in _NO_DEFAULT_FFMPEG_NAME_PARTS):
         return
-    executable = tmp_path / "ffmpeg"
+    executable_dir = tmp_path / "fake-ffmpeg-bin"
+    executable_dir.mkdir()
+    executable = executable_dir / "ffmpeg"
     executable.write_text(
         r"""#!/usr/bin/env python3
 import io
@@ -79,7 +81,7 @@ sys.stdout.buffer.write(b'\x00\x00' * target_frames)
         encoding="utf-8",
     )
     executable.chmod(0o755)
-    monkeypatch.setenv("PATH", f"{tmp_path}{os.pathsep}{os.environ.get('PATH', '')}")
+    monkeypatch.setenv("PATH", f"{executable_dir}{os.pathsep}{os.environ.get('PATH', '')}")
 
 
 def pytest_runtest_setup(item: object) -> None:
