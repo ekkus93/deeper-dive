@@ -164,10 +164,7 @@ class FFmpegAudioNormalizer:
             raise AudioNormalizationError(f"{failure_context}: {exc}") from exc
         if not normalized:
             raise AudioNormalizationError("FFmpeg produced no normalized audio")
-        if (
-            len(normalized) % (CANONICAL_CHANNELS * CANONICAL_SAMPLE_WIDTH_BYTES)
-            != 0
-        ):
+        if len(normalized) % (CANONICAL_CHANNELS * CANONICAL_SAMPLE_WIDTH_BYTES) != 0:
             raise AudioNormalizationError("FFmpeg produced frame-misaligned normalized audio")
         return normalized
 
