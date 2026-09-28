@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import os
+import shutil
 from dataclasses import replace
 from pathlib import Path
+
+import pytest
 
 from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.composition import ProductionComposition
@@ -14,7 +18,9 @@ from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 def test_production_pipeline_persists_reviewable_and_exportable_quick_episode(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _install_fake_ffmpeg(tmp_path, monkeypatch)
     data_dir = tmp_path / "data"
     config_store = UserConfigStore(data_dir / "config.json")
     planner = ProviderConfig(provider_type="fake", default_model="fake-v1")
@@ -75,3 +81,61 @@ def test_production_pipeline_persists_reviewable_and_exportable_quick_episode(
     assert "Configured fake provider host turn marker" in transcript
     assert export.audio is not None
     assert export.audio.is_file()
+
+
+def _install_fake_ffmpeg(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    executable = tmp_path / "ffmpeg"
+    executable.write_text(
+        r"""#!/usr/bin/env python3
+import io
+import sys
+import wave
+
+payload = sys.stdin.buffer.read()
+args = sys.argv[1:]
+try:
+    first_format = args[args.index('-f') + 1]
+except (ValueError, IndexError):
+    sys.stderr.write('missing input format')
+    sys.exit(2)
+
+if first_format == 'wav':
+    try:
+        with wave.open(io.BytesIO(payload), 'rb') as wav:
+            source_rate = wav.getframerate()
+            frame_count = wav.getnframes()
+    except (EOFError, wave.Error) as exc:
+        sys.stderr.write(f'invalid wav: {exc}')
+        sys.exit(1)
+elif first_format == 's16le':
+    try:
+        source_rate = int(args[args.index('-ar') + 1])
+        channels = int(args[args.index('-ac') + 1])
+    except (ValueError, IndexError) as exc:
+        sys.stderr.write(f'invalid raw args: {exc}')
+        sys.exit(2)
+    frame_size = channels * 2
+    if not payload or len(payload) % frame_size != 0:
+        sys.stderr.write('misaligned raw input')
+        sys.exit(1)
+    frame_count = len(payload) // frame_size
+else:
+    sys.stderr.write(f'unsupported input format: {first_format}')
+    sys.exit(2)
+
+target_frames = max(1, round(frame_count * 24000 / source_rate))
+sys.stdout.buffer.write(b'\x00\x00' * target_frames)
+""",
+        encoding="utf-8",
+    )
+    executable.chmod(0o755)
+    current_path = os.environ.get("PATH", "")
+    monkeypatch.setenv("PATH", f"{tmp_path}{os.pathsep}{current_path}")
+    real_which = shutil.which
+
+    def fake_which(command: str, *args, **kwargs):
+        if command == "ffmpeg":
+            return str(executable)
+        return real_which(command, *args, **kwargs)
+
+    monkeypatch.setattr(shutil, "which", fake_which)
