@@ -18,9 +18,13 @@ from textual.widgets import Button, Footer, Header, Input, Label, Static
 from deeper_dive import model_roles
 from deeper_dive.audio_playback import AudioPlaybackController, PlaybackState
 from deeper_dive.audio_timeline import AudioTimelineRepository
+from deeper_dive.claim_evidence_retrieval import ClaimEvidenceRetriever
+from deeper_dive.claim_verification import ClaimVerificationService
+from deeper_dive.conversation_state import ConversationStateRepository
 from deeper_dive.claim_inspector_screen import ClaimInspectorController, ClaimInspectorScreen
 from deeper_dive.host_turn import HostTurn
 from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
+from deeper_dive.material_claims import MaterialClaimService
 from deeper_dive.storage.database import Database
 from deeper_dive.targeted_repair import TargetedRepairService
 from deeper_dive.tts_generation import TTSArtifactRepository
@@ -95,14 +99,71 @@ class _ProductionTurnRepairProvider:
         return response.text
 
 
-class _NoOpRepairRechecker:
+@dataclass(frozen=True, slots=True)
+class _LLMClaimVerificationGenerator:
+    provider: LLMProvider
+    model: str | None
+
+    def classify(self, request: dict[str, Any]) -> dict[str, Any]:
+        response = self.provider.generate(
+            LLMRequest(
+                messages=(
+                    LLMMessage(
+                        "system",
+                        "Classify one material claim against retrieved evidence. "
+                        "Return only JSON with state, rationale, confidence, "
+                        "supporting_evidence_ids, and contradicting_evidence_ids.",
+                    ),
+                    LLMMessage("user", json.dumps(request, sort_keys=True)),
+                ),
+                model=self.model,
+                response_schema={"type": "object", "required": ["state", "rationale"]},
+            )
+        )
+        payload: object = response.structured
+        if payload is None:
+            payload = json.loads(response.text)
+        if not isinstance(payload, dict):
+            raise ValueError("claim verification provider returned a non-object response")
+        return payload
+
+
+@dataclass(frozen=True, slots=True)
+class _ProductionRepairRechecker:
+    database: Database
+    project_id: str
+    provider: LLMProvider
+    model: str | None
+
     def recheck_turn(self, turn: HostTurn) -> None:
-        _ = turn
+        claims = MaterialClaimService(self.database).extract_turn(self.project_id, turn)
+        retriever = ClaimEvidenceRetriever(self.database)
+        verifier = ClaimVerificationService(
+            self.database, _LLMClaimVerificationGenerator(self.provider, self.model)
+        )
+        for claim in claims:
+            verifier.verify(claim, retriever.retrieve(claim))
 
 
-class _NoOpSummaryUpdater:
+@dataclass(frozen=True, slots=True)
+class _ProductionSummaryUpdater:
+    database: Database
+
     def update_after_repair(self, episode_id: str, turn_id: str) -> None:
-        _ = (episode_id, turn_id)
+        with self.database.connection() as connection:
+            rows = connection.execute(
+                """SELECT id,text FROM conversation_turns
+                WHERE episode_id=? ORDER BY segment_ordinal DESC,turn_ordinal DESC LIMIT 8""",
+                (episode_id,),
+            ).fetchall()
+        ordered = tuple(reversed(rows))
+        summary = " ".join(str(row["text"]).strip() for row in ordered if str(row["text"]).strip())
+        refs = tuple(str(row["id"]) for row in ordered)
+        ConversationStateRepository(self.database).update(
+            episode_id,
+            running_summary=summary,
+            recent_context_refs=refs,
+        )
 
 
 class TranscriptReviewController:
@@ -273,8 +334,8 @@ class TranscriptReviewController:
         return TargetedRepairService(
             database,
             _ProductionTurnRepairProvider(provider, model),
-            _NoOpRepairRechecker(),
-            _NoOpSummaryUpdater(),
+            _ProductionRepairRechecker(database, self._project_id(app), provider, model),
+            _ProductionSummaryUpdater(database),
         )
 
     @staticmethod
