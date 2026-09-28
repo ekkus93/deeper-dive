@@ -9,9 +9,11 @@ from pathlib import Path
 from deeper_dive.domain.clock import format_timestamp
 from deeper_dive.domain.ids import new_run_id
 from deeper_dive.episode_config import EpisodeConfigurationService
+from deeper_dive.generation_roles import GenerationRoleContext, required_generation_model_roles
 from deeper_dive.hosts import HostProfile
 from deeper_dive.model_roles import ModelRole, ModelRoleAssignments
 from deeper_dive.network_scope import ProviderNetworkPolicy
+from deeper_dive.plan_validity import conversation_work_remains, evaluate_episode_plan
 from deeper_dive.preflight import (
     PreflightEstimate,
     PreflightIssue,
@@ -121,13 +123,18 @@ class GenerationStartService:
         episode_id: str,
         assignments: ModelRoleAssignments,
     ) -> tuple[ModelRole, ...]:
-        roles = [ModelRole.HOST_GENERATION]
-        if repository.get_plan(episode_id) is None:
-            roles.insert(0, ModelRole.EPISODE_PLANNING)
-        for optional_role in (ModelRole.DIRECTING, ModelRole.VERIFICATION):
-            if assignments.resolve(optional_role) is not None:
-                roles.append(optional_role)
-        return tuple(roles)
+        validity = evaluate_episode_plan(repository.database, episode_id)
+        work_remains = (not validity.usable) or conversation_work_remains(
+            repository.database,
+            episode_id,
+        )
+        return required_generation_model_roles(
+            GenerationRoleContext(
+                valid_plan_exists=validity.usable,
+                conversation_work_remains=work_remains,
+                assignments=assignments,
+            )
+        )
 
     def _local_provider_ids(self) -> frozenset[str]:
         return ProviderNetworkPolicy.local_provider_ids(

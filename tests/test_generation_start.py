@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -8,6 +9,7 @@ import pytest
 
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.composition import ProductionComposition
+from deeper_dive.conversation_state import ConversationState, ConversationStateRepository
 from deeper_dive.domain.clock import FrozenClock, format_timestamp
 from deeper_dive.domain.ids import new_episode_id, new_run_id
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
@@ -18,7 +20,11 @@ from deeper_dive.generation_start import (
 from deeper_dive.model_roles import ModelAssignment, ModelRole, ModelRoleAssignments
 from deeper_dive.preflight import PreflightBlockedError
 from deeper_dive.provider_factory import ProviderFactory
-from deeper_dive.storage.episode_repositories import EpisodeRecord
+from deeper_dive.storage.episode_repositories import (
+    EpisodePlanRecord,
+    EpisodeRecord,
+    SegmentPlanRecord,
+)
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
@@ -97,6 +103,64 @@ def test_generation_start_requires_configured_execution_roles(tmp_path: Path) ->
         ModelRole.DIRECTING,
         ModelRole.VERIFICATION,
     )
+
+
+def test_generation_start_treats_invalid_persisted_plan_as_missing(tmp_path: Path) -> None:
+    service, project_id, episode_id = _episode(tmp_path)
+    repository = service.hosts(project_id)
+    timestamp = "2026-09-20T00:00:00.000000Z"
+    repository.save_plan(
+        EpisodePlanRecord("plan-1", episode_id, timestamp, timestamp, "approved", "{}"),
+        [],
+    )
+    assignments = ModelRoleAssignments(
+        user={
+            ModelRole.EPISODE_PLANNING: ModelAssignment("fake", "fake-v1"),
+            ModelRole.HOST_GENERATION: ModelAssignment("fake", "fake-v1"),
+        },
+    )
+
+    roles = GenerationStartService(object())._required_model_roles(
+        repository,
+        episode_id,
+        assignments,
+    )
+
+    assert roles[:2] == (ModelRole.EPISODE_PLANNING, ModelRole.HOST_GENERATION)
+
+
+def test_generation_start_omits_host_generation_after_completed_conversation(
+    tmp_path: Path,
+) -> None:
+    service, project_id, episode_id = _episode(tmp_path)
+    repository = service.hosts(project_id)
+    timestamp = "2026-09-20T00:00:00.000000Z"
+    repository.save_plan(
+        EpisodePlanRecord("plan-1", episode_id, timestamp, timestamp, "approved", "{}"),
+        [
+            SegmentPlanRecord(
+                "segment-1",
+                "plan-1",
+                0,
+                "Intro",
+                target_duration_seconds=60,
+                segment_json=json.dumps(
+                    {"title": "Intro", "target_duration_seconds": 60}
+                ),
+            )
+        ],
+    )
+    ConversationStateRepository(repository.database).save(
+        ConversationState(episode_id, segment_ordinal=1)
+    )
+
+    roles = GenerationStartService(object())._required_model_roles(
+        repository,
+        episode_id,
+        ModelRoleAssignments(),
+    )
+
+    assert roles == ()
 
 
 def test_generation_start_preflight_blocks_before_run_creation(tmp_path: Path) -> None:
