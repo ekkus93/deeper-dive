@@ -82,15 +82,21 @@ def test_cli_and_tui_preflight_share_provider_parity_matrix(
     scenario: Scenario,
 ) -> None:
     composition, app = _app(tmp_path, scenario)
+    cli_report, tui_report = _reports(composition, app)
 
-    reports = _reports(composition, app)
-    code_sets = tuple({issue.code for issue in report.blockers} for report in reports)
+    cli_codes = _blocker_codes(cli_report)
+    tui_codes = _blocker_codes(tui_report)
 
-    assert code_sets[0] == code_sets[1]
+    assert cli_codes == tui_codes
     if scenario.expected_code is None:
-        assert all(report.ready for report in reports)
+        assert cli_report.ready
+        assert tui_report.ready
     else:
-        assert scenario.expected_code in code_sets[0]
+        assert scenario.expected_code in cli_codes
+
+
+def _blocker_codes(report: PreflightReport) -> set[str]:
+    return {issue.code for issue in report.blockers}
 
 
 def _reports(
