@@ -57,7 +57,7 @@ def test_failure_sanitizes_stderr() -> None:
     with patch("subprocess.run") as run:
         run.return_value.returncode = 1
         run.return_value.stderr = "token=secret-value decoder exploded"
-        with pytest.raises(FFmpegError, match=r"token=\[redacted\].*decoder exploded"):
+        with pytest.raises(FFmpegError, match=r"token=\[REDACTED\].*decoder exploded"):
             FFmpegComposer.run_command(["ffmpeg", "input"])
 
 
