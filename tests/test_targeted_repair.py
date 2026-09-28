@@ -230,13 +230,29 @@ def test_cache_cleanup_preserves_shared_file_until_last_reference_is_replaced(
     for turn_id in ("t1", "t2"):
         repository.save(
             TTSArtifact(
-                turn_id, "shared", "same", "complete", shared, "fake", "v", None, "wav"
+                turn_id,
+                "shared",
+                "same",
+                "complete",
+                shared,
+                "fake",
+                "v",
+                None,
+                "wav",
             )
         )
 
     repository.save(
         TTSArtifact(
-            "t1", "new", "changed", "complete", replacement, "fake", "v", None, "wav"
+            "t1",
+            "new",
+            "changed",
+            "complete",
+            replacement,
+            "fake",
+            "v",
+            None,
+            "wav",
         )
     )
     assert shared.exists()
