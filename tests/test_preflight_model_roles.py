@@ -1,39 +1,48 @@
 from __future__ import annotations
 
-from pathlib import Path
+_hosts = __import__("deeper_dive.hosts", fromlist=["HostProfile"])
+_llm = __import__(
+    "deeper_dive.llm",
+    fromlist=["FakeLLMProvider", "LLMModel", "LLMProviderRegistry", "ProviderHealth"],
+)
+_model_roles = __import__(
+    "deeper_dive.model_roles",
+    fromlist=["ModelAssignment", "ModelRole", "ModelRoleAssignments"],
+)
+_preflight = __import__("deeper_dive.preflight", fromlist=["PreflightService"])
+_tts = __import__("deeper_dive.tts", fromlist=["FakeTTSProvider", "TTSProviderRegistry"])
 
-from deeper_dive.hosts import HostProfile
-from deeper_dive.llm import FakeLLMProvider, LLMModel, LLMProviderRegistry, ProviderHealth
-from deeper_dive.model_roles import ModelAssignment, ModelRole, ModelRoleAssignments
-from deeper_dive.preflight import PreflightReport, PreflightService
-from deeper_dive.tts import FakeTTSProvider, TTSProviderRegistry
-
+FakeLLMProvider = _llm.FakeLLMProvider
+FakeTTSProvider = _tts.FakeTTSProvider
+ModelAssignment = _model_roles.ModelAssignment
+ModelRole = _model_roles.ModelRole
+ModelRoleAssignments = _model_roles.ModelRoleAssignments
 
 SENSITIVE_VALUE = "credential" + "-value"
 
 
 class UnhealthyLLM(FakeLLMProvider):
-    def health(self) -> ProviderHealth:
-        return ProviderHealth(False, "offline")
+    def health(self):
+        return _llm.ProviderHealth(False, "offline")
 
 
 class SecretHealthLLM(FakeLLMProvider):
-    def health(self) -> ProviderHealth:
-        return ProviderHealth(False, "service_token=" + SENSITIVE_VALUE)
+    def health(self):
+        return _llm.ProviderHealth(False, "service_token=" + SENSITIVE_VALUE)
 
 
 class ExplodingModelsLLM(FakeLLMProvider):
-    def models(self) -> tuple[LLMModel, ...]:
+    def models(self):
         raise RuntimeError("discovery failed with client_secret=" + SENSITIVE_VALUE)
 
 
 class SecretHealthTTS(FakeTTSProvider):
-    def health(self) -> ProviderHealth:
-        return ProviderHealth(False, "authorization: " + SENSITIVE_VALUE)
+    def health(self):
+        return _llm.ProviderHealth(False, "authorization: " + SENSITIVE_VALUE)
 
 
-def _host() -> HostProfile:
-    return HostProfile(
+def _host():
+    return _hosts.HostProfile(
         id="host-1",
         project_id="project-1",
         display_name="Host",
@@ -42,30 +51,27 @@ def _host() -> HostProfile:
     )
 
 
-def _ffmpeg(tmp_path: Path) -> Path:
+def _ffmpeg(tmp_path):
     path = tmp_path / "ffmpeg"
     path.write_text("fake")
     return path
 
 
-def _service(
-    provider: FakeLLMProvider | None = None,
-    tts_provider: FakeTTSProvider | None = None,
-) -> PreflightService:
-    llm = LLMProviderRegistry()
+def _service(provider=None, tts_provider=None):
+    llm = _llm.LLMProviderRegistry()
     llm.register(provider or FakeLLMProvider())
-    tts = TTSProviderRegistry()
+    tts = _tts.TTSProviderRegistry()
     tts.register(tts_provider or FakeTTSProvider())
-    return PreflightService(llm, tts)
+    return _preflight.PreflightService(llm, tts)
 
 
 def _check_role(
-    tmp_path: Path,
-    role: ModelRole,
-    assignment: ModelAssignment,
-    provider: FakeLLMProvider | None = None,
-    tts_provider: FakeTTSProvider | None = None,
-) -> PreflightReport:
+    tmp_path,
+    role,
+    assignment,
+    provider=None,
+    tts_provider=None,
+):
     assignments = ModelRoleAssignments(user={role: assignment})
     return _service(provider, tts_provider).check(
         assignments=assignments,
@@ -78,15 +84,15 @@ def _check_role(
     )
 
 
-def _blocker_messages(report: PreflightReport) -> tuple[str, ...]:
+def _blocker_messages(report):
     return tuple(issue.message for issue in report.blockers)
 
 
-def _blocker_text(report: PreflightReport) -> str:
+def _blocker_text(report) -> str:
     return "\n".join(_blocker_messages(report))
 
 
-def test_unknown_directing_provider_blocks(tmp_path: Path) -> None:
+def test_unknown_directing_provider_blocks(tmp_path) -> None:
     report = _check_role(
         tmp_path,
         ModelRole.DIRECTING,
@@ -97,7 +103,7 @@ def test_unknown_directing_provider_blocks(tmp_path: Path) -> None:
     assert any(expected in message for message in _blocker_messages(report))
 
 
-def test_unknown_verification_provider_blocks(tmp_path: Path) -> None:
+def test_unknown_verification_provider_blocks(tmp_path) -> None:
     report = _check_role(
         tmp_path,
         ModelRole.VERIFICATION,
@@ -108,7 +114,7 @@ def test_unknown_verification_provider_blocks(tmp_path: Path) -> None:
     assert any(expected in message for message in _blocker_messages(report))
 
 
-def test_unavailable_directing_model_blocks(tmp_path: Path) -> None:
+def test_unavailable_directing_model_blocks(tmp_path) -> None:
     report = _check_role(
         tmp_path,
         ModelRole.DIRECTING,
@@ -119,7 +125,7 @@ def test_unavailable_directing_model_blocks(tmp_path: Path) -> None:
     assert any(expected in message for message in _blocker_messages(report))
 
 
-def test_unavailable_verification_model_blocks(tmp_path: Path) -> None:
+def test_unavailable_verification_model_blocks(tmp_path) -> None:
     report = _check_role(
         tmp_path,
         ModelRole.VERIFICATION,
@@ -130,7 +136,7 @@ def test_unavailable_verification_model_blocks(tmp_path: Path) -> None:
     assert any(expected in message for message in _blocker_messages(report))
 
 
-def test_unhealthy_directing_provider_blocks(tmp_path: Path) -> None:
+def test_unhealthy_directing_provider_blocks(tmp_path) -> None:
     provider = UnhealthyLLM(provider_id="director")
     report = _check_role(
         tmp_path,
@@ -143,7 +149,7 @@ def test_unhealthy_directing_provider_blocks(tmp_path: Path) -> None:
     assert any(expected in message for message in _blocker_messages(report))
 
 
-def test_unhealthy_verification_provider_blocks(tmp_path: Path) -> None:
+def test_unhealthy_verification_provider_blocks(tmp_path) -> None:
     provider = UnhealthyLLM(provider_id="verifier")
     report = _check_role(
         tmp_path,
@@ -156,7 +162,7 @@ def test_unhealthy_verification_provider_blocks(tmp_path: Path) -> None:
     assert any(expected in message for message in _blocker_messages(report))
 
 
-def test_unhealthy_provider_messages_are_sanitized(tmp_path: Path) -> None:
+def test_unhealthy_provider_messages_are_sanitized(tmp_path) -> None:
     provider = SecretHealthLLM(provider_id="director")
     report = _check_role(
         tmp_path,
@@ -170,7 +176,7 @@ def test_unhealthy_provider_messages_are_sanitized(tmp_path: Path) -> None:
     assert "[REDACTED]" in text
 
 
-def test_model_discovery_exceptions_are_sanitized(tmp_path: Path) -> None:
+def test_model_discovery_exceptions_are_sanitized(tmp_path) -> None:
     provider = ExplodingModelsLLM(provider_id="planner")
     report = _check_role(
         tmp_path,
@@ -185,7 +191,7 @@ def test_model_discovery_exceptions_are_sanitized(tmp_path: Path) -> None:
     assert "[REDACTED]" in text
 
 
-def test_tts_health_messages_are_sanitized(tmp_path: Path) -> None:
+def test_tts_health_messages_are_sanitized(tmp_path) -> None:
     report = _check_role(
         tmp_path,
         ModelRole.DIRECTING,
