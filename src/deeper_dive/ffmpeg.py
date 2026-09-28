@@ -100,7 +100,11 @@ class FFmpegComposer:
         except OSError as exc:
             raise FFmpegError(f"unable to execute FFmpeg: {exc}") from exc
         if result.returncode != 0:
-            stderr = result.stderr.decode("utf-8", errors="replace") if isinstance(result.stderr, bytes) else str(result.stderr)
+            stderr = (
+                result.stderr.decode("utf-8", errors="replace")
+                if isinstance(result.stderr, bytes)
+                else str(result.stderr)
+            )
             raise FFmpegError(f"FFmpeg failed: {FFmpegComposer._sanitize(stderr)}")
         return result.stdout
 
