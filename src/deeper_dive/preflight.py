@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from deeper_dive.diagnostics import redact, sanitize_exception_message
+from deeper_dive.diagnostics import redact
 from deeper_dive.ffmpeg import FFmpegConfig, FFmpegError
 from deeper_dive.hosts import HostProfile
 from deeper_dive.llm import LLMProviderRegistry
@@ -103,6 +104,7 @@ class PreflightService:
         local_provider_ids: frozenset[str] = frozenset(),
         local_only: bool = False,
         required_model_roles: tuple[ModelRole, ...] = REQUIRED_MODEL_ROLES,
+        tts_response_formats: Mapping[str, str] | None = None,
     ) -> PreflightReport:
         issues: list[PreflightIssue] = []
         routes: list[ProviderRoute] = []
@@ -112,8 +114,7 @@ class PreflightService:
             required_roles=required_model_roles,
         )
         issues.extend(
-            PreflightIssue("llm_assignment", _safe_message(item.message))
-            for item in role_result.blockers
+            PreflightIssue("llm_assignment", item.message) for item in role_result.blockers
         )
 
         checked_llm: set[str] = set()
@@ -136,7 +137,7 @@ class PreflightService:
                         PreflightIssue(
                             "llm_unhealthy",
                             f"LLM provider {assignment.provider!r} is unhealthy: "
-                            f"{_safe_message(health.message)}",
+                            f"{redact(health.message)}",
                         )
                     )
 
@@ -151,6 +152,7 @@ class PreflightService:
                 )
             )
 
+        configured_tts_formats = tts_response_formats or {}
         if not hosts:
             issues.append(PreflightIssue("hosts_missing", "episode has no hosts"))
         checked_tts: set[str] = set()
@@ -158,8 +160,20 @@ class PreflightService:
             try:
                 provider, _voice = self.tts_registry.resolve_host(host)
             except (KeyError, ValueError) as exc:
-                issues.append(PreflightIssue("tts_assignment", sanitize_exception_message(exc)))
+                issues.append(PreflightIssue("tts_assignment", str(redact(str(exc)))))
                 continue
+            response_format = (
+                configured_tts_formats.get(provider.provider_id, "wav").strip().lower()
+                or "wav"
+            )
+            if response_format != "wav":
+                issues.append(
+                    PreflightIssue(
+                        "tts_format_unsupported",
+                        f"TTS provider {provider.provider_id!r} is configured for "
+                        f"{response_format!r} output; WAV output is required for composition",
+                    )
+                )
             routes.append(
                 ProviderRoute(
                     "tts",
@@ -177,7 +191,7 @@ class PreflightService:
                         PreflightIssue(
                             "tts_unhealthy",
                             f"TTS provider {provider.provider_id!r} is unhealthy: "
-                            f"{_safe_message(health.message)}",
+                            f"{redact(health.message)}",
                         )
                     )
 
@@ -204,7 +218,7 @@ class PreflightService:
         try:
             FFmpegConfig.detect(ffmpeg_executable)
         except FFmpegError as exc:
-            issues.append(PreflightIssue("ffmpeg_unavailable", str(exc)))
+            issues.append(PreflightIssue("ffmpeg_unavailable", str(redact(str(exc)))))
 
         if target_minutes <= 0:
             issues.append(PreflightIssue("duration_invalid", "target duration must be positive"))
@@ -225,7 +239,3 @@ class PreflightService:
             estimated_cloud_cost_usd=sum(costs) if costs else None,
         )
         return PreflightReport(tuple(issues), estimate, tuple(routes))
-
-
-def _safe_message(message: str) -> str:
-    return str(redact(message))
