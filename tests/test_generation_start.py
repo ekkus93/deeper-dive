@@ -9,6 +9,7 @@ import pytest
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.domain.clock import FrozenClock, format_timestamp
+from deeper_dive.conversation_state import ConversationState, ConversationStateRepository
 from deeper_dive.domain.ids import new_episode_id, new_run_id
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.generation_start import (
@@ -18,7 +19,11 @@ from deeper_dive.generation_start import (
 from deeper_dive.model_roles import ModelAssignment, ModelRole, ModelRoleAssignments
 from deeper_dive.preflight import PreflightBlockedError
 from deeper_dive.provider_factory import ProviderFactory
-from deeper_dive.storage.episode_repositories import EpisodeRecord
+from deeper_dive.storage.episode_repositories import (
+    EpisodePlanRecord,
+    EpisodeRecord,
+    SegmentPlanRecord,
+)
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
@@ -97,6 +102,73 @@ def test_generation_start_requires_configured_execution_roles(tmp_path: Path) ->
         ModelRole.DIRECTING,
         ModelRole.VERIFICATION,
     )
+
+
+
+def test_generation_start_requires_planning_for_unusable_persisted_plan(tmp_path: Path) -> None:
+    service, project_id, episode_id = _episode(tmp_path)
+    timestamp = format_timestamp(service.clock.now())
+    service.hosts(project_id).save_plan(
+        EpisodePlanRecord(
+            id="plan-invalid",
+            episode_id=episode_id,
+            status="draft",
+            plan_json="{}",
+            created_at=timestamp,
+            modified_at=timestamp,
+        ),
+        [],
+    )
+
+    roles = GenerationStartService(object())._required_model_roles(
+        service.hosts(project_id),
+        episode_id,
+        ModelRoleAssignments(),
+    )
+
+    assert roles == (ModelRole.EPISODE_PLANNING, ModelRole.HOST_GENERATION)
+
+
+def test_generation_start_omits_host_generation_after_valid_plan_is_complete(
+    tmp_path: Path,
+) -> None:
+    service, project_id, episode_id = _episode(tmp_path)
+    timestamp = format_timestamp(service.clock.now())
+    repository = service.hosts(project_id)
+    repository.save_plan(
+        EpisodePlanRecord(
+            id="plan-complete",
+            episode_id=episode_id,
+            status="approved",
+            plan_json='{"target_duration_seconds": 60}',
+            created_at=timestamp,
+            modified_at=timestamp,
+        ),
+        [
+            SegmentPlanRecord(
+                id="segment-0",
+                episode_plan_id="plan-complete",
+                ordinal=0,
+                title="Opening",
+                target_duration_seconds=60,
+                segment_json='{"title": "Opening", "target_duration_seconds": 60}',
+            )
+        ],
+    )
+    ConversationStateRepository(repository.database).save(
+        ConversationState(episode_id=episode_id, segment_ordinal=1)
+    )
+
+    assignments = ModelRoleAssignments(
+        user={ModelRole.DIRECTING: ModelAssignment("fake", "fake-v1")}
+    )
+    roles = GenerationStartService(object())._required_model_roles(
+        repository,
+        episode_id,
+        assignments,
+    )
+
+    assert roles == (ModelRole.DIRECTING,)
 
 
 def test_generation_start_preflight_blocks_before_run_creation(tmp_path: Path) -> None:
