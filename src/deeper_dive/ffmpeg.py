@@ -95,11 +95,7 @@ class FFmpegComposer:
     def _run(args: list[str], *, input_bytes: bytes | None = None) -> bytes:
         try:
             result = subprocess.run(
-                args,
-                input=input_bytes,
-                capture_output=True,
-                check=False,
-                shell=False,
+                args, input=input_bytes, capture_output=True, check=False, shell=False
             )
         except OSError as exc:
             raise FFmpegError(f"unable to execute FFmpeg: {exc}") from exc
