@@ -139,7 +139,13 @@ class FFmpegAudioNormalizer:
             source_media_type=source_media_type,
         )
 
-    def _convert(self, input_args: list[str], audio: bytes, *, failure_context: str) -> bytes:
+    def _convert(
+        self,
+        input_args: list[str],
+        audio: bytes,
+        *,
+        failure_context: str,
+    ) -> bytes:
         args = [
             str(self.config.executable),
             "-y",
