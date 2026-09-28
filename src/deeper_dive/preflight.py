@@ -19,6 +19,9 @@ from deeper_dive.model_roles import (
 from deeper_dive.tts import TTSProviderRegistry
 
 
+COMPOSITION_TTS_FORMAT = "wav"
+
+
 class PreflightBlockedError(RuntimeError):
     """Raised when generation is attempted with a known hard blocker."""
 
@@ -163,14 +166,16 @@ class PreflightService:
                 issues.append(PreflightIssue("tts_assignment", str(redact(str(exc)))))
                 continue
             response_format = (
-                configured_tts_formats.get(provider.provider_id, "wav").strip().lower() or "wav"
+                configured_tts_formats.get(provider.provider_id, COMPOSITION_TTS_FORMAT).strip().lower()
+                or COMPOSITION_TTS_FORMAT
             )
-            if response_format != "wav":
+            if response_format != COMPOSITION_TTS_FORMAT:
                 issues.append(
                     PreflightIssue(
                         "tts_format_unsupported",
                         f"TTS provider {provider.provider_id!r} is configured for "
-                        f"{response_format!r} output; WAV output is required for composition",
+                        f"{response_format!r} output; "
+                        f"{COMPOSITION_TTS_FORMAT.upper()} output is required for composition",
                     )
                 )
             routes.append(

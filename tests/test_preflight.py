@@ -5,6 +5,7 @@ import pytest
 from deeper_dive.hosts import HostProfile
 from deeper_dive.llm import FakeLLMProvider, LLMProviderRegistry, ProviderHealth
 from deeper_dive.model_roles import ModelAssignment, ModelRole, ModelRoleAssignments
+from deeper_dive.openai_compatible_tts import OpenAICompatibleTTSProvider
 from deeper_dive.preflight import CloudPrice, PreflightBlockedError, PreflightService
 from deeper_dive.tts import FakeTTSProvider, TTSProviderRegistry
 
@@ -183,3 +184,88 @@ def _provider_routing_report(tmp_path: Path, case: str):
         local_only=True,
         required_model_roles=(ModelRole.HOST_GENERATION,),
     )
+
+
+def test_preflight_blocks_openai_compatible_mp3_before_synthesis(tmp_path: Path) -> None:
+    requests: list[dict[str, object]] = []
+
+    def request_binary(url, payload, headers, timeout):
+        requests.append(payload)
+        return b"not-used", "audio/mpeg"
+
+    llm = LLMProviderRegistry()
+    llm.register(FakeLLMProvider())
+    tts = TTSProviderRegistry()
+    tts.register(
+        OpenAICompatibleTTSProvider(
+            provider_id="compatible-speech",
+            base_url="http://127.0.0.1:9999",
+            model="speech-v1",
+            voices=("voice-a",),
+            response_format="mp3",
+            request_binary=request_binary,
+        )
+    )
+    ffmpeg = tmp_path / "ffmpeg"
+    ffmpeg.write_text("fake")
+
+    report = PreflightService(llm, tts).check(
+        assignments=assignments(),
+        hosts=(
+            HostProfile(
+                id="host-1",
+                project_id="project-1",
+                display_name="Host",
+                tts_provider="compatible-speech",
+                tts_voice="voice-a",
+            ),
+        ),
+        source_count=1,
+        indexed_source_count=1,
+        target_minutes=10,
+        ffmpeg_executable=ffmpeg,
+        tts_response_formats={"compatible-speech": "mp3"},
+    )
+
+    assert "tts_format_unsupported" in {issue.code for issue in report.blockers}
+    with pytest.raises(PreflightBlockedError, match="WAV output is required"):
+        report.require_ready()
+    assert requests == []
+
+
+def test_preflight_preserves_kitten_wav_only_composition_contract(tmp_path: Path) -> None:
+    llm = LLMProviderRegistry()
+    llm.register(FakeLLMProvider())
+    tts = TTSProviderRegistry()
+    tts.register(FakeTTSProvider(provider_id="kitten"))
+    ffmpeg = tmp_path / "ffmpeg"
+    ffmpeg.write_text("fake")
+    kitten_host = HostProfile(
+        id="host-1",
+        project_id="project-1",
+        display_name="Host",
+        tts_provider="kitten",
+        tts_voice="voice-a",
+    )
+
+    wav_report = PreflightService(llm, tts).check(
+        assignments=assignments(),
+        hosts=(kitten_host,),
+        source_count=1,
+        indexed_source_count=1,
+        target_minutes=10,
+        ffmpeg_executable=ffmpeg,
+        tts_response_formats={"kitten": "wav"},
+    )
+    mp3_report = PreflightService(llm, tts).check(
+        assignments=assignments(),
+        hosts=(kitten_host,),
+        source_count=1,
+        indexed_source_count=1,
+        target_minutes=10,
+        ffmpeg_executable=ffmpeg,
+        tts_response_formats={"kitten": "mp3"},
+    )
+
+    assert not any(issue.code == "tts_format_unsupported" for issue in wav_report.blockers)
+    assert any(issue.code == "tts_format_unsupported" for issue in mp3_report.blockers)
