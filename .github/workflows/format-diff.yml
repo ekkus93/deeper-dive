@@ -1,6 +1,8 @@
 name: Format Diff
 
 on:
+  push:
+    branches: [master]
   workflow_dispatch:
 
 jobs:
@@ -14,4 +16,4 @@ jobs:
       - name: Sync dependencies
         run: uv sync --locked --dev
       - name: Show Ruff format diff
-        run: uv run ruff format --diff .
+        run: uv run ruff format --diff src/deeper_dive/audio_normalization.py
