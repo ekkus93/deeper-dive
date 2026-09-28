@@ -105,6 +105,7 @@ class FFmpegComposer:
                 if isinstance(result.stderr, bytes)
                 else str(result.stderr)
             )
-            raise FFmpegError(f"FFmpeg failed: {sanitize_exception_message(stderr)}")
+            safe_stderr = sanitize_exception_message(RuntimeError(stderr))[:2000]
+            raise FFmpegError(f"FFmpeg failed: {safe_stderr}")
         return result.stdout
 
