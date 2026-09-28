@@ -372,64 +372,19 @@ class ProductionComposition:
         """Regenerate TTS artifacts, timeline, and episode audio via production wiring."""
 
         try:
-            self.generate_episode_tts(project_id, episode_id, run_id=run_id)
-            self.compose_episode_audio(project_id, episode_id)
+            _tts_stage(
+                self.service,
+                project_id,
+                PipelineContext(run_id, episode_id, "tts"),
+            )
+            _composition_stage(
+                self.service,
+                project_id,
+                PipelineContext(run_id, episode_id, "composition"),
+            )
         except Exception as exc:
             safe_message = sanitize_exception_message(exc)
             raise RuntimeError(f"episode audio regeneration failed: {safe_message}") from exc
-
-    def generate_episode_tts(
-        self, project_id: str, episode_id: str, *, run_id: str
-    ) -> None:
-        """Generate or reuse TTS artifacts for every durable turn in one episode."""
-
-        root = self.service.workspaces.project_root(project_id)
-        database = Database(root / "project.db")
-        turns = HostTurnService(database).list_turns(episode_id)
-        if not turns:
-            return
-        repository = HostEpisodeRepository(database)
-        hosts = {
-            record.id: HostProfile.from_record(record)
-            for record in repository.list_hosts(project_id)
-        }
-        tts_turns = tuple(
-            _tts_turn_for_host(self, hosts[turn.speaker_id], turn) for turn in turns
-        )
-        TTSGenerationStage(
-            self.providers.tts_registry,
-            TTSArtifactRepository(database),
-            root / "output" / "tts",
-            max_workers=1,
-        ).generate(run_id, tts_turns)
-
-    def compose_episode_audio(self, project_id: str, episode_id: str) -> None:
-        """Build the durable timeline and episode WAV from current TTS artifacts."""
-
-        root = self.service.workspaces.project_root(project_id)
-        database = Database(root / "project.db")
-        turns = HostTurnService(database).list_turns(episode_id)
-        if not turns:
-            return
-        artifacts = _tts_artifacts_for_turns(self, project_id, database, turns)
-        audio_by_turn = {
-            turn.id: _normalized_wav_artifact(turn.id, artifacts[turn.id]) for turn in turns
-        }
-        items = tuple(
-            TimelineItem.clip(
-                turn_id=turn.id,
-                host_id=turn.speaker_id,
-                artifact_id=artifacts[turn.id].artifact_id,
-                duration_seconds=audio_by_turn[turn.id].duration_seconds,
-                metadata={"chapter_title": f"Turn {turn.turn_ordinal + 1}"},
-            )
-            for turn in turns
-        )
-        AudioTimelineRepository(database).save(AudioTimeline.build(episode_id, items))
-        EpisodeExporter.write_wav(
-            root / "output" / f"{episode_id}.wav",
-            _combine_wav_audio(tuple(audio_by_turn[turn.id] for turn in turns)),
-        )
 
     @staticmethod
     def _run_generation_pipeline(
@@ -634,10 +589,29 @@ def _tts_stage(
     project_id: str,
     context: PipelineContext,
 ) -> None:
+    root = service.workspaces.project_root(project_id)
+    database = Database(root / "project.db")
+    turns = HostTurnService(database).list_turns(context.episode_id)
+    if not turns:
+        return
     composition = getattr(service, "_production_composition", None)
     if composition is None:
         raise RuntimeError("production composition is unavailable for TTS generation")
-    composition.generate_episode_tts(project_id, context.episode_id, run_id=context.run_id)
+    repository = HostEpisodeRepository(database)
+    hosts = {
+        record.id: HostProfile.from_record(record)
+        for record in repository.list_hosts(project_id)
+    }
+    tts_turns = tuple(
+        _tts_turn_for_host(composition, hosts[turn.speaker_id], turn)
+        for turn in turns
+    )
+    TTSGenerationStage(
+        composition.providers.tts_registry,
+        TTSArtifactRepository(database),
+        root / "output" / "tts",
+        max_workers=1,
+    ).generate(context.run_id, tts_turns)
 
 
 def _tts_turn_for_host(
@@ -669,10 +643,35 @@ def _composition_stage(
     project_id: str,
     context: PipelineContext,
 ) -> None:
+    root = service.workspaces.project_root(project_id)
+    database = Database(root / "project.db")
+    turns = HostTurnService(database).list_turns(context.episode_id)
+    if not turns:
+        return
     composition = getattr(service, "_production_composition", None)
     if composition is None:
         raise RuntimeError("production composition is unavailable for audio composition")
-    composition.compose_episode_audio(project_id, context.episode_id)
+    artifacts = _tts_artifacts_for_turns(composition, project_id, database, turns)
+    audio_by_turn = {
+        turn.id: _normalized_wav_artifact(turn.id, artifacts[turn.id]) for turn in turns
+    }
+    items = tuple(
+        TimelineItem.clip(
+            turn_id=turn.id,
+            host_id=turn.speaker_id,
+            artifact_id=artifacts[turn.id].artifact_id,
+            duration_seconds=audio_by_turn[turn.id].duration_seconds,
+            metadata={"chapter_title": f"Turn {turn.turn_ordinal + 1}"},
+        )
+        for turn in turns
+    )
+    AudioTimelineRepository(database).save(AudioTimeline.build(context.episode_id, items))
+    output = root / "output"
+    episode_audio = output / f"{context.episode_id}.wav"
+    EpisodeExporter.write_wav(
+        episode_audio,
+        _combine_wav_audio(tuple(audio_by_turn[turn.id] for turn in turns)),
+    )
 
 
 def _normalized_wav_artifact(turn_id: str, artifact: TTSArtifact) -> CanonicalAudio:
