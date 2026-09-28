@@ -110,14 +110,14 @@ This checklist is the source of completion truth for the post-review remediation
 - [ ] Replace incomplete hard-coded role selection.
 - [ ] Require `episode_planning` when no valid plan exists.
 - [ ] Require `host_generation` when conversation work remains.
-- [ ] Validate configured `directing`.
-- [ ] Validate configured `verification`.
+- [x] Validate configured `directing`.
+- [x] Validate configured `verification`.
 - [ ] Keep resolver extensible to future research/source roles.
-- [ ] Negative test: unknown directing provider.
-- [ ] Negative test: unavailable directing model.
-- [ ] Negative test: unhealthy directing provider.
-- [ ] Equivalent verification-role negatives.
-- [ ] Prove blockers occur before expensive generation/run creation where applicable.
+- [x] Negative test: unknown directing provider.
+- [x] Negative test: unavailable directing model.
+- [x] Negative test: unhealthy directing provider.
+- [x] Equivalent verification-role negatives.
+- [x] Prove blockers occur before expensive generation/run creation where applicable.
 
 ## PRR-121 — Preflight/production parity
 
