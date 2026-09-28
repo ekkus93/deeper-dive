@@ -143,29 +143,29 @@ This checklist is the source of completion truth for the post-review remediation
 
 ## PRR-130 — Shared valid-plan policy
 
-- [ ] Require plan row belonging to episode.
-- [ ] Require at least one segment.
-- [ ] Validate persisted JSON.
-- [ ] Validate coherent ordinals.
-- [ ] Validate non-empty titles.
-- [ ] Validate positive durations.
-- [ ] Validate lead-host membership.
-- [ ] Validate evidence scope.
-- [ ] Define allowed plan statuses for generation.
-- [ ] Make planning skip only valid usable plans.
-- [ ] Make generation-start role derivation use same validity result.
-- [ ] Test empty/corrupt/invalid/disallowed plans.
+- [x] Require plan row belonging to episode.
+- [x] Require at least one segment.
+- [x] Validate persisted JSON.
+- [x] Validate coherent ordinals.
+- [x] Validate non-empty titles.
+- [x] Validate positive durations.
+- [x] Validate lead-host membership.
+- [x] Validate evidence scope.
+- [x] Define allowed plan statuses for generation.
+- [x] Make planning skip only valid usable plans.
+- [x] Make generation-start role derivation use same validity result.
+- [x] Test empty/corrupt/invalid/disallowed plans.
 
 ## PRR-131 — Fix evidence-validation semantics
 
-- [ ] Replace “empty set disables validation” behavior.
-- [ ] Make disabled/unavailable validation explicit.
-- [ ] Make active empty scope reject all evidence IDs.
-- [ ] Validate `regenerate_segment()`.
-- [ ] Validate `edit_segment()`.
-- [ ] Reject nonexistent evidence IDs.
-- [ ] Reject cross-project evidence IDs.
-- [ ] Preserve valid evidence IDs.
+- [x] Replace “empty set disables validation” behavior.
+- [x] Make disabled/unavailable validation explicit.
+- [x] Make active empty scope reject all evidence IDs.
+- [x] Validate `regenerate_segment()`.
+- [x] Validate `edit_segment()`.
+- [x] Reject nonexistent evidence IDs.
+- [x] Reject cross-project evidence IDs.
+- [x] Preserve valid evidence IDs.
 
 ---
 
@@ -450,8 +450,8 @@ This checklist is the source of completion truth for the post-review remediation
 - [x] Provider runtime coherence.
 - [x] Local/remote route matrix.
 - [x] Directing/verification preflight matrix.
-- [ ] Valid/corrupt plan matrix.
-- [ ] Plan evidence edit/regeneration isolation.
+- [x] Valid/corrupt plan matrix.
+- [x] Plan evidence edit/regeneration isolation.
 - [ ] Security/redaction.
 - [ ] TTS format/composition compatibility.
 - [ ] TTS returned identity.
@@ -505,7 +505,7 @@ Populate during implementation; do not pre-check.
 - Multi-turn generation tests: `tests/test_conversation_generation.py::test_multi_segment_generation_honors_completion_signals_atomically`, `tests/test_conversation_generation.py::test_conversation_resume_after_failure_does_not_duplicate_prior_turn`, `tests/test_conversation_generation.py::test_non_completing_director_is_bounded_per_segment`, `tests/test_conversation_generation.py::test_episode_turn_safety_bound_fails_predictably`; `tests/test_followup_acceptance_fixture.py` updated to expect multiple conversation turns.
 - Provider transaction/runtime tests: `tests/test_provider_transactions.py::test_failed_provider_save_preserves_durable_config_and_live_runtime`, `tests/test_provider_transactions.py::test_successful_provider_save_publishes_built_candidate_after_persistence`, `tests/test_provider_transactions.py::test_missing_credential_env_provider_save_rolls_back_config_and_runtime`, `tests/test_provider_transactions.py::test_missing_tts_base_url_or_voice_catalog_rolls_back_config_and_runtime`, `tests/test_provider_transactions.py::test_unsupported_provider_adapter_save_rolls_back_without_building`, `tests/test_provider_transactions.py::test_failed_provider_save_cannot_break_next_startup`, `tests/test_provider_transactions.py::test_failed_provider_removal_preserves_durable_config_and_live_runtime`, `tests/test_provider_transactions.py::test_successful_provider_removal_drops_provider_from_live_runtime`, `tests/test_composition.py::test_provider_runtime_refresh_updates_same_session_consumers`, `tests/test_composition.py::test_injected_provider_controller_refreshes_composition_consumers`, `tests/test_composition.py::test_production_composition_loads_persisted_providers`, `tests/test_network_scope.py::test_provider_network_policy_default_scope_matrix`, `tests/test_network_scope.py::test_explicit_network_scope_overrides_adapter_default`, `tests/test_network_scope.py::test_local_provider_ids_respect_defaults_and_explicit_remote_override`, `tests/test_network_scope.py::test_provider_factory_uses_shared_network_scope_policy`.
 - Preflight/durable-failure tests: `tests/test_preflight_model_roles.py::test_unknown_directing_provider_blocks`, `tests/test_preflight_model_roles.py::test_unavailable_verification_model_blocks`, `tests/test_preflight_model_roles.py::test_unhealthy_directing_provider_blocks`, `tests/test_preflight_model_roles.py::test_unknown_verification_provider_blocks`, `tests/test_preflight_model_roles.py::test_unhealthy_verification_provider_blocks`, `tests/test_generation_start.py::test_generation_start_requires_configured_execution_roles`, `tests/test_generation_start.py::test_generation_start_preflight_blocks_before_run_creation`, `tests/test_generation_roles.py::test_required_generation_roles_follow_plan_conversation_and_configured_roles`, `tests/test_generation_roles.py::test_required_generation_roles_are_extensible_and_deduplicated`, `tests/test_generation_start.py::test_generation_start_treats_invalid_persisted_plan_as_missing`, `tests/test_generation_start.py::test_generation_start_omits_host_generation_after_completed_conversation`, `tests/test_durable_generation_failure.py::test_run_generation_persists_assignment_failure_after_run_creation`.
-- Plan/evidence tests:
+- Plan/evidence tests: `tests/test_plan_validity.py` persisted valid/corrupt/disallowed-plan matrix; `tests/test_episode_planner.py` targeted edit/regeneration evidence-scope matrix; exact-head CI `36380466538` on `09d940446fc71879bb975801a7e59a718505bfa2`.
 - Security/redaction tests:
 - TTS/audio/cache tests:
 - Transcript-repair tests:
