@@ -166,7 +166,9 @@ class PreflightService:
                 issues.append(PreflightIssue("tts_assignment", str(redact(str(exc)))))
                 continue
             response_format = (
-                configured_tts_formats.get(provider.provider_id, COMPOSITION_TTS_FORMAT).strip().lower()
+                configured_tts_formats.get(provider.provider_id, COMPOSITION_TTS_FORMAT)
+                .strip()
+                .lower()
                 or COMPOSITION_TTS_FORMAT
             )
             if response_format != COMPOSITION_TTS_FORMAT:
