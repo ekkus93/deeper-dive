@@ -2,18 +2,26 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import pytest
+
 from deeper_dive.domain.clock import FrozenClock
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
-from deeper_dive.episode_planner import EpisodePlannerService
+from deeper_dive.episode_planner import EpisodePlannerService, PlannedSegment
 from deeper_dive.hosts import create_host_from_preset
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
-from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord
+from deeper_dive.storage.repositories import (
+    CorpusRepository,
+    ProjectRecord,
+    SourceChunkRecord,
+    SourceRecord,
+)
 
 
 class FakePlanner:
     def __init__(self) -> None:
         self.calls = 0
+        self.regeneration_evidence_ids: list[str] = []
 
     def generate_plan(self, request):
         self.calls += 1
@@ -25,6 +33,7 @@ class FakePlanner:
                         "purpose": "repair",
                         "target_duration_seconds": 300,
                         "lead_host_ids": ["h1"],
+                        "evidence_ids": self.regeneration_evidence_ids,
                     }
                 ]
             }
@@ -48,7 +57,35 @@ class FakePlanner:
 
 def _service(tmp_path):
     database = Database(tmp_path / "project.db")
-    CorpusRepository(database).create_project(ProjectRecord("p1", "Project", "now", "now"))
+    corpus = CorpusRepository(database)
+    corpus.create_project(ProjectRecord("p1", "Project", "now", "now"))
+    corpus.create_project(ProjectRecord("p2", "Other", "now", "now"))
+    corpus.create_source(
+        SourceRecord(
+            "s1",
+            "p1",
+            "user",
+            "pasted",
+            "Source",
+            "now",
+            included=True,
+            status="indexed",
+        )
+    )
+    corpus.create_chunk(SourceChunkRecord("e1", "s1", 0, "evidence", "hash"))
+    corpus.create_source(
+        SourceRecord(
+            "s2",
+            "p2",
+            "user",
+            "pasted",
+            "Foreign",
+            "now",
+            included=True,
+            status="indexed",
+        )
+    )
+    corpus.create_chunk(SourceChunkRecord("foreign-evidence", "s2", 0, "foreign", "hash2"))
     hosts = HostEpisodeRepository(database)
     hosts.create_host(create_host_from_preset("skeptic", "p1", host_id="h1").to_record())
     hosts.create_host(create_host_from_preset("moderator", "p1", host_id="h2").to_record())
@@ -79,3 +116,56 @@ def test_targeted_segment_regeneration_preserves_other_segment(tmp_path) -> None
     assert revised.segments[0].title == original.segments[0].title
     assert revised.segments[1].title == "Revised"
     assert revised.target_duration_seconds == 600
+
+
+def test_segment_edit_rejects_nonexistent_and_cross_project_evidence(tmp_path) -> None:
+    service, episode_id, _ = _service(tmp_path)
+    service.build_plan(episode_id)
+
+    for evidence_id in ("missing", "foreign-evidence"):
+        segment = PlannedSegment(
+            "Edited",
+            "repair",
+            300,
+            evidence_ids=(evidence_id,),
+            lead_host_ids=("h1",),
+        )
+        with pytest.raises(ValueError, match="evidence outside retrieved evidence"):
+            service.edit_segment(episode_id, 0, segment)
+
+
+def test_segment_edit_preserves_valid_episode_evidence(tmp_path) -> None:
+    service, episode_id, _ = _service(tmp_path)
+    service.build_plan(episode_id)
+    segment = PlannedSegment(
+        "Edited",
+        "repair",
+        300,
+        evidence_ids=("e1",),
+        lead_host_ids=("h1",),
+    )
+    revised = service.edit_segment(episode_id, 0, segment)
+    assert revised.segments[0].evidence_ids == ("e1",)
+
+
+def test_segment_regeneration_rejects_out_of_scope_evidence(tmp_path) -> None:
+    service, episode_id, fake = _service(tmp_path)
+    service.build_plan(episode_id)
+    fake.regeneration_evidence_ids = ["foreign-evidence"]
+    with pytest.raises(ValueError, match="evidence outside retrieved evidence"):
+        service.regenerate_segment(episode_id, 0)
+
+
+def test_evidence_validation_disabled_is_explicit_and_empty_scope_rejects() -> None:
+    raw = {
+        "segments": [
+            {
+                "title": "Segment",
+                "target_duration_seconds": 60,
+                "evidence_ids": ["unknown"],
+            }
+        ]
+    }
+    assert EpisodePlannerService._validate_segments(raw, (), None)[0].evidence_ids == ("unknown",)
+    with pytest.raises(ValueError, match="evidence outside retrieved evidence"):
+        EpisodePlannerService._validate_segments(raw, (), set())
