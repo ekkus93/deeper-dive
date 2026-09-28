@@ -212,14 +212,16 @@ def test_transcript_review_default_repair_uses_production_service(
         stale_claim = connection.execute(
             "SELECT 1 FROM material_claims WHERE id=?", ("claim-1",)
         ).fetchone()
-        regenerated_audio = connection.execute(
-            "SELECT artifact_id,path FROM tts_artifacts WHERE turn_id=?", ("turn-1",)
-        ).fetchone()
+        stale_verification = connection.execute(\n            "SELECT 1 FROM claim_verifications WHERE claim_id=?", ("claim-1",)\n        ).fetchone()\n        state = connection.execute(\n            "SELECT running_summary,recent_context_refs_json FROM conversation_states WHERE episode_id=?",\n            (episode_id,),\n        ).fetchone()\n        regenerated_audio = connection.execute(\n            "SELECT artifact_id,path FROM tts_artifacts WHERE turn_id=?", ("turn-1",)\n        ).fetchone()
     assert repaired is not None
     assert turn is not None
     assert "segments" in str(turn["text"])
     assert turn["evidence_ids_json"] == '["chunk-a", "chunk-b"]'
     assert stale_claim is None
+    assert stale_verification is None
+    assert state is not None
+    assert str(turn["text"]) in str(state["running_summary"])
+    assert "turn-1" in str(state["recent_context_refs_json"])
     assert regenerated_audio is not None
     assert str(regenerated_audio["artifact_id"]).startswith("tts-")
     assert Path(str(regenerated_audio["path"])).is_file()
