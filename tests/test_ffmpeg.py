@@ -58,4 +58,4 @@ def test_failure_sanitizes_stderr() -> None:
         run.return_value.returncode = 1
         run.return_value.stderr = "token=secret-value decoder exploded"
         with pytest.raises(FFmpegError, match=r"token=\[redacted\].*decoder exploded"):
-            FFmpegComposer._run(["ffmpeg", "input"])
+            FFmpegComposer.run_command(["ffmpeg", "input"])

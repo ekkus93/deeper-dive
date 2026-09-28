@@ -68,7 +68,7 @@ class FFmpegComposer:
         )
         output.parent.mkdir(parents=True, exist_ok=True)
         args.extend(["-filter_complex", ";".join(filters), "-map", "[out]", str(output)])
-        self._run(args)
+        self.run_command(args)
 
     def transcode_bytes(
         self,
@@ -89,10 +89,10 @@ class FFmpegComposer:
             *input_args,
             *output_args,
         ]
-        return self._run(args, input_bytes=payload)
+        return self.run_command(args, input_bytes=payload)
 
     @staticmethod
-    def _run(args: list[str], *, input_bytes: bytes | None = None) -> bytes:
+    def run_command(args: list[str], *, input_bytes: bytes | None = None) -> bytes:
         try:
             result = subprocess.run(
                 args, input=input_bytes, capture_output=True, check=False, shell=False
@@ -100,7 +100,7 @@ class FFmpegComposer:
         except OSError as exc:
             raise FFmpegError(f"unable to execute FFmpeg: {exc}") from exc
         if result.returncode != 0:
-            stderr = result.stderr.decode("utf-8", errors="replace")
+            stderr = result.stderr.decode("utf-8", errors="replace") if isinstance(result.stderr, bytes) else str(result.stderr)
             raise FFmpegError(f"FFmpeg failed: {FFmpegComposer._sanitize(stderr)}")
         return result.stdout
 
