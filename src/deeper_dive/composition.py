@@ -394,8 +394,7 @@ class ProductionComposition:
             for record in repository.list_hosts(project_id)
         }
         tts_turns = tuple(
-            _tts_turn_for_host(self, hosts[turn.speaker_id], turn)
-            for turn in turns
+            _tts_turn_for_host(self, hosts[turn.speaker_id], turn) for turn in turns
         )
         TTSGenerationStage(
             self.providers.tts_registry,
