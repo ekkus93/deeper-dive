@@ -8,6 +8,7 @@ from pathlib import Path
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.episode_library_screen import EpisodeLibraryController, EpisodeLibraryItem
+from deeper_dive.ffmpeg import FFmpegConfig
 from deeper_dive.host_turn import HostTurnService
 from deeper_dive.hosts import create_host_from_preset
 from deeper_dive.provider_factory import ProviderFactory
@@ -16,7 +17,14 @@ from deeper_dive.tui import DeeperDiveApp
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
-def test_library_export_creates_episode_specific_artifacts(tmp_path: Path) -> None:
+def test_library_export_creates_episode_specific_artifacts(
+    tmp_path: Path, monkeypatch
+) -> None:
+    fake_ffmpeg = _fake_ffmpeg_executable(tmp_path)
+    monkeypatch.setattr(
+        "deeper_dive.ffmpeg.FFmpegConfig.detect",
+        staticmethod(lambda executable=None: FFmpegConfig(fake_ffmpeg)),
+    )
     data_dir = tmp_path / "data"
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
@@ -185,3 +193,44 @@ def test_library_export_rejects_incomplete_episode(tmp_path: Path) -> None:
         assert "not exportable" in str(exc)
     else:
         raise AssertionError("incomplete episode export unexpectedly succeeded")
+
+
+def _fake_ffmpeg_executable(tmp_path: Path) -> Path:
+    executable = tmp_path / "ffmpeg"
+    executable.write_text(
+        r"""#!/usr/bin/env python3
+import io
+import sys
+import wave
+payload = sys.stdin.buffer.read()
+args = sys.argv[1:]
+try:
+    first_format = args[args.index('-f') + 1]
+except (ValueError, IndexError):
+    sys.exit(2)
+if first_format == 'wav':
+    try:
+        with wave.open(io.BytesIO(payload), 'rb') as wav:
+            source_rate = wav.getframerate()
+            frame_count = wav.getnframes()
+    except (EOFError, wave.Error):
+        sys.exit(1)
+elif first_format == 's16le':
+    try:
+        source_rate = int(args[args.index('-ar') + 1])
+        channels = int(args[args.index('-ac') + 1])
+    except (ValueError, IndexError):
+        sys.exit(2)
+    frame_size = channels * 2
+    if not payload or len(payload) % frame_size != 0:
+        sys.exit(1)
+    frame_count = len(payload) // frame_size
+else:
+    sys.exit(2)
+target_frames = max(1, round(frame_count * 24000 / source_rate))
+sys.stdout.buffer.write(b'\\x00\\x00' * target_frames)
+""",
+        encoding="utf-8",
+    )
+    executable.chmod(0o755)
+    return executable
