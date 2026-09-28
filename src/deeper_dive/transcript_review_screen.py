@@ -157,7 +157,9 @@ class _ProductionSummaryUpdater:
                 (episode_id,),
             ).fetchall()
         ordered = tuple(reversed(rows))
-        summary = " ".join(str(row["text"]).strip() for row in ordered if str(row["text"]).strip())
+        summary = " ".join(
+            str(row["text"]).strip() for row in ordered if str(row["text"]).strip()
+        )
         refs = tuple(str(row["id"]) for row in ordered)
         ConversationStateRepository(self.database).update(
             episode_id,
