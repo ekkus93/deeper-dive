@@ -64,7 +64,10 @@ class EpisodeExporter:
         slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-") or "episode"
         candidate = self.output_dir / slug
         suffix = 2
-        while any(candidate.with_suffix(ext).exists() for ext in (".wav", ".mp3", ".md", ".json")):
+        while any(
+            candidate.with_suffix(ext).exists()
+            for ext in (".wav", ".mp3", ".md", ".json")
+        ):
             candidate = self.output_dir / f"{slug}-{suffix}"
             suffix += 1
         return candidate
@@ -141,7 +144,8 @@ class EpisodeExporter:
                 (
                     f"Turn ID: {turn.turn_id}",
                     f"Speaker ID: {turn.speaker_id}",
-                    "Citations: " + (", ".join(turn.evidence_ids) if turn.evidence_ids else "none"),
+                    "Citations: "
+                    + (", ".join(turn.evidence_ids) if turn.evidence_ids else "none"),
                     "",
                 )
             )
@@ -149,7 +153,9 @@ class EpisodeExporter:
         if turn.claims:
             lines.extend(("### Claims", ""))
             for claim in turn.claims:
-                evidence = tuple(dict.fromkeys((*claim.supporting_ids, *claim.contradicting_ids)))
+                evidence = tuple(
+                    dict.fromkeys((*claim.supporting_ids, *claim.contradicting_ids))
+                )
                 lines.extend(
                     (
                         f"- [{claim.state}] {claim.text}",
