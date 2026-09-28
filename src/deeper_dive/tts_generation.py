@@ -251,6 +251,14 @@ class TTSGenerationStage:
                 sample_rate_hz=settings.get("sample_rate_hz"),
             )
         )
+        self._validate_identity(turn, result)
+        artifact = self._persist_result(turn, key, result)
+        self.repository.save(artifact)
+        self.repository.mark_checkpoint(run_id, turn.turn_id)
+        return artifact
+
+    @staticmethod
+    def _validate_identity(turn: TTSTurn, result: TTSAudioResult) -> None:
         if result.provider != turn.provider_id:
             raise ValueError(
                 f"TTS provider identity mismatch for turn {turn.turn_id}: "
@@ -261,20 +269,31 @@ class TTSGenerationStage:
                 f"TTS voice identity mismatch for turn {turn.turn_id}: "
                 f"expected {turn.voice!r}, got {result.voice!r}"
             )
-        artifact = self._persist_result(turn, key, result)
-        self.repository.save(artifact)
-        self.repository.mark_checkpoint(run_id, turn.turn_id)
-        return artifact
+        if turn.model is not None and result.model is None:
+            raise ValueError(
+                f"TTS model identity unavailable for turn {turn.turn_id}: "
+                f"expected {turn.model!r}"
+            )
+        if turn.model is not None and result.model != turn.model:
+            raise ValueError(
+                f"TTS model identity mismatch for turn {turn.turn_id}: "
+                f"expected {turn.model!r}, got {result.model!r}"
+            )
 
     def _persist_result(self, turn: TTSTurn, key: str, result: TTSAudioResult) -> TTSArtifact:
         if not result.audio:
             raise ValueError(f"TTS provider returned empty audio for turn {turn.turn_id}")
-        suffix = result.format.lower().lstrip(".") or "bin"
+        suffix = self._validated_format(turn, result)
         artifact_id = f"tts-{key[:24]}"
         path = self.cache_dir / f"{artifact_id}.{suffix}"
         temporary = path.with_suffix(path.suffix + ".tmp")
         temporary.write_bytes(result.audio)
         temporary.replace(path)
+        if path.suffix.lower().lstrip(".") != suffix:
+            raise ValueError(
+                f"TTS artifact extension mismatch for turn {turn.turn_id}: "
+                f"expected {suffix!r}, got {path.suffix!r}"
+            )
         return TTSArtifact(
             turn_id=turn.turn_id,
             artifact_id=artifact_id,
@@ -286,6 +305,18 @@ class TTSGenerationStage:
             model=result.model,
             format=suffix,
         )
+
+    @staticmethod
+    def _validated_format(turn: TTSTurn, result: TTSAudioResult) -> str:
+        suffix = result.format.lower().lstrip(".")
+        if not suffix:
+            raise ValueError(f"TTS provider did not report audio format for turn {turn.turn_id}")
+        if "/" in suffix or "\\" in suffix:
+            raise ValueError(
+                f"TTS provider reported invalid audio format for turn {turn.turn_id}: "
+                f"{result.format!r}"
+            )
+        return suffix
 
     @staticmethod
     def cache_key(turn: TTSTurn) -> str:
