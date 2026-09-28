@@ -235,8 +235,3 @@ def _duration_seconds(pcm: bytes, sample_rate_hz: int, channels: int) -> float:
     frame_size = channels * CANONICAL_SAMPLE_WIDTH_BYTES
     return len(pcm) / frame_size / sample_rate_hz
 
-
-def _sanitize(stderr: str, limit: int = 2000) -> str:
-    text = re.sub(r"(?i)(api[_-]?key|token|authorization|password)=\S+", r"\1=[redacted]", stderr)
-    text = " ".join(text.split())
-    return text[:limit]
