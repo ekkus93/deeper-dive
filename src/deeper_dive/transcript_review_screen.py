@@ -21,7 +21,6 @@ from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.claim_inspector_screen import ClaimInspectorController, ClaimInspectorScreen
 from deeper_dive.host_turn import HostTurn
 from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
-from deeper_dive.pipeline import PipelineContext
 from deeper_dive.storage.database import Database
 from deeper_dive.targeted_repair import TargetedRepairService
 
@@ -336,19 +335,9 @@ class TranscriptReviewController:
         composition = getattr(app.service, "_production_composition", None)
         if composition is None:
             return
-        from deeper_dive.composition import _composition_stage, _tts_stage
-
-        project_id = self._project_id(app)
-        episode_id = self._episode_id(app)
-        _tts_stage(
-            app.service,
-            project_id,
-            PipelineContext("transcript-repair", episode_id, "tts"),
-        )
-        _composition_stage(
-            app.service,
-            project_id,
-            PipelineContext("transcript-repair", episode_id, "composition"),
+        composition.regenerate_episode_audio(
+            self._project_id(app),
+            self._episode_id(app),
         )
 
     def _database(self, app: DeeperDiveApp) -> Database:

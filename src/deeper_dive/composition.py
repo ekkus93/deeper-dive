@@ -362,6 +362,30 @@ class ProductionComposition:
             self.database_for_project(project_id), provider, rechecker, summary_updater
         )
 
+    def regenerate_episode_audio(
+        self,
+        project_id: str,
+        episode_id: str,
+        *,
+        run_id: str = "transcript-repair",
+    ) -> None:
+        """Regenerate TTS artifacts, timeline, and episode audio through public production wiring."""
+
+        try:
+            _tts_stage(
+                self.service,
+                project_id,
+                PipelineContext(run_id, episode_id, "tts"),
+            )
+            _composition_stage(
+                self.service,
+                project_id,
+                PipelineContext(run_id, episode_id, "composition"),
+            )
+        except Exception as exc:
+            safe_message = sanitize_exception_message(exc)
+            raise RuntimeError(f"episode audio regeneration failed: {safe_message}") from exc
+
     @staticmethod
     def _run_generation_pipeline(
         service: DeeperDiveService,
