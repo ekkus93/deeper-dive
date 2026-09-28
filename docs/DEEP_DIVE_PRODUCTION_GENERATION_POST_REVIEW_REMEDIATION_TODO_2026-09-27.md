@@ -121,12 +121,12 @@ This checklist is the source of completion truth for the post-review remediation
 
 ## PRR-121 — Preflight/production parity
 
-- [ ] Provider existence parity.
-- [ ] Model availability parity.
-- [ ] Voice availability parity.
-- [ ] Network/local-only parity.
-- [ ] Provider-health parity.
-- [ ] Reuse one table-driven routing/preflight matrix across CLI/TUI tests.
+- [x] Provider existence parity.
+- [x] Model availability parity.
+- [x] Voice availability parity.
+- [x] Network/local-only parity.
+- [x] Provider-health parity.
+- [x] Reuse one table-driven routing/preflight matrix across CLI/TUI tests.
 
 ## PRR-122 — Durable post-run failure boundary
 
