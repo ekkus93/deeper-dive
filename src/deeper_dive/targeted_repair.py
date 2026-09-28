@@ -85,7 +85,8 @@ class TargetedRepairService:
                 "UPDATE conversation_turns SET text=?,evidence_ids_json=? WHERE id=?",
                 (repaired.text, json.dumps(repaired.evidence_ids), repaired.id),
             )
-            db.execute("DELETE FROM material_claims WHERE turn_id=?", (turn_id,))
+            db.execute(\n                "DELETE FROM claim_verifications WHERE claim_id IN "
+                "(SELECT id FROM material_claims WHERE turn_id=?)",\n                (turn_id,),\n            )\n            db.execute("DELETE FROM material_claims WHERE turn_id=?", (turn_id,))
         self.rechecker.recheck_turn(repaired)
         self.summary_updater.update_after_repair(repaired.episode_id, repaired.id)
         return repaired
