@@ -117,7 +117,10 @@ class _LLMClaimVerificationGenerator:
                     LLMMessage("user", json.dumps(request, sort_keys=True)),
                 ),
                 model=self.model,
-                response_schema={"type": "object", "required": ["state", "rationale"]},
+                response_schema={
+                    "type": "object",
+                    "required": ["state", "rationale"],
+                },
             )
         )
         payload: object = response.structured
@@ -607,7 +610,9 @@ class TranscriptReviewScreen(Screen[None]):
             "unknown" if state.position_seconds is None else f"{state.position_seconds:.1f}s"
         )
         self.query_one("#playback-status", Static).update(
-            f"{self._playback_strategy_text()}\nLast action: {state.message}\nPosition: {position}"
+            f"{self._playback_strategy_text()}\n"
+            f"Last action: {state.message}\n"
+            f"Position: {position}"
         )
         self._status(state.message)
 
