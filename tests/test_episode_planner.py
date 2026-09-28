@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import pytest
+
 from deeper_dive.domain.clock import FrozenClock
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
-from deeper_dive.episode_planner import EpisodePlannerService
+from deeper_dive.episode_planner import EpisodePlannerService, PlannedSegment
 from deeper_dive.hosts import create_host_from_preset
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
@@ -79,3 +81,41 @@ def test_targeted_segment_regeneration_preserves_other_segment(tmp_path) -> None
     assert revised.segments[0].title == original.segments[0].title
     assert revised.segments[1].title == "Revised"
     assert revised.target_duration_seconds == 600
+
+
+def test_active_empty_evidence_scope_rejects_all_evidence_ids() -> None:
+    raw = {
+        "segments": [
+            {
+                "title": "Scoped",
+                "target_duration_seconds": 60,
+                "evidence_ids": ["missing-chunk"],
+            }
+        ]
+    }
+
+    with pytest.raises(ValueError, match="outside retrieved evidence"):
+        EpisodePlannerService._validate_segments(raw, (), set())
+
+
+def test_explicitly_disabled_evidence_validation_allows_ids() -> None:
+    raw = {
+        "segments": [
+            {
+                "title": "Legacy",
+                "target_duration_seconds": 60,
+                "evidence_ids": ["unvalidated-chunk"],
+            }
+        ]
+    }
+
+    segments = EpisodePlannerService._validate_segments(raw, (), None)
+
+    assert segments == [
+        PlannedSegment(
+            title="Legacy",
+            purpose="",
+            target_duration_seconds=60,
+            evidence_ids=("unvalidated-chunk",),
+        )
+    ]

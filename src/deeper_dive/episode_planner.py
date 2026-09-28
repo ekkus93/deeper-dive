@@ -103,7 +103,9 @@ class EpisodePlannerService:
             "mode": "regenerate_segment",
         }
         raw = self.generator.generate_plan(request)
-        replacement = self._validate_segments(raw, config.host_ids, set())
+        replacement = self._validate_segments(
+            raw, config.host_ids, self._episode_evidence_ids(episode_id)
+        )
         if len(replacement) != 1:
             raise ValueError("targeted regeneration must return exactly one segment")
         segments = list(current.segments)
@@ -121,7 +123,9 @@ class EpisodePlannerService:
             raise IndexError(ordinal)
         config = self.configurations.load_configuration(episode_id)
         validated = self._validate_segments(
-            {"segments": [self._segment_payload(segment)]}, config.host_ids, set()
+            {"segments": [self._segment_payload(segment)]},
+            config.host_ids,
+            self._episode_evidence_ids(episode_id),
         )[0]
         segments = list(current.segments)
         segments[ordinal] = validated
@@ -173,7 +177,9 @@ class EpisodePlannerService:
 
     @staticmethod
     def _validate_segments(
-        raw: dict[str, Any], host_ids: tuple[str, ...], allowed_evidence: set[str]
+        raw: dict[str, Any],
+        host_ids: tuple[str, ...],
+        allowed_evidence: set[str] | None,
     ) -> list[PlannedSegment]:
         items = raw.get("segments")
         if not isinstance(items, list) or not items:
@@ -187,12 +193,25 @@ class EpisodePlannerService:
                 raise ValueError("segment duration must be positive")
             if any(host not in host_ids for host in segment.lead_host_ids):
                 raise ValueError("segment names a host outside the episode")
-            if allowed_evidence and any(
+            if allowed_evidence is not None and any(
                 eid not in allowed_evidence for eid in segment.evidence_ids
             ):
                 raise ValueError("segment references evidence outside retrieved evidence")
             segments.append(segment)
         return segments
+
+    def _episode_evidence_ids(self, episode_id: str) -> set[str]:
+        episode = self.repository.get_episode(episode_id)
+        if episode is None:
+            raise KeyError(episode_id)
+        with self.database.connection() as db:
+            rows = db.execute(
+                """SELECT c.id FROM source_chunks c
+                JOIN sources s ON s.id=c.source_id
+                WHERE s.project_id=? AND s.included=1 AND s.status='indexed'""",
+                (episode.project_id,),
+            ).fetchall()
+        return {str(row["id"]) for row in rows}
 
     @staticmethod
     def _bound_duration(segments: list[PlannedSegment], target: int) -> list[PlannedSegment]:
