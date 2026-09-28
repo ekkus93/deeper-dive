@@ -4,16 +4,27 @@ import json
 from dataclasses import replace
 from pathlib import Path
 
+import pytest
+
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.episode_library_export import EpisodeLibraryExportService
+from deeper_dive.ffmpeg import FFmpegConfig
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.transcript_review_screen import TranscriptReviewController
 from deeper_dive.tui import DeeperDiveApp
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
-def test_multi_episode_review_playback_and_export_artifacts_are_isolated(tmp_path: Path) -> None:
+def test_multi_episode_review_playback_and_export_artifacts_are_isolated(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_ffmpeg = _fake_ffmpeg_executable(tmp_path)
+    monkeypatch.setattr(
+        "deeper_dive.ffmpeg.FFmpegConfig.detect",
+        staticmethod(lambda executable=None: FFmpegConfig(fake_ffmpeg)),
+    )
     data_dir = tmp_path / "data"
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
@@ -115,3 +126,52 @@ def test_multi_episode_review_playback_and_export_artifacts_are_isolated(tmp_pat
     assert second_export.audio is not None
     assert first_export.audio.read_bytes().startswith(b"RIFF")
     assert second_export.audio.read_bytes().startswith(b"RIFF")
+
+
+def _fake_ffmpeg_executable(tmp_path: Path) -> Path:
+    executable = tmp_path / "ffmpeg"
+    executable.write_text(
+        r"""#!/usr/bin/env python3
+import io
+import sys
+import wave
+
+payload = sys.stdin.buffer.read()
+args = sys.argv[1:]
+try:
+    first_format = args[args.index('-f') + 1]
+except (ValueError, IndexError):
+    sys.stderr.write('missing input format')
+    sys.exit(2)
+
+if first_format == 'wav':
+    try:
+        with wave.open(io.BytesIO(payload), 'rb') as wav:
+            source_rate = wav.getframerate()
+            frame_count = wav.getnframes()
+    except (EOFError, wave.Error) as exc:
+        sys.stderr.write(f'invalid wav: {exc}')
+        sys.exit(1)
+elif first_format == 's16le':
+    try:
+        source_rate = int(args[args.index('-ar') + 1])
+        channels = int(args[args.index('-ac') + 1])
+    except (ValueError, IndexError) as exc:
+        sys.stderr.write(f'invalid raw args: {exc}')
+        sys.exit(2)
+    frame_size = channels * 2
+    if not payload or len(payload) % frame_size != 0:
+        sys.stderr.write('misaligned raw input')
+        sys.exit(1)
+    frame_count = len(payload) // frame_size
+else:
+    sys.stderr.write(f'unsupported input format: {first_format}')
+    sys.exit(2)
+
+target_frames = max(1, round(frame_count * 24000 / source_rate))
+sys.stdout.buffer.write(b'\x00\x00' * target_frames)
+""",
+        encoding="utf-8",
+    )
+    executable.chmod(0o755)
+    return executable
