@@ -16,6 +16,7 @@ from deeper_dive.audio_playback import AudioPlaybackBackend, AudioPlaybackContro
 from deeper_dive.audio_timeline import AudioTimeline, AudioTimelineRepository, TimelineItem
 from deeper_dive.conversation_generation import ConversationGenerationService
 from deeper_dive.conversation_state import ConversationState
+from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.director_decision import DirectorDecision
 from deeper_dive.domain.clock import SystemClock, format_timestamp
 from deeper_dive.domain.ids import new_run_id
@@ -38,6 +39,7 @@ from deeper_dive.pipeline import (
     PipelineResult,
     StageHandler,
 )
+from deeper_dive.plan_validity import evaluate_episode_plan
 from deeper_dive.preflight import PreflightService
 from deeper_dive.preflight_screen import PreflightController
 from deeper_dive.provider_factory import ProviderBuildResult, ProviderFactory
@@ -63,6 +65,8 @@ from deeper_dive.tts_generation import (
     TTSTurn,
 )
 from deeper_dive.user_config import UserConfigStore
+
+_TERMINAL_GENERATION_STATES = frozenset({"completed", "failed", "cancelled"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -312,10 +316,34 @@ class ProductionComposition:
     ) -> PipelineResult:
         """Execute a production-composed generation run to a terminal/control state."""
 
-        _assignments, errors = self.effective_model_role_assignments_for_run(project_id, run_id)
-        if errors:
-            raise ValueError("invalid model-role configuration: " + "; ".join(errors))
-        return self.generation_pipeline(project_id, progress=progress).run(run_id)
+        repository = self.generation_run_repository(project_id)
+        try:
+            _assignments, errors = self.effective_model_role_assignments_for_run(
+                project_id, run_id
+            )
+            if errors:
+                raise ValueError("invalid model-role configuration: " + "; ".join(errors))
+            return self.generation_pipeline(project_id, progress=progress).run(run_id)
+        except Exception as exc:
+            self._persist_generation_failure(repository, run_id, exc)
+            raise
+
+    @staticmethod
+    def _persist_generation_failure(
+        repository: GenerationRunRepository,
+        run_id: str,
+        exc: BaseException,
+    ) -> None:
+        run = repository.get(run_id)
+        if run is None or run.state in _TERMINAL_GENERATION_STATES:
+            return
+        failed = GenerationRunRepository.with_failure(
+            run,
+            code="generation_execution_failed",
+            sanitized_message=sanitize_exception_message(exc),
+            modified_at=format_timestamp(SystemClock().now()),
+        )
+        repository.update(failed)
 
     def exporter(self, project_id: str) -> EpisodeExporter:
         """Construct the exporter rooted in the selected project workspace."""
@@ -377,7 +405,7 @@ def _planning_stage(
     context: PipelineContext,
 ) -> None:
     database = Database(service.workspaces.project_root(project_id) / "project.db")
-    if HostEpisodeRepository(database).get_plan(context.episode_id) is not None:
+    if evaluate_episode_plan(database, context.episode_id).usable:
         return
     composition = getattr(service, "_production_composition", None)
     if composition is None:
