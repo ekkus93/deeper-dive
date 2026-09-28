@@ -147,14 +147,6 @@ class PreflightService:
                     fatal=local_only,
                 )
             )
-        if local_only and remote_llm:
-            issues.append(
-                PreflightIssue(
-                    "local_only_violation",
-                    "project local-only mode forbids remote provider route(s): "
-                    f"{', '.join(remote_llm)}",
-                )
-            )
 
         if not hosts:
             issues.append(PreflightIssue("hosts_missing", "episode has no hosts"))
@@ -184,6 +176,16 @@ class PreflightService:
                             f"TTS provider {provider.provider_id!r} is unhealthy: {health.message}",
                         )
                     )
+
+        remote_routes = sorted({route.provider for route in routes if not route.local})
+        if local_only and remote_routes:
+            issues.append(
+                PreflightIssue(
+                    "local_only_violation",
+                    "project local-only mode forbids remote provider route(s): "
+                    f"{', '.join(remote_routes)}",
+                )
+            )
 
         if source_count <= 0:
             issues.append(PreflightIssue("sources_missing", "project has no included sources"))
