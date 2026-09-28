@@ -25,8 +25,11 @@ from deeper_dive.tui import DeeperDiveApp
 
 def test_reusable_followup_fixture_runs_generation_composition_and_export(
     tmp_path: Path,
+    monkeypatch,
 ) -> None:
-    completed = run_followup_fixture(create_ready_followup_fixture(tmp_path))
+    ready = create_ready_followup_fixture(tmp_path)
+    _patch_ffmpeg_detect(monkeypatch, ready.ffmpeg)
+    completed = run_followup_fixture(ready)
     assert completed.run is not None
     assert completed.export is not None
     database = completed.database
@@ -56,9 +59,10 @@ def test_reusable_followup_fixture_runs_generation_composition_and_export(
 
 
 def test_followup_fixture_supports_duplicate_start_pause_resume_and_cli_export(
-    tmp_path: Path, capsys
+    tmp_path: Path, capsys, monkeypatch
 ) -> None:
     ready = create_ready_followup_fixture(tmp_path)
+    _patch_ffmpeg_detect(monkeypatch, ready.ffmpeg)
     starter = GenerationStartService(ready.composition, ffmpeg_executable=ready.ffmpeg)
 
     first = starter.start(ready.project_id, ready.episode_id)
@@ -118,8 +122,10 @@ def test_followup_fixture_supports_duplicate_start_pause_resume_and_cli_export(
 
 def test_followup_fixture_drives_tui_preflight_generation_monitor_review_and_export(
     tmp_path: Path,
+    monkeypatch,
 ) -> None:
     ready = create_ready_followup_fixture(tmp_path)
+    _patch_ffmpeg_detect(monkeypatch, ready.ffmpeg)
     app = DeeperDiveApp(service=ready.composition.service)
     app.current_project_id = ready.project_id
     app.current_project_name = "R6 shared acceptance"
@@ -174,11 +180,7 @@ def test_followup_fixture_drives_explicit_cli_generation_status_and_export(
     tmp_path: Path, capsys, monkeypatch
 ) -> None:
     ready = create_ready_followup_fixture(tmp_path)
-    monkeypatch.setattr(
-        FFmpegConfig,
-        "detect",
-        classmethod(lambda cls, configured=None: cls(ready.ffmpeg)),
-    )
+    _patch_ffmpeg_detect(monkeypatch, ready.ffmpeg)
 
     generate_code = cli.main(
         [
@@ -257,3 +259,11 @@ def test_followup_fixture_drives_explicit_cli_generation_status_and_export(
     assert audio.is_file()
     with wave.open(str(audio), "rb") as wav:
         assert wav.getnframes() > 0
+
+
+def _patch_ffmpeg_detect(monkeypatch, ffmpeg: Path) -> None:
+    monkeypatch.setattr(
+        FFmpegConfig,
+        "detect",
+        classmethod(lambda cls, configured=None: cls(ffmpeg)),
+    )
