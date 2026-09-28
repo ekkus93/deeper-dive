@@ -17,6 +17,7 @@ from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.episode_library_export import EpisodeExportResult, EpisodeLibraryExportService
 from deeper_dive.episode_library_screen import EpisodeLibraryScreen
+from deeper_dive.ffmpeg import FFmpegConfig
 from deeper_dive.generation_monitor import GenerationMonitorScreen
 from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.host_turn import HostTurnService
@@ -110,7 +111,7 @@ def test_cli_provider_backed_acceptance_workflow(
 ) -> None:
     data_dir = tmp_path / "data"
     _write_provider_config(data_dir)
-    _patch_ffmpeg(monkeypatch)
+    _patch_ffmpeg(monkeypatch, tmp_path)
     corpus = tmp_path / "corpus"
     corpus.mkdir()
     (corpus / "source.md").write_text(
@@ -201,7 +202,7 @@ def test_cli_duplicate_start_and_pause_resume_acceptance_path(
         "build",
         staticmethod(lambda data_dir=None: fixture.composition),
     )
-    _patch_ffmpeg(monkeypatch)
+    _patch_ffmpeg(monkeypatch, tmp_path)
     base = ["--data-dir", str(fixture.data_dir), "--json", "episode"]
 
     first = _json_call([*base, "generate", fixture.project_id, fixture.episode_id], capsys)
@@ -437,14 +438,58 @@ def _episode_id(payload: dict[str, Any]) -> str:
 
 def _fake_ffmpeg(tmp_path: Path) -> Path:
     executable = tmp_path / "ffmpeg"
-    executable.write_text("fake", encoding="utf-8")
+    executable.write_text(
+        r"""#!/usr/bin/env python3
+import io
+import sys
+import wave
+
+payload = sys.stdin.buffer.read()
+args = sys.argv[1:]
+try:
+    first_format = args[args.index('-f') + 1]
+except (ValueError, IndexError):
+    sys.stderr.write('missing input format')
+    sys.exit(2)
+
+if first_format == 'wav':
+    try:
+        with wave.open(io.BytesIO(payload), 'rb') as wav:
+            source_rate = wav.getframerate()
+            frame_count = wav.getnframes()
+    except (EOFError, wave.Error) as exc:
+        sys.stderr.write(f'invalid wav: {exc}')
+        sys.exit(1)
+elif first_format == 's16le':
+    try:
+        source_rate = int(args[args.index('-ar') + 1])
+        channels = int(args[args.index('-ac') + 1])
+    except (ValueError, IndexError) as exc:
+        sys.stderr.write(f'invalid raw args: {exc}')
+        sys.exit(2)
+    frame_size = channels * 2
+    if not payload or len(payload) % frame_size != 0:
+        sys.stderr.write('misaligned raw input')
+        sys.exit(1)
+    frame_count = len(payload) // frame_size
+else:
+    sys.stderr.write(f'unsupported input format: {first_format}')
+    sys.exit(2)
+
+target_frames = max(1, round(frame_count * 24000 / source_rate))
+sys.stdout.buffer.write(b'\x00\x00' * target_frames)
+""",
+        encoding="utf-8",
+    )
+    executable.chmod(0o755)
     return executable
 
 
-def _patch_ffmpeg(monkeypatch: pytest.MonkeyPatch) -> None:
+def _patch_ffmpeg(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    executable = _fake_ffmpeg(tmp_path)
     monkeypatch.setattr(
         "deeper_dive.preflight.FFmpegConfig.detect",
-        staticmethod(lambda executable=None: executable or Path("/fake/ffmpeg")),
+        staticmethod(lambda executable_path=None: FFmpegConfig(executable_path or executable)),
     )
 
 
