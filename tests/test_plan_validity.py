@@ -36,8 +36,8 @@ def _fixture(tmp_path):
         SourceRecord(
             "s1",
             "p1",
-            "paste",
-            "text",
+            "user",
+            "pasted",
             "Source",
             "now",
             included=True,
@@ -49,8 +49,8 @@ def _fixture(tmp_path):
         SourceRecord(
             "s2",
             "p2",
-            "paste",
-            "text",
+            "user",
+            "pasted",
             "Foreign",
             "now",
             included=True,
