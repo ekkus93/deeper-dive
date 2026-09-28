@@ -48,10 +48,7 @@ def redact(value: object, *, drop_secret_keys: bool = False) -> object:
     if isinstance(value, (list, tuple)):
         return [redact(item, drop_secret_keys=drop_secret_keys) for item in value]
     if isinstance(value, (set, frozenset)):
-        return [
-            redact(item, drop_secret_keys=drop_secret_keys)
-            for item in sorted(value, key=repr)
-        ]
+        return [redact(item, drop_secret_keys=drop_secret_keys) for item in sorted(value, key=repr)]
     if isinstance(value, str):
         return _redact_text(value)
     return value
