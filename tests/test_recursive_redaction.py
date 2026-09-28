@@ -2,9 +2,6 @@ from __future__ import annotations
 
 import json
 
-import deeper_dive.diagnostics as diagnostics
-import deeper_dive.export as export
-
 
 SECRET_VALUE = "credential-value"
 
@@ -18,6 +15,8 @@ def _credential_url() -> str:
 
 
 def test_redact_covers_secret_key_variants_and_nested_collections() -> None:
+    from deeper_dive import diagnostics
+
     payload = {
         "authorization": _bearer(),
         "apiKey": SECRET_VALUE,
@@ -52,6 +51,8 @@ def test_redact_covers_secret_key_variants_and_nested_collections() -> None:
 
 
 def test_redact_preserves_non_secret_false_positive_keys() -> None:
+    from deeper_dive import diagnostics
+
     payload = {
         "tokenizer": "sentencepiece",
         "model_tokens": 8192,
@@ -65,6 +66,8 @@ def test_redact_preserves_non_secret_false_positive_keys() -> None:
 
 
 def test_exception_sanitizer_redacts_cause_and_context() -> None:
+    from deeper_dive import diagnostics
+
     cause = ValueError("api_key=credential-value")
     exc = RuntimeError("provider failed with " + _bearer())
     exc.__cause__ = cause
@@ -77,8 +80,10 @@ def test_exception_sanitizer_redacts_cause_and_context() -> None:
 
 
 def test_export_metadata_uses_canonical_sanitizer_and_drops_secret_keys(tmp_path) -> None:
+    from deeper_dive.export import EpisodeExporter
+
     path = tmp_path / "metadata.json"
-    export.EpisodeExporter.write_metadata(
+    EpisodeExporter.write_metadata(
         path,
         {
             "episode_id": "episode-1",
