@@ -95,12 +95,6 @@ def test_transcode_file_uses_public_argv_boundary(tmp_path: Path) -> None:
     assert run.call_args.kwargs["shell"] is False
 
 
-def test_transcode_file_reports_missing_input(tmp_path: Path) -> None:
-    composer = FFmpegComposer(FFmpegConfig(Path("ffmpeg")))
-    with pytest.raises(FFmpegError, match="input media not found"):
-        composer.transcode_file(tmp_path / "missing.wav", tmp_path / "out.mp3")
-
-
 def test_transcode_bytes_uses_public_argv_boundary() -> None:
     with patch("subprocess.run") as run:
         run.return_value.returncode = 0

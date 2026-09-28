@@ -75,8 +75,6 @@ class FFmpegComposer:
     ) -> Path:
         """Transcode one media file to another path through FFmpeg's public boundary."""
 
-        if not input_path.is_file():
-            raise FFmpegError(f"input media not found: {input_path}")
         output_path.parent.mkdir(parents=True, exist_ok=True)
         args = [
             str(self.config.executable),
