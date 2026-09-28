@@ -603,20 +603,27 @@ class TranscriptReviewScreen(Screen[None]):
         )
 
     def _render_playback_state(self, state: PlaybackState) -> None:
-        position = "unknown" if state.position_seconds is None else f"{state.position_seconds:.1f}s"
+        position = (
+            "unknown" if state.position_seconds is None else f"{state.position_seconds:.1f}s"
+        )
         self.query_one("#playback-status", Static).update(
             f"{self._playback_strategy_text()}\nLast action: {state.message}\nPosition: {position}"
         )
         self._status(state.message)
 
     def _chapter_text(self) -> str:
-        return "\n".join(self._chapter_row(index, turn) for index, turn in enumerate(self.turns))
+        return "\n".join(
+            self._chapter_row(index, turn) for index, turn in enumerate(self.turns)
+        )
 
     def _chapter_row(self, index: int, turn: TranscriptTurn) -> str:
         selected = "*" if index == self.selected_index else " "
         chapter = turn.segment_ordinal + 1
         ordinal = turn.turn_ordinal + 1
-        return f"{selected} {index + 1}. Chapter {chapter} Turn {ordinal} — {turn.speaker_name}"
+        return (
+            f"{selected} {index + 1}. Chapter {chapter} Turn {ordinal} — "
+            f"{turn.speaker_name}"
+        )
 
     def _render_selected(self, status: str) -> None:
         turn = self._selected_turn()
@@ -643,7 +650,10 @@ class TranscriptReviewScreen(Screen[None]):
 
     @staticmethod
     def _claims_text(claims: tuple[TurnClaimSummary, ...]) -> str:
-        rows = [f"[{claim.state}] {claim.text}\n  {claim.rationale}".rstrip() for claim in claims]
+        rows = [
+            f"[{claim.state}] {claim.text}\n  {claim.rationale}".rstrip()
+            for claim in claims
+        ]
         return "\n".join(rows) if rows else "No claims for selected turn."
 
     @staticmethod
