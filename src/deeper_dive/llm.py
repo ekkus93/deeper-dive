@@ -170,6 +170,8 @@ class FakeLLMProvider:
         prompt = "\n".join(message.content for message in request.messages).lower()
         if "choose the next podcast host turn" in prompt and "director decision" in prompt:
             return self._director_decision_response(request)
+        if "classify one material claim against retrieved evidence" in prompt:
+            return self._claim_verification_response(request)
         if "verify generated podcast transcript" in prompt and "accepted" in prompt:
             if self.response != self.DEFAULT_RESPONSE:
                 try:
@@ -227,6 +229,43 @@ class FakeLLMProvider:
     def _verification_response() -> str:
         return json.dumps(
             {"accepted": True, "notes": "Configured fake verification marker."},
+            sort_keys=True,
+        )
+
+    @staticmethod
+    def _claim_verification_response(request: LLMRequest) -> str:
+        try:
+            payload = json.loads(request.messages[-1].content)
+        except (IndexError, json.JSONDecodeError):
+            payload = {}
+        evidence = payload.get("evidence", []) if isinstance(payload, dict) else []
+        supporting: list[str] = []
+        contradicting: list[str] = []
+        if isinstance(evidence, list):
+            for item in evidence:
+                if not isinstance(item, dict):
+                    continue
+                evidence_id = str(item.get("id", ""))
+                if not evidence_id:
+                    continue
+                if item.get("relation_hint") == "contradicts":
+                    contradicting.append(evidence_id)
+                else:
+                    supporting.append(evidence_id)
+        if supporting:
+            state = "supported"
+        elif contradicting:
+            state = "contradicted"
+        else:
+            state = "insufficient_evidence"
+        return json.dumps(
+            {
+                "state": state,
+                "rationale": "Configured fake claim verification marker.",
+                "confidence": 0.8,
+                "supporting_evidence_ids": supporting[:2],
+                "contradicting_evidence_ids": contradicting[:2],
+            },
             sort_keys=True,
         )
 
