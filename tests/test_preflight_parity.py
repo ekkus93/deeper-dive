@@ -208,9 +208,7 @@ def _app(
         unhealthy = UnhealthyLLM(provider_id="planner", model="fake-v1")
         composition.provider_controller.llm_registry.register(unhealthy)
     if unhealthy_tts:
-        composition.provider_controller.tts_providers["speech"] = UnhealthyTTS(
-            provider_id="speech"
-        )
+        composition.provider_controller.tts_providers["speech"] = UnhealthyTTS(provider_id="speech")
 
     project = composition.service.create_project("Preflight parity")
     composition.service.add_pasted_source(
@@ -227,9 +225,7 @@ def _app(
         tts_voice=tts_voice,
     )
     hosts.create_host(host)
-    configurations = EpisodeConfigurationService(
-        composition.database_for_project(project.id)
-    )
+    configurations = EpisodeConfigurationService(composition.database_for_project(project.id))
     episode = configurations.create(
         project.id,
         EpisodeConfiguration(
