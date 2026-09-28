@@ -33,17 +33,25 @@ def _redact_text(value: str) -> str:
     return _CREDENTIAL_URL.sub(r"\1[REDACTED]@", value)
 
 
-def redact(value: object) -> object:
+def redact(value: object, *, drop_secret_keys: bool = False) -> object:
     """Recursively redact credentials while preserving useful diagnostic shape."""
     if isinstance(value, Mapping):
         return {
-            str(key): "[REDACTED]" if _SECRET_KEY.search(str(key)) else redact(item)
+            str(key): (
+                "[REDACTED]"
+                if _SECRET_KEY.search(str(key))
+                else redact(item, drop_secret_keys=drop_secret_keys)
+            )
             for key, item in value.items()
+            if not (drop_secret_keys and _SECRET_KEY.search(str(key)))
         }
     if isinstance(value, (list, tuple)):
-        return [redact(item) for item in value]
+        return [redact(item, drop_secret_keys=drop_secret_keys) for item in value]
     if isinstance(value, (set, frozenset)):
-        return [redact(item) for item in sorted(value, key=repr)]
+        return [
+            redact(item, drop_secret_keys=drop_secret_keys)
+            for item in sorted(value, key=repr)
+        ]
     if isinstance(value, str):
         return _redact_text(value)
     return value
