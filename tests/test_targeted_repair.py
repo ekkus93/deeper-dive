@@ -14,7 +14,7 @@ from deeper_dive.storage.episode_repositories import (
 from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord
 from deeper_dive.targeted_repair import TargetedRepairService
 from deeper_dive.tts import FakeTTSProvider, TTSProviderRegistry, TTSVoice
-from deeper_dive.tts_generation import TTSArtifactRepository, TTSGenerationStage, TTSTurn
+from deeper_dive.tts_generation import TTSArtifact, TTSArtifactRepository, TTSGenerationStage, TTSTurn
 
 
 class RepairProvider:
@@ -207,3 +207,40 @@ def test_repair_regenerates_changed_turn_without_breaking_shared_cache(
     assert still_old_t2.cache_key == old_t2.cache_key
     assert still_old_t2.path == old_t2.path
     assert new_t1.path != old_t2.path
+
+
+def test_cache_cleanup_preserves_shared_file_until_last_reference_is_replaced(tmp_path: Path) -> None:
+    database = _database(tmp_path)
+    repository = TTSArtifactRepository(database)
+    shared = tmp_path / "shared.wav"
+    replacement = tmp_path / "replacement.wav"
+    shared.write_bytes(b"shared")
+    replacement.write_bytes(b"replacement")
+    for turn_id in ("t1", "t2"):
+        repository.save(
+            TTSArtifact(turn_id, "shared", "same", "complete", shared, "fake", "v", None, "wav")
+        )
+
+    repository.save(
+        TTSArtifact("t1", "new", "changed", "complete", replacement, "fake", "v", None, "wav")
+    )
+    assert shared.exists()
+    repository.delete_turn("t2")
+    assert not shared.exists()
+    assert replacement.exists()
+
+
+def test_repeated_unique_cache_replacement_collects_orphans(tmp_path: Path) -> None:
+    database = _database(tmp_path)
+    repository = TTSArtifactRepository(database)
+    paths = [tmp_path / f"repair-{index}.wav" for index in range(3)]
+    for index, path in enumerate(paths):
+        path.write_bytes(str(index).encode())
+        repository.save(
+            TTSArtifact(
+                "t1", f"artifact-{index}", f"key-{index}", "complete",
+                path, "fake", "v", None, "wav",
+            )
+        )
+
+    assert [path.exists() for path in paths] == [False, False, True]
