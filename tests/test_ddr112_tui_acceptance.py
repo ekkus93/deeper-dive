@@ -7,6 +7,7 @@ import pytest
 
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.episode_library_screen import EpisodeLibraryController
+from deeper_dive.ffmpeg import FFmpegConfig
 from deeper_dive.generation_monitor import GenerationMonitorScreen
 from deeper_dive.hosts import HostProfile
 from deeper_dive.llm import FakeLLMProvider, LLMProviderRegistry
@@ -31,6 +32,11 @@ async def _exercise_tui_acceptance(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    fake_ffmpeg = _fake_ffmpeg_executable(tmp_path)
+    monkeypatch.setattr(
+        "deeper_dive.ffmpeg.FFmpegConfig.detect",
+        staticmethod(lambda executable=None: FFmpegConfig(fake_ffmpeg)),
+    )
     service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
     project = service.create_project("DDR-112 TUI")
     service.add_pasted_source(
@@ -51,8 +57,6 @@ async def _exercise_tui_acceptance(
         )
 
     controller = _provider_controller(service)
-    fake_ffmpeg = tmp_path / "ffmpeg"
-    fake_ffmpeg.write_text("deterministic ffmpeg readiness marker", encoding="utf-8")
     app = DeeperDiveApp(
         service,
         provider_controller=controller,
@@ -121,3 +125,52 @@ def _provider_controller(service: DeeperDiveService) -> ProviderController:
     controller = ProviderController(store, registry, {})
     controller.tts_providers["fake-tts"] = FakeTTSProvider(provider_id="fake-tts")
     return controller
+
+
+def _fake_ffmpeg_executable(tmp_path: Path) -> Path:
+    executable = tmp_path / "ffmpeg"
+    executable.write_text(
+        r"""#!/usr/bin/env python3
+import io
+import sys
+import wave
+
+payload = sys.stdin.buffer.read()
+args = sys.argv[1:]
+try:
+    first_format = args[args.index('-f') + 1]
+except (ValueError, IndexError):
+    sys.stderr.write('missing input format')
+    sys.exit(2)
+
+if first_format == 'wav':
+    try:
+        with wave.open(io.BytesIO(payload), 'rb') as wav:
+            source_rate = wav.getframerate()
+            frame_count = wav.getnframes()
+    except (EOFError, wave.Error) as exc:
+        sys.stderr.write(f'invalid wav: {exc}')
+        sys.exit(1)
+elif first_format == 's16le':
+    try:
+        source_rate = int(args[args.index('-ar') + 1])
+        channels = int(args[args.index('-ac') + 1])
+    except (ValueError, IndexError) as exc:
+        sys.stderr.write(f'invalid raw args: {exc}')
+        sys.exit(2)
+    frame_size = channels * 2
+    if not payload or len(payload) % frame_size != 0:
+        sys.stderr.write('misaligned raw input')
+        sys.exit(1)
+    frame_count = len(payload) // frame_size
+else:
+    sys.stderr.write(f'unsupported input format: {first_format}')
+    sys.exit(2)
+
+target_frames = max(1, round(frame_count * 24000 / source_rate))
+sys.stdout.buffer.write(b'\x00\x00' * target_frames)
+""",
+        encoding="utf-8",
+    )
+    executable.chmod(0o755)
+    return executable
