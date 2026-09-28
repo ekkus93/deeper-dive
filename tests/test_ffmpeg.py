@@ -59,3 +59,19 @@ def test_failure_sanitizes_stderr() -> None:
         run.return_value.stderr = "token=secret-value decoder exploded"
         with pytest.raises(FFmpegError, match=r"token=\[redacted\].*decoder exploded"):
             FFmpegComposer.run_command(["ffmpeg", "input"])
+
+
+def test_transcode_bytes_uses_public_argv_boundary() -> None:
+    with patch("subprocess.run") as run:
+        run.return_value.returncode = 0
+        run.return_value.stderr = b""
+        run.return_value.stdout = b"converted"
+        result = FFmpegComposer(FFmpegConfig(Path("ffmpeg"))).transcode_bytes(
+            b"input", input_args=["-f", "wav", "-i", "pipe:0"], output_args=["-f", "s16le", "pipe:1"]
+        )
+    assert result == b"converted"
+    args = run.call_args.args[0]
+    assert args[0] == "ffmpeg"
+    assert "-nostdin" in args
+    assert run.call_args.kwargs["input"] == b"input"
+    assert run.call_args.kwargs["shell"] is False

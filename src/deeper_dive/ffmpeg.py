@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import re
 import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
 from deeper_dive.audio_timeline import AudioTimeline
+from deeper_dive.diagnostics import sanitize_exception_message
 
 
 class FFmpegError(RuntimeError):
@@ -105,13 +105,6 @@ class FFmpegComposer:
                 if isinstance(result.stderr, bytes)
                 else str(result.stderr)
             )
-            raise FFmpegError(f"FFmpeg failed: {FFmpegComposer._sanitize(stderr)}")
+            raise FFmpegError(f"FFmpeg failed: {sanitize_exception_message(stderr)}")
         return result.stdout
 
-    @staticmethod
-    def _sanitize(stderr: str, limit: int = 2000) -> str:
-        text = re.sub(
-            r"(?i)(api[_-]?key|token|authorization|password)=\S+", r"\1=[redacted]", stderr
-        )
-        text = " ".join(text.split())
-        return text[:limit]
