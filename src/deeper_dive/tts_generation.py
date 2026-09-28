@@ -310,7 +310,9 @@ class TTSGenerationStage:
     def _validated_format(turn: TTSTurn, result: TTSAudioResult) -> str:
         suffix = result.format.lower().lstrip(".")
         if not suffix:
-            raise ValueError(f"TTS provider did not report audio format for turn {turn.turn_id}")
+            raise ValueError(
+                f"TTS provider did not report audio format for turn {turn.turn_id}"
+            )
         if "/" in suffix or "\\" in suffix:
             raise ValueError(
                 f"TTS provider reported invalid audio format for turn {turn.turn_id}: "
