@@ -115,6 +115,29 @@ def test_cli_and_tui_preflight_reject_local_only_remote_tts(tmp_path: Path) -> N
     )
 
 
+def test_cli_and_tui_preflight_reject_non_wav_tts_before_synthesis(
+    tmp_path: Path,
+) -> None:
+    composition, app = _app(
+        tmp_path,
+        defaults={"local_only": "true"},
+        llm_scope="local",
+        tts_scope="local",
+        tts_provider="speech",
+        tts_voice="voice-a",
+        tts_response_format="mp3",
+        unhealthy_llm=False,
+        unhealthy_tts=False,
+    )
+    cli_report, tui_report = _reports(composition, app)
+    cli_codes = _blocker_codes(cli_report)
+    tui_codes = _blocker_codes(tui_report)
+
+    assert cli_codes == tui_codes
+    assert "tts_format_unsupported" in cli_codes
+    assert composition.provider_controller.tts_providers["speech"].requests == []
+
+
 def _assert_parity(
     tmp_path: Path,
     *,
@@ -124,6 +147,7 @@ def _assert_parity(
     tts_scope: Literal["local", "remote"] | None = "local",
     tts_provider: str = "speech",
     tts_voice: str = "voice-a",
+    tts_response_format: str = "wav",
     unhealthy_llm: bool = False,
     unhealthy_tts: bool = False,
 ) -> None:
@@ -134,6 +158,7 @@ def _assert_parity(
         tts_scope=tts_scope,
         tts_provider=tts_provider,
         tts_voice=tts_voice,
+        tts_response_format=tts_response_format,
         unhealthy_llm=unhealthy_llm,
         unhealthy_tts=unhealthy_tts,
     )
@@ -175,6 +200,7 @@ def _app(
     tts_scope: Literal["local", "remote"] | None,
     tts_provider: str,
     tts_voice: str,
+    tts_response_format: str,
     unhealthy_llm: bool,
     unhealthy_tts: bool,
 ) -> tuple[ProductionComposition, AppStub]:
@@ -195,6 +221,7 @@ def _app(
                 "speech": ProviderConfig(
                     provider_type="fake-tts",
                     network_scope=tts_scope,
+                    response_format=tts_response_format,
                 ),
             },
             defaults=user_defaults,
