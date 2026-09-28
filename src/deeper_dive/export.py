@@ -12,8 +12,6 @@ from deeper_dive.audio_normalization import CanonicalAudio
 from deeper_dive.diagnostics import redact
 from deeper_dive.ffmpeg import FFmpegComposer
 
-# fmt: off
-
 
 @dataclass(frozen=True, slots=True)
 class TranscriptClaim:
@@ -175,5 +173,3 @@ class EpisodeExporter:
                 )
             lines.append("")
         return lines
-
-# fmt: on
