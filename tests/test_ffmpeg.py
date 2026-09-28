@@ -61,6 +61,46 @@ def test_failure_sanitizes_stderr() -> None:
             FFmpegComposer.run_command(["ffmpeg", "input"])
 
 
+def test_transcode_file_uses_public_argv_boundary(tmp_path: Path) -> None:
+    source = tmp_path / "source episode.wav"
+    destination = tmp_path / "exports" / "episode.mp3"
+    source.write_bytes(b"audio")
+
+    with patch("subprocess.run") as run:
+        run.return_value.returncode = 0
+        run.return_value.stderr = b""
+        run.return_value.stdout = b""
+        result = FFmpegComposer(FFmpegConfig(Path("ffmpeg"))).transcode_file(
+            source,
+            destination,
+            output_args=["-codec:a", "libmp3lame"],
+        )
+
+    args = run.call_args.args[0]
+    assert result == destination
+    assert args == [
+        "ffmpeg",
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-nostdin",
+        "-i",
+        str(source),
+        "-codec:a",
+        "libmp3lame",
+        str(destination),
+    ]
+    assert destination.parent.is_dir()
+    assert run.call_args.kwargs["shell"] is False
+
+
+def test_transcode_file_reports_missing_input(tmp_path: Path) -> None:
+    composer = FFmpegComposer(FFmpegConfig(Path("ffmpeg")))
+    with pytest.raises(FFmpegError, match="input media not found"):
+        composer.transcode_file(tmp_path / "missing.wav", tmp_path / "out.mp3")
+
+
 def test_transcode_bytes_uses_public_argv_boundary() -> None:
     with patch("subprocess.run") as run:
         run.return_value.returncode = 0

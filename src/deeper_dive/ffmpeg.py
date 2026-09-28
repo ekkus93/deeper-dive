@@ -36,7 +36,7 @@ class FFmpegConfig:
 
 
 class FFmpegComposer:
-    """Compose timeline clips using argv-only subprocess execution."""
+    """Compose and transcode media using argv-only subprocess execution."""
 
     def __init__(self, config: FFmpegConfig) -> None:
         self.config = config
@@ -69,6 +69,29 @@ class FFmpegComposer:
         output.parent.mkdir(parents=True, exist_ok=True)
         args.extend(["-filter_complex", ";".join(filters), "-map", "[out]", str(output)])
         self.run_command(args)
+
+    def transcode_file(
+        self, input_path: Path, output_path: Path, *, output_args: list[str] | None = None
+    ) -> Path:
+        """Transcode one media file to another path through FFmpeg's public boundary."""
+
+        if not input_path.is_file():
+            raise FFmpegError(f"input media not found: {input_path}")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        args = [
+            str(self.config.executable),
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-nostdin",
+            "-i",
+            str(input_path),
+            *(output_args or []),
+            str(output_path),
+        ]
+        self.run_command(args)
+        return output_path
 
     def transcode_bytes(
         self,

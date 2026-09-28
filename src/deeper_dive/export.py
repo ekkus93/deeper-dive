@@ -83,10 +83,7 @@ class EpisodeExporter:
 
     @staticmethod
     def write_mp3(wav_path: Path, mp3_path: Path, composer: FFmpegComposer) -> Path:
-        composer.run_command(
-            [str(composer.config.executable), "-y", "-i", str(wav_path), str(mp3_path)]
-        )
-        return mp3_path
+        return composer.transcode_file(wav_path, mp3_path)
 
     @classmethod
     def write_transcript(cls, path: Path, title: str, turns: tuple[TranscriptTurn, ...]) -> Path:
