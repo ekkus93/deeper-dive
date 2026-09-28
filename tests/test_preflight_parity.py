@@ -135,9 +135,7 @@ def test_cli_and_tui_preflight_reject_non_wav_tts_before_synthesis(
         unhealthy_llm=False,
         unhealthy_tts=False,
     )
-    composition.provider_controller.tts_providers["speech"] = ExplodingTTS(
-        provider_id="speech"
-    )
+    composition.provider_controller.tts_providers["speech"] = ExplodingTTS(provider_id="speech")
     cli_report, tui_report = _reports(composition, app)
     cli_codes = _blocker_codes(cli_report)
     tui_codes = _blocker_codes(tui_report)
