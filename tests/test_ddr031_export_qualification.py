@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 from dataclasses import replace
 from pathlib import Path
 
@@ -162,3 +163,11 @@ sys.stdout.buffer.write(b'\x00\x00' * target_frames)
     executable.chmod(0o755)
     current_path = os.environ.get("PATH", "")
     monkeypatch.setenv("PATH", f"{tmp_path}{os.pathsep}{current_path}")
+    real_which = shutil.which
+
+    def fake_which(command: str, *args, **kwargs):
+        if command == "ffmpeg":
+            return str(executable)
+        return real_which(command, *args, **kwargs)
+
+    monkeypatch.setattr(shutil, "which", fake_which)
