@@ -14,7 +14,12 @@ from deeper_dive.storage.episode_repositories import (
 from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord
 from deeper_dive.targeted_repair import TargetedRepairService
 from deeper_dive.tts import FakeTTSProvider, TTSProviderRegistry, TTSVoice
-from deeper_dive.tts_generation import TTSArtifact, TTSArtifactRepository, TTSGenerationStage, TTSTurn
+from deeper_dive.tts_generation import (
+    TTSArtifact,
+    TTSArtifactRepository,
+    TTSGenerationStage,
+    TTSTurn,
+)
 
 
 class RepairProvider:
@@ -213,7 +218,9 @@ def test_repair_regenerates_changed_turn_without_breaking_shared_cache(
     assert new_t1.path != old_t2.path
 
 
-def test_cache_cleanup_preserves_shared_file_until_last_reference_is_replaced(tmp_path: Path) -> None:
+def test_cache_cleanup_preserves_shared_file_until_last_reference_is_replaced(
+    tmp_path: Path,
+) -> None:
     database = _database(tmp_path)
     repository = TTSArtifactRepository(database)
     shared = tmp_path / "shared.wav"
@@ -222,11 +229,15 @@ def test_cache_cleanup_preserves_shared_file_until_last_reference_is_replaced(tm
     replacement.write_bytes(b"replacement")
     for turn_id in ("t1", "t2"):
         repository.save(
-            TTSArtifact(turn_id, "shared", "same", "complete", shared, "fake", "v", None, "wav")
+            TTSArtifact(
+                turn_id, "shared", "same", "complete", shared, "fake", "v", None, "wav"
+            )
         )
 
     repository.save(
-        TTSArtifact("t1", "new", "changed", "complete", replacement, "fake", "v", None, "wav")
+        TTSArtifact(
+            "t1", "new", "changed", "complete", replacement, "fake", "v", None, "wav"
+        )
     )
     assert shared.exists()
     repository.delete_turn("t2")
@@ -242,8 +253,15 @@ def test_repeated_unique_cache_replacement_collects_orphans(tmp_path: Path) -> N
         path.write_bytes(str(index).encode())
         repository.save(
             TTSArtifact(
-                "t1", f"artifact-{index}", f"key-{index}", "complete",
-                path, "fake", "v", None, "wav",
+                "t1",
+                f"artifact-{index}",
+                f"key-{index}",
+                "complete",
+                path,
+                "fake",
+                "v",
+                None,
+                "wav",
             )
         )
 
