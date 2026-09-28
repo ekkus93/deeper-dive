@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import replace
 from pathlib import Path
 
@@ -13,7 +14,8 @@ from deeper_dive.retrieval import LexicalIndex
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
-def _completed_episode(tmp_path: Path):
+def _completed_episode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    _install_fake_ffmpeg(tmp_path, monkeypatch)
     data_dir = tmp_path / "data"
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
@@ -49,8 +51,9 @@ def _completed_episode(tmp_path: Path):
 
 def test_episode_library_export_writes_complete_episode_specific_artifact_set(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    composition, project, episode, run = _completed_episode(tmp_path)
+    composition, project, episode, run = _completed_episode(tmp_path, monkeypatch)
     output_dir = tmp_path / "portable"
 
     result = EpisodeLibraryExportService(composition.service.workspaces).export(
@@ -85,8 +88,11 @@ def test_episode_library_export_writes_complete_episode_specific_artifact_set(
     }
 
 
-def test_episode_library_export_rejects_missing_or_noncompleted_run(tmp_path: Path) -> None:
-    composition, project, episode, run = _completed_episode(tmp_path)
+def test_episode_library_export_rejects_missing_or_noncompleted_run(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    composition, project, episode, run = _completed_episode(tmp_path, monkeypatch)
     exporter = EpisodeLibraryExportService(composition.service.workspaces)
 
     with pytest.raises(ValueError, match="no generation run"):
@@ -96,10 +102,63 @@ def test_episode_library_export_rejects_missing_or_noncompleted_run(tmp_path: Pa
         exporter.export(project.id, episode, replace(run, state="paused"))
 
 
-def test_natural_language_retrieval_query_with_punctuation_is_safe(tmp_path: Path) -> None:
-    composition, project, _, _ = _completed_episode(tmp_path)
+def test_natural_language_retrieval_query_with_punctuation_is_safe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    composition, project, _, _ = _completed_episode(tmp_path, monkeypatch)
     index = LexicalIndex(composition.database_for_project(project.id))
 
     hits = index.search(project.id, "Create a focused deep dive from the indexed project corpus.")
 
     assert isinstance(hits, list)
+
+
+def _install_fake_ffmpeg(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    executable = tmp_path / "ffmpeg"
+    executable.write_text(
+        r"""#!/usr/bin/env python3
+import io
+import sys
+import wave
+
+payload = sys.stdin.buffer.read()
+args = sys.argv[1:]
+try:
+    first_format = args[args.index('-f') + 1]
+except (ValueError, IndexError):
+    sys.stderr.write('missing input format')
+    sys.exit(2)
+
+if first_format == 'wav':
+    try:
+        with wave.open(io.BytesIO(payload), 'rb') as wav:
+            source_rate = wav.getframerate()
+            frame_count = wav.getnframes()
+    except (EOFError, wave.Error) as exc:
+        sys.stderr.write(f'invalid wav: {exc}')
+        sys.exit(1)
+elif first_format == 's16le':
+    try:
+        source_rate = int(args[args.index('-ar') + 1])
+        channels = int(args[args.index('-ac') + 1])
+    except (ValueError, IndexError) as exc:
+        sys.stderr.write(f'invalid raw args: {exc}')
+        sys.exit(2)
+    frame_size = channels * 2
+    if not payload or len(payload) % frame_size != 0:
+        sys.stderr.write('misaligned raw input')
+        sys.exit(1)
+    frame_count = len(payload) // frame_size
+else:
+    sys.stderr.write(f'unsupported input format: {first_format}')
+    sys.exit(2)
+
+target_frames = max(1, round(frame_count * 24000 / source_rate))
+sys.stdout.buffer.write(b'\x00\x00' * target_frames)
+""",
+        encoding="utf-8",
+    )
+    executable.chmod(0o755)
+    current_path = os.environ.get("PATH", "")
+    monkeypatch.setenv("PATH", f"{tmp_path}{os.pathsep}{current_path}")
