@@ -70,14 +70,43 @@ class FFmpegComposer:
         args.extend(["-filter_complex", ";".join(filters), "-map", "[out]", str(output)])
         self._run(args)
 
+    def transcode_bytes(
+        self,
+        payload: bytes,
+        *,
+        input_args: list[str],
+        output_args: list[str],
+    ) -> bytes:
+        """Transcode in-memory media through FFmpeg using argv-only execution."""
+
+        args = [
+            str(self.config.executable),
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-nostdin",
+            *input_args,
+            *output_args,
+        ]
+        return self._run(args, input_bytes=payload)
+
     @staticmethod
-    def _run(args: list[str]) -> None:
+    def _run(args: list[str], *, input_bytes: bytes | None = None) -> bytes:
         try:
-            result = subprocess.run(args, capture_output=True, text=True, check=False, shell=False)
+            result = subprocess.run(
+                args,
+                input=input_bytes,
+                capture_output=True,
+                check=False,
+                shell=False,
+            )
         except OSError as exc:
             raise FFmpegError(f"unable to execute FFmpeg: {exc}") from exc
         if result.returncode != 0:
-            raise FFmpegError(f"FFmpeg failed: {FFmpegComposer._sanitize(result.stderr)}")
+            stderr = result.stderr.decode("utf-8", errors="replace")
+            raise FFmpegError(f"FFmpeg failed: {FFmpegComposer._sanitize(stderr)}")
+        return result.stdout
 
     @staticmethod
     def _sanitize(stderr: str, limit: int = 2000) -> str:

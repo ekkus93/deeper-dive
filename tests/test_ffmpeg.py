@@ -17,7 +17,8 @@ def test_compose_uses_argv_without_shell_interpolation(tmp_path: Path) -> None:
     )
     with patch("subprocess.run") as run:
         run.return_value.returncode = 0
-        run.return_value.stderr = ""
+        run.return_value.stderr = b""
+        run.return_value.stdout = b""
         FFmpegComposer(FFmpegConfig(Path("/usr/bin/ffmpeg"))).compose(
             timeline, {"a": dangerous}, output
         )
@@ -42,7 +43,8 @@ def test_compose_applies_timeline_delay_and_loudness(tmp_path: Path) -> None:
     )
     with patch("subprocess.run") as run:
         run.return_value.returncode = 0
-        run.return_value.stderr = ""
+        run.return_value.stderr = b""
+        run.return_value.stdout = b""
         FFmpegComposer(FFmpegConfig(Path("ffmpeg"))).compose(
             timeline, {"a": first, "b": second}, tmp_path / "out.wav"
         )

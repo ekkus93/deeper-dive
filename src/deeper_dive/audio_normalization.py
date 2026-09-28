@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import re
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from deeper_dive.ffmpeg import FFmpegConfig, FFmpegError
+from deeper_dive.ffmpeg import FFmpegComposer, FFmpegConfig, FFmpegError
 from deeper_dive.tts import TTSAudioResult
 
 CANONICAL_SAMPLE_RATE_HZ = 24_000
@@ -146,42 +144,29 @@ class FFmpegAudioNormalizer:
         *,
         failure_context: str,
     ) -> bytes:
-        args = [
-            str(self.config.executable),
-            "-y",
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-nostdin",
-            *input_args,
-            "-f",
-            "s16le",
-            "-acodec",
-            "pcm_s16le",
-            "-ac",
-            str(CANONICAL_CHANNELS),
-            "-ar",
-            str(CANONICAL_SAMPLE_RATE_HZ),
-            "pipe:1",
-        ]
         try:
-            result = subprocess.run(
-                args,
-                input=audio,
-                capture_output=True,
-                check=False,
-                shell=False,
+            normalized = FFmpegComposer(self.config).transcode_bytes(
+                audio,
+                input_args=input_args,
+                output_args=[
+                    "-f",
+                    "s16le",
+                    "-acodec",
+                    "pcm_s16le",
+                    "-ac",
+                    str(CANONICAL_CHANNELS),
+                    "-ar",
+                    str(CANONICAL_SAMPLE_RATE_HZ),
+                    "pipe:1",
+                ],
             )
-        except OSError as exc:
-            raise AudioNormalizationError(f"unable to execute FFmpeg: {exc}") from exc
-        if result.returncode != 0:
-            stderr = result.stderr.decode("utf-8", errors="replace")
-            raise AudioNormalizationError(f"{failure_context}: {_sanitize(stderr)}")
-        if not result.stdout:
+        except FFmpegError as exc:
+            raise AudioNormalizationError(f"{failure_context}: {exc}") from exc
+        if not normalized:
             raise AudioNormalizationError("FFmpeg produced no normalized audio")
-        if len(result.stdout) % (CANONICAL_CHANNELS * CANONICAL_SAMPLE_WIDTH_BYTES) != 0:
+        if len(normalized) % (CANONICAL_CHANNELS * CANONICAL_SAMPLE_WIDTH_BYTES) != 0:
             raise AudioNormalizationError("FFmpeg produced frame-misaligned normalized audio")
-        return result.stdout
+        return normalized
 
 
 def normalize_provider_audio(
