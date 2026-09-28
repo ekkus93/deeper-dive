@@ -271,8 +271,7 @@ class TTSGenerationStage:
             )
         if turn.model is not None and result.model is None:
             raise ValueError(
-                f"TTS model identity unavailable for turn {turn.turn_id}: "
-                f"expected {turn.model!r}"
+                f"TTS model identity unavailable for turn {turn.turn_id}: expected {turn.model!r}"
             )
         if turn.model is not None and result.model != turn.model:
             raise ValueError(
@@ -310,9 +309,7 @@ class TTSGenerationStage:
     def _validated_format(turn: TTSTurn, result: TTSAudioResult) -> str:
         suffix = result.format.lower().lstrip(".")
         if not suffix:
-            raise ValueError(
-                f"TTS provider did not report audio format for turn {turn.turn_id}"
-            )
+            raise ValueError(f"TTS provider did not report audio format for turn {turn.turn_id}")
         if "/" in suffix or "\\" in suffix:
             raise ValueError(
                 f"TTS provider reported invalid audio format for turn {turn.turn_id}: "
