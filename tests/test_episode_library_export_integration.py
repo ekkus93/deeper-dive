@@ -17,9 +17,7 @@ from deeper_dive.tui import DeeperDiveApp
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
-def test_library_export_creates_episode_specific_artifacts(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_library_export_creates_episode_specific_artifacts(tmp_path: Path, monkeypatch) -> None:
     fake_ffmpeg = _fake_ffmpeg_executable(tmp_path)
     monkeypatch.setattr(
         "deeper_dive.ffmpeg.FFmpegConfig.detect",
