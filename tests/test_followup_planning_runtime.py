@@ -7,6 +7,7 @@ import pytest
 
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
+from deeper_dive.ffmpeg import FFmpegConfig
 from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.hosts import create_host_from_preset
 from deeper_dive.llm import FakeLLMProvider, LLMProvider, LLMRequest, LLMResponse
@@ -35,7 +36,9 @@ class _PlanningResponseFactory(ProviderFactory):
 
 def test_pipeline_auto_planning_uses_configured_episode_planning_role(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _patch_ffmpeg_detect(monkeypatch, _fake_ffmpeg_executable(tmp_path))
     composition = _composition_with_two_planners(tmp_path)
     project_id, episode_id = _ready_episode(composition)
 
@@ -235,3 +238,55 @@ def _ready_episode(composition: ProductionComposition) -> tuple[str, str]:
         ),
     )
     return project.id, episode.id
+
+
+def _patch_ffmpeg_detect(monkeypatch: pytest.MonkeyPatch, executable: Path) -> None:
+    monkeypatch.setattr(
+        FFmpegConfig,
+        "detect",
+        classmethod(lambda cls, configured=None: cls(executable)),
+    )
+
+
+def _fake_ffmpeg_executable(tmp_path: Path) -> Path:
+    executable = tmp_path / "ffmpeg"
+    executable.write_text(
+        r"""#!/usr/bin/env python3
+import io
+import sys
+import wave
+
+payload = sys.stdin.buffer.read()
+args = sys.argv[1:]
+try:
+    first_format = args[args.index('-f') + 1]
+except (ValueError, IndexError):
+    sys.exit(2)
+
+if first_format == 'wav':
+    try:
+        with wave.open(io.BytesIO(payload), 'rb') as wav:
+            source_rate = wav.getframerate()
+            frame_count = wav.getnframes()
+    except (EOFError, wave.Error):
+        sys.exit(1)
+elif first_format == 's16le':
+    try:
+        source_rate = int(args[args.index('-ar') + 1])
+        channels = int(args[args.index('-ac') + 1])
+    except (ValueError, IndexError):
+        sys.exit(2)
+    frame_size = channels * 2
+    if not payload or len(payload) % frame_size != 0:
+        sys.exit(1)
+    frame_count = len(payload) // frame_size
+else:
+    sys.exit(2)
+
+target_frames = max(1, round(frame_count * 24000 / source_rate))
+sys.stdout.buffer.write(b'\x00\x00' * target_frames)
+""",
+        encoding="utf-8",
+    )
+    executable.chmod(0o755)
+    return executable
