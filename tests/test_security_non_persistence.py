@@ -10,12 +10,26 @@ def _diagnostics_module():
     )
 
 
+def _episode_repository_module():
+    return __import__(
+        "deeper_dive.storage.episode_repositories",
+        fromlist=["EpisodeRecord", "HostEpisodeRepository"],
+    )
+
+
 def _export_module():
     return __import__("deeper_dive.export", fromlist=["EpisodeExporter"])
 
 
 def _json_module():
     return __import__("json")
+
+
+def _project_repository_module():
+    return __import__(
+        "deeper_dive.storage.repositories",
+        fromlist=["CorpusRepository", "ProjectRecord"],
+    )
 
 
 def _run_repository_module():
@@ -80,8 +94,24 @@ def test_structured_diagnostics_store_no_credential_values(tmp_path) -> None:
 
 def test_generation_run_failure_persists_no_credential_values(tmp_path) -> None:
     database_module = _database_module()
+    episode_module = _episode_repository_module()
+    project_module = _project_repository_module()
     run_module = _run_repository_module()
-    repository = run_module.GenerationRunRepository(database_module.Database(tmp_path / "p.db"))
+    database = database_module.Database(tmp_path / "p.db")
+    project_module.CorpusRepository(database).create_project(
+        project_module.ProjectRecord("project-1", "Project", "now", "now")
+    )
+    episode_module.HostEpisodeRepository(database).create_episode(
+        episode_module.EpisodeRecord(
+            id="episode-1",
+            project_id="project-1",
+            title="Episode",
+            created_at="now",
+            modified_at="now",
+        ),
+        [],
+    )
+    repository = run_module.GenerationRunRepository(database)
     run = run_module.GenerationRunRecord(
         id="run-1",
         episode_id="episode-1",
