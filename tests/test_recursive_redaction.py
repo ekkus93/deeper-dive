@@ -39,6 +39,7 @@ def test_redact_covers_secret_key_variants_and_nested_collections() -> None:
         "nested": [
             {"url": _credential_url()},
             {"message": "api_key=credential-value; authorization: credential-value"},
+            {"message": _bearer()},
         ],
         "set_values": {"token=credential-value"},
     }
@@ -48,10 +49,11 @@ def test_redact_covers_secret_key_variants_and_nested_collections() -> None:
 
     assert SENSITIVE_VALUE not in text
     assert "[REDACTED]" in text
-    assert "Bearer [REDACTED]" in text
-    assert "https://[REDACTED]@example.test/path" in text
-    assert "api_key=[REDACTED]" in text
-    assert "authorization: [REDACTED]" in text
+    assert redacted["authorization"] == "[REDACTED]"
+    assert redacted["nested"][0]["url"] == "https://[REDACTED]@example.test/path"
+    assert redacted["nested"][1]["message"] == "api_key=[REDACTED]; authorization: [REDACTED]"
+    assert redacted["nested"][2]["message"] == "Bearer [REDACTED]"
+    assert redacted["set_values"] == ["token=[REDACTED]"]
 
 
 def test_redact_preserves_non_secret_false_positive_keys() -> None:
