@@ -4,8 +4,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-import pytest
-
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
@@ -18,8 +16,6 @@ from deeper_dive.storage.episode_repositories import HostProfileRecord
 from deeper_dive.tts import FakeTTSProvider
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
-NetworkScope = Literal["local", "remote"] | None
-
 
 class UnhealthyLLM(FakeLLMProvider):
     def health(self) -> ProviderHealth:
@@ -29,18 +25,6 @@ class UnhealthyLLM(FakeLLMProvider):
 class UnhealthyTTS(FakeTTSProvider):
     def health(self) -> ProviderHealth:
         return ProviderHealth(False, "tts offline")
-
-
-@dataclass(slots=True)
-class Scenario:
-    expected_code: str | None
-    defaults: dict[str, str]
-    llm_scope: NetworkScope = "local"
-    tts_scope: NetworkScope = "local"
-    tts_provider: str = "speech"
-    tts_voice: str = "voice-a"
-    unhealthy_llm: bool = False
-    unhealthy_tts: bool = False
 
 
 @dataclass(slots=True)
@@ -57,89 +41,112 @@ class AppStub:
         _ = destination
 
 
-SCENARIOS = (
-    Scenario(
-        expected_code=None,
-        defaults={
-            "local_only": "true",
-        },
-    ),
-    Scenario(
+def test_cli_and_tui_preflight_accept_valid_local_routes(tmp_path: Path) -> None:
+    _assert_parity(tmp_path, expected_code=None, defaults={"local_only": "true"})
+
+
+def test_cli_and_tui_preflight_reject_missing_llm_provider(tmp_path: Path) -> None:
+    _assert_parity(
+        tmp_path,
         expected_code="llm_assignment",
-        defaults={
-            "host_generation": "missing:fake-v1",
-            "local_only": "true",
-        },
-    ),
-    Scenario(
+        defaults={"host_generation": "missing:fake-v1", "local_only": "true"},
+    )
+
+
+def test_cli_and_tui_preflight_reject_unavailable_llm_model(tmp_path: Path) -> None:
+    _assert_parity(
+        tmp_path,
         expected_code="llm_assignment",
-        defaults={
-            "host_generation": "planner:missing-model",
-            "local_only": "true",
-        },
-    ),
-    Scenario(
+        defaults={"host_generation": "planner:missing-model", "local_only": "true"},
+    )
+
+
+def test_cli_and_tui_preflight_reject_missing_tts_provider(tmp_path: Path) -> None:
+    _assert_parity(
+        tmp_path,
         expected_code="tts_assignment",
-        defaults={
-            "local_only": "true",
-        },
+        defaults={"local_only": "true"},
         tts_provider="missing",
-    ),
-    Scenario(
+    )
+
+
+def test_cli_and_tui_preflight_reject_missing_tts_voice(tmp_path: Path) -> None:
+    _assert_parity(
+        tmp_path,
         expected_code="tts_assignment",
-        defaults={
-            "local_only": "true",
-        },
+        defaults={"local_only": "true"},
         tts_voice="missing",
-    ),
-    Scenario(
+    )
+
+
+def test_cli_and_tui_preflight_reject_unhealthy_llm_provider(tmp_path: Path) -> None:
+    _assert_parity(
+        tmp_path,
         expected_code="llm_unhealthy",
-        defaults={
-            "local_only": "true",
-        },
+        defaults={"local_only": "true"},
         unhealthy_llm=True,
-    ),
-    Scenario(
+    )
+
+
+def test_cli_and_tui_preflight_reject_unhealthy_tts_provider(tmp_path: Path) -> None:
+    _assert_parity(
+        tmp_path,
         expected_code="tts_unhealthy",
-        defaults={
-            "local_only": "true",
-        },
+        defaults={"local_only": "true"},
         unhealthy_tts=True,
-    ),
-    Scenario(
+    )
+
+
+def test_cli_and_tui_preflight_reject_local_only_remote_llm(tmp_path: Path) -> None:
+    _assert_parity(
+        tmp_path,
         expected_code="local_only_violation",
-        defaults={
-            "local_only": "true",
-        },
+        defaults={"local_only": "true"},
         llm_scope="remote",
-    ),
-    Scenario(
+    )
+
+
+def test_cli_and_tui_preflight_reject_local_only_remote_tts(tmp_path: Path) -> None:
+    _assert_parity(
+        tmp_path,
         expected_code="local_only_violation",
-        defaults={
-            "local_only": "true",
-        },
+        defaults={"local_only": "true"},
         tts_scope="remote",
-    ),
-)
+    )
 
 
-@pytest.mark.parametrize("scenario", SCENARIOS)
-def test_cli_and_tui_preflight_share_provider_parity_matrix(
+def _assert_parity(
     tmp_path: Path,
-    scenario: Scenario,
+    *,
+    expected_code: str | None,
+    defaults: dict[str, str],
+    llm_scope: Literal["local", "remote"] | None = "local",
+    tts_scope: Literal["local", "remote"] | None = "local",
+    tts_provider: str = "speech",
+    tts_voice: str = "voice-a",
+    unhealthy_llm: bool = False,
+    unhealthy_tts: bool = False,
 ) -> None:
-    composition, app = _app(tmp_path, scenario)
+    composition, app = _app(
+        tmp_path,
+        defaults=defaults,
+        llm_scope=llm_scope,
+        tts_scope=tts_scope,
+        tts_provider=tts_provider,
+        tts_voice=tts_voice,
+        unhealthy_llm=unhealthy_llm,
+        unhealthy_tts=unhealthy_tts,
+    )
     cli_report, tui_report = _reports(composition, app)
-
     cli_codes = _blocker_codes(cli_report)
     tui_codes = _blocker_codes(tui_report)
 
     assert cli_codes == tui_codes
-    if scenario.expected_code is None:
+    if expected_code is None:
         assert cli_report.ready
         assert tui_report.ready
     else:
-        assert scenario.expected_code in cli_codes
+        assert expected_code in cli_codes
 
 
 def _blocker_codes(report: PreflightReport) -> set[str]:
@@ -160,12 +167,22 @@ def _reports(
     return cli_report, tui_report
 
 
-def _app(tmp_path: Path, scenario: Scenario) -> tuple[ProductionComposition, AppStub]:
+def _app(
+    tmp_path: Path,
+    *,
+    defaults: dict[str, str],
+    llm_scope: Literal["local", "remote"] | None,
+    tts_scope: Literal["local", "remote"] | None,
+    tts_provider: str,
+    tts_voice: str,
+    unhealthy_llm: bool,
+    unhealthy_tts: bool,
+) -> tuple[ProductionComposition, AppStub]:
     data_dir = tmp_path / "data"
-    defaults = {
+    user_defaults = {
         "episode_planning": "planner:fake-v1",
         "host_generation": "planner:fake-v1",
-        **scenario.defaults,
+        **defaults,
     }
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
@@ -173,31 +190,27 @@ def _app(tmp_path: Path, scenario: Scenario) -> tuple[ProductionComposition, App
                 "planner": ProviderConfig(
                     provider_type="fake",
                     default_model="fake-v1",
-                    network_scope=scenario.llm_scope,
+                    network_scope=llm_scope,
                 ),
                 "speech": ProviderConfig(
                     provider_type="fake-tts",
-                    network_scope=scenario.tts_scope,
+                    network_scope=tts_scope,
                 ),
             },
-            defaults=defaults,
+            defaults=user_defaults,
         )
     )
     composition = ProductionComposition.build(
         data_dir,
         provider_factory=ProviderFactory(environ={}),
     )
-    if scenario.unhealthy_llm:
-        unhealthy_llm = UnhealthyLLM(
-            provider_id="planner",
-            model="fake-v1",
+    if unhealthy_llm:
+        unhealthy = UnhealthyLLM(provider_id="planner", model="fake-v1")
+        composition.provider_controller.llm_registry.register(unhealthy)
+    if unhealthy_tts:
+        composition.provider_controller.tts_providers["speech"] = UnhealthyTTS(
+            provider_id="speech"
         )
-        composition.provider_controller.llm_registry.register(unhealthy_llm)
-    if scenario.unhealthy_tts:
-        unhealthy_tts = UnhealthyTTS(
-            provider_id="speech",
-        )
-        composition.provider_controller.tts_providers["speech"] = unhealthy_tts
 
     project = composition.service.create_project("Preflight parity")
     composition.service.add_pasted_source(
@@ -210,8 +223,8 @@ def _app(tmp_path: Path, scenario: Scenario) -> tuple[ProductionComposition, App
         id="host-1",
         project_id=project.id,
         display_name="Host",
-        tts_provider=scenario.tts_provider,
-        tts_voice=scenario.tts_voice,
+        tts_provider=tts_provider,
+        tts_voice=tts_voice,
     )
     hosts.create_host(host)
     configurations = EpisodeConfigurationService(
