@@ -3,15 +3,33 @@ from __future__ import annotations
 from pathlib import Path
 
 from deeper_dive.hosts import HostProfile
-from deeper_dive.llm import FakeLLMProvider, LLMProviderRegistry, ProviderHealth
+from deeper_dive.llm import FakeLLMProvider, LLMModel, LLMProviderRegistry, ProviderHealth
 from deeper_dive.model_roles import ModelAssignment, ModelRole, ModelRoleAssignments
 from deeper_dive.preflight import PreflightReport, PreflightService
 from deeper_dive.tts import FakeTTSProvider, TTSProviderRegistry
 
 
+SENSITIVE_VALUE = "credential" + "-value"
+
+
 class UnhealthyLLM(FakeLLMProvider):
     def health(self) -> ProviderHealth:
         return ProviderHealth(False, "offline")
+
+
+class SecretHealthLLM(FakeLLMProvider):
+    def health(self) -> ProviderHealth:
+        return ProviderHealth(False, "service_token=" + SENSITIVE_VALUE)
+
+
+class ExplodingModelsLLM(FakeLLMProvider):
+    def models(self) -> tuple[LLMModel, ...]:
+        raise RuntimeError("discovery failed with client_secret=" + SENSITIVE_VALUE)
+
+
+class SecretHealthTTS(FakeTTSProvider):
+    def health(self) -> ProviderHealth:
+        return ProviderHealth(False, "authorization: " + SENSITIVE_VALUE)
 
 
 def _host() -> HostProfile:
@@ -30,11 +48,14 @@ def _ffmpeg(tmp_path: Path) -> Path:
     return path
 
 
-def _service(provider: FakeLLMProvider | None = None) -> PreflightService:
+def _service(
+    provider: FakeLLMProvider | None = None,
+    tts_provider: FakeTTSProvider | None = None,
+) -> PreflightService:
     llm = LLMProviderRegistry()
     llm.register(provider or FakeLLMProvider())
     tts = TTSProviderRegistry()
-    tts.register(FakeTTSProvider())
+    tts.register(tts_provider or FakeTTSProvider())
     return PreflightService(llm, tts)
 
 
@@ -43,9 +64,10 @@ def _check_role(
     role: ModelRole,
     assignment: ModelAssignment,
     provider: FakeLLMProvider | None = None,
+    tts_provider: FakeTTSProvider | None = None,
 ) -> PreflightReport:
     assignments = ModelRoleAssignments(user={role: assignment})
-    return _service(provider).check(
+    return _service(provider, tts_provider).check(
         assignments=assignments,
         hosts=(_host(),),
         source_count=1,
@@ -58,6 +80,10 @@ def _check_role(
 
 def _blocker_messages(report: PreflightReport) -> tuple[str, ...]:
     return tuple(issue.message for issue in report.blockers)
+
+
+def _blocker_text(report: PreflightReport) -> str:
+    return "\n".join(_blocker_messages(report))
 
 
 def test_unknown_directing_provider_blocks(tmp_path: Path) -> None:
@@ -128,3 +154,46 @@ def test_unhealthy_verification_provider_blocks(tmp_path: Path) -> None:
 
     expected = "LLM provider 'verifier' is unhealthy"
     assert any(expected in message for message in _blocker_messages(report))
+
+
+def test_unhealthy_provider_messages_are_sanitized(tmp_path: Path) -> None:
+    provider = SecretHealthLLM(provider_id="director")
+    report = _check_role(
+        tmp_path,
+        ModelRole.DIRECTING,
+        ModelAssignment("director", "fake-v1"),
+        provider,
+    )
+    text = _blocker_text(report)
+
+    assert SENSITIVE_VALUE not in text
+    assert "[REDACTED]" in text
+
+
+def test_model_discovery_exceptions_are_sanitized(tmp_path: Path) -> None:
+    provider = ExplodingModelsLLM(provider_id="planner")
+    report = _check_role(
+        tmp_path,
+        ModelRole.EPISODE_PLANNING,
+        ModelAssignment("planner", "fake-v1"),
+        provider,
+    )
+    text = _blocker_text(report)
+
+    assert "model discovery failed" in text
+    assert SENSITIVE_VALUE not in text
+    assert "[REDACTED]" in text
+
+
+def test_tts_health_messages_are_sanitized(tmp_path: Path) -> None:
+    report = _check_role(
+        tmp_path,
+        ModelRole.DIRECTING,
+        ModelAssignment("fake", "fake-v1"),
+        tts_provider=SecretHealthTTS(),
+    )
+    text = _blocker_text(report)
+
+    assert "TTS provider 'fake-tts' is unhealthy" in text
+    assert SENSITIVE_VALUE not in text
+    assert "[REDACTED]" in text

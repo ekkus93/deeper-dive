@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
+from deeper_dive.diagnostics import redact, sanitize_exception_message
 from deeper_dive.llm import LLMProviderRegistry
 
 
@@ -144,7 +145,7 @@ def _assignments_from_episode_overrides(
         try:
             role = ModelRole(key)
         except ValueError:
-            errors.append(f"unknown episode model role {key!r}")
+            errors.append(f"unknown episode model role {_safe_repr(str(key))}")
             continue
         assignment, error = _assignment_from_override(raw, role)
         if error is not None:
@@ -214,19 +215,36 @@ def preflight_model_roles(
             provider = registry.get(assignment.provider)
         except KeyError:
             blockers.append(
-                ModelRoleBlocker(role, f"unknown provider {assignment.provider!r} for {role.value}")
+                ModelRoleBlocker(
+                    role,
+                    f"unknown provider {_safe_repr(assignment.provider)} for {role.value}",
+                )
             )
             continue
         if assignment.provider not in discovered:
-            discovered[assignment.provider] = {model.model for model in provider.models()}
+            try:
+                discovered[assignment.provider] = {model.model for model in provider.models()}
+            except Exception as exc:
+                blockers.append(
+                    ModelRoleBlocker(
+                        role,
+                        f"provider {_safe_repr(assignment.provider)} model discovery "
+                        f"failed for {role.value}: {sanitize_exception_message(exc)}",
+                    )
+                )
+                continue
         if assignment.model not in discovered[assignment.provider]:
             blockers.append(
                 ModelRoleBlocker(
                     role,
-                    f"model {assignment.model!r} is unavailable from provider "
-                    f"{assignment.provider!r}",
+                    f"model {_safe_repr(assignment.model)} is unavailable from provider "
+                    f"{_safe_repr(assignment.provider)}",
                 )
             )
             continue
         resolved[role] = assignment
     return ModelRolePreflight(resolved, tuple(blockers))
+
+
+def _safe_repr(value: str) -> str:
+    return repr(str(redact(value)))

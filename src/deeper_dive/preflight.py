@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from deeper_dive.diagnostics import redact, sanitize_exception_message
 from deeper_dive.ffmpeg import FFmpegConfig, FFmpegError
 from deeper_dive.hosts import HostProfile
 from deeper_dive.llm import LLMProviderRegistry
@@ -111,7 +112,8 @@ class PreflightService:
             required_roles=required_model_roles,
         )
         issues.extend(
-            PreflightIssue("llm_assignment", item.message) for item in role_result.blockers
+            PreflightIssue("llm_assignment", _safe_message(item.message))
+            for item in role_result.blockers
         )
 
         checked_llm: set[str] = set()
@@ -133,7 +135,8 @@ class PreflightService:
                     issues.append(
                         PreflightIssue(
                             "llm_unhealthy",
-                            f"LLM provider {assignment.provider!r} is unhealthy: {health.message}",
+                            f"LLM provider {assignment.provider!r} is unhealthy: "
+                            f"{_safe_message(health.message)}",
                         )
                     )
 
@@ -155,7 +158,7 @@ class PreflightService:
             try:
                 provider, _voice = self.tts_registry.resolve_host(host)
             except (KeyError, ValueError) as exc:
-                issues.append(PreflightIssue("tts_assignment", str(exc)))
+                issues.append(PreflightIssue("tts_assignment", sanitize_exception_message(exc)))
                 continue
             routes.append(
                 ProviderRoute(
@@ -173,7 +176,8 @@ class PreflightService:
                     issues.append(
                         PreflightIssue(
                             "tts_unhealthy",
-                            f"TTS provider {provider.provider_id!r} is unhealthy: {health.message}",
+                            f"TTS provider {provider.provider_id!r} is unhealthy: "
+                            f"{_safe_message(health.message)}",
                         )
                     )
 
@@ -221,3 +225,7 @@ class PreflightService:
             estimated_cloud_cost_usd=sum(costs) if costs else None,
         )
         return PreflightReport(tuple(issues), estimate, tuple(routes))
+
+
+def _safe_message(message: str) -> str:
+    return str(redact(message))
