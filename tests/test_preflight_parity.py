@@ -57,26 +57,53 @@ class AppStub:
         _ = destination
 
 
-@pytest.mark.parametrize(
-    "scenario",
-    (
-        Scenario(None, {"local_only": "true"}),
-        Scenario(
-            "llm_assignment",
-            {"host_generation": "missing:fake-v1", "local_only": "true"},
-        ),
-        Scenario(
-            "llm_assignment",
-            {"host_generation": "planner:missing-model", "local_only": "true"},
-        ),
-        Scenario("tts_assignment", {"local_only": "true"}, tts_provider="missing"),
-        Scenario("tts_assignment", {"local_only": "true"}, tts_voice="missing"),
-        Scenario("llm_unhealthy", {"local_only": "true"}, unhealthy_llm=True),
-        Scenario("tts_unhealthy", {"local_only": "true"}, unhealthy_tts=True),
-        Scenario("local_only_violation", {"local_only": "true"}, llm_scope="remote"),
-        Scenario("local_only_violation", {"local_only": "true"}, tts_scope="remote"),
+SCENARIOS = (
+    Scenario(
+        expected_code=None,
+        defaults={"local_only": "true"},
+    ),
+    Scenario(
+        expected_code="llm_assignment",
+        defaults={"host_generation": "missing:fake-v1", "local_only": "true"},
+    ),
+    Scenario(
+        expected_code="llm_assignment",
+        defaults={"host_generation": "planner:missing-model", "local_only": "true"},
+    ),
+    Scenario(
+        expected_code="tts_assignment",
+        defaults={"local_only": "true"},
+        tts_provider="missing",
+    ),
+    Scenario(
+        expected_code="tts_assignment",
+        defaults={"local_only": "true"},
+        tts_voice="missing",
+    ),
+    Scenario(
+        expected_code="llm_unhealthy",
+        defaults={"local_only": "true"},
+        unhealthy_llm=True,
+    ),
+    Scenario(
+        expected_code="tts_unhealthy",
+        defaults={"local_only": "true"},
+        unhealthy_tts=True,
+    ),
+    Scenario(
+        expected_code="local_only_violation",
+        defaults={"local_only": "true"},
+        llm_scope="remote",
+    ),
+    Scenario(
+        expected_code="local_only_violation",
+        defaults={"local_only": "true"},
+        tts_scope="remote",
     ),
 )
+
+
+@pytest.mark.parametrize("scenario", SCENARIOS)
 def test_cli_and_tui_preflight_share_provider_parity_matrix(
     tmp_path: Path,
     scenario: Scenario,
@@ -150,7 +177,11 @@ def _app(tmp_path: Path, scenario: Scenario) -> tuple[ProductionComposition, App
         )
 
     project = composition.service.create_project("Preflight parity")
-    composition.service.add_pasted_source(project.id, "Source", "hello world\n\nsource text")
+    composition.service.add_pasted_source(
+        project.id,
+        "Source",
+        "hello world\n\nsource text",
+    )
     hosts = composition.service.hosts(project.id)
     host = HostProfileRecord(
         id="host-1",
