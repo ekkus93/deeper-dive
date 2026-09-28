@@ -137,7 +137,7 @@ def _wav_bytes(*, sample_rate_hz: int, channels: int, frames: tuple[tuple[int, .
 def _fake_ffmpeg_normalizer(tmp_path: Path) -> FFmpegAudioNormalizer:
     executable = tmp_path / "fake-ffmpeg.py"
     executable.write_text(
-        """#!/usr/bin/env python3
+        r"""#!/usr/bin/env python3
 import io
 import sys
 import wave
