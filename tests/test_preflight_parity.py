@@ -60,44 +60,64 @@ class AppStub:
 SCENARIOS = (
     Scenario(
         expected_code=None,
-        defaults={"local_only": "true"},
+        defaults={
+            "local_only": "true",
+        },
     ),
     Scenario(
         expected_code="llm_assignment",
-        defaults={"host_generation": "missing:fake-v1", "local_only": "true"},
+        defaults={
+            "host_generation": "missing:fake-v1",
+            "local_only": "true",
+        },
     ),
     Scenario(
         expected_code="llm_assignment",
-        defaults={"host_generation": "planner:missing-model", "local_only": "true"},
+        defaults={
+            "host_generation": "planner:missing-model",
+            "local_only": "true",
+        },
     ),
     Scenario(
         expected_code="tts_assignment",
-        defaults={"local_only": "true"},
+        defaults={
+            "local_only": "true",
+        },
         tts_provider="missing",
     ),
     Scenario(
         expected_code="tts_assignment",
-        defaults={"local_only": "true"},
+        defaults={
+            "local_only": "true",
+        },
         tts_voice="missing",
     ),
     Scenario(
         expected_code="llm_unhealthy",
-        defaults={"local_only": "true"},
+        defaults={
+            "local_only": "true",
+        },
         unhealthy_llm=True,
     ),
     Scenario(
         expected_code="tts_unhealthy",
-        defaults={"local_only": "true"},
+        defaults={
+            "local_only": "true",
+        },
         unhealthy_tts=True,
     ),
     Scenario(
         expected_code="local_only_violation",
-        defaults={"local_only": "true"},
+        defaults={
+            "local_only": "true",
+        },
         llm_scope="remote",
     ),
     Scenario(
         expected_code="local_only_violation",
-        defaults={"local_only": "true"},
+        defaults={
+            "local_only": "true",
+        },
         tts_scope="remote",
     ),
 )
@@ -168,13 +188,16 @@ def _app(tmp_path: Path, scenario: Scenario) -> tuple[ProductionComposition, App
         provider_factory=ProviderFactory(environ={}),
     )
     if scenario.unhealthy_llm:
-        composition.provider_controller.llm_registry.register(
-            UnhealthyLLM(provider_id="planner", model="fake-v1")
+        unhealthy_llm = UnhealthyLLM(
+            provider_id="planner",
+            model="fake-v1",
         )
+        composition.provider_controller.llm_registry.register(unhealthy_llm)
     if scenario.unhealthy_tts:
-        composition.provider_controller.tts_providers["speech"] = UnhealthyTTS(
-            provider_id="speech"
+        unhealthy_tts = UnhealthyTTS(
+            provider_id="speech",
         )
+        composition.provider_controller.tts_providers["speech"] = unhealthy_tts
 
     project = composition.service.create_project("Preflight parity")
     composition.service.add_pasted_source(
@@ -191,7 +214,10 @@ def _app(tmp_path: Path, scenario: Scenario) -> tuple[ProductionComposition, App
         tts_voice=scenario.tts_voice,
     )
     hosts.create_host(host)
-    episode = EpisodeConfigurationService(composition.database_for_project(project.id)).create(
+    configurations = EpisodeConfigurationService(
+        composition.database_for_project(project.id)
+    )
+    episode = configurations.create(
         project.id,
         EpisodeConfiguration(
             title="Episode",
