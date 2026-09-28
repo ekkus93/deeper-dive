@@ -2,19 +2,23 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
+from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.llm import FakeLLMProvider, ProviderHealth
 from deeper_dive.preflight import PreflightReport
-from deeper_dive.preflight_screen import PreflightApp, PreflightController
+from deeper_dive.preflight_screen import PreflightController
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.storage.episode_repositories import HostProfileRecord
 from deeper_dive.tts import FakeTTSProvider
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
+
+NetworkScope = Literal["local", "remote"] | None
 
 
 class UnhealthyLLM(FakeLLMProvider):
@@ -31,8 +35,8 @@ class UnhealthyTTS(FakeTTSProvider):
 class Scenario:
     expected_code: str | None
     defaults: dict[str, str]
-    llm_scope: str | None = "local"
-    tts_scope: str | None = "local"
+    llm_scope: NetworkScope = "local"
+    tts_scope: NetworkScope = "local"
     tts_provider: str = "speech"
     tts_voice: str = "voice-a"
     unhealthy_llm: bool = False
@@ -40,8 +44,8 @@ class Scenario:
 
 
 @dataclass(slots=True)
-class AppStub(PreflightApp):
-    service: object
+class AppStub:
+    service: DeeperDiveService
     provider_controller: ProviderController
     preflight_controller: PreflightController
     current_project_id: str | None
@@ -77,43 +81,33 @@ def test_cli_and_tui_preflight_share_provider_parity_matrix(
     tmp_path: Path,
     scenario: Scenario,
 ) -> None:
-    composition, app, ffmpeg = _app(tmp_path, scenario)
+    composition, app = _app(tmp_path, scenario)
 
-    reports = _reports(composition, app, ffmpeg)
+    reports = _reports(composition, app)
+    code_sets = tuple({issue.code for issue in report.blockers} for report in reports)
 
-    for report in reports:
-        codes = {issue.code for issue in report.blockers}
-        if scenario.expected_code is None:
-            assert report.ready
-        else:
-            assert scenario.expected_code in codes
+    assert code_sets[0] == code_sets[1]
+    if scenario.expected_code is None:
+        assert all(report.ready for report in reports)
+    else:
+        assert scenario.expected_code in code_sets[0]
 
 
 def _reports(
     composition: ProductionComposition,
     app: AppStub,
-    ffmpeg: Path,
 ) -> tuple[PreflightReport, PreflightReport]:
-    tui_report = app.preflight_controller.build(app).report
-    cli_report = composition.preflight_service.check(
-        assignments=composition.effective_model_role_assignments_for_episode(
-            app.current_project_id or "",
-            app.current_episode_id or "",
-        )[0],
-        hosts=(),
-        source_count=0,
-        indexed_source_count=0,
-        target_minutes=1,
-        ffmpeg_executable=ffmpeg,
-    )
-    cli_report = composition.preflight_controller._shared_generation_start(app).preflight(  # type: ignore[union-attr]
+    starter = app.preflight_controller._shared_generation_start(app)
+    assert starter is not None
+    cli_report = starter.preflight(
         app.current_project_id or "",
         app.current_episode_id or "",
     )
+    tui_report = app.preflight_controller.build(app).report
     return cli_report, tui_report
 
 
-def _app(tmp_path: Path, scenario: Scenario) -> tuple[ProductionComposition, AppStub, Path]:
+def _app(tmp_path: Path, scenario: Scenario) -> tuple[ProductionComposition, AppStub]:
     data_dir = tmp_path / "data"
     defaults = {
         "episode_planning": "planner:fake-v1",
@@ -179,4 +173,4 @@ def _app(tmp_path: Path, scenario: Scenario) -> tuple[ProductionComposition, App
         current_project_name=project.name,
         current_episode_id=episode.id,
     )
-    return composition, app, ffmpeg
+    return composition, app
