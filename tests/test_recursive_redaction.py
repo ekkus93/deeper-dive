@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
-from deeper_dive.export import EpisodeExporter
-from deeper_dive.diagnostics import redact, sanitize_exception_message
+import deeper_dive.diagnostics as diagnostics
+import deeper_dive.export as export
 
 
 SECRET_VALUE = "credential-value"
@@ -33,7 +33,7 @@ def test_redact_covers_secret_key_variants_and_nested_collections() -> None:
         "set_values": {"token=credential-value"},
     }
 
-    redacted = redact(payload)
+    redacted = diagnostics.redact(payload)
     text = json.dumps(redacted, sort_keys=True)
 
     for key in (
@@ -61,7 +61,7 @@ def test_redact_preserves_non_secret_false_positive_keys() -> None:
         "apiary_keynote": "talk",
     }
 
-    assert redact(payload) == payload
+    assert diagnostics.redact(payload) == payload
 
 
 def test_exception_sanitizer_redacts_cause_and_context() -> None:
@@ -69,7 +69,7 @@ def test_exception_sanitizer_redacts_cause_and_context() -> None:
     exc = RuntimeError("provider failed with " + _bearer())
     exc.__cause__ = cause
 
-    message = sanitize_exception_message(exc)
+    message = diagnostics.sanitize_exception_message(exc)
 
     assert "credential-value" not in message
     assert "Bearer [REDACTED]" in message
@@ -78,7 +78,7 @@ def test_exception_sanitizer_redacts_cause_and_context() -> None:
 
 def test_export_metadata_uses_canonical_sanitizer_and_drops_secret_keys(tmp_path) -> None:
     path = tmp_path / "metadata.json"
-    EpisodeExporter.write_metadata(
+    export.EpisodeExporter.write_metadata(
         path,
         {
             "episode_id": "episode-1",
