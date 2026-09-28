@@ -4,9 +4,11 @@ from datetime import UTC, datetime
 
 import pytest
 
+import pytest
+
 from deeper_dive.domain.clock import FrozenClock
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
-from deeper_dive.episode_planner import EpisodePlannerService, PlannedSegment
+from deeper_dive.episode_planner import EpisodePlannerService, PlannedSegment, PlannedSegment
 from deeper_dive.hosts import create_host_from_preset
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
@@ -21,6 +23,7 @@ from deeper_dive.storage.repositories import (
 class FakePlanner:
     def __init__(self) -> None:
         self.calls = 0
+        self.regeneration_evidence_ids: list[str] = []
         self.regeneration_evidence_ids: list[str] = []
 
     def generate_plan(self, request):
@@ -143,6 +146,50 @@ def test_segment_edit_preserves_valid_episode_evidence(tmp_path) -> None:
         300,
         evidence_ids=("e1",),
         lead_host_ids=("h1",),
+    )
+    revised = service.edit_segment(episode_id, 0, segment)
+    assert revised.segments[0].evidence_ids == ("e1",)
+
+
+def test_segment_regeneration_rejects_out_of_scope_evidence(tmp_path) -> None:
+    service, episode_id, fake = _service(tmp_path)
+    service.build_plan(episode_id)
+    fake.regeneration_evidence_ids = ["foreign-evidence"]
+    with pytest.raises(ValueError, match="evidence outside retrieved evidence"):
+        service.regenerate_segment(episode_id, 0)
+
+
+def test_evidence_validation_disabled_is_explicit_and_empty_scope_rejects() -> None:
+    raw = {
+        "segments": [
+            {
+                "title": "Segment",
+                "target_duration_seconds": 60,
+                "evidence_ids": ["unknown"],
+            }
+        ]
+    }
+    assert EpisodePlannerService._validate_segments(raw, (), None)[0].evidence_ids == ("unknown",)
+    with pytest.raises(ValueError, match="evidence outside retrieved evidence"):
+        EpisodePlannerService._validate_segments(raw, (), set())
+
+
+def test_segment_edit_rejects_nonexistent_and_cross_project_evidence(tmp_path) -> None:
+    service, episode_id, _ = _service(tmp_path)
+    service.build_plan(episode_id)
+    for evidence_id in ("missing", "foreign-evidence"):
+        segment = PlannedSegment(
+            "Edited", "repair", 300, evidence_ids=(evidence_id,), lead_host_ids=("h1",)
+        )
+        with pytest.raises(ValueError, match="evidence outside retrieved evidence"):
+            service.edit_segment(episode_id, 0, segment)
+
+
+def test_segment_edit_preserves_valid_episode_evidence(tmp_path) -> None:
+    service, episode_id, _ = _service(tmp_path)
+    service.build_plan(episode_id)
+    segment = PlannedSegment(
+        "Edited", "repair", 300, evidence_ids=("e1",), lead_host_ids=("h1",)
     )
     revised = service.edit_segment(episode_id, 0, segment)
     assert revised.segments[0].evidence_ids == ("e1",)
