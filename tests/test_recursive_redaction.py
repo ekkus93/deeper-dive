@@ -1,8 +1,3 @@
-from __future__ import annotations
-
-import json
-
-
 SECRET_VALUE = "credential-value"
 
 
@@ -15,6 +10,8 @@ def _credential_url() -> str:
 
 
 def test_redact_covers_secret_key_variants_and_nested_collections() -> None:
+    import json
+
     from deeper_dive import diagnostics
 
     payload = {
@@ -80,6 +77,8 @@ def test_exception_sanitizer_redacts_cause_and_context() -> None:
 
 
 def test_export_metadata_uses_canonical_sanitizer_and_drops_secret_keys(tmp_path) -> None:
+    import json
+
     from deeper_dive.export import EpisodeExporter
 
     path = tmp_path / "metadata.json"
