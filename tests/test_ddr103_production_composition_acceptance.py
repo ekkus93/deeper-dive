@@ -6,7 +6,6 @@ from pathlib import Path
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.episode_library_export import EpisodeLibraryExportService
-from deeper_dive.ffmpeg import FFmpegConfig
 from deeper_dive.hosts import create_host_from_preset
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.transcript_review_screen import TranscriptReviewController
