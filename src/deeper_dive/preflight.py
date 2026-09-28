@@ -163,8 +163,7 @@ class PreflightService:
                 issues.append(PreflightIssue("tts_assignment", str(redact(str(exc)))))
                 continue
             response_format = (
-                configured_tts_formats.get(provider.provider_id, "wav").strip().lower()
-                or "wav"
+                configured_tts_formats.get(provider.provider_id, "wav").strip().lower() or "wav"
             )
             if response_format != "wav":
                 issues.append(
