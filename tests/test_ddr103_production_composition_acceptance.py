@@ -3,9 +3,12 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import Path
 
+import pytest
+
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.episode_library_export import EpisodeLibraryExportService
+from deeper_dive.ffmpeg import FFmpegConfig
 from deeper_dive.hosts import create_host_from_preset
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.transcript_review_screen import TranscriptReviewController
@@ -13,8 +16,15 @@ from deeper_dive.tui import DeeperDiveApp
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
-def test_production_composition_plan_preflight_generate_review_export(tmp_path: Path) -> None:
+def test_production_composition_plan_preflight_generate_review_export(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     fake_ffmpeg = _fake_ffmpeg_executable(tmp_path)
+    monkeypatch.setattr(
+        "deeper_dive.ffmpeg.FFmpegConfig.detect",
+        staticmethod(lambda executable=None: FFmpegConfig(fake_ffmpeg)),
+    )
     data_dir = tmp_path / "data"
     llm_roles = (
         "corpus_analysis",
