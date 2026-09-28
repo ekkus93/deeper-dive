@@ -42,6 +42,8 @@ def redact(value: object) -> object:
         }
     if isinstance(value, (list, tuple)):
         return [redact(item) for item in value]
+    if isinstance(value, (set, frozenset)):
+        return [redact(item) for item in sorted(value, key=repr)]
     if isinstance(value, str):
         return _redact_text(value)
     return value
