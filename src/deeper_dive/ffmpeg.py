@@ -10,6 +10,7 @@ from pathlib import Path
 from deeper_dive.audio_timeline import AudioTimeline
 from deeper_dive.diagnostics import sanitize_exception_message
 
+
 class FFmpegError(RuntimeError):
     pass
 
@@ -107,4 +108,3 @@ class FFmpegComposer:
             safe_stderr = sanitize_exception_message(RuntimeError(stderr))[:2000]
             raise FFmpegError(f"FFmpeg failed: {safe_stderr}")
         return result.stdout
-
