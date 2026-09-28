@@ -9,7 +9,16 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-_SECRET_KEY = re.compile(r"(authorization|api[-_]?key|token|secret|password|cookie)", re.I)
+_SECRET_WORDS = frozenset({"authorization", "password", "cookie"})
+_SECRET_PAIRS = frozenset(
+    {
+        ("api", "key"),
+        ("access", "token"),
+        ("refresh", "token"),
+        ("client", "secret"),
+        ("bearer", "token"),
+    }
+)
 _BEARER = re.compile(r"(?i)bearer\s+[A-Za-z0-9._~+/=-]+")
 _ASSIGNMENT = re.compile(
     r"(?i)\b([A-Za-z0-9_-]*(?:authorization|api[-_]?key|token|secret|password|cookie)"
@@ -20,16 +29,45 @@ _QUOTED_MAPPING_ASSIGNMENT = re.compile(
     r"[A-Za-z0-9_-]*)\1(\s*:\s*)(['\"])([^'\"]+)\4"
 )
 _CREDENTIAL_URL = re.compile(r"(?i)(https?://)([^/@\s:]+):([^/@\s]+)@")
+_CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
+_WORD_SPLIT = re.compile(r"[^A-Za-z0-9]+")
+
+
+def _key_words(key: object) -> tuple[str, ...]:
+    separated = _CAMEL_BOUNDARY.sub("_", str(key))
+    return tuple(part.lower() for part in _WORD_SPLIT.split(separated) if part)
+
+
+def _is_secret_key(key: object) -> bool:
+    words = _key_words(key)
+    if not words:
+        return False
+    if words == ("token",) or words == ("secret",):
+        return True
+    if any(word in _SECRET_WORDS for word in words):
+        return True
+    return any(pair in zip(words, words[1:], strict=False) for pair in _SECRET_PAIRS)
+
+
+def _redact_assignment(match: re.Match[str]) -> str:
+    if not _is_secret_key(match.group(1)):
+        return match.group(0)
+    return f"{match.group(1)}{match.group(2)}[REDACTED]"
+
+
+def _redact_quoted_mapping_assignment(match: re.Match[str]) -> str:
+    if not _is_secret_key(match.group(2)):
+        return match.group(0)
+    return (
+        f"{match.group(1)}{match.group(2)}{match.group(1)}"
+        f"{match.group(3)}{match.group(4)}[REDACTED]{match.group(4)}"
+    )
 
 
 def _redact_text(value: str) -> str:
     value = _BEARER.sub("Bearer [REDACTED]", value)
-    value = _QUOTED_MAPPING_ASSIGNMENT.sub(
-        lambda match: f"{match.group(1)}{match.group(2)}{match.group(1)}"
-        f"{match.group(3)}{match.group(4)}[REDACTED]{match.group(4)}",
-        value,
-    )
-    value = _ASSIGNMENT.sub(lambda match: f"{match.group(1)}{match.group(2)}[REDACTED]", value)
+    value = _QUOTED_MAPPING_ASSIGNMENT.sub(_redact_quoted_mapping_assignment, value)
+    value = _ASSIGNMENT.sub(_redact_assignment, value)
     return _CREDENTIAL_URL.sub(r"\1[REDACTED]@", value)
 
 
@@ -39,11 +77,11 @@ def redact(value: object, *, drop_secret_keys: bool = False) -> object:
         return {
             str(key): (
                 "[REDACTED]"
-                if _SECRET_KEY.search(str(key))
+                if _is_secret_key(key)
                 else redact(item, drop_secret_keys=drop_secret_keys)
             )
             for key, item in value.items()
-            if not (drop_secret_keys and _SECRET_KEY.search(str(key)))
+            if not (drop_secret_keys and _is_secret_key(key))
         }
     if isinstance(value, (list, tuple)):
         return [redact(item, drop_secret_keys=drop_secret_keys) for item in value]
