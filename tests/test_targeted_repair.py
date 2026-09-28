@@ -118,7 +118,10 @@ def test_targeted_repair_changes_only_affected_turn_and_rechecks(tmp_path: Path)
         rows = db.execute(
             "SELECT id,text FROM conversation_turns WHERE episode_id='e1' ORDER BY turn_ordinal"
         ).fetchall()
-        old_claim = db.execute("SELECT 1 FROM material_claims WHERE id='c1'").fetchone()\n        old_verification = db.execute(\n            "SELECT 1 FROM claim_verifications WHERE claim_id='c1'"\n        ).fetchone()
+        old_claim = db.execute("SELECT 1 FROM material_claims WHERE id='c1'").fetchone()
+        old_verification = db.execute(
+            "SELECT 1 FROM claim_verifications WHERE claim_id='c1'"
+        ).fetchone()
     assert [(str(row["id"]), str(row["text"])) for row in rows] == [
         ("t1", "The corrected figure is 12 participants."),
         ("t2", "This unrelated turn stays unchanged."),
