@@ -173,44 +173,44 @@ This checklist is the source of completion truth for the post-review remediation
 
 ## PRR-140 — Canonical recursive sanitizer
 
-- [ ] One sanitizer API for all durable/user-visible output.
-- [ ] Cover authorization/API-key variants/token/access-token/refresh-token/secret/client-secret/password/cookie keys.
-- [ ] Preserve Bearer redaction.
-- [ ] Preserve assignment redaction.
-- [ ] Preserve quoted-map redaction.
-- [ ] Preserve credential-URL redaction.
-- [ ] Preserve nested collection redaction.
-- [ ] Preserve exception cause/context sanitization.
-- [ ] Add non-secret false-positive tests.
+- [x] One sanitizer API for all durable/user-visible output.
+- [x] Cover authorization/API-key variants/token/access-token/refresh-token/secret/client-secret/password/cookie keys.
+- [x] Preserve Bearer redaction.
+- [x] Preserve assignment redaction.
+- [x] Preserve quoted-map redaction.
+- [x] Preserve credential-URL redaction.
+- [x] Preserve nested collection redaction.
+- [x] Preserve exception cause/context sanitization.
+- [x] Add non-secret false-positive tests.
 
 ## PRR-141 — Export metadata uses canonical sanitizer
 
-- [ ] Remove bespoke `EpisodeExporter.write_metadata()` secret vocabulary.
-- [ ] Recursively sanitize before serialization.
-- [ ] Test nested `access_token`.
-- [ ] Test nested `refresh_token`.
-- [ ] Test `client_secret`.
-- [ ] Test cookie/authorization.
-- [ ] Test URL credentials/Bearer strings.
-- [ ] Preserve normal provenance/identity metadata.
+- [x] Remove bespoke `EpisodeExporter.write_metadata()` secret vocabulary.
+- [x] Recursively sanitize before serialization.
+- [x] Test nested `access_token`.
+- [x] Test nested `refresh_token`.
+- [x] Test `client_secret`.
+- [x] Test cookie/authorization.
+- [x] Test URL credentials/Bearer strings.
+- [x] Preserve normal provenance/identity metadata.
 
 ## PRR-142 — Provider-originated UI/status sanitization
 
-- [ ] Audit health/model/voice/provider messages to CLI/TUI/preflight.
-- [ ] Sanitize before presentation/persistence.
-- [ ] Health-message synthetic-secret regression.
-- [ ] Discovery-exception synthetic-secret regression.
-- [ ] Verify `[REDACTED]` is shown and secret is absent.
+- [x] Audit health/model/voice/provider messages to CLI/TUI/preflight.
+- [x] Sanitize before presentation/persistence.
+- [x] Health-message synthetic-secret regression.
+- [x] Discovery-exception synthetic-secret regression.
+- [x] Verify `[REDACTED]` is shown and secret is absent.
 
 ## PRR-143 — Credential non-persistence matrix
 
-- [ ] Provider config stores references, not values.
-- [ ] Failed provider save stores no values.
-- [ ] Structured diagnostics store no values.
-- [ ] Run failures store no values.
-- [ ] Export metadata stores no values.
-- [ ] CLI/TUI status stores/displays no values.
-- [ ] Add representative end-to-end security matrix.
+- [x] Provider config stores references, not values.
+- [x] Failed provider save stores no values.
+- [x] Structured diagnostics store no values.
+- [x] Run failures store no values.
+- [x] Export metadata stores no values.
+- [x] CLI/TUI status stores/displays no values.
+- [x] Add representative end-to-end security matrix.
 
 ---
 
@@ -452,7 +452,7 @@ This checklist is the source of completion truth for the post-review remediation
 - [x] Directing/verification preflight matrix.
 - [x] Valid/corrupt plan matrix.
 - [x] Plan evidence edit/regeneration isolation.
-- [ ] Security/redaction.
+- [x] Security/redaction.
 - [ ] TTS format/composition compatibility.
 - [ ] TTS returned identity.
 - [ ] Cache invalidation/orphan cleanup.
@@ -506,7 +506,7 @@ Populate during implementation; do not pre-check.
 - Provider transaction/runtime tests: `tests/test_provider_transactions.py::test_failed_provider_save_preserves_durable_config_and_live_runtime`, `tests/test_provider_transactions.py::test_successful_provider_save_publishes_built_candidate_after_persistence`, `tests/test_provider_transactions.py::test_missing_credential_env_provider_save_rolls_back_config_and_runtime`, `tests/test_provider_transactions.py::test_missing_tts_base_url_or_voice_catalog_rolls_back_config_and_runtime`, `tests/test_provider_transactions.py::test_unsupported_provider_adapter_save_rolls_back_without_building`, `tests/test_provider_transactions.py::test_failed_provider_save_cannot_break_next_startup`, `tests/test_provider_transactions.py::test_failed_provider_removal_preserves_durable_config_and_live_runtime`, `tests/test_provider_transactions.py::test_successful_provider_removal_drops_provider_from_live_runtime`, `tests/test_composition.py::test_provider_runtime_refresh_updates_same_session_consumers`, `tests/test_composition.py::test_injected_provider_controller_refreshes_composition_consumers`, `tests/test_composition.py::test_production_composition_loads_persisted_providers`, `tests/test_network_scope.py::test_provider_network_policy_default_scope_matrix`, `tests/test_network_scope.py::test_explicit_network_scope_overrides_adapter_default`, `tests/test_network_scope.py::test_local_provider_ids_respect_defaults_and_explicit_remote_override`, `tests/test_network_scope.py::test_provider_factory_uses_shared_network_scope_policy`.
 - Preflight/durable-failure tests: `tests/test_preflight_model_roles.py::test_unknown_directing_provider_blocks`, `tests/test_preflight_model_roles.py::test_unavailable_verification_model_blocks`, `tests/test_preflight_model_roles.py::test_unhealthy_directing_provider_blocks`, `tests/test_preflight_model_roles.py::test_unknown_verification_provider_blocks`, `tests/test_preflight_model_roles.py::test_unhealthy_verification_provider_blocks`, `tests/test_generation_start.py::test_generation_start_requires_configured_execution_roles`, `tests/test_generation_start.py::test_generation_start_preflight_blocks_before_run_creation`, `tests/test_generation_roles.py::test_required_generation_roles_follow_plan_conversation_and_configured_roles`, `tests/test_generation_roles.py::test_required_generation_roles_are_extensible_and_deduplicated`, `tests/test_generation_start.py::test_generation_start_treats_invalid_persisted_plan_as_missing`, `tests/test_generation_start.py::test_generation_start_omits_host_generation_after_completed_conversation`, `tests/test_durable_generation_failure.py::test_run_generation_persists_assignment_failure_after_run_creation`.
 - Plan/evidence tests: `tests/test_plan_validity.py` persisted valid/corrupt/disallowed-plan matrix; `tests/test_episode_planner.py` targeted edit/regeneration evidence-scope matrix; exact-head CI `36380466538` on `09d940446fc71879bb975801a7e59a718505bfa2`.
-- Security/redaction tests:
+- Security/redaction tests: `tests/test_recursive_redaction.py` covers canonical recursive sanitizer variants, Bearer/assignment/quoted-map/credential-URL/nested collection redaction, exception cause/context sanitization, non-secret false-positive preservation, and export metadata sanitization; `tests/test_preflight_model_roles.py` covers provider health and model-discovery exception redaction before CLI/TUI preflight/status presentation; `tests/test_security_non_persistence.py` covers provider credential-reference storage, structured diagnostics, run failure persistence, and export metadata non-persistence; exact-head CI `36387686979` on `e19828bb6374ee2a203dbea15df17e82e844439e`, conclusion `success`.
 - TTS/audio/cache tests:
 - Transcript-repair tests:
 - CLI acceptance:
