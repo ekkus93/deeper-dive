@@ -20,8 +20,8 @@ from deeper_dive.audio_playback import AudioPlaybackController, PlaybackState
 from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.claim_evidence_retrieval import ClaimEvidenceRetriever
 from deeper_dive.claim_verification import ClaimVerificationService
-from deeper_dive.conversation_state import ConversationStateRepository
 from deeper_dive.claim_inspector_screen import ClaimInspectorController, ClaimInspectorScreen
+from deeper_dive.conversation_state import ConversationStateRepository
 from deeper_dive.host_turn import HostTurn
 from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
 from deeper_dive.material_claims import MaterialClaimService
