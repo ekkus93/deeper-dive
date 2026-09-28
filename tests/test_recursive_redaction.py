@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
-from deeper_dive.diagnostics import redact, sanitize_exception_message
 from deeper_dive.export import EpisodeExporter
+from deeper_dive.diagnostics import redact, sanitize_exception_message
 
 
 SECRET_VALUE = "credential-value"
