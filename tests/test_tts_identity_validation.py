@@ -4,7 +4,13 @@ from pathlib import Path
 import pytest
 
 from deeper_dive.storage.database import Database
-from deeper_dive.tts import FakeTTSProvider, TTSAudioResult, TTSProviderRegistry, TTSRequest, TTSVoice
+from deeper_dive.tts import (
+    FakeTTSProvider,
+    TTSAudioResult,
+    TTSProviderRegistry,
+    TTSRequest,
+    TTSVoice,
+)
 from deeper_dive.tts_generation import TTSArtifactRepository, TTSGenerationStage, TTSTurn
 
 
