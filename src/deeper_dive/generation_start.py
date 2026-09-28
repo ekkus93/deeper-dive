@@ -83,6 +83,7 @@ class GenerationStartService:
                 episode_id,
                 assignments,
             ),
+            tts_response_formats=self._tts_response_formats(),
         )
         if assignment_errors:
             report = PreflightReport(
@@ -144,6 +145,13 @@ class GenerationStartService:
     def _local_only(self) -> bool:
         config = self.composition.provider_controller.config()  # type: ignore[attr-defined]
         return ProviderNetworkPolicy.local_only(config.defaults)
+
+    def _tts_response_formats(self) -> dict[str, str]:
+        config = self.composition.provider_controller.config()  # type: ignore[attr-defined]
+        return {
+            provider_id: provider_config.response_format
+            for provider_id, provider_config in config.providers.items()
+        }
 
 
 def select_or_create_generation_run(
