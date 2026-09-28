@@ -212,7 +212,17 @@ def test_transcript_review_default_repair_uses_production_service(
         stale_claim = connection.execute(
             "SELECT 1 FROM material_claims WHERE id=?", ("claim-1",)
         ).fetchone()
-        stale_verification = connection.execute(\n            "SELECT 1 FROM claim_verifications WHERE claim_id=?", ("claim-1",)\n        ).fetchone()\n        state = connection.execute(\n            "SELECT running_summary,recent_context_refs_json FROM conversation_states WHERE episode_id=?",\n            (episode_id,),\n        ).fetchone()\n        regenerated_audio = connection.execute(\n            "SELECT artifact_id,path FROM tts_artifacts WHERE turn_id=?", ("turn-1",)\n        ).fetchone()
+        stale_verification = connection.execute(
+            "SELECT 1 FROM claim_verifications WHERE claim_id=?", ("claim-1",)
+        ).fetchone()
+        state = connection.execute(
+            "SELECT running_summary,recent_context_refs_json "
+            "FROM conversation_states WHERE episode_id=?",
+            (episode_id,),
+        ).fetchone()
+        regenerated_audio = connection.execute(
+            "SELECT artifact_id,path FROM tts_artifacts WHERE turn_id=?", ("turn-1",)
+        ).fetchone()
     assert repaired is not None
     assert turn is not None
     assert "segments" in str(turn["text"])
