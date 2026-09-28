@@ -6,16 +6,98 @@ from pathlib import Path
 import deeper_dive.composition as composition_module
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.audio_timeline import AudioTimelineRepository
+from deeper_dive.claim_verification import ClaimVerificationService
 from deeper_dive.composition import ProductionComposition
+from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
+from deeper_dive.host_turn import HostTurnService
+from deeper_dive.material_claims import MaterialClaimService
 from deeper_dive.storage.database import Database
+from deeper_dive.storage.episode_repositories import HostEpisodeRepository, HostProfileRecord
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.transcript_review_screen import TranscriptReviewController
 from deeper_dive.tui import DeeperDiveApp
-from tests.test_transcript_review_screen import (
-    _configure_fake_repair_provider,
-    _insert_repair_worthy_claim,
-    _project_with_episode,
-)
+from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
+
+
+class UnusedTurnProvider:
+    def generate_turn(self, decision: object) -> dict[str, object]:
+        raise AssertionError("not used")
+
+
+class UnusedVerifier:
+    def classify(self, request: dict[str, object]) -> dict[str, object]:
+        raise AssertionError("not used")
+
+
+def _project_with_episode(tmp_path: Path) -> tuple[DeeperDiveService, str, str]:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    project = service.create_project("Review")
+    database = Database(service.workspaces.project_root(project.id) / "project.db")
+    hosts = HostEpisodeRepository(database)
+    hosts.create_host(
+        HostProfileRecord(
+            "h1",
+            project.id,
+            "Host One",
+            tts_provider="tts",
+            tts_voice="voice-a",
+        )
+    )
+    episode = EpisodeConfigurationService(database).create(
+        project.id,
+        EpisodeConfiguration(
+            title="Episode One",
+            focus="Focus",
+            host_ids=("h1",),
+        ),
+    )
+    HostTurnService(database, UnusedTurnProvider())
+    with database.transaction() as connection:
+        connection.execute(
+            """INSERT INTO conversation_turns(
+                id,episode_id,segment_ordinal,turn_ordinal,speaker_id,text,evidence_ids_json
+            ) VALUES (?,?,?,?,?,?,?)""",
+            ("turn-1", episode.id, 0, 0, "h1", "Original turn", "[]"),
+        )
+    return service, project.id, episode.id
+
+
+def _configure_fake_repair_provider(service: DeeperDiveService) -> None:
+    UserConfigStore(service.workspaces.data_dir / "config.json").save(
+        UserConfig(
+            providers={
+                "repair": ProviderConfig(provider_type="fake", default_model="fake-v1"),
+                "tts": ProviderConfig(provider_type="fake-tts"),
+            },
+            defaults={"host_generation": "repair:fake-v1"},
+        )
+    )
+
+
+def _insert_repair_worthy_claim(database: Database, project_id: str, episode_id: str) -> None:
+    MaterialClaimService(database)
+    ClaimVerificationService(database, UnusedVerifier())
+    with database.transaction() as connection:
+        connection.execute(
+            """INSERT INTO material_claims(
+                id,project_id,episode_id,turn_id,text,span_start,span_end,created_at
+            ) VALUES (?,?,?,?,?,?,?,?)""",
+            ("claim-1", project_id, episode_id, "turn-1", "Original turn", 0, 13, "t"),
+        )
+        connection.execute(
+            """INSERT INTO claim_verifications(
+                claim_id,state,rationale,confidence,supporting_evidence_ids_json,
+                contradicting_evidence_ids_json
+            ) VALUES (?,?,?,?,?,?)""",
+            (
+                "claim-1",
+                "contradicted",
+                "Repair it",
+                0.8,
+                '["chunk-a"]',
+                '["chunk-b"]',
+            ),
+        )
 
 
 def test_regenerate_episode_audio_sanitizes_runtime_failure(
