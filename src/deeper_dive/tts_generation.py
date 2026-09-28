@@ -81,6 +81,7 @@ class TTSArtifactRepository:
 
     def save(self, artifact: TTSArtifact) -> None:
         artifact = self._with_canonical_status(artifact)
+        previous = self.get_by_turn_id(artifact.turn_id)
         with self.database.transaction() as db:
             db.execute(
                 """INSERT INTO tts_artifacts(
@@ -103,6 +104,30 @@ class TTSArtifactRepository:
                     artifact.format,
                 ),
             )
+        if previous is not None and previous.path != artifact.path:
+            self.collect_if_unreferenced(previous.path)
+
+    def collect_if_unreferenced(self, path: Path) -> bool:
+        """Delete an obsolete cache file only when no durable turn references it."""
+        with self.database.connection() as db:
+            row = db.execute("SELECT 1 FROM tts_artifacts WHERE path=? LIMIT 1", (str(path),)).fetchone()
+        if row is not None:
+            return False
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            return False
+        return True
+
+    def delete_turn(self, turn_id: str) -> TTSArtifact | None:
+        """Drop one turn reference and collect its file when it becomes unreachable."""
+        previous = self.get_by_turn_id(turn_id)
+        if previous is None:
+            return None
+        with self.database.transaction() as db:
+            db.execute("DELETE FROM tts_artifacts WHERE turn_id=?", (turn_id,))
+        self.collect_if_unreferenced(previous.path)
+        return previous
 
     def mark_checkpoint(self, run_id: str, turn_id: str) -> None:
         with self.database.transaction() as db:
