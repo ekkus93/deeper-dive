@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-import io
-import wave
+import re
+import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 
+from deeper_dive.ffmpeg import FFmpegConfig, FFmpegError
 from deeper_dive.tts import TTSAudioResult
 
 CANONICAL_SAMPLE_RATE_HZ = 24_000
@@ -40,64 +42,163 @@ class CanonicalAudio:
         return CANONICAL_FORMAT
 
 
-def normalize_provider_audio(result: TTSAudioResult) -> CanonicalAudio:
+@dataclass(frozen=True, slots=True)
+class FFmpegAudioNormalizer:
+    """FFmpeg/libswresample-backed converter to the canonical TTS PCM contract."""
+
+    config: FFmpegConfig
+
+    @classmethod
+    def detect(cls, executable: Path | None = None) -> FFmpegAudioNormalizer:
+        try:
+            return cls(FFmpegConfig.detect(executable))
+        except FFmpegError as exc:
+            raise AudioNormalizationError(str(exc)) from exc
+
+    def normalize_provider_audio(self, result: TTSAudioResult) -> CanonicalAudio:
+        """Normalize one provider TTS result to mono 24 kHz signed 16-bit PCM."""
+
+        if not result.audio:
+            raise AudioNormalizationError("provider audio output is empty")
+        audio_format = result.format.lower().lstrip(".")
+        media_type = result.media_type.lower()
+        if audio_format == "wav" or media_type in {"audio/wav", "audio/x-wav"}:
+            return self.normalize_wav(result.audio, source_media_type=result.media_type)
+        if audio_format in {"pcm_s16le", "raw", "pcm"}:
+            if result.sample_rate_hz is None:
+                raise AudioNormalizationError("raw PCM provider output requires sample_rate_hz")
+            return self.normalize_raw_pcm16(
+                result.audio,
+                sample_rate_hz=result.sample_rate_hz,
+                channels=CANONICAL_CHANNELS,
+                source_format=audio_format,
+                source_media_type=result.media_type,
+            )
+        if audio_format == "mp3" or media_type == "audio/mpeg":
+            raise AudioNormalizationError(
+                "MP3 decoding is not accepted by the WAV-only composition policy"
+            )
+        raise AudioNormalizationError(f"unsupported audio format: {result.format!r}")
+
+    def normalize_wav(
+        self,
+        audio: bytes,
+        *,
+        source_media_type: str = "audio/wav",
+    ) -> CanonicalAudio:
+        """Decode a WAV byte payload using FFmpeg and normalize it to canonical PCM."""
+
+        if not audio:
+            raise AudioNormalizationError("WAV audio output is empty")
+        pcm = self._convert(
+            ["-f", "wav", "-i", "pipe:0"],
+            audio,
+            failure_context="invalid WAV audio",
+        )
+        return _canonical_audio(
+            pcm,
+            source_format="wav",
+            source_media_type=source_media_type,
+        )
+
+    def normalize_raw_pcm16(
+        self,
+        pcm: bytes,
+        *,
+        sample_rate_hz: int,
+        channels: int,
+        source_format: str = "pcm_s16le",
+        source_media_type: str = "audio/L16",
+    ) -> CanonicalAudio:
+        """Normalize raw little-endian signed 16-bit PCM from provider adapters."""
+
+        if sample_rate_hz <= 0:
+            raise AudioNormalizationError("sample_rate_hz must be positive")
+        if channels <= 0:
+            raise AudioNormalizationError("channels must be positive")
+        frame_size = channels * CANONICAL_SAMPLE_WIDTH_BYTES
+        if not pcm or len(pcm) % frame_size != 0:
+            raise AudioNormalizationError("raw PCM data is empty or frame-misaligned")
+        normalized = self._convert(
+            [
+                "-f",
+                "s16le",
+                "-ar",
+                str(sample_rate_hz),
+                "-ac",
+                str(channels),
+                "-i",
+                "pipe:0",
+            ],
+            pcm,
+            failure_context="invalid raw PCM audio",
+        )
+        return _canonical_audio(
+            normalized,
+            source_format=source_format,
+            source_media_type=source_media_type,
+        )
+
+    def _convert(self, input_args: list[str], audio: bytes, *, failure_context: str) -> bytes:
+        args = [
+            str(self.config.executable),
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-nostdin",
+            *input_args,
+            "-f",
+            "s16le",
+            "-acodec",
+            "pcm_s16le",
+            "-ac",
+            str(CANONICAL_CHANNELS),
+            "-ar",
+            str(CANONICAL_SAMPLE_RATE_HZ),
+            "pipe:1",
+        ]
+        try:
+            result = subprocess.run(
+                args,
+                input=audio,
+                capture_output=True,
+                check=False,
+                shell=False,
+            )
+        except OSError as exc:
+            raise AudioNormalizationError(f"unable to execute FFmpeg: {exc}") from exc
+        if result.returncode != 0:
+            stderr = result.stderr.decode("utf-8", errors="replace")
+            raise AudioNormalizationError(f"{failure_context}: {_sanitize(stderr)}")
+        if not result.stdout:
+            raise AudioNormalizationError("FFmpeg produced no normalized audio")
+        if len(result.stdout) % (CANONICAL_CHANNELS * CANONICAL_SAMPLE_WIDTH_BYTES) != 0:
+            raise AudioNormalizationError("FFmpeg produced frame-misaligned normalized audio")
+        return result.stdout
+
+
+def normalize_provider_audio(
+    result: TTSAudioResult,
+    *,
+    normalizer: FFmpegAudioNormalizer | None = None,
+) -> CanonicalAudio:
     """Normalize one provider TTS result to mono 24 kHz signed 16-bit PCM."""
 
-    if not result.audio:
-        raise AudioNormalizationError("provider audio output is empty")
-    audio_format = result.format.lower().lstrip(".")
-    media_type = result.media_type.lower()
-    if audio_format == "wav" or media_type in {"audio/wav", "audio/x-wav"}:
-        return normalize_wav(result.audio, source_media_type=result.media_type)
-    if audio_format in {"pcm_s16le", "raw", "pcm"}:
-        if result.sample_rate_hz is None:
-            raise AudioNormalizationError("raw PCM provider output requires sample_rate_hz")
-        return normalize_raw_pcm16(
-            result.audio,
-            sample_rate_hz=result.sample_rate_hz,
-            channels=CANONICAL_CHANNELS,
-            source_format=audio_format,
-            source_media_type=result.media_type,
-        )
-    if audio_format == "mp3" or media_type == "audio/mpeg":
-        raise AudioNormalizationError(
-            "MP3 decoding requires the FFmpeg-backed decoder introduced by DD-133"
-        )
-    raise AudioNormalizationError(f"unsupported audio format: {result.format!r}")
+    active_normalizer = normalizer or FFmpegAudioNormalizer.detect()
+    return active_normalizer.normalize_provider_audio(result)
 
 
-def normalize_wav(audio: bytes, *, source_media_type: str = "audio/wav") -> CanonicalAudio:
+def normalize_wav(
+    audio: bytes,
+    *,
+    source_media_type: str = "audio/wav",
+    normalizer: FFmpegAudioNormalizer | None = None,
+) -> CanonicalAudio:
     """Decode a WAV byte payload and normalize it to canonical PCM."""
 
-    if not audio:
-        raise AudioNormalizationError("WAV audio output is empty")
-    try:
-        with wave.open(io.BytesIO(audio), "rb") as wav:
-            channels = wav.getnchannels()
-            sample_width = wav.getsampwidth()
-            sample_rate = wav.getframerate()
-            frame_count = wav.getnframes()
-            frames = wav.readframes(frame_count)
-    except (wave.Error, EOFError) as exc:
-        raise AudioNormalizationError(f"invalid WAV audio: {exc}") from exc
-    if not frames or frame_count <= 0:
-        raise AudioNormalizationError("WAV audio contains no frames")
-    if sample_width != CANONICAL_SAMPLE_WIDTH_BYTES:
-        raise AudioNormalizationError(
-            f"unsupported WAV sample width {sample_width}; expected 16-bit PCM"
-        )
-    pcm = _mono_mix_i16(frames, channels)
-    pcm = _resample_nearest_i16(pcm, sample_rate, CANONICAL_SAMPLE_RATE_HZ)
-    duration = _duration_seconds(pcm, CANONICAL_SAMPLE_RATE_HZ, CANONICAL_CHANNELS)
-    return CanonicalAudio(
-        pcm=pcm,
-        sample_rate_hz=CANONICAL_SAMPLE_RATE_HZ,
-        channels=CANONICAL_CHANNELS,
-        sample_width_bytes=CANONICAL_SAMPLE_WIDTH_BYTES,
-        duration_seconds=duration,
-        source_format="wav",
-        source_media_type=source_media_type,
-    )
+    active_normalizer = normalizer or FFmpegAudioNormalizer.detect()
+    return active_normalizer.normalize_wav(audio, source_media_type=source_media_type)
 
 
 def normalize_raw_pcm16(
@@ -107,65 +208,46 @@ def normalize_raw_pcm16(
     channels: int,
     source_format: str = "pcm_s16le",
     source_media_type: str = "audio/L16",
+    normalizer: FFmpegAudioNormalizer | None = None,
 ) -> CanonicalAudio:
     """Normalize raw little-endian signed 16-bit PCM from provider adapters."""
 
-    if sample_rate_hz <= 0:
-        raise AudioNormalizationError("sample_rate_hz must be positive")
-    if channels <= 0:
-        raise AudioNormalizationError("channels must be positive")
-    frame_size = channels * CANONICAL_SAMPLE_WIDTH_BYTES
-    if not pcm or len(pcm) % frame_size != 0:
-        raise AudioNormalizationError("raw PCM data is empty or frame-misaligned")
-    mono = _mono_mix_i16(pcm, channels)
-    normalized = _resample_nearest_i16(mono, sample_rate_hz, CANONICAL_SAMPLE_RATE_HZ)
-    return CanonicalAudio(
-        pcm=normalized,
-        sample_rate_hz=CANONICAL_SAMPLE_RATE_HZ,
-        channels=CANONICAL_CHANNELS,
-        sample_width_bytes=CANONICAL_SAMPLE_WIDTH_BYTES,
-        duration_seconds=_duration_seconds(
-            normalized, CANONICAL_SAMPLE_RATE_HZ, CANONICAL_CHANNELS
-        ),
+    active_normalizer = normalizer or FFmpegAudioNormalizer.detect()
+    return active_normalizer.normalize_raw_pcm16(
+        pcm,
+        sample_rate_hz=sample_rate_hz,
+        channels=channels,
         source_format=source_format,
         source_media_type=source_media_type,
     )
 
 
-def _mono_mix_i16(pcm: bytes, channels: int) -> bytes:
-    if channels == CANONICAL_CHANNELS:
-        return pcm
-    if channels <= 0:
-        raise AudioNormalizationError("channels must be positive")
-    frame_size = channels * CANONICAL_SAMPLE_WIDTH_BYTES
-    if len(pcm) % frame_size != 0:
-        raise AudioNormalizationError("PCM data is frame-misaligned")
-    samples = memoryview(pcm).cast("h")
-    mixed = bytearray()
-    for frame_start in range(0, len(samples), channels):
-        total = 0
-        for channel_index in range(channels):
-            total += int(samples[frame_start + channel_index])
-        mixed.extend(int(total / channels).to_bytes(2, "little", signed=True))
-    return bytes(mixed)
-
-
-def _resample_nearest_i16(pcm: bytes, source_rate: int, target_rate: int) -> bytes:
-    if source_rate <= 0 or target_rate <= 0:
-        raise AudioNormalizationError("sample rates must be positive")
-    if source_rate == target_rate:
-        return pcm
-    samples = memoryview(pcm).cast("h")
-    if not samples:
-        raise AudioNormalizationError("PCM data contains no samples")
-    target_count = max(1, round(len(samples) * target_rate / source_rate))
-    resampled = bytearray()
-    for target_index in range(target_count):
-        source_index = min(len(samples) - 1, round(target_index * source_rate / target_rate))
-        resampled.extend(int(samples[source_index]).to_bytes(2, "little", signed=True))
-    return bytes(resampled)
+def _canonical_audio(
+    pcm: bytes,
+    *,
+    source_format: str,
+    source_media_type: str,
+) -> CanonicalAudio:
+    duration = _duration_seconds(pcm, CANONICAL_SAMPLE_RATE_HZ, CANONICAL_CHANNELS)
+    return CanonicalAudio(
+        pcm=pcm,
+        sample_rate_hz=CANONICAL_SAMPLE_RATE_HZ,
+        channels=CANONICAL_CHANNELS,
+        sample_width_bytes=CANONICAL_SAMPLE_WIDTH_BYTES,
+        duration_seconds=duration,
+        source_format=source_format,
+        source_media_type=source_media_type,
+    )
 
 
 def _duration_seconds(pcm: bytes, sample_rate_hz: int, channels: int) -> float:
     frame_size = channels * CANONICAL_SAMPLE_WIDTH_BYTES
     return len(pcm) / frame_size / sample_rate_hz
+
+
+def _sanitize(stderr: str, limit: int = 2000) -> str:
+    text = re.sub(
+        r"(?i)(api[_-]?key|token|authorization|password)=\S+", r"\1=[redacted]", stderr
+    )
+    text = " ".join(text.split())
+    return text[:limit]

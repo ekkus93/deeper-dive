@@ -9,13 +9,14 @@ from deeper_dive.audio_normalization import (
     CANONICAL_FORMAT,
     CANONICAL_SAMPLE_RATE_HZ,
     AudioNormalizationError,
+    FFmpegAudioNormalizer,
     normalize_provider_audio,
     normalize_raw_pcm16,
 )
 from deeper_dive.tts import TTSAudioResult
 
 
-def test_wav_fixture_normalizes_to_canonical_mono_pcm_metadata() -> None:
+def test_wav_fixture_normalizes_12khz_stereo_to_canonical_mono_pcm_metadata() -> None:
     wav = _wav_bytes(
         sample_rate_hz=12_000,
         channels=2,
@@ -37,7 +38,27 @@ def test_wav_fixture_normalizes_to_canonical_mono_pcm_metadata() -> None:
     assert normalized.sample_width_bytes == 2
     assert normalized.source_format == "wav"
     assert normalized.duration_seconds == pytest.approx(normalized.frame_count / 24_000)
-    assert normalized.frame_count == 6
+    assert normalized.duration_seconds == pytest.approx(3 / 12_000, abs=1 / 24_000)
+    assert normalized.frame_count > 3
+
+
+def test_wav_fixture_normalizes_second_nontrivial_rate_without_exact_pcm_assertions() -> None:
+    wav = _wav_bytes(
+        sample_rate_hz=44_100,
+        channels=1,
+        frames=tuple((index * 100,) for index in range(31)),
+    )
+
+    normalized = FFmpegAudioNormalizer.detect().normalize_wav(wav)
+
+    assert normalized.format == CANONICAL_FORMAT
+    assert normalized.sample_rate_hz == CANONICAL_SAMPLE_RATE_HZ
+    assert normalized.channels == 1
+    assert normalized.sample_width_bytes == 2
+    assert normalized.source_format == "wav"
+    assert normalized.frame_count > 0
+    assert normalized.frame_count != 31
+    assert normalized.duration_seconds == pytest.approx(31 / 44_100, abs=2 / 24_000)
 
 
 def test_provider_raw_pcm_output_resamples_and_normalizes_metadata() -> None:
@@ -50,8 +71,7 @@ def test_provider_raw_pcm_output_resamples_and_normalizes_metadata() -> None:
 
     assert normalized.sample_rate_hz == 24_000
     assert normalized.channels == 1
-    assert normalized.frame_count == 2
-    assert normalized.duration_seconds == pytest.approx(2 / 24_000)
+    assert normalized.duration_seconds == pytest.approx(4 / 48_000, abs=1 / 24_000)
 
 
 def test_provider_api_raw_pcm_requires_sample_rate() -> None:
@@ -70,11 +90,11 @@ def test_provider_api_raw_pcm_requires_sample_rate() -> None:
 def test_corrupt_empty_and_unsupported_provider_outputs_are_rejected() -> None:
     with pytest.raises(AudioNormalizationError, match="empty"):
         normalize_provider_audio(TTSAudioResult(b"", "audio/wav", "wav", "fixture", "voice-a"))
-    with pytest.raises(AudioNormalizationError, match="invalid WAV"):
+    with pytest.raises(AudioNormalizationError, match="invalid WAV audio"):
         normalize_provider_audio(
             TTSAudioResult(b"not-a-wav", "audio/wav", "wav", "fixture", "voice-a")
         )
-    with pytest.raises(AudioNormalizationError, match="MP3 decoding requires"):
+    with pytest.raises(AudioNormalizationError, match="MP3 decoding is not accepted"):
         normalize_provider_audio(
             TTSAudioResult(b"ID3\x04\x00", "audio/mpeg", "mp3", "fixture", "voice-a")
         )
