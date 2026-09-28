@@ -42,7 +42,7 @@ def _is_secret_key(key: object) -> bool:
     words = _key_words(key)
     if not words:
         return False
-    if words == ("token",) or words == ("secret",):
+    if "token" in words or "secret" in words:
         return True
     if any(word in _SECRET_WORDS for word in words):
         return True
