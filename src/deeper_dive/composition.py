@@ -369,7 +369,7 @@ class ProductionComposition:
         *,
         run_id: str = "transcript-repair",
     ) -> None:
-        """Regenerate TTS artifacts, timeline, and episode audio through public production wiring."""
+        """Regenerate TTS artifacts, timeline, and episode audio via production wiring."""
 
         try:
             _tts_stage(
