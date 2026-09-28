@@ -10,7 +10,6 @@ from pathlib import Path
 from deeper_dive.audio_timeline import AudioTimeline
 from deeper_dive.diagnostics import sanitize_exception_message
 
-
 class FFmpegError(RuntimeError):
     pass
 
