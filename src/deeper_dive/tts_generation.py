@@ -110,7 +110,9 @@ class TTSArtifactRepository:
     def collect_if_unreferenced(self, path: Path) -> bool:
         """Delete an obsolete cache file only when no durable turn references it."""
         with self.database.connection() as db:
-            row = db.execute(\n                "SELECT 1 FROM tts_artifacts WHERE path=? LIMIT 1", (str(path),)\n            ).fetchone()
+            row = db.execute(
+                "SELECT 1 FROM tts_artifacts WHERE path=? LIMIT 1", (str(path),)
+            ).fetchone()
         if row is not None:
             return False
         try:
