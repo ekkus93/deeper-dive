@@ -23,6 +23,7 @@ from deeper_dive.host_turn import HostTurn
 from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
 from deeper_dive.storage.database import Database
 from deeper_dive.targeted_repair import TargetedRepairService
+from deeper_dive.tts_generation import TTSArtifactRepository
 
 if TYPE_CHECKING:
     from deeper_dive.tui import DeeperDiveApp
@@ -308,10 +309,7 @@ class TranscriptReviewController:
             ).fetchone()
             if table is not None:
                 for turn_id in turn_ids:
-                    cursor = connection.execute(
-                        "DELETE FROM tts_artifacts WHERE turn_id=?", (turn_id,)
-                    )
-                    removed = removed or cursor.rowcount > 0
+                    removed = TTSArtifactRepository(database).delete_turn(turn_id) is not None
             timeline_table = connection.execute(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name='audio_timelines'"
             ).fetchone()
