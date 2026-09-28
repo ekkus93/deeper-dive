@@ -139,4 +139,62 @@ class TargetedRepairService:
         for row in bad:
             ids.extend(json.loads(str(row["supporting_evidence_ids_json"])))
             ids.extend(json.loads(str(row["contradicting_evidence_ids_json"])))
+        return feedback, tuple(dict.fromkeys(ids))            db.execute(
+                "DELETE FROM claim_verifications WHERE claim_id IN "
+                "(SELECT id FROM material_claims WHERE turn_id=?)",
+                (turn_id,),
+            )
+            db.execute("DELETE FROM material_claims WHERE turn_id=?", (turn_id,))
+        self.rechecker.recheck_turn(repaired)
+        self.summary_updater.update_after_repair(repaired.episode_id, repaired.id)
+        return repaired
+
+    def repair_section(self, episode_id: str, segment_ordinal: int) -> tuple[HostTurn, ...]:
+        """Repair every repair-worthy turn in one section, leaving other sections untouched."""
+
+        if segment_ordinal < 0:
+            raise ValueError("segment ordinal cannot be negative")
+        with self.database.connection() as db:
+            rows = db.execute(
+                """SELECT id FROM conversation_turns
+                WHERE episode_id=? AND segment_ordinal=? ORDER BY turn_ordinal,id""",
+                (episode_id, segment_ordinal),
+            ).fetchall()
+        candidate_ids = {candidate.turn_id for candidate in self.candidates(episode_id)}
+        turn_ids = [str(row["id"]) for row in rows if str(row["id"]) in candidate_ids]
+        if not turn_ids:
+            raise ValueError("section has no claims requiring repair")
+        return tuple(self.repair(turn_id) for turn_id in turn_ids)
+
+    def _turn(self, turn_id: str) -> HostTurn:
+        with self.database.connection() as db:
+            row = db.execute("SELECT * FROM conversation_turns WHERE id=?", (turn_id,)).fetchone()
+        if row is None:
+            raise KeyError(turn_id)
+        return HostTurn(
+            str(row["id"]),
+            str(row["episode_id"]),
+            int(row["segment_ordinal"]),
+            int(row["turn_ordinal"]),
+            str(row["speaker_id"]),
+            str(row["text"]),
+            tuple(json.loads(str(row["evidence_ids_json"]))),
+        )
+
+    def _feedback(self, turn_id: str) -> tuple[str, tuple[str, ...]]:
+        with self.database.connection() as db:
+            rows = db.execute(
+                """SELECT cv.state,cv.rationale,cv.supporting_evidence_ids_json,
+                cv.contradicting_evidence_ids_json FROM material_claims mc
+                JOIN claim_verifications cv ON cv.claim_id=mc.id WHERE mc.turn_id=?""",
+                (turn_id,),
+            ).fetchall()
+        bad = [row for row in rows if VerificationState(str(row["state"])) in self.REPAIR_STATES]
+        if not bad:
+            raise ValueError("turn has no claims requiring repair")
+        feedback = "\n".join(f"{row['state']}: {row['rationale']}" for row in bad)
+        ids: list[str] = []
+        for row in bad:
+            ids.extend(json.loads(str(row["supporting_evidence_ids_json"])))
+            ids.extend(json.loads(str(row["contradicting_evidence_ids_json"])))
         return feedback, tuple(dict.fromkeys(ids))
