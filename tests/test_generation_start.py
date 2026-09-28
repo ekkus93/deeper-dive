@@ -8,8 +8,8 @@ import pytest
 
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.composition import ProductionComposition
-from deeper_dive.domain.clock import FrozenClock, format_timestamp
 from deeper_dive.conversation_state import ConversationState, ConversationStateRepository
+from deeper_dive.domain.clock import FrozenClock, format_timestamp
 from deeper_dive.domain.ids import new_episode_id, new_run_id
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.generation_start import (
@@ -102,7 +102,6 @@ def test_generation_start_requires_configured_execution_roles(tmp_path: Path) ->
         ModelRole.DIRECTING,
         ModelRole.VERIFICATION,
     )
-
 
 
 def test_generation_start_requires_planning_for_unusable_persisted_plan(tmp_path: Path) -> None:
