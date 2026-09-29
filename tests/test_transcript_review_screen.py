@@ -260,7 +260,7 @@ def test_transcript_review_section_repair_uses_production_service(tmp_path: Path
             "SELECT text FROM conversation_turns WHERE id=?", ("turn-1",)
         ).fetchone()
     assert turn is not None
-    assert "segments" in str(turn["text"])
+    assert "factually rechecked" in str(turn["text"])
 
 
 def test_transcript_review_repair_without_provider_is_actionable(tmp_path: Path) -> None:
