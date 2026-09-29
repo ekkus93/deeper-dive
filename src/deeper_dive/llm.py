@@ -170,6 +170,8 @@ class FakeLLMProvider:
         prompt = "\n".join(message.content for message in request.messages).lower()
         if "choose the next podcast host turn" in prompt and "director decision" in prompt:
             return self._director_decision_response(request)
+        if "repair the selected turn" in prompt:
+            return "The repaired production turn is factually rechecked."
         if "classify one material claim against retrieved evidence" in prompt:
             return self._claim_verification_response(request)
         if "verify generated podcast transcript" in prompt and "accepted" in prompt:

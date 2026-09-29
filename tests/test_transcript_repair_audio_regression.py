@@ -8,6 +8,7 @@ from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.claim_verification import ClaimVerificationService
 from deeper_dive.composition import ProductionComposition
+from deeper_dive.conversation_state import ConversationStateRepository
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.host_turn import HostTurnService
 from deeper_dive.material_claims import MaterialClaimService
@@ -163,6 +164,23 @@ def test_controller_repair_regenerates_audio_timeline_and_review_export(
     export_path = controller.export_markdown(app)
 
     assert repaired is not None
+    assert repaired.text == "The repaired production turn is factually rechecked."
+    with database.connection() as connection:
+        claims = connection.execute(
+            """SELECT mc.id,mc.text,cv.state,cv.rationale
+            FROM material_claims mc JOIN claim_verifications cv ON cv.claim_id=mc.id
+            WHERE mc.turn_id=?""",
+            ("turn-1",),
+        ).fetchall()
+    assert len(claims) == 1
+    assert str(claims[0]["id"]) != "claim-1"
+    assert str(claims[0]["text"]) == repaired.text
+    assert str(claims[0]["state"]) == "insufficient_evidence"
+    assert "Configured fake claim verification marker." in str(claims[0]["rationale"])
+    state = ConversationStateRepository(database).get(episode_id)
+    assert state is not None
+    assert repaired.text in state.running_summary
+    assert state.recent_context_refs == ("turn-1",)
     assert export_path.is_file()
     exported = export_path.read_text(encoding="utf-8")
     assert "# Transcript review:" in exported
