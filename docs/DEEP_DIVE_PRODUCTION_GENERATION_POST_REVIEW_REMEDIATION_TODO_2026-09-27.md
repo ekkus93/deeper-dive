@@ -260,13 +260,13 @@ This checklist is the source of completion truth for the post-review remediation
 
 ## PRR-160 — Real production repair recheck/update
 
-- [ ] Remove production `_NoOpRepairRechecker`.
-- [ ] Remove production `_NoOpSummaryUpdater`.
-- [ ] Route repaired text through real claim extraction/verification/recheck.
-- [ ] Update conversation summary/context where required.
-- [ ] Preserve unaffected turns.
-- [ ] Regression proving stale claims are replaced/reverified.
-- [ ] Regression proving required summary/context update.
+- [x] Remove production `_NoOpRepairRechecker`.
+- [x] Remove production `_NoOpSummaryUpdater`.
+- [x] Route repaired text through real claim extraction/verification/recheck.
+- [x] Update conversation summary/context where required.
+- [x] Preserve unaffected turns.
+- [x] Regression proving stale claims are replaced/reverified.
+- [x] Regression proving required summary/context update.
 
 ## PRR-161 — Public audio regeneration after repair
 
@@ -456,7 +456,7 @@ This checklist is the source of completion truth for the post-review remediation
 - [x] TTS format/composition compatibility.
 - [x] TTS returned identity.
 - [x] Cache invalidation/orphan cleanup.
-- [ ] Transcript repair/reverification/regeneration.
+- [x] Transcript repair/reverification/regeneration.
 - [ ] CLI acceptance.
 - [ ] TUI acceptance.
 - [ ] Multi-episode isolation.
@@ -508,7 +508,7 @@ Populate during implementation; do not pre-check.
 - Plan/evidence tests: `tests/test_plan_validity.py` persisted valid/corrupt/disallowed-plan matrix; `tests/test_episode_planner.py` targeted edit/regeneration evidence-scope matrix; exact-head CI `36380466538` on `09d940446fc71879bb975801a7e59a718505bfa2`.
 - Security/redaction tests: `tests/test_recursive_redaction.py` covers canonical recursive sanitizer variants, Bearer/assignment/quoted-map/credential-URL/nested collection redaction, exception cause/context sanitization, non-secret false-positive preservation, and export metadata sanitization; `tests/test_preflight_model_roles.py` covers provider health and model-discovery exception redaction before CLI/TUI preflight/status presentation; `tests/test_security_non_persistence.py` covers provider credential-reference storage, structured diagnostics, run failure persistence, and export metadata non-persistence; exact-head CI `36387686979` on `e19828bb6374ee2a203dbea15df17e82e844439e`, conclusion `success`.
 - TTS/audio/cache tests: `tests/test_targeted_repair.py::test_repair_regenerates_changed_turn_without_breaking_shared_cache`, `tests/test_targeted_repair.py::test_cache_cleanup_preserves_shared_file_until_last_reference_is_replaced`, and `tests/test_targeted_repair.py::test_repeated_unique_cache_replacement_collects_orphans` prove reference-aware physical cache cleanup;  `tests/test_preflight.py::test_preflight_blocks_openai_compatible_mp3_before_synthesis`, `tests/test_preflight.py::test_preflight_preserves_kitten_wav_only_composition_contract`, `tests/test_tts_identity_validation.py::test_tts_stage_rejects_mismatched_returned_model_without_saving`, `tests/test_tts_identity_validation.py::test_tts_stage_rejects_unreported_requested_model_without_saving`, `tests/test_tts_identity_validation.py::test_tts_stage_persists_positive_model_identity_and_format`, `tests/test_tts_identity_validation.py::test_tts_stage_rejects_invalid_reported_format_without_saving`, `tests/test_audio_normalization.py::test_ffmpeg_normalizer_converts_12khz_stereo_wav_to_canonical_contract`, `tests/test_audio_normalization.py::test_ffmpeg_normalizer_converts_nontrivial_rate_without_exact_pcm_assertions`, `tests/test_audio_normalization.py::test_ffmpeg_normalizer_reports_actionable_unreadable_input`, `tests/test_followup_audio_composition.py::test_composition_stage_writes_single_valid_wav_from_two_turn_artifacts`, `tests/test_followup_audio_composition.py::test_composition_stage_normalizes_mismatched_wav_parameters`; exact-head CI `36393651173` on `ab16efc50347c1e5c221e48cc602328a2cf52cba`, conclusion `success`; exact-head CI `36397350910` on `b511c92d0eec2fe3f8edf6f08f4a01e048c6aa9f`, conclusion `success`; exact-head CI `36446648751` on `77ed8ba28841d1ce8660a78814c098a6ed8d38f6`, conclusion `success`.
-- Transcript-repair tests:
+- Transcript-repair tests: production repair/reverification/summary/audio regression landed through `745cae0e239c6858c4dd588b94eed12e5e3d4889`; `tests/test_transcript_repair_audio_regression.py::test_controller_repair_regenerates_audio_timeline_and_review_export` proves stale-claim replacement, reverification, conversation summary/context refresh, regenerated audio/timeline, and review export; exact-head CI `36506471200`, conclusion `success`.
 - CLI acceptance:
 - TUI acceptance:
 - Multi-episode acceptance:
