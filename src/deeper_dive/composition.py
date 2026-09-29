@@ -430,18 +430,27 @@ def _production_stage_handlers(
     composition: ProductionComposition,
     project_id: str,
 ) -> dict[str, StageHandler]:
+    def planning(context: PipelineContext) -> None:
+        composition.plan_episode(project_id, context)
+
+    def conversation(context: PipelineContext) -> None:
+        composition.generate_episode_conversation(project_id, context)
+
+    def verification(context: PipelineContext) -> None:
+        composition.verify_episode_transcript(project_id, context)
+
+    def tts(context: PipelineContext) -> None:
+        composition.generate_episode_tts(project_id, context)
+
+    def compose_audio(context: PipelineContext) -> None:
+        composition.compose_episode_audio(project_id, context)
+
     handlers = {stage: _durable_stage_boundary for stage in DEFAULT_STAGES}
-    handlers["planning"] = lambda context: composition.plan_episode(project_id, context)
-    handlers["conversation"] = lambda context: composition.generate_episode_conversation(
-        project_id, context
-    )
-    handlers["verification"] = lambda context: composition.verify_episode_transcript(
-        project_id, context
-    )
-    handlers["tts"] = lambda context: composition.generate_episode_tts(project_id, context)
-    handlers["composition"] = lambda context: composition.compose_episode_audio(
-        project_id, context
-    )
+    handlers["planning"] = planning
+    handlers["conversation"] = conversation
+    handlers["verification"] = verification
+    handlers["tts"] = tts
+    handlers["composition"] = compose_audio
     return handlers
 
 
