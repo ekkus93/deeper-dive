@@ -637,12 +637,10 @@ def _tts_stage(
         return
     repository = HostEpisodeRepository(database)
     hosts = {
-        record.id: HostProfile.from_record(record)
-        for record in repository.list_hosts(project_id)
+        record.id: HostProfile.from_record(record) for record in repository.list_hosts(project_id)
     }
     tts_turns = tuple(
-        _tts_turn_for_host(composition, hosts[turn.speaker_id], turn)
-        for turn in turns
+        _tts_turn_for_host(composition, hosts[turn.speaker_id], turn) for turn in turns
     )
     TTSGenerationStage(
         composition.providers.tts_registry,
@@ -752,8 +750,7 @@ def _tts_artifacts_for_turns(
 ) -> dict[str, TTSArtifact]:
     repository = HostEpisodeRepository(database)
     hosts = {
-        record.id: HostProfile.from_record(record)
-        for record in repository.list_hosts(project_id)
+        record.id: HostProfile.from_record(record) for record in repository.list_hosts(project_id)
     }
     artifact_repository = TTSArtifactRepository(database)
     artifacts: dict[str, TTSArtifact] = {}
