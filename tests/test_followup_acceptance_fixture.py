@@ -12,11 +12,12 @@ from followup_acceptance_fixture import (
 
 from deeper_dive import cli
 from deeper_dive.audio_timeline import AudioTimelineRepository
-from deeper_dive.composition import ProductionComposition
+from deeper_dive.composition import LLMEpisodePlanGenerator, ProductionComposition
 from deeper_dive.episode_library_screen import EpisodeLibraryController
 from deeper_dive.ffmpeg import FFmpegConfig
 from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.host_turn import HostTurnService
+from deeper_dive.llm import FakeLLMProvider
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
@@ -342,6 +343,24 @@ def test_followup_fixture_tui_generate_shares_auto_planning_boundary(
     assert segments[0].title == "Overview"
     turns = HostTurnService(ready.database).list_turns(ready.episode_id)
     assert len(turns) > 1
+
+
+def test_followup_fixture_rejects_negative_auto_planning_output(tmp_path: Path) -> None:
+    ready = create_ready_followup_fixture(tmp_path, with_plan=False)
+    generator = LLMEpisodePlanGenerator(
+        FakeLLMProvider(response='{"segments": []}'),
+        "fake-v1",
+    )
+    planner = ready.composition.planning_service(ready.project_id, generator)
+
+    try:
+        planner.build_plan(ready.episode_id)
+    except ValueError as exc:
+        assert "non-empty segments" in str(exc)
+    else:
+        raise AssertionError("invalid auto-planning output unexpectedly persisted")
+
+    assert HostEpisodeRepository(ready.database).get_plan(ready.episode_id) is None
 
 
 def test_followup_fixture_keeps_two_episodes_isolated(
