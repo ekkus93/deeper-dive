@@ -225,7 +225,7 @@ def test_transcript_review_default_repair_uses_production_service(
         ).fetchone()
     assert repaired is not None
     assert turn is not None
-    assert "segments" in str(turn["text"])
+    assert "factually rechecked" in str(turn["text"])
     assert turn["evidence_ids_json"] == '["chunk-a", "chunk-b"]'
     assert stale_claim is None
     assert stale_verification is None
