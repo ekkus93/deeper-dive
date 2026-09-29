@@ -12,6 +12,7 @@ from deeper_dive.storage.episode_repositories import (
     HostEpisodeRepository,
     SegmentPlanRecord,
 )
+from deeper_dive.storage.repositories import CorpusRepository
 
 ALLOWED_GENERATION_PLAN_STATUSES = frozenset({"draft", "approved"})
 
@@ -124,11 +125,4 @@ def _strings(value: object) -> tuple[str, ...]:
 
 
 def _project_indexed_evidence_ids(database: Database, project_id: str) -> set[str]:
-    with database.connection() as db:
-        rows = db.execute(
-            """SELECT c.id FROM source_chunks c JOIN sources s ON s.id=c.source_id
-            WHERE s.project_id=? AND s.included=1 AND s.status='indexed'
-            ORDER BY s.imported_at,s.id,c.ordinal,c.id""",
-            (project_id,),
-        ).fetchall()
-    return {str(row["id"]) for row in rows}
+    return set(CorpusRepository(database).list_indexed_chunk_ids(project_id))
