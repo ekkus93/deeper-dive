@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from deeper_dive import model_roles
 from deeper_dive.composition import ProductionComposition
@@ -10,11 +11,7 @@ from deeper_dive.episode_library_export import EpisodeExportResult, EpisodeLibra
 from deeper_dive.hosts import create_host_from_preset
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.storage.database import Database
-from deeper_dive.storage.episode_repositories import (
-    EpisodePlanRecord,
-    HostEpisodeRepository,
-    SegmentPlanRecord,
-)
+from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 from deeper_dive.storage.repositories import CorpusRepository, SourceChunkRecord, SourceRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
@@ -39,6 +36,29 @@ class ReadyFollowupFixture:
 class CompletedFollowupFixture(ReadyFollowupFixture):
     run: GenerationRunRecord | None = None
     export: EpisodeExportResult | None = None
+
+
+class _AcceptancePlanGenerator:
+    def generate_plan(self, request: dict[str, Any]) -> dict[str, Any]:
+        evidence_ids = {
+            str(item.get("chunk_id", ""))
+            for item in request.get("evidence", [])
+            if isinstance(item, dict)
+        }
+        if "chunk-r6" not in evidence_ids:
+            raise AssertionError("acceptance fixture did not retrieve chunk-r6 evidence")
+        return {
+            "segments": [
+                {
+                    "title": "Acceptance segment",
+                    "purpose": "Exercise the full configured fake-provider workflow.",
+                    "target_duration_seconds": 60,
+                    "questions": ["What marker proves production routing?"],
+                    "evidence_ids": ["chunk-r6"],
+                    "lead_host_ids": [],
+                }
+            ]
+        }
 
 
 def create_ready_followup_fixture(tmp_path: Path) -> ReadyFollowupFixture:
@@ -79,32 +99,9 @@ def create_ready_followup_fixture(tmp_path: Path) -> ReadyFollowupFixture:
             research_overrides={"policy": "off"},
         ),
     )
-    HostEpisodeRepository(database).save_plan(
-        EpisodePlanRecord(
-            id="plan-r6",
-            episode_id=episode.id,
-            status="approved",
-            plan_json='{"target_duration_seconds":60}',
-            created_at="2026-09-27T00:00:00Z",
-            modified_at="2026-09-27T00:00:00Z",
-        ),
-        [
-            SegmentPlanRecord(
-                id="segment-r6",
-                episode_plan_id="plan-r6",
-                ordinal=0,
-                title="Acceptance segment",
-                purpose="Exercise the full configured fake-provider workflow.",
-                target_duration_seconds=60,
-                segment_json=(
-                    '{"title":"Acceptance segment","purpose":"Exercise the full configured '
-                    'fake-provider workflow.","target_duration_seconds":60,'
-                    '"questions":["What marker proves production routing?"],'
-                    '"evidence_ids":["chunk-r6"],"lead_host_ids":[]}'
-                ),
-            )
-        ],
-    )
+    planner = composition.planning_service(project.id, _AcceptancePlanGenerator())
+    planner.build_plan(episode.id)
+    planner.approve_plan(episode.id)
     ffmpeg = tmp_path / "ffmpeg"
     _write_fake_ffmpeg(ffmpeg)
     return ReadyFollowupFixture(
