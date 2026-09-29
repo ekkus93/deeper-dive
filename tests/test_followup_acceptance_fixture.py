@@ -39,7 +39,7 @@ def test_reusable_followup_fixture_runs_generation_composition_and_export(
     assert len(turns) > 1
     assert "Configured fake provider host turn marker" in turns[0].text
     assert "Configured fake directing decision marker" in turns[0].text
-    assert turns[0].evidence_ids == ("chunk-r6",)
+    assert turns[0].evidence_ids == (completed.chunk_id,)
 
     artifact = TTSArtifactRepository(database).get_by_turn_id(turns[0].id)
     assert artifact is not None
@@ -54,7 +54,7 @@ def test_reusable_followup_fixture_runs_generation_composition_and_export(
         assert audio.getframerate() == 24000
         assert audio.getnframes() > 0
     transcript = completed.export.transcript.read_text(encoding="utf-8")
-    assert "Citations: chunk-r6" in transcript
+    assert f"Citations: {completed.chunk_id}" in transcript
     assert "R6 acceptance source marker" in transcript
 
 
@@ -159,7 +159,7 @@ def test_followup_fixture_drives_tui_preflight_generation_monitor_review_and_exp
     review = TranscriptReviewController()
     turns = review.turns(app)
     assert len(turns) > 1
-    assert all(turn.evidence_ids == ("chunk-r6",) for turn in turns)
+    assert all(turn.evidence_ids == (ready.chunk_id,) for turn in turns)
     passages = review.passages(app, turns[0].evidence_ids)
     assert len(passages) == 1
     assert "R6 acceptance source marker" in passages[0].text
@@ -172,7 +172,7 @@ def test_followup_fixture_drives_tui_preflight_generation_monitor_review_and_exp
     assert exported.audio is not None
     assert exported.audio.is_file()
     assert exported.transcript.is_file()
-    assert "Citations: chunk-r6" in exported.transcript.read_text(encoding="utf-8")
+    assert f"Citations: {ready.chunk_id}" in exported.transcript.read_text(encoding="utf-8")
 
 
 def test_followup_fixture_drives_explicit_cli_generation_status_and_export(
@@ -211,7 +211,7 @@ def test_followup_fixture_drives_explicit_cli_generation_status_and_export(
     database = composition.database_for_project(ready.project_id)
     turns = HostTurnService(database).list_turns(ready.episode_id)
     assert len(turns) > 1
-    assert turns[0].evidence_ids == ("chunk-r6",)
+    assert turns[0].evidence_ids == (ready.chunk_id,)
     artifact = TTSArtifactRepository(database).get_by_turn_id(turns[0].id)
     assert artifact is not None
     assert (artifact.provider_id, artifact.voice, artifact.format) == (
@@ -254,7 +254,7 @@ def test_followup_fixture_drives_explicit_cli_generation_status_and_export(
     transcript = Path(exported["transcript"])
     audio = Path(exported["audio"])
     assert transcript.is_file()
-    assert "Citations: chunk-r6" in transcript.read_text(encoding="utf-8")
+    assert f"Citations: {ready.chunk_id}" in transcript.read_text(encoding="utf-8")
     assert audio.is_file()
     with wave.open(str(audio), "rb") as wav:
         assert wav.getnframes() > 0

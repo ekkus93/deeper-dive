@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -12,7 +12,7 @@ from deeper_dive.hosts import create_host_from_preset
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
-from deeper_dive.storage.repositories import CorpusRepository, SourceChunkRecord, SourceRecord
+from deeper_dive.storage.repositories import CorpusRepository
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
@@ -25,7 +25,7 @@ class ReadyFollowupFixture:
     project_id: str
     episode_id: str
     host_id: str
-    chunk_id: str = "chunk-r6"
+    chunk_id: str
 
     @property
     def database(self) -> Database:
@@ -39,14 +39,19 @@ class CompletedFollowupFixture(ReadyFollowupFixture):
 
 
 class _AcceptancePlanGenerator:
+    def __init__(self, chunk_id: str) -> None:
+        self.chunk_id = chunk_id
+
     def generate_plan(self, request: dict[str, Any]) -> dict[str, Any]:
         evidence_ids = {
             str(item.get("chunk_id", ""))
             for item in request.get("evidence", [])
             if isinstance(item, dict)
         }
-        if "chunk-r6" not in evidence_ids:
-            raise AssertionError("acceptance fixture did not retrieve chunk-r6 evidence")
+        if self.chunk_id not in evidence_ids:
+            raise AssertionError(
+                f"acceptance fixture did not retrieve {self.chunk_id} evidence"
+            )
         return {
             "segments": [
                 {
@@ -54,7 +59,7 @@ class _AcceptancePlanGenerator:
                     "purpose": "Exercise the full configured fake-provider workflow.",
                     "target_duration_seconds": 60,
                     "questions": ["What marker proves production routing?"],
-                    "evidence_ids": ["chunk-r6"],
+                    "evidence_ids": [self.chunk_id],
                     "lead_host_ids": [],
                 }
             ]
@@ -83,8 +88,8 @@ def create_ready_followup_fixture(tmp_path: Path) -> ReadyFollowupFixture:
         provider_factory=ProviderFactory(environ={}),
     )
     project = composition.service.create_project("R6 shared acceptance")
+    chunk_id = _create_indexed_source(composition, project.id)
     database = composition.database_for_project(project.id)
-    _create_indexed_source(database, project.id)
     host = create_host_from_preset("curious_explainer", project.id)
     host.tts_provider = "speech"
     host.tts_voice = "voice-a"
@@ -99,7 +104,7 @@ def create_ready_followup_fixture(tmp_path: Path) -> ReadyFollowupFixture:
             research_overrides={"policy": "off"},
         ),
     )
-    planner = composition.planning_service(project.id, _AcceptancePlanGenerator())
+    planner = composition.planning_service(project.id, _AcceptancePlanGenerator(chunk_id))
     planner.build_plan(episode.id)
     planner.approve_plan(episode.id)
     ffmpeg = tmp_path / "ffmpeg"
@@ -111,6 +116,7 @@ def create_ready_followup_fixture(tmp_path: Path) -> ReadyFollowupFixture:
         project_id=project.id,
         episode_id=episode.id,
         host_id=host.id,
+        chunk_id=chunk_id,
     )
 
 
@@ -137,32 +143,21 @@ def run_followup_fixture(ready: ReadyFollowupFixture) -> CompletedFollowupFixtur
     )
 
 
-def _create_indexed_source(database: Database, project_id: str) -> None:
-    corpus = CorpusRepository(database)
-    corpus.create_source(
-        SourceRecord(
-            id="source-r6",
-            project_id=project_id,
-            origin="user",
-            source_type="text/plain",
-            title="R6 deterministic source",
-            imported_at="2026-09-27T00:00:00Z",
-            status="indexed",
-        )
+def _create_indexed_source(composition: ProductionComposition, project_id: str) -> str:
+    source = composition.service.add_pasted_source(
+        project_id,
+        "R6 deterministic source",
+        (
+            "R6 acceptance source marker with deterministic production acceptance marker, "
+            "evidence, voice, format, artifact, and export identity."
+        ),
     )
-    corpus.create_chunk(
-        SourceChunkRecord(
-            id="chunk-r6",
-            source_id="source-r6",
-            ordinal=0,
-            text=(
-                "R6 acceptance source marker with evidence, voice, format, artifact, and "
-                "export identity."
-            ),
-            content_hash="hash-r6",
-            location="line 1",
-        )
-    )
+    corpus = CorpusRepository(composition.database_for_project(project_id))
+    corpus.update_source(replace(source, status="indexed"))
+    chunks = corpus.list_chunks(source.id)
+    if not chunks:
+        raise AssertionError("acceptance fixture source produced no chunks")
+    return chunks[0].id
 
 
 def _write_fake_ffmpeg(executable: Path) -> None:
