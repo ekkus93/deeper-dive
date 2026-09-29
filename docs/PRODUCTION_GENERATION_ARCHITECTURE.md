@@ -1,88 +1,83 @@
 # Production generation architecture
 
-This note documents the developer-facing contracts behind provider-backed production generation. It complements `docs/ARCHITECTURE.md`, `docs/GENERATION_PIPELINE_STAGE_SEMANTICS.md`, `docs/GENERATION_RUN_SELECTION_POLICY.md`, and the follow-up remediation spec `docs/DEEP_DIVE_PRODUCTION_GENERATION_FOLLOWUP_SPEC_2026-09-25.md`.
+This note documents the developer-facing contracts behind provider-backed production generation. It complements `docs/ARCHITECTURE.md`, `docs/GENERATION_PIPELINE_STAGE_SEMANTICS.md`, `docs/GENERATION_RUN_SELECTION_POLICY.md`, and the post-review remediation spec `docs/DEEP_DIVE_PRODUCTION_GENERATION_POST_REVIEW_REMEDIATION_SPEC_2026-09-27.md`.
 
-## Shared generation start service
+## Explicit composition and generation-start boundary
 
-`GenerationStartService` is the shared CLI/TUI readiness and run-selection boundary. Product surfaces should call it before starting generation instead of creating runs directly.
+`ProductionComposition` is the explicit typed owner of production provider runtime, generation services, and pipeline operations. It is injected into the TUI/controllers that require production behavior rather than discovered through hidden `DeeperDiveService` attributes. `DeeperDiveService` remains the workspace/repository facade.
 
-Responsibilities:
+`GenerationStartService` is the shared CLI/TUI readiness and run-selection boundary. Product surfaces call it before starting generation instead of implementing independent readiness/run-selection logic. It builds production preflight, blocks before run creation when appropriate, applies duplicate-safe run selection, and exposes the durable run used by monitor, CLI status/control, and Episode Library actions.
 
-- build a preflight report using the production `PreflightService`;
-- enforce blockers before creating or reusing a run;
-- apply the duplicate-safe generation run policy;
-- select the durable run that the monitor, CLI status/control commands, and Episode Library actions should target;
-- surface sanitized, actionable errors when readiness fails.
+## Transactional provider runtime
 
-The CLI `episode generate` path and the TUI Generate screen are expected to share this boundary. Surface-specific code may format the result differently, but should not implement a separate readiness matrix.
+Provider save/edit/remove builds and validates a complete candidate `ProviderBuildResult` before replacing durable configuration. Persistence occurs only after the candidate runtime builds successfully; runtime publication occurs only after persistence succeeds. Failed candidate changes preserve both the previous durable config and the previous live runtime. Successful same-session changes atomically refresh planning, directing, host generation, verification, TTS, repair, preflight, health, and discovery consumers.
 
-## Runtime provider refresh boundary
+One shared locality/network-scope policy classifies provider routes. Explicit `network_scope` overrides inferred adapter defaults, and CLI/TUI/preflight consume the same classification.
 
-`ProductionComposition`, `ProviderController`, `PreflightService`, and the LLM/TTS provider registries share one refresh/access boundary. Same-session provider saves, removals, and reloads must atomically refresh the production registries consumed by preflight, planning, conversation generation, TTS generation, provider health, and export/composition. A surface may inject or attach a provider controller, but it must not leave a stale `ProductionComposition.providers` snapshot behind after the controller reloads.
+Credential values remain secret material. Provider configuration stores references such as environment-variable names, and status/diagnostics/metadata/logs/exports pass through the canonical sanitizer before durable or user-visible output.
 
-Credential values remain secret material. Provider refresh must preserve credential non-persistence and must route status, diagnostics, CLI/TUI messages, metadata, logs, and exports through the sanitizer/redaction boundary before user-visible or durable output is written.
+## Production role preflight
 
-## Provider-backed generation stage contracts
+Preflight derives the model roles that the selected episode will actually execute rather than validating a hard-coded subset. `episode_planning` is required when no valid usable plan exists, `host_generation` is required while conversation work remains, and configured directing/verification roles are included when production will call them. The resolver is extensible to future execution roles.
 
-Production stages must resolve provider/model assignments through durable configuration and provider registries.
+For each executed role, preflight and production share provider existence, model availability, provider health, voice availability, and network/local-only policy. Once a durable run exists, execution-time assignment/configuration/provider failures are caught inside the durable execution boundary and persist failed state, stage, stable code, sanitized message, and timestamp rather than leaving stale pending/running state.
 
-- Planning uses `EpisodePlannerService` with a configured `episode_planning` LLM provider/model resolved through the same user > project > episode precedence as CLI `episode plan`.
-- Conversation generation uses the configured `host_generation` role and optional configured `directing` role.
-- Verification uses the configured `verification` role when present.
-- Generated host turns are persisted through `HostTurnService` with transcript/evidence data and provider/model identity where supplied.
-- Malformed structured provider output fails before downstream audio output is produced and must be reported through sanitized diagnostics.
+## Plan validity and evidence integrity
 
-Pipeline auto-planning must never fall back to the first sorted provider/model when a configured planning assignment is required. Missing assignments, unknown providers, unavailable models, provider exceptions, invalid JSON, empty segment output, and unhealthy planning providers are terminal planning failures for the durable run. These failures must stop before conversation, TTS, or composition stages and must be exposed consistently through CLI `episode generate`, TUI Generate/preflight, and monitor/background generation.
+A generation-usable plan must belong to the selected episode, contain at least one parseable coherent segment, use non-empty titles and positive durations, reference participating lead hosts, keep evidence within project/episode scope, and have a status allowed for generation. Planning skips only a valid usable plan; empty, corrupt, semantically invalid, or disallowed plans trigger planning instead.
 
-Deterministic fake providers are valid only as explicitly configured provider adapters. Do not add hidden deterministic production paths that bypass the provider factory/registry boundary.
+Evidence validation uses an explicit active/disabled distinction. An active empty scope means no evidence IDs are valid; it does not disable validation. `EpisodePlannerService` edit/regeneration rejects nonexistent and cross-project evidence while preserving valid in-scope evidence.
 
-## Evidence and generated provenance contracts
+## Multi-turn conversation generation
 
-Provider-backed directing and host-turn generation receive an explicit evidence scope derived from durable episode planning and indexed source chunks. The supplied evidence IDs must be valid for the current project and episode scope. Provider-returned citations outside that supplied scope are rejected rather than persisted.
+The public conversation-generation service loads the ordered durable plan and `ConversationState`, then repeatedly generates the next bounded unit until the episode completes. Each turn persists text, evidence, provider/model identity, state, and checkpoint atomically. The existence of one prior turn is not stage completion.
 
-Valid generated evidence IDs are persisted on transcript turns. Export resolves those citations back to source passage metadata and text so transcript markdown, provenance manifests, and review/export surfaces can show the generated claim/citation relationship without manually seeded turn provenance. Multi-project and multi-episode isolation is part of the evidence contract: one project or episode must not leak plan evidence into another generation run.
+Director signals are durable control inputs: `CONTINUE` remains in the current segment, `COMPLETE_SEGMENT` advances, and `COMPLETE_EPISODE` terminates cleanly. A deterministic bounded fallback applies when directing is intentionally unassigned. Maximum turns per segment/episode plus target word/duration budgeting prevent infinite loops. Resume starts from the first incomplete durable unit and does not duplicate already committed turns.
 
-## Provider-backed TTS stage contracts
+## Evidence and generated provenance
 
-The TTS stage resolves every generated turn through the selected host's configured provider and voice. Missing host TTS assignment, unknown providers, unknown voices, empty provider audio, and provider/runtime failures should fail through actionable, sanitized errors.
+Provider-backed directing and host-turn generation receive an explicit evidence scope derived from the durable plan and indexed source chunks. Provider-returned citations outside that scope are rejected. Valid evidence IDs are persisted on transcript turns and resolved to source passages during review/export. Multi-episode acceptance proves turn, evidence, timeline, playback, and export identity remain episode-scoped inside one project.
 
-TTS generation writes durable artifacts through `TTSArtifactRepository` and `TTSGenerationStage`. Reuse is cache-key based and valid only when the cached artifact is successful, exists on disk, and is non-empty. The cache key includes text, provider, voice, model, response format, and non-default synthesis settings, so transcript repair or provider/voice/model/settings changes force the affected turn through regeneration.
+## TTS, composition, and artifact identity
 
-`tts_artifacts` is a per-turn artifact-reference table. Every generated turn has its own persisted row. Multiple turns may intentionally share the same `cache_key`, `artifact_id`, and filesystem path when synthesis input is identical; the cache key is therefore indexed but not unique. This preserves per-turn lookup while allowing duplicate speech to reuse one physical artifact. Provider-returned format and provider/voice/model metadata are recorded from the actual synthesis result, and the stored format matches the artifact filename extension.
+Production composition is WAV-only. Preflight rejects non-WAV selected TTS response formats before expensive synthesis, including OpenAI-compatible configurations that request MP3. KittenTTS remains WAV-only.
 
-Provider-configured response format must be threaded into production synthesis requests. OpenAI-compatible TTS configured for `mp3` must receive `response_format="mp3"` and produce matching metadata/extension records. WAV-only providers such as KittenTTS Micro must reject unsupported response formats before recording success.
+Successful TTS validates returned provider, voice, explicitly requested model when applicable, format/path-extension consistency, and non-empty audio before saving success. `tts_artifacts` is a per-turn artifact-reference table: turns may share cache key/artifact/path when synthesis inputs are identical, but each turn has a durable reference row. Cache identity includes text, provider, voice, model, response format, and synthesis settings.
 
-## Audio composition contracts
+Production audio normalization uses FFmpeg/libswresample and preserves the canonical 24 kHz mono signed-16-bit WAV contract. Cross-module callers use the public FFmpeg conversion/transcode API rather than private composer methods.
 
-Production episode audio composition operates on resolved per-turn TTS artifact references, not raw byte concatenation. Supported WAV artifacts are validated, normalized, ordered by transcript turn/timeline identity, and written through `EpisodeExporter.write_wav()` so the final episode `.wav` has one coherent header and combined PCM frames.
+Transcript repair performs real claim extraction/reverification and summary/context update, invalidates affected TTS/timeline/final audio, and invokes public `ProductionComposition.regenerate_episode_audio()` for regeneration. Cache cleanup is reference-aware: shared live physical artifacts are retained, while obsolete unreferenced files are collected so repeated repair does not create unbounded orphans.
 
-Compressed/container artifacts, including MP3, are not composed in this follow-up path unless a future FFmpeg-backed composition service explicitly supports them. Missing, empty, unreadable, unsupported, compressed/container, or mismatched TTS artifacts must fail with sanitized actionable diagnostics before composition is marked complete.
+## Canonical sanitizer boundary
 
-## Stage boundary and export semantics
+One recursive sanitizer protects persisted pipeline failures, diagnostics/structured logs, CLI/TUI errors and status, provider health/model/voice messages, export metadata, and diagnostic bundles. It recognizes authorization/API-key/token/access-token/refresh-token/secret/client-secret/password/cookie variants plus Bearer strings, assignments, quoted maps, credential URLs, nested collections, and exception cause/context chains. Export metadata sanitizes recursively immediately before serialization.
 
-`PipelineOrchestrator` owns durable stage transitions, completed-unit checkpoints, pause/cancel boundaries, retry behavior, and failure state. Some stages are intentional durable readiness/checkpoint boundaries rather than file-writing stages.
+## Stage and export semantics
 
-The generation pipeline `export` stage means generation is ready for explicit export. Concrete export files are created by CLI export or Episode Library export through the export service. Tests must not treat pipeline `export` completion alone as proof that transcript, manifest, metadata, or audio export files were written.
+`PipelineOrchestrator` owns durable stage transitions, completed-unit checkpoints, pause/cancel boundaries, retry behavior, and failure state. Some stages are intentional durable readiness/checkpoint boundaries rather than file-writing stages. The pipeline `export` stage means generation is ready for explicit export; CLI export and Episode Library export create concrete transcript, manifest, metadata, and audio files.
 
-## TTS artifact status compatibility
+Episode exports include episode/run identity and reserve episode-specific filenames. Transcript Review playback resolves audio and timeline by the currently selected episode. Multi-episode acceptance verifies no turn/evidence/TTS/timeline/playback/review/library-export crossover.
 
-The canonical successful TTS artifact status is `complete`. The legacy success value `completed` remains readable for compatibility and is normalized by `TTSArtifactRepository`. New writes must use `complete` only.
+## TTS artifact status and persisted compatibility
 
-Repository-level compatibility tests should prove:
+The canonical successful TTS artifact status is `complete`. The legacy success value `completed` remains readable and is normalized by `TTSArtifactRepository`; new writes use `complete` only. Current provider config, existing projects/episodes/runs/turns/provider-identity rows, audio timelines, and exports remain readable through current repositories/services unless an explicit tested migration is introduced.
 
-- legacy successful rows are normalized to the canonical status;
-- cache lookup accepts legacy success rows after normalization;
-- exports and timelines continue to load previously generated artifacts when their files exist;
-- no production writer emits a noncanonical success status after remediation.
+Compatibility tests should create or emulate representative older persisted rows and load them through current repositories/services rather than relying only on fixture JSON comparisons. Any future migration must be idempotent and failure-safe.
 
-## Persisted data compatibility policy
+## Deterministic acceptance fixture
 
-Project databases and user configuration should be forward-safe within the supported schema version. Existing provider records that use current concrete adapter types must load with defaults for newly added optional fields. Ambiguous generic legacy provider entries such as `llm` or `tts` are unsafe to migrate automatically and must be rejected with guidance to choose a concrete adapter type.
+The shared acceptance fixture family configures fake LLM/TTS providers through `UserConfigStore`/`ProviderFactory`, creates project/corpus/hosts/episode through public application services, builds plans through `EpisodePlannerService`, executes the shared generation pipeline, and produces multiple turns, TTS artifacts, timeline/final audio, and exports. Normal acceptance does not seed approved plans directly through repository writes.
 
-Existing episodes, runs, transcript turns, provider identity rows, audio timelines, and TTS artifacts must remain loadable through repositories after new generation semantics land. Compatibility tests should create or emulate older persisted rows and then load them through the current repositories/services rather than relying only on fixture JSON comparisons.
+The fixture family is reused for CLI generation/status/export and auto-planning, TUI provider save/reload/preflight/generate/monitor/review/library/export, duplicate start/pause/resume/cancel, evidence/provenance, TTS artifact identity, and two-episode isolation. Direct database/repository seeding remains appropriate only for explicit compatibility/migration tests.
 
-## Deterministic provider-boundary testing strategy
+## CI and Kitten qualification policy
 
-Normal CI uses configured fake LLM/TTS adapters to exercise the same production boundaries used by real adapters. Acceptance fixtures should build a real project workspace, configure providers through `UserConfigStore`, create sources, hosts, an episode, a plan, a run, generated turns, TTS artifacts, and exports, then assert repository state and exported files.
+Mandatory deterministic quality gates do not require paid credentials, cloud-provider availability, or a GPU. They exercise production boundaries with configured fake/local providers.
 
-Live-provider, network, GPU, paid-credential, and model-download tests must remain opt-in or isolated from ordinary CI. Fresh-machine checks may install optional local CPU runtimes such as KittenTTS as a bounded separate qualification step.
+The mandatory fresh-machine job additionally performs a bounded real KittenTTS Micro CPU smoke. This gate is **external-network dependent**: it installs KittenTTS from its external source and may download runtime/model assets. This is an intentional mandatory qualification policy, not an offline deterministic test. Network availability can therefore affect that job. CI documentation must not claim that mandatory CI has no external dependency.
+
+Fresh-machine qualification builds a wheel from the exact checked-out head, installs it into a clean virtual environment, rejects source-tree imports, launches installed CLI and TUI entry points, exercises installed project/source/host/episode/planning/generation/export behavior, validates generated transcript/manifest/metadata/audio and sanitizer behavior, and runs the real Kitten CPU smoke.
+
+## Required quality gates
+
+Final qualification includes dependency-lock validation, Ruff format/lint, mypy, full pytest, package build, CLI/import smoke, multi-turn generation, provider transaction/runtime, preflight/role, plan/evidence, security/redaction, TTS format/identity/cache, transcript repair, CLI/TUI acceptance, multi-episode isolation, installed-wheel fresh-machine acceptance, and the mandatory real-Kitten qualification gate.
