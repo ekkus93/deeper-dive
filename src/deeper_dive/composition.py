@@ -361,6 +361,33 @@ class ProductionComposition:
             self.database_for_project(project_id), provider, rechecker, summary_updater
         )
 
+    def plan_episode(self, project_id: str, context: PipelineContext) -> None:
+        """Run the public production planning operation for one pipeline context."""
+
+        _planning_stage(self, project_id, context)
+
+    def generate_episode_conversation(
+        self, project_id: str, context: PipelineContext
+    ) -> None:
+        """Run the public production conversation operation for one pipeline context."""
+
+        _conversation_stage(self, project_id, context)
+
+    def verify_episode_transcript(self, project_id: str, context: PipelineContext) -> None:
+        """Run the public production verification operation for one pipeline context."""
+
+        _verification_stage(self, project_id, context)
+
+    def generate_episode_tts(self, project_id: str, context: PipelineContext) -> None:
+        """Run the public production TTS operation for one pipeline context."""
+
+        _tts_stage(self, project_id, context)
+
+    def compose_episode_audio(self, project_id: str, context: PipelineContext) -> None:
+        """Run the public production audio-composition operation for one pipeline context."""
+
+        _composition_stage(self, project_id, context)
+
     def regenerate_episode_audio(
         self,
         project_id: str,
@@ -371,13 +398,11 @@ class ProductionComposition:
         """Regenerate TTS artifacts, timeline, and episode audio via production wiring."""
 
         try:
-            _tts_stage(
-                self,
+            self.generate_episode_tts(
                 project_id,
                 PipelineContext(run_id, episode_id, "tts"),
             )
-            _composition_stage(
-                self,
+            self.compose_episode_audio(
                 project_id,
                 PipelineContext(run_id, episode_id, "composition"),
             )
@@ -406,11 +431,17 @@ def _production_stage_handlers(
     project_id: str,
 ) -> dict[str, StageHandler]:
     handlers = {stage: _durable_stage_boundary for stage in DEFAULT_STAGES}
-    handlers["planning"] = lambda context: _planning_stage(composition, project_id, context)
-    handlers["conversation"] = lambda context: _conversation_stage(composition, project_id, context)
-    handlers["verification"] = lambda context: _verification_stage(composition, project_id, context)
-    handlers["tts"] = lambda context: _tts_stage(composition, project_id, context)
-    handlers["composition"] = lambda context: _composition_stage(composition, project_id, context)
+    handlers["planning"] = lambda context: composition.plan_episode(project_id, context)
+    handlers["conversation"] = lambda context: composition.generate_episode_conversation(
+        project_id, context
+    )
+    handlers["verification"] = lambda context: composition.verify_episode_transcript(
+        project_id, context
+    )
+    handlers["tts"] = lambda context: composition.generate_episode_tts(project_id, context)
+    handlers["composition"] = lambda context: composition.compose_episode_audio(
+        project_id, context
+    )
     return handlers
 
 
