@@ -45,14 +45,18 @@ def test_pending_enters_running_and_reaches_completed(tmp_path: Path) -> None:
     assert result.run.state == "completed"
 
 
-def test_running_failure_is_durable_and_terminal(tmp_path: Path) -> None:
+def test_running_failure_is_durable_and_resumable(tmp_path: Path) -> None:
     repository = _repository(tmp_path)
+    fail_once = True
 
     def fail(context: PipelineContext) -> None:
+        nonlocal fail_once
         record = repository.get(context.run_id)
         assert record is not None
         assert record.state == "running"
-        raise RuntimeError("deterministic failure")
+        if fail_once:
+            fail_once = False
+            raise RuntimeError("deterministic failure")
 
     orchestrator = PipelineOrchestrator(
         repository,
@@ -67,8 +71,11 @@ def test_running_failure_is_durable_and_terminal(tmp_path: Path) -> None:
     failed = repository.get("run")
     assert failed is not None
     assert failed.state == "failed"
-    with pytest.raises(ValueError, match="failed"):
-        orchestrator.resume("run")
+    resumed = orchestrator.resume("run")
+    assert resumed.state == "pending"
+    assert resumed.failure_code is None
+    assert resumed.failure_message is None
+    assert orchestrator.run("run").run.state == "completed"
 
 
 def test_pause_resume_restart_and_cancel_matrix(tmp_path: Path) -> None:
