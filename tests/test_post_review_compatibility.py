@@ -16,9 +16,7 @@ from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 from deeper_dive.user_config import UserConfigStore
 
 
-def test_current_persisted_state_reopens_without_migration(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_persisted_state_reopens(tmp_path: Path, monkeypatch) -> None:
     ready = create_ready_followup_fixture(tmp_path)
     monkeypatch.setattr(
         "deeper_dive.ffmpeg.FFmpegConfig.detect",
@@ -46,22 +44,19 @@ def test_current_persisted_state_reopens_without_migration(
     assert run is not None
     assert run.state == "completed"
     assert len(turns) > 1
-    identities = [turn_service.provider_identity(turn.id) for turn in turns]
-    assert all(identity is not None for identity in identities)
-    assert all(
-        identity.provider_id == "dialogue"
-        for identity in identities
-        if identity is not None
-    )
-    assert all(
-        identity.model == "fake-v1" for identity in identities if identity is not None
-    )
+    for turn in turns:
+        identity = turn_service.provider_identity(turn.id)
+        assert identity is not None
+        assert identity.provider_id == "dialogue"
+        assert identity.model == "fake-v1"
     assert timeline is not None
     assert timeline.episode_id == ready.episode_id
 
     transcript = completed.export.transcript.read_text(encoding="utf-8")
-    manifest = json.loads(completed.export.manifest.read_text(encoding="utf-8"))
-    metadata = json.loads(completed.export.metadata.read_text(encoding="utf-8"))
+    manifest_text = completed.export.manifest.read_text(encoding="utf-8")
+    metadata_text = completed.export.metadata.read_text(encoding="utf-8")
+    manifest = json.loads(manifest_text)
+    metadata = json.loads(metadata_text)
     assert transcript.strip()
     assert manifest
     assert metadata["episode_id"] == ready.episode_id
