@@ -361,29 +361,47 @@ class ProductionComposition:
             self.database_for_project(project_id), provider, rechecker, summary_updater
         )
 
-    def plan_episode(self, project_id: str, context: PipelineContext) -> None:
+    def plan_episode(
+        self,
+        project_id: str,
+        context: PipelineContext,
+    ) -> None:
         """Run the public production planning operation for one pipeline context."""
 
         _planning_stage(self, project_id, context)
 
     def generate_episode_conversation(
-        self, project_id: str, context: PipelineContext
+        self,
+        project_id: str,
+        context: PipelineContext,
     ) -> None:
         """Run the public production conversation operation for one pipeline context."""
 
         _conversation_stage(self, project_id, context)
 
-    def verify_episode_transcript(self, project_id: str, context: PipelineContext) -> None:
+    def verify_episode_transcript(
+        self,
+        project_id: str,
+        context: PipelineContext,
+    ) -> None:
         """Run the public production verification operation for one pipeline context."""
 
         _verification_stage(self, project_id, context)
 
-    def generate_episode_tts(self, project_id: str, context: PipelineContext) -> None:
+    def generate_episode_tts(
+        self,
+        project_id: str,
+        context: PipelineContext,
+    ) -> None:
         """Run the public production TTS operation for one pipeline context."""
 
         _tts_stage(self, project_id, context)
 
-    def compose_episode_audio(self, project_id: str, context: PipelineContext) -> None:
+    def compose_episode_audio(
+        self,
+        project_id: str,
+        context: PipelineContext,
+    ) -> None:
         """Run the public production audio-composition operation for one pipeline context."""
 
         _composition_stage(self, project_id, context)
