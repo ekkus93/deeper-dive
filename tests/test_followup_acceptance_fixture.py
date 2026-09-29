@@ -260,6 +260,46 @@ def test_followup_fixture_drives_explicit_cli_generation_status_and_export(
         assert wav.getnframes() > 0
 
 
+def test_followup_fixture_cli_generate_auto_plans_and_consumes_persisted_plan(
+    tmp_path: Path, capsys, monkeypatch
+) -> None:
+    ready = create_ready_followup_fixture(tmp_path, with_plan=False)
+    _patch_ffmpeg_detect(monkeypatch, ready.ffmpeg)
+    repository = HostEpisodeRepository(ready.database)
+    assert repository.get_plan(ready.episode_id) is None
+
+    assignments, errors = ready.composition.effective_model_role_assignments_for_episode(
+        ready.project_id, ready.episode_id
+    )
+    assert not errors
+    planning = assignments.resolve(ModelRole.EPISODE_PLANNING)
+    assert planning is not None
+    assert (planning.provider, planning.model) == ("dialogue", "fake-v1")
+
+    generate_code = cli.main(
+        [
+            "--data-dir",
+            str(ready.data_dir),
+            "--json",
+            "episode",
+            "generate",
+            ready.project_id,
+            ready.episode_id,
+        ]
+    )
+    generated = json.loads(capsys.readouterr().out)
+    assert generate_code == 0
+    assert generated["state"] == "completed"
+
+    plan = repository.get_plan(ready.episode_id)
+    assert plan is not None
+    segments = repository.list_segments(plan.id)
+    assert segments
+    assert segments[0].title == "Overview"
+    turns = HostTurnService(ready.database).list_turns(ready.episode_id)
+    assert len(turns) > 1
+
+
 def _patch_ffmpeg_detect(monkeypatch, ffmpeg: Path) -> None:
     monkeypatch.setattr(
         FFmpegConfig,
