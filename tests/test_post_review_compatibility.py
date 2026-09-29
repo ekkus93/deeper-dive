@@ -3,7 +3,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from followup_acceptance_fixture import create_ready_followup_fixture, run_followup_fixture
+from followup_acceptance_fixture import (
+    create_ready_followup_fixture,
+    run_followup_fixture,
+)
 
 from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.composition import ProductionComposition
