@@ -64,7 +64,11 @@ class _AcceptancePlanGenerator:
         }
 
 
-def create_ready_followup_fixture(tmp_path: Path) -> ReadyFollowupFixture:
+def create_ready_followup_fixture(
+    tmp_path: Path,
+    *,
+    with_plan: bool = True,
+) -> ReadyFollowupFixture:
     """Create the shared deterministic follow-up production workflow fixture."""
 
     data_dir = tmp_path / "data"
@@ -102,9 +106,10 @@ def create_ready_followup_fixture(tmp_path: Path) -> ReadyFollowupFixture:
             research_overrides={"policy": "off"},
         ),
     )
-    planner = composition.planning_service(project.id, _AcceptancePlanGenerator(chunk_id))
-    planner.build_plan(episode.id)
-    planner.approve_plan(episode.id)
+    if with_plan:
+        planner = composition.planning_service(project.id, _AcceptancePlanGenerator(chunk_id))
+        planner.build_plan(episode.id)
+        planner.approve_plan(episode.id)
     ffmpeg = tmp_path / "ffmpeg"
     _write_fake_ffmpeg(ffmpeg)
     return ReadyFollowupFixture(
