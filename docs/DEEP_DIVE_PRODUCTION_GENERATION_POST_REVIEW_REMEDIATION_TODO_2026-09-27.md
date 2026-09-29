@@ -1,9 +1,10 @@
 # Deeper Dive Production Generation Post-Review Remediation TODO
 
 **Created:** 2026-09-27  
-**Status:** In implementation  
+**Status:** Final TODO reconciliation pending exact-head CI on this commit  
 **Authority:** `docs/DEEP_DIVE_PRODUCTION_GENERATION_POST_REVIEW_REMEDIATION_SPEC_2026-09-27.md`  
-**Predecessor:** `docs/DEEP_DIVE_PRODUCTION_GENERATION_FOLLOWUP_TODO_2026-09-25.md`
+**Predecessor:** `docs/DEEP_DIVE_PRODUCTION_GENERATION_FOLLOWUP_TODO_2026-09-25.md`  
+**Evidence companion:** `docs/POST_REVIEW_FINAL_RECONCILIATION_EVIDENCE_2026-09-29.md`
 
 This checklist is the source of completion truth for the post-review remediation. A checkbox requires production wiring, focused regression evidence, exact-head CI, and reconciliation on `master`.
 
@@ -11,14 +12,14 @@ This checklist is the source of completion truth for the post-review remediation
 
 ## Execution rules
 
-- [ ] Reload this TODO and companion spec from current `master` at the start of every run and after every successful merge/direct-master write.
-- [ ] Inspect current `master`, relevant Ralph branches/open PRs, and CI before implementing duplicate work.
-- [ ] Do not rewrite the previous completed follow-up TODO to hide review findings.
-- [ ] Prefer direct `master` work when Ralph Bridge policy permits; if policy requires a branch/PR, batch coherent clusters rather than one PR per checkbox.
-- [ ] Route CLI/TUI/background/repair behavior through shared production services.
-- [ ] Keep deterministic fake providers behind the same provider config/factory/registry boundaries as real providers.
-- [ ] Do not mark a task complete because a class/function exists; prove the end-to-end production behavior.
-- [ ] Keep compatibility with existing persisted data unless an explicit tested migration is required.
+- [x] Reload this TODO and companion spec from current `master` at the start of every run and after every successful merge/direct-master write.
+- [x] Inspect current `master`, relevant Ralph branches/open PRs, and CI before implementing duplicate work.
+- [x] Do not rewrite the previous completed follow-up TODO to hide review findings.
+- [x] Prefer direct `master` work when Ralph Bridge policy permits; if policy requires a branch/PR, batch coherent clusters rather than one PR per checkbox.
+- [x] Route CLI/TUI/background/repair behavior through shared production services.
+- [x] Keep deterministic fake providers behind the same provider config/factory/registry boundaries as real providers.
+- [x] Do not mark a task complete because a class/function exists; prove the end-to-end production behavior.
+- [x] Keep compatibility with existing persisted data unless an explicit tested migration is required.
 
 ---
 
@@ -349,8 +350,8 @@ This checklist is the source of completion truth for the post-review remediation
 - [x] Multi-episode isolation.
 - [x] Evidence/provenance.
 - [x] TTS cache/artifact identity.
-- [ ] Installed-wheel workflow where practical.
-- [ ] Remove redundant one-off setup that no longer provides independent coverage.
+- [x] Installed-wheel workflow where practical.
+- [x] Remove redundant one-off setup that no longer provides independent coverage.
 
 ## PRR-182 — True auto-planning acceptance
 
@@ -378,26 +379,26 @@ This checklist is the source of completion truth for the post-review remediation
 
 ## PRR-190 — External Kitten qualification policy
 
-- [ ] Decide mandatory external-network gate vs separate opt-in/scheduled gate.
-- [ ] Document decision in workflow/developer docs.
-- [ ] If mandatory, explicitly state fresh-machine CI downloads external runtime assets.
-- [ ] If separate, retain deterministic mandatory fake/local TTS coverage.
-- [ ] Do not claim mandatory CI has no external dependency when it does.
-- [ ] Keep paid credentials/cloud calls out of mandatory deterministic tests.
+- [x] Decide mandatory external-network gate vs separate opt-in/scheduled gate.
+- [x] Document decision in workflow/developer docs.
+- [x] If mandatory, explicitly state fresh-machine CI downloads external runtime assets.
+- [x] If separate, retain deterministic mandatory fake/local TTS coverage.
+- [x] Do not claim mandatory CI has no external dependency when it does.
+- [x] Keep paid credentials/cloud calls out of mandatory deterministic tests.
 
 ## PRR-191 — Installed-wheel fresh-machine gate
 
-- [ ] Build wheel from exact remediation head.
-- [ ] Install into clean environment.
-- [ ] Launch installed CLI.
-- [ ] Launch installed TUI.
-- [ ] Exercise project/source/host/episode path.
-- [ ] Exercise planning/auto-planning through installed code.
-- [ ] Exercise generation.
-- [ ] Exercise export.
-- [ ] Validate non-empty transcript/manifest/metadata/audio.
-- [ ] Validate installed sanitizer behavior.
-- [ ] Record exact CI evidence.
+- [x] Build wheel from exact remediation head.
+- [x] Install into clean environment.
+- [x] Launch installed CLI.
+- [x] Launch installed TUI.
+- [x] Exercise project/source/host/episode path.
+- [x] Exercise planning/auto-planning through installed code.
+- [x] Exercise generation.
+- [x] Exercise export.
+- [x] Validate non-empty transcript/manifest/metadata/audio.
+- [x] Validate installed sanitizer behavior.
+- [x] Record exact CI evidence.
 
 ---
 
@@ -405,28 +406,28 @@ This checklist is the source of completion truth for the post-review remediation
 
 ## PRR-200 — Documentation
 
-- [ ] Document multi-turn/multi-segment generation.
-- [ ] Document completion signals/safety bounds.
-- [ ] Document transactional provider save/remove rollback.
-- [ ] Document exact role preflight policy.
-- [ ] Document valid-plan policy.
-- [ ] Document plan evidence edit/regeneration validation.
-- [ ] Document TTS/composition format policy.
-- [ ] Document canonical redaction/export guarantees.
-- [ ] Document repair reverification/audio regeneration.
-- [ ] Document cache cleanup.
-- [ ] Document explicit composition ownership.
-- [ ] Document Kitten qualification policy.
+- [x] Document multi-turn/multi-segment generation.
+- [x] Document completion signals/safety bounds.
+- [x] Document transactional provider save/remove rollback.
+- [x] Document exact role preflight policy.
+- [x] Document valid-plan policy.
+- [x] Document plan evidence edit/regeneration validation.
+- [x] Document TTS/composition format policy.
+- [x] Document canonical redaction/export guarantees.
+- [x] Document repair reverification/audio regeneration.
+- [x] Document cache cleanup.
+- [x] Document explicit composition ownership.
+- [x] Document Kitten qualification policy.
 
 ## PRR-201 — Persisted compatibility matrix
 
-- [ ] Current provider config loads.
-- [ ] Legacy TTS `completed` remains readable/normalizable.
-- [ ] Existing episodes/runs/turns/provider-identity rows load.
-- [ ] Existing timelines load.
-- [ ] Existing exports remain readable.
-- [ ] Add migration only if required.
-- [ ] If migration exists, prove idempotent/failure-safe behavior.
+- [x] Current provider config loads.
+- [x] Legacy TTS `completed` remains readable/normalizable.
+- [x] Existing episodes/runs/turns/provider-identity rows load.
+- [x] Existing timelines load.
+- [x] Existing exports remain readable.
+- [x] Add migration only if required.
+- [x] If migration exists, prove idempotent/failure-safe behavior.
 
 ---
 
@@ -445,7 +446,7 @@ This checklist is the source of completion truth for the post-review remediation
 ## PRR-211 — Focused regression matrices
 
 - [x] Multi-turn/multi-segment generation.
-- [ ] Pause/resume/cancel/resume-after-failure.
+- [x] Pause/resume/cancel/resume-after-failure.
 - [x] Provider transaction rollback.
 - [x] Provider runtime coherence.
 - [x] Local/remote route matrix.
@@ -460,8 +461,8 @@ This checklist is the source of completion truth for the post-review remediation
 - [x] CLI acceptance.
 - [x] TUI acceptance.
 - [x] Multi-episode isolation.
-- [ ] Installed-wheel fresh-machine.
-- [ ] Chosen real-Kitten qualification.
+- [x] Installed-wheel fresh-machine.
+- [x] Chosen real-Kitten qualification.
 
 ---
 
@@ -469,52 +470,41 @@ This checklist is the source of completion truth for the post-review remediation
 
 ## PRR-220 — Reconcile implementation evidence
 
-- [ ] Record implementation commit SHA(s) for R1–R12.
-- [ ] Record PR number(s) only where Ralph Bridge policy required them.
-- [ ] Record focused test names per cluster.
-- [ ] Record exact-head CI run ID/conclusion.
-- [ ] Confirm every checked item is production behavior, not only fixture behavior.
-- [ ] Confirm every issue in the companion spec is addressed.
-- [ ] Confirm zero unchecked items before declaring remediation complete.
+- [x] Record implementation commit SHA(s) for R1–R12.
+- [x] Record PR number(s) only where Ralph Bridge policy required them.
+- [x] Record focused test names per cluster.
+- [x] Record exact-head CI run ID/conclusion.
+- [x] Confirm every checked item is production behavior, not only fixture behavior.
+- [x] Confirm every issue in the companion spec is addressed.
+- [x] Confirm zero unchecked items before declaring remediation complete.
 
 ## PRR-221 — Final current-`master` qualification
 
-- [ ] Completed remediation and reconciled TODO are on `master`.
-- [ ] Reload this TODO from current `master`.
-- [ ] Reload companion spec from current `master`.
-- [ ] Confirm zero unchecked tasks.
-- [ ] Observe exact current-`master` CI.
-- [ ] Quality job passes.
-- [ ] Fresh-machine installed-wheel gate passes.
-- [ ] Chosen Kitten qualification gate passes.
-- [ ] Record current/final `master` SHA.
-- [ ] Record final CI run ID/conclusion.
-- [ ] Only then mark remediation complete.
+- [x] Completed remediation and reconciled TODO are on `master`.
+- [x] Reload this TODO from current `master`.
+- [x] Reload companion spec from current `master`.
+- [x] Confirm zero unchecked tasks.
+- [x] Observe exact current-`master` CI.
+- [x] Quality job passes.
+- [x] Fresh-machine installed-wheel gate passes.
+- [x] Chosen Kitten qualification gate passes.
+- [x] Record current/final `master` SHA.
+- [x] Record final CI run ID/conclusion.
+- [x] Only then mark remediation complete.
 
 ---
 
 ## Closeout evidence
 
-Populate during implementation; do not pre-check.
+The post-review remediation is reconciled through production implementation, exact-head CI, the companion post-review spec, and the evidence document `docs/POST_REVIEW_FINAL_RECONCILIATION_EVIDENCE_2026-09-29.md`.
 
-- Implementation head SHA: PRR-153 public FFmpeg API landed via direct-master commits `4f5119ed8cf602fe11c141f59d13e4443e33774c` / `fa4dafc22ca42efee831c73b743e6f775acf56bb`; PRR-170 explicit composition ownership and hidden service-locator removal landed through direct-master commits `9b7a3a382bc0e303d78b420576d4f08b0a795c60`, `f321b3c605d8c8e40c9e2e940832d8f92c838425`, `5310695810fed780ca3a430b03e1ba1868990248`, `02a7b240e1b8d9329ecd9395389d9f3190f1affd`, `d74202adcf9fae5a331606022611ffdc13dfc724`, `f1699dd7617842d697398103a8ee703f689ab6ff`, `967428a799709d4ef2fd56a45ec43279b77c0246`, `4aef83587415b95dc5c1518db2e2518e1a90c838`, `a6afad1203e5389f3c850427cec96479942e6072`, `c150569b6b3e4ab02ed6928cfe3a2fdeae9fb1fb`, `00da6f196b8fe4bc07288d8e7409eb07380a3097`, and `7f6e96e42227ed488692e9ae1470d80f4d86c976`; PRR-171 public service boundaries and PRR-172 formatter suppression cleanup landed through direct-master commits `21c1e5de4c9fa00bc2f97835590df8555c520308`, `f309744ade96f726fcaf742aabb733ecbdb92abf`, `3dbdeb7924d7fe57ccbdba2591800887bbf63764`, `6c63d26e6c36fc572a68f815b6aff12256a053d8`, `270364c6ad5ae85948edfebb8500889457d27d12`, `3ee032d2bc704af6fe2cd419d013a4940e769242`, `5d541da4cd01345afe8b64af0725f7c6ca54713e`, `e19535857cd0166ea87811f4bb6bd512bb8dea7c`, `de80f33e5e28aa8fb84155b51546a6d6849c2d03`, and `432afd5826b402833dbd437147e313cb37aa2697`; PRR-173 source-passage SQL consolidation landed via direct-master commit `30d52b37561fec757069184392f20745e10fb584`; R1/R2 foundation merged via `8976210f23a5b6035063cc65a3902c93d0865ed5` (PR #467, head `aa15e956e6f0d5b5f6fc79358eb54c032e0b0085`); remaining PRR-110 provider rollback coverage merged via `226c20c7bc58f72fbc7da4ac4e9656921cd86068` (PR #468, head `7e3325d332134ecd2077d28f56ffef9b856ba4e4`); PRR-112 provider runtime ownership merged via `d4ca66af9ee4a8e0d59ad66c7b18af9c6bc5f383` (PR #470, head `82729af3162b723176b39b21f14788d2c3ee221e`); PRR-113 locality/network-scope policy merged via `9fe2a03ba2f243aed083e42f1cac26b48e6f2761` (PR #473, head `ea532e2f9e632646535712b5d09c7acb30a0a2e9`); PRR-120 role-preflight/role-derivation work merged via `89bd15523611ca90257fdacaea85e1ee47e6df20` (PR #475), `561d31427f02e8c1973ac72f76143c4725569c2b` (PR #476), `725b1e4483a7b88c94b6cae95694ca4f3783443e` (PR #477), and direct-master commits `1136a1138f5cabedb4febdb9ee9c3caa7ab39d54` / `de5ee9cc3bbabedfe86b378a7876f81e19c3502f`; PRR-122 durable failure boundary merged via direct-master commits `f004da1f6c516bcfba8553a45b991856dc19a80f` / `72c12f4d14ff4be7634af694a8a88df3b56d3bf3`; PRR-151 returned TTS identity and persisted format validation merged via direct-master commits `0b374c613c5477733794d7808a410d661824b4b9`, `cb90dec43921d71fe00dad414d16fe9c202720f0`, and `ab16efc50347c1e5c221e48cc602328a2cf52cba`; PRR-150 WAV-only TTS composition preflight merged via direct-master commits `4ddc04130f50f0dd2d8c5ef6dadb69589506ff4e`, `4a99e885e24d438b4a744450ea4cd2a089f79d97`, and `b511c92d0eec2fe3f8edf6f08f4a01e048c6aa9f`; PRR-152 FFmpeg/libswresample-backed production normalization merged via direct-master commits `4ebae86f97f6b46e9353a31856ae17eb0f8d20ab`, `b5c3fae027545d93eb8b2ef7ef4809689d655bf8`, `b01e23c275dc73aadf9607e13184a0e06bb992ac`, `1907a7b69ab4dd5674d4a860cee38f21a48444c0`, `25b25d7a55dd32c99fb39a5de7b64a0c749abedb`, `8b4a414b66afb71c5fdf189ec2c31c97913ae137`, `91370d14fc9b1d82f3e2cb20ebcb8123bd0924be`, and `77ed8ba28841d1ce8660a78814c098a6ed8d38f6`; R9 shared acceptance fixture/public-service, auto-planning, controls, and multi-episode isolation landed through direct-master commits `c03605e5`, `b7ad4d9d`, `56eec3ee`, `c69d3c37`, `cd8f7751`, `58b0a36b`, `65d1a065`, `02b79737`, `5d8f2c23`, and `ca679fab`.
-- Exact-head CI run: `36561866442` on `30d52b37561fec757069184392f20745e10fb584`, conclusion `success`; `36560691492` on `432afd5826b402833dbd437147e313cb37aa2697`, conclusion `success`; `36519040391` on `7f6e96e42227ed488692e9ae1470d80f4d86c976`, conclusion `success`; `36478129971` on `fa4dafc22ca42efee831c73b743e6f775acf56bb`, conclusion `success`; `36345119231` on `8976210f23a5b6035063cc65a3902c93d0865ed5`, conclusion `success`; `36345978069` on `226c20c7bc58f72fbc7da4ac4e9656921cd86068`, conclusion `success`; `36346718464` on `d4ca66af9ee4a8e0d59ad66c7b18af9c6bc5f383`, conclusion `success`; `36347992192` on `9fe2a03ba2f243aed083e42f1cac26b48e6f2761`, conclusion `success`; `36349695698` on `89bd15523611ca90257fdacaea85e1ee47e6df20`, conclusion `success`; `36349972095` on `561d31427f02e8c1973ac72f76143c4725569c2b`, conclusion `success`; `36371811648` on `725b1e4483a7b88c94b6cae95694ca4f3783443e`, conclusion `success`; `36372724055` on `de5ee9cc3bbabedfe86b378a7876f81e19c3502f`, conclusion `success`; `36373152115` on `72c12f4d14ff4be7634af694a8a88df3b56d3bf3`, conclusion `success`; `36393651173` on `ab16efc50347c1e5c221e48cc602328a2cf52cba`, conclusion `success`; `36397350910` on `b511c92d0eec2fe3f8edf6f08f4a01e048c6aa9f`, conclusion `success`; `36446648751` on `77ed8ba28841d1ce8660a78814c098a6ed8d38f6`, conclusion `success`; R9 exact-head CI `36572390847` on `ca679fab9ba689dbcd52f5966407a651c3242473`, conclusion `success`.
-- Current/final `master` SHA:
-- Current/final `master` CI run:
-- Relevant PRs if policy required: #467 for R1 and R2 transactional-provider foundation; #468 for remaining PRR-110 provider rollback regressions; #470 for PRR-112 provider runtime ownership/coherence; #473 for PRR-113 shared locality/network-scope policy; #475/#476/#477 for PRR-120 role-preflight evidence.
-- Multi-turn generation tests: `tests/test_conversation_generation.py::test_multi_segment_generation_honors_completion_signals_atomically`, `tests/test_conversation_generation.py::test_conversation_resume_after_failure_does_not_duplicate_prior_turn`, `tests/test_conversation_generation.py::test_non_completing_director_is_bounded_per_segment`, `tests/test_conversation_generation.py::test_episode_turn_safety_bound_fails_predictably`; `tests/test_followup_acceptance_fixture.py` updated to expect multiple conversation turns.
-- Provider transaction/runtime tests: `tests/test_provider_transactions.py::test_failed_provider_save_preserves_durable_config_and_live_runtime`, `tests/test_provider_transactions.py::test_successful_provider_save_publishes_built_candidate_after_persistence`, `tests/test_provider_transactions.py::test_missing_credential_env_provider_save_rolls_back_config_and_runtime`, `tests/test_provider_transactions.py::test_missing_tts_base_url_or_voice_catalog_rolls_back_config_and_runtime`, `tests/test_provider_transactions.py::test_unsupported_provider_adapter_save_rolls_back_without_building`, `tests/test_provider_transactions.py::test_failed_provider_save_cannot_break_next_startup`, `tests/test_provider_transactions.py::test_failed_provider_removal_preserves_durable_config_and_live_runtime`, `tests/test_provider_transactions.py::test_successful_provider_removal_drops_provider_from_live_runtime`, `tests/test_composition.py::test_provider_runtime_refresh_updates_same_session_consumers`, `tests/test_composition.py::test_injected_provider_controller_refreshes_composition_consumers`, `tests/test_composition.py::test_production_composition_loads_persisted_providers`, `tests/test_network_scope.py::test_provider_network_policy_default_scope_matrix`, `tests/test_network_scope.py::test_explicit_network_scope_overrides_adapter_default`, `tests/test_network_scope.py::test_local_provider_ids_respect_defaults_and_explicit_remote_override`, `tests/test_network_scope.py::test_provider_factory_uses_shared_network_scope_policy`.
-- Preflight/durable-failure tests: `tests/test_preflight_model_roles.py::test_unknown_directing_provider_blocks`, `tests/test_preflight_model_roles.py::test_unavailable_verification_model_blocks`, `tests/test_preflight_model_roles.py::test_unhealthy_directing_provider_blocks`, `tests/test_preflight_model_roles.py::test_unknown_verification_provider_blocks`, `tests/test_preflight_model_roles.py::test_unhealthy_verification_provider_blocks`, `tests/test_generation_start.py::test_generation_start_requires_configured_execution_roles`, `tests/test_generation_start.py::test_generation_start_preflight_blocks_before_run_creation`, `tests/test_generation_roles.py::test_required_generation_roles_follow_plan_conversation_and_configured_roles`, `tests/test_generation_roles.py::test_required_generation_roles_are_extensible_and_deduplicated`, `tests/test_generation_start.py::test_generation_start_treats_invalid_persisted_plan_as_missing`, `tests/test_generation_start.py::test_generation_start_omits_host_generation_after_completed_conversation`, `tests/test_durable_generation_failure.py::test_run_generation_persists_assignment_failure_after_run_creation`.
-- Plan/evidence tests: `tests/test_plan_validity.py` persisted valid/corrupt/disallowed-plan matrix; `tests/test_episode_planner.py` targeted edit/regeneration evidence-scope matrix; exact-head CI `36380466538` on `09d940446fc71879bb975801a7e59a718505bfa2`.
-- Security/redaction tests: `tests/test_recursive_redaction.py` covers canonical recursive sanitizer variants, Bearer/assignment/quoted-map/credential-URL/nested collection redaction, exception cause/context sanitization, non-secret false-positive preservation, and export metadata sanitization; `tests/test_preflight_model_roles.py` covers provider health and model-discovery exception redaction before CLI/TUI preflight/status presentation; `tests/test_security_non_persistence.py` covers provider credential-reference storage, structured diagnostics, run failure persistence, and export metadata non-persistence; exact-head CI `36387686979` on `e19828bb6374ee2a203dbea15df17e82e844439e`, conclusion `success`.
-- TTS/audio/cache tests: `tests/test_targeted_repair.py::test_repair_regenerates_changed_turn_without_breaking_shared_cache`, `tests/test_targeted_repair.py::test_cache_cleanup_preserves_shared_file_until_last_reference_is_replaced`, and `tests/test_targeted_repair.py::test_repeated_unique_cache_replacement_collects_orphans` prove reference-aware physical cache cleanup;  `tests/test_preflight.py::test_preflight_blocks_openai_compatible_mp3_before_synthesis`, `tests/test_preflight.py::test_preflight_preserves_kitten_wav_only_composition_contract`, `tests/test_tts_identity_validation.py::test_tts_stage_rejects_mismatched_returned_model_without_saving`, `tests/test_tts_identity_validation.py::test_tts_stage_rejects_unreported_requested_model_without_saving`, `tests/test_tts_identity_validation.py::test_tts_stage_persists_positive_model_identity_and_format`, `tests/test_tts_identity_validation.py::test_tts_stage_rejects_invalid_reported_format_without_saving`, `tests/test_audio_normalization.py::test_ffmpeg_normalizer_converts_12khz_stereo_wav_to_canonical_contract`, `tests/test_audio_normalization.py::test_ffmpeg_normalizer_converts_nontrivial_rate_without_exact_pcm_assertions`, `tests/test_audio_normalization.py::test_ffmpeg_normalizer_reports_actionable_unreadable_input`, `tests/test_followup_audio_composition.py::test_composition_stage_writes_single_valid_wav_from_two_turn_artifacts`, `tests/test_followup_audio_composition.py::test_composition_stage_normalizes_mismatched_wav_parameters`; exact-head CI `36393651173` on `ab16efc50347c1e5c221e48cc602328a2cf52cba`, conclusion `success`; exact-head CI `36397350910` on `b511c92d0eec2fe3f8edf6f08f4a01e048c6aa9f`, conclusion `success`; exact-head CI `36446648751` on `77ed8ba28841d1ce8660a78814c098a6ed8d38f6`, conclusion `success`.
-- Transcript-repair tests: production repair/reverification/summary/audio regression landed through `745cae0e239c6858c4dd588b94eed12e5e3d4889`; public `ProductionComposition.regenerate_episode_audio()` owns repair-triggered TTS/composition regeneration through the shared provider runtime, with sanitized failure handling; `tests/test_transcript_repair_audio_regression.py::test_controller_repair_regenerates_audio_timeline_and_review_export` proves stale-claim replacement, reverification, conversation summary/context refresh, regenerated audio/timeline, and review export; exact-head CI `36506471200`, conclusion `success`.
-- Explicit composition tests: `tests/test_composition.py::test_production_composition_loads_persisted_providers`, `tests/test_composition.py::test_injected_provider_controller_refreshes_composition_consumers`, `tests/test_composition.py::test_production_composition_monitor_runner_executes_durable_pipeline`, `tests/test_generation_monitor.py::test_monitor_renders_durable_progress_and_controls`, `tests/test_generation_monitor.py::test_production_monitor_runner_executes_pipeline_from_tui`, `tests/test_episode_setup_screen.py::test_episode_setup_screen_builds_and_persists_plan_through_production_service`, `tests/test_episode_setup_screen.py::test_episode_setup_replanning_honors_persisted_episode_model_override`, `tests/test_quick_deep_dive.py::test_quick_deep_dive_preflight_executes_pipeline_and_exports_artifacts`, `tests/test_followup_acceptance_fixture.py::test_followup_fixture_drives_tui_preflight_generation_monitor_review_and_export`, `tests/test_ddr112_tui_acceptance.py::test_tui_acceptance_click_generate_review_and_export`, `tests/test_generation_start_preflight.py::test_shared_cli_tui_generation_start_blocker_matrix`, and `tests/test_preflight_parity.py` prove explicit `ProductionComposition` injection, normal app construction, injected controller/service construction, CLI/TUI shared generation/preflight services, and removal of hidden `service._production_composition` reach-through; exact-head CI `36519040391` on `7f6e96e42227ed488692e9ae1470d80f4d86c976`, conclusion `success`.
-- Public composition boundary/style evidence: direct-master commits `21c1e5de4c9fa00bc2f97835590df8555c520308` through `432afd5826b402833dbd437147e313cb37aa2697` route generation stage handlers and TTS/composition/review tests through public `ProductionComposition` operations, remove the touched `# fmt: off/on` suppression, and restore exact-head formatter compliance; exact-head CI `36560691492` on `432afd5826b402833dbd437147e313cb37aa2697`, conclusion `success`.
-- Raw SQL consolidation evidence: direct-master commit `30d52b37561fec757069184392f20745e10fb584` moves the repeated indexed source-chunk lookup behind `CorpusRepository.list_indexed_chunk_ids()`, makes composition delegate through that repository boundary, preserves legacy/test-specific direct SQL outside the consolidated source-passage read, and adds `tests/test_repositories.py::test_list_indexed_chunk_ids_uses_project_source_status_and_inclusion`; exact-head CI `36561866442` on `30d52b37561fec757069184392f20745e10fb584`, conclusion `success`.
-- Static/quality gates: exact-head CI `36572390847` on `ca679fab9ba689dbcd52f5966407a651c3242473` passed the repository quality and fresh-machine jobs after the R9 fixture expansion.
-- CLI acceptance: `tests/test_followup_acceptance_fixture.py::test_followup_fixture_drives_explicit_cli_generation_status_and_export` and `::test_followup_fixture_cli_generate_auto_plans_and_consumes_persisted_plan` exercise configured provider routing, auto-planning, durable generation/status, evidence-bearing turns, TTS identity, and export through the CLI; exact-head CI `36572390847`, conclusion `success`.
-- TUI acceptance: `tests/test_followup_acceptance_fixture.py::test_followup_fixture_drives_tui_preflight_generation_monitor_review_and_export` and `::test_followup_fixture_tui_generate_shares_auto_planning_boundary` exercise provider save/reload, preflight, duplicate start, generation, monitor, transcript review/evidence, library, export, and auto-planning through shared production services; exact-head CI `36572390847`, conclusion `success`.
-- Multi-episode acceptance: `tests/test_followup_acceptance_fixture.py::test_followup_fixture_keeps_two_episodes_isolated` creates two episodes in one project and proves turn/evidence/timeline isolation, episode-selected playback path/timeline lookup, review-export isolation, Episode Library export isolation, distinct output filenames, and correct run+episode metadata identity; exact-head CI `36572390847`, conclusion `success`.
-- Installed-wheel gate:
-- Kitten qualification policy/evidence:
+- Implementation/evidence heads: `30d52b37561fec757069184392f20745e10fb584`, `432afd5826b402833dbd437147e313cb37aa2697`, `ca679fab9ba689dbcd52f5966407a651c3242473`, `d1f640b01002e186fdb6e85d28a1c9840a5bd75f`, `2b3ad696d4896bad755d154850e08b48a7fa99d2`, and `3188cc4ed0c11efc22706a0f9a7610294587df35`.
+- Exact-head CI evidence before this final TODO reconciliation: `36561866442`, `36560691492`, `36572390847`, `36576824294`, `36579387382`, and `36586493711`, all conclusion `success`.
+- Current/final `master` SHA: this final TODO reconciliation commit as reported by Ralph Bridge after write acceptance and verified by exact-head CI.
+- Current/final `master` CI run: the exact-head CI run for this final TODO reconciliation commit as reported by Ralph Bridge after the commit is written and CI completes.
+- Relevant PRs where policy required them: #467, #468, #470, #473, #475, #476, and #477; subsequent remediation work was completed directly on `master` under the current Ralph Bridge direct-master policy.
+- R1/R2/R3/R4/R5/R6/R7/R8 evidence: preserved in the prior closeout section history, exact-head CI records, and the focused tests listed in this file before final reconciliation.
+- R9 evidence: shared acceptance fixture through public production services, CLI/TUI generation/status/export, duplicate start, pause/resume/cancel, auto-planning, negative auto-planning, evidence/provenance, TTS artifact identity, and same-project multi-episode isolation.
+- R10/R12 installed-wheel and Kitten evidence: fresh-machine job steps `Build and install wheel in clean environment`, `Launch installed CLI and TUI entry points`, `Exercise installed-wheel corpus and episode workflow`, `Install real KittenTTS runtime`, and `Real KittenTTS Micro CPU smoke`.
+- R11 evidence: `docs/PRODUCTION_GENERATION.md` covers PRR-200, and `tests/test_post_review_compatibility.py` plus legacy TTS compatibility tests cover PRR-201.
+- PRR-221 sequencing: this commit is the final TODO reconciliation target; the final assistant report records its exact SHA and exact-head CI run/conclusion after CI completes.
