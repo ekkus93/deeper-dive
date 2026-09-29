@@ -33,15 +33,18 @@ def test_current_persisted_state_reopens_without_migration(tmp_path: Path, monke
     database = reopened.database_for_project(ready.project_id)
     episode = HostEpisodeRepository(database).get_episode(ready.episode_id)
     run = reopened.service.runs(ready.project_id).get(completed.run.id)
-    turns = HostTurnService(database).list_turns(ready.episode_id)
+    turn_service = HostTurnService(database)
+    turns = turn_service.list_turns(ready.episode_id)
     timeline = AudioTimelineRepository(database).get(ready.episode_id)
 
     assert episode is not None
     assert run is not None
     assert run.state == "completed"
     assert len(turns) > 1
-    assert all(turn.provider_id == "dialogue" for turn in turns)
-    assert all(turn.model == "fake-v1" for turn in turns)
+    identities = [turn_service.provider_identity(turn.id) for turn in turns]
+    assert all(identity is not None for identity in identities)
+    assert all(identity.provider_id == "dialogue" for identity in identities if identity is not None)
+    assert all(identity.model == "fake-v1" for identity in identities if identity is not None)
     assert timeline is not None
     assert timeline.episode_id == ready.episode_id
 
