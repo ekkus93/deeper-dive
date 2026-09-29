@@ -20,6 +20,7 @@ from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 @dataclass(slots=True)
 class _PreflightApp:
     service: DeeperDiveService
+    composition: ProductionComposition
     provider_controller: ProviderController
     preflight_controller: PreflightController
     current_project_id: str | None
@@ -158,6 +159,7 @@ def test_shared_cli_tui_generation_start_blocker_matrix(
     controller = PreflightController(ffmpeg_executable=ffmpeg)
     app = _PreflightApp(
         service=composition.service,
+        composition=composition,
         provider_controller=composition.provider_controller,
         preflight_controller=controller,
         current_project_id=project_id,
