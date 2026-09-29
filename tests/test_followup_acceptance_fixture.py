@@ -373,6 +373,8 @@ def test_followup_fixture_keeps_two_episodes_isolated(
 
     first = run_followup_fixture(first_ready)
     second = run_followup_fixture(second_ready)
+    assert first.run is not None
+    assert second.run is not None
     assert first.export is not None
     assert second.export is not None
 
@@ -398,6 +400,47 @@ def test_followup_fixture_keeps_two_episodes_isolated(
     assert second_timeline_turns == {turn.id for turn in second_turns}
     assert first_timeline_turns.isdisjoint(second_timeline_turns)
 
+    app = DeeperDiveApp(service=first_ready.composition.service)
+    app.current_project_id = first_ready.project_id
+    app.current_project_name = "R6 shared acceptance"
+    review = TranscriptReviewController()
+
+    app.current_episode_id = first_ready.episode_id
+    assert review.audio_path(app) == (
+        first_ready.composition.service.workspaces.project_root(first_ready.project_id)
+        / "output"
+        / f"{first_ready.episode_id}.wav"
+    )
+    assert review.start_seconds_for_turn(app, first_turns[0].id) == 0.0
+    first_review_export = review.export_markdown(app)
+    first_review_text = first_review_export.read_text(encoding="utf-8")
+    assert first_ready.episode_id in first_review_text
+    assert second_ready.episode_id not in first_review_text
+
+    app.current_episode_id = second_ready.episode_id
+    assert review.audio_path(app) == (
+        second_ready.composition.service.workspaces.project_root(second_ready.project_id)
+        / "output"
+        / f"{second_ready.episode_id}.wav"
+    )
+    assert review.start_seconds_for_turn(app, second_turns[0].id) == 0.0
+    second_review_export = review.export_markdown(app)
+    second_review_text = second_review_export.read_text(encoding="utf-8")
+    assert second_ready.episode_id in second_review_text
+    assert first_ready.episode_id not in second_review_text
+
+    items = EpisodeLibraryController.items(app)
+    first_item = next(item for item in items if item.episode.id == first_ready.episode_id)
+    second_item = next(item for item in items if item.episode.id == second_ready.episode_id)
+    first_library_export = EpisodeLibraryController.export(app, first_item)
+    second_library_export = EpisodeLibraryController.export(app, second_item)
+    assert first_library_export.transcript.read_text(encoding="utf-8") == (
+        first.export.transcript.read_text(encoding="utf-8")
+    )
+    assert second_library_export.transcript.read_text(encoding="utf-8") == (
+        second.export.transcript.read_text(encoding="utf-8")
+    )
+
     first_transcript = first.export.transcript.read_text(encoding="utf-8")
     second_transcript = second.export.transcript.read_text(encoding="utf-8")
     assert f"Citations: {first_ready.chunk_id}" in first_transcript
@@ -405,6 +448,17 @@ def test_followup_fixture_keeps_two_episodes_isolated(
     assert f"Citations: {second_ready.chunk_id}" in second_transcript
     assert f"Citations: {first_ready.chunk_id}" not in second_transcript
     assert first.export.audio != second.export.audio
+
+    first_metadata = json.loads(first.export.metadata.read_text(encoding="utf-8"))
+    second_metadata = json.loads(second.export.metadata.read_text(encoding="utf-8"))
+    assert first_metadata["episode_id"] == first_ready.episode_id
+    assert second_metadata["episode_id"] == second_ready.episode_id
+    assert first_metadata["run_id"] == first.run.id
+    assert second_metadata["run_id"] == second.run.id
+    assert first_metadata["episode_id"] != second_metadata["episode_id"]
+    assert first_metadata["run_id"] != second_metadata["run_id"]
+    assert first.export.transcript.name != second.export.transcript.name
+    assert first.export.metadata.name != second.export.metadata.name
 
 
 def _patch_ffmpeg_detect(monkeypatch, ffmpeg: Path) -> None:
