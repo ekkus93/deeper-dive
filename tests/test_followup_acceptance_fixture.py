@@ -120,6 +120,19 @@ def test_followup_fixture_supports_duplicate_start_pause_resume_and_cli_export(
     assert episode is not None
 
 
+def test_followup_fixture_supports_cancel_control(tmp_path: Path, monkeypatch) -> None:
+    ready = create_ready_followup_fixture(tmp_path)
+    _patch_ffmpeg_detect(monkeypatch, ready.ffmpeg)
+    run = ready.composition.create_generation_run(ready.project_id, ready.episode_id)
+    pipeline = ready.composition.generation_pipeline(ready.project_id)
+
+    pipeline.request_cancel(run.id)
+    cancelled = ready.composition.run_generation(ready.project_id, run.id).run
+
+    assert cancelled.id == run.id
+    assert cancelled.state == "cancelled"
+
+
 def test_followup_fixture_drives_tui_preflight_generation_monitor_review_and_export(
     tmp_path: Path,
     monkeypatch,
