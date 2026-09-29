@@ -211,6 +211,47 @@ def test_terminal_stage_failure_sanitizes_nested_cause_text(tmp_path) -> None:
     assert f"{key_name}=[REDACTED]" in record.failure_message
 
 
+def test_failed_run_can_resume_from_completed_stage_checkpoints(tmp_path) -> None:
+    repository = make_repository(tmp_path)
+    should_fail = True
+    calls: list[str] = []
+
+    def handler(context: PipelineContext) -> None:
+        nonlocal should_fail
+        calls.append(context.stage)
+        if context.stage == "tts" and should_fail:
+            should_fail = False
+            raise RuntimeError("one-shot tts failure")
+
+    orchestrator = PipelineOrchestrator(
+        repository,
+        {stage: handler for stage in STAGES},
+        stages=STAGES,
+        max_stage_retries=0,
+    )
+
+    with pytest.raises(RuntimeError, match="one-shot tts failure"):
+        orchestrator.run("run")
+    failed = repository.get("run")
+    assert failed is not None
+    assert failed.state == "failed"
+    assert failed.stage == "tts"
+    assert repository.list_completed_units("run", "sources")
+    assert repository.list_completed_units("run", "conversation")
+    assert not repository.list_completed_units("run", "tts")
+
+    resumed_record = orchestrator.resume("run")
+    assert resumed_record.state == "pending"
+    assert resumed_record.failure_code is None
+    assert resumed_record.failure_message is None
+    result = orchestrator.run("run")
+
+    assert result.run.state == "completed"
+    assert result.skipped_stages == ("sources", "conversation")
+    assert result.executed_stages == ("tts", "export")
+    assert calls == ["sources", "conversation", "tts", "tts", "export"]
+
+
 def test_configuration_bounds_are_validated(tmp_path) -> None:
     repository = make_repository(tmp_path)
     handlers = {stage: lambda context: None for stage in STAGES}
