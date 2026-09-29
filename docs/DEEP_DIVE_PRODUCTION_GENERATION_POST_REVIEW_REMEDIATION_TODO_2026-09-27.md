@@ -279,13 +279,13 @@ This checklist is the source of completion truth for the post-review remediation
 
 ## PRR-162 — Reference-aware physical cache cleanup
 
-- [ ] Define cleanup policy.
-- [ ] Preserve physical artifact still referenced by another turn.
-- [ ] Delete/collect unreferenced obsolete artifact.
-- [ ] Preserve active artifact files.
-- [ ] Duplicate-cache repair regression.
-- [ ] Unique-cache repair regression.
-- [ ] Repeated-repair no-unbounded-orphan regression.
+- [x] Define cleanup policy.
+- [x] Preserve physical artifact still referenced by another turn.
+- [x] Delete/collect unreferenced obsolete artifact.
+- [x] Preserve active artifact files.
+- [x] Duplicate-cache repair regression.
+- [x] Unique-cache repair regression.
+- [x] Repeated-repair no-unbounded-orphan regression.
 
 ---
 
@@ -455,7 +455,7 @@ This checklist is the source of completion truth for the post-review remediation
 - [x] Security/redaction.
 - [x] TTS format/composition compatibility.
 - [x] TTS returned identity.
-- [ ] Cache invalidation/orphan cleanup.
+- [x] Cache invalidation/orphan cleanup.
 - [ ] Transcript repair/reverification/regeneration.
 - [ ] CLI acceptance.
 - [ ] TUI acceptance.
@@ -507,7 +507,7 @@ Populate during implementation; do not pre-check.
 - Preflight/durable-failure tests: `tests/test_preflight_model_roles.py::test_unknown_directing_provider_blocks`, `tests/test_preflight_model_roles.py::test_unavailable_verification_model_blocks`, `tests/test_preflight_model_roles.py::test_unhealthy_directing_provider_blocks`, `tests/test_preflight_model_roles.py::test_unknown_verification_provider_blocks`, `tests/test_preflight_model_roles.py::test_unhealthy_verification_provider_blocks`, `tests/test_generation_start.py::test_generation_start_requires_configured_execution_roles`, `tests/test_generation_start.py::test_generation_start_preflight_blocks_before_run_creation`, `tests/test_generation_roles.py::test_required_generation_roles_follow_plan_conversation_and_configured_roles`, `tests/test_generation_roles.py::test_required_generation_roles_are_extensible_and_deduplicated`, `tests/test_generation_start.py::test_generation_start_treats_invalid_persisted_plan_as_missing`, `tests/test_generation_start.py::test_generation_start_omits_host_generation_after_completed_conversation`, `tests/test_durable_generation_failure.py::test_run_generation_persists_assignment_failure_after_run_creation`.
 - Plan/evidence tests: `tests/test_plan_validity.py` persisted valid/corrupt/disallowed-plan matrix; `tests/test_episode_planner.py` targeted edit/regeneration evidence-scope matrix; exact-head CI `36380466538` on `09d940446fc71879bb975801a7e59a718505bfa2`.
 - Security/redaction tests: `tests/test_recursive_redaction.py` covers canonical recursive sanitizer variants, Bearer/assignment/quoted-map/credential-URL/nested collection redaction, exception cause/context sanitization, non-secret false-positive preservation, and export metadata sanitization; `tests/test_preflight_model_roles.py` covers provider health and model-discovery exception redaction before CLI/TUI preflight/status presentation; `tests/test_security_non_persistence.py` covers provider credential-reference storage, structured diagnostics, run failure persistence, and export metadata non-persistence; exact-head CI `36387686979` on `e19828bb6374ee2a203dbea15df17e82e844439e`, conclusion `success`.
-- TTS/audio/cache tests: `tests/test_preflight.py::test_preflight_blocks_openai_compatible_mp3_before_synthesis`, `tests/test_preflight.py::test_preflight_preserves_kitten_wav_only_composition_contract`, `tests/test_tts_identity_validation.py::test_tts_stage_rejects_mismatched_returned_model_without_saving`, `tests/test_tts_identity_validation.py::test_tts_stage_rejects_unreported_requested_model_without_saving`, `tests/test_tts_identity_validation.py::test_tts_stage_persists_positive_model_identity_and_format`, `tests/test_tts_identity_validation.py::test_tts_stage_rejects_invalid_reported_format_without_saving`, `tests/test_audio_normalization.py::test_ffmpeg_normalizer_converts_12khz_stereo_wav_to_canonical_contract`, `tests/test_audio_normalization.py::test_ffmpeg_normalizer_converts_nontrivial_rate_without_exact_pcm_assertions`, `tests/test_audio_normalization.py::test_ffmpeg_normalizer_reports_actionable_unreadable_input`, `tests/test_followup_audio_composition.py::test_composition_stage_writes_single_valid_wav_from_two_turn_artifacts`, `tests/test_followup_audio_composition.py::test_composition_stage_normalizes_mismatched_wav_parameters`; exact-head CI `36393651173` on `ab16efc50347c1e5c221e48cc602328a2cf52cba`, conclusion `success`; exact-head CI `36397350910` on `b511c92d0eec2fe3f8edf6f08f4a01e048c6aa9f`, conclusion `success`; exact-head CI `36446648751` on `77ed8ba28841d1ce8660a78814c098a6ed8d38f6`, conclusion `success`.
+- TTS/audio/cache tests: `tests/test_targeted_repair.py::test_repair_regenerates_changed_turn_without_breaking_shared_cache`, `tests/test_targeted_repair.py::test_cache_cleanup_preserves_shared_file_until_last_reference_is_replaced`, and `tests/test_targeted_repair.py::test_repeated_unique_cache_replacement_collects_orphans` prove reference-aware physical cache cleanup;  `tests/test_preflight.py::test_preflight_blocks_openai_compatible_mp3_before_synthesis`, `tests/test_preflight.py::test_preflight_preserves_kitten_wav_only_composition_contract`, `tests/test_tts_identity_validation.py::test_tts_stage_rejects_mismatched_returned_model_without_saving`, `tests/test_tts_identity_validation.py::test_tts_stage_rejects_unreported_requested_model_without_saving`, `tests/test_tts_identity_validation.py::test_tts_stage_persists_positive_model_identity_and_format`, `tests/test_tts_identity_validation.py::test_tts_stage_rejects_invalid_reported_format_without_saving`, `tests/test_audio_normalization.py::test_ffmpeg_normalizer_converts_12khz_stereo_wav_to_canonical_contract`, `tests/test_audio_normalization.py::test_ffmpeg_normalizer_converts_nontrivial_rate_without_exact_pcm_assertions`, `tests/test_audio_normalization.py::test_ffmpeg_normalizer_reports_actionable_unreadable_input`, `tests/test_followup_audio_composition.py::test_composition_stage_writes_single_valid_wav_from_two_turn_artifacts`, `tests/test_followup_audio_composition.py::test_composition_stage_normalizes_mismatched_wav_parameters`; exact-head CI `36393651173` on `ab16efc50347c1e5c221e48cc602328a2cf52cba`, conclusion `success`; exact-head CI `36397350910` on `b511c92d0eec2fe3f8edf6f08f4a01e048c6aa9f`, conclusion `success`; exact-head CI `36446648751` on `77ed8ba28841d1ce8660a78814c098a6ed8d38f6`, conclusion `success`.
 - Transcript-repair tests:
 - CLI acceptance:
 - TUI acceptance:
