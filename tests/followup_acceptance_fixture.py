@@ -123,6 +123,47 @@ def create_ready_followup_fixture(
     )
 
 
+def create_additional_ready_episode(
+    ready: ReadyFollowupFixture,
+    *,
+    title: str = "R6 second acceptance episode",
+    with_plan: bool = True,
+) -> ReadyFollowupFixture:
+    """Add another planned episode to the same project through production services."""
+
+    chunk_id = _create_indexed_source(ready.composition, ready.project_id)
+    host = create_host_from_preset("curious_explainer", ready.project_id)
+    host.tts_provider = "speech"
+    host.tts_voice = "voice-a"
+    ready.composition.service.hosts(ready.project_id).create_host(host.to_record())
+    episode = EpisodeConfigurationService(ready.database).create(
+        ready.project_id,
+        EpisodeConfiguration(
+            title=title,
+            focus="deterministic production acceptance marker",
+            target_duration_seconds=60,
+            host_ids=(host.id,),
+            research_overrides={"policy": "off"},
+        ),
+    )
+    if with_plan:
+        planner = ready.composition.planning_service(
+            ready.project_id,
+            _AcceptancePlanGenerator(chunk_id),
+        )
+        planner.build_plan(episode.id)
+        planner.approve_plan(episode.id)
+    return ReadyFollowupFixture(
+        data_dir=ready.data_dir,
+        ffmpeg=ready.ffmpeg,
+        composition=ready.composition,
+        project_id=ready.project_id,
+        episode_id=episode.id,
+        host_id=host.id,
+        chunk_id=chunk_id,
+    )
+
+
 def run_followup_fixture(ready: ReadyFollowupFixture) -> CompletedFollowupFixture:
     run = ready.composition.create_generation_run(ready.project_id, ready.episode_id)
     completed = ready.composition.run_generation(ready.project_id, run.id).run

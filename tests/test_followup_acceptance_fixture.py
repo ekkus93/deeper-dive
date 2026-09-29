@@ -5,11 +5,13 @@ import wave
 from pathlib import Path
 
 from followup_acceptance_fixture import (
+    create_additional_ready_episode,
     create_ready_followup_fixture,
     run_followup_fixture,
 )
 
 from deeper_dive import cli
+from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_library_screen import EpisodeLibraryController
 from deeper_dive.ffmpeg import FFmpegConfig
@@ -340,6 +342,52 @@ def test_followup_fixture_tui_generate_shares_auto_planning_boundary(
     assert segments[0].title == "Overview"
     turns = HostTurnService(ready.database).list_turns(ready.episode_id)
     assert len(turns) > 1
+
+
+def test_followup_fixture_keeps_two_episodes_isolated(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    first_ready = create_ready_followup_fixture(tmp_path)
+    second_ready = create_additional_ready_episode(first_ready)
+    _patch_ffmpeg_detect(monkeypatch, first_ready.ffmpeg)
+
+    first = run_followup_fixture(first_ready)
+    second = run_followup_fixture(second_ready)
+    assert first.export is not None
+    assert second.export is not None
+
+    database = first_ready.database
+    first_turns = HostTurnService(database).list_turns(first_ready.episode_id)
+    second_turns = HostTurnService(database).list_turns(second_ready.episode_id)
+    assert first_turns
+    assert second_turns
+    assert {turn.id for turn in first_turns}.isdisjoint(
+        turn.id for turn in second_turns
+    )
+    assert all(turn.evidence_ids == (first_ready.chunk_id,) for turn in first_turns)
+    assert all(turn.evidence_ids == (second_ready.chunk_id,) for turn in second_turns)
+
+    timeline_repository = AudioTimelineRepository(database)
+    first_timeline = timeline_repository.get(first_ready.episode_id)
+    second_timeline = timeline_repository.get(second_ready.episode_id)
+    assert first_timeline is not None
+    assert second_timeline is not None
+    assert first_timeline.episode_id == first_ready.episode_id
+    assert second_timeline.episode_id == second_ready.episode_id
+    first_timeline_turns = {item.turn_id for item in first_timeline.items if item.turn_id}
+    second_timeline_turns = {item.turn_id for item in second_timeline.items if item.turn_id}
+    assert first_timeline_turns == {turn.id for turn in first_turns}
+    assert second_timeline_turns == {turn.id for turn in second_turns}
+    assert first_timeline_turns.isdisjoint(second_timeline_turns)
+
+    first_transcript = first.export.transcript.read_text(encoding="utf-8")
+    second_transcript = second.export.transcript.read_text(encoding="utf-8")
+    assert f"Citations: {first_ready.chunk_id}" in first_transcript
+    assert f"Citations: {second_ready.chunk_id}" not in first_transcript
+    assert f"Citations: {second_ready.chunk_id}" in second_transcript
+    assert f"Citations: {first_ready.chunk_id}" not in second_transcript
+    assert first.export.audio != second.export.audio
 
 
 def _patch_ffmpeg_detect(monkeypatch, ffmpeg: Path) -> None:
