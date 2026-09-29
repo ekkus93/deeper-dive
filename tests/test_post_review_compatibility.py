@@ -13,7 +13,9 @@ from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 from deeper_dive.user_config import UserConfigStore
 
 
-def test_current_persisted_state_reopens_without_migration(tmp_path: Path, monkeypatch) -> None:
+def test_current_persisted_state_reopens_without_migration(
+    tmp_path: Path, monkeypatch
+) -> None:
     ready = create_ready_followup_fixture(tmp_path)
     monkeypatch.setattr(
         "deeper_dive.ffmpeg.FFmpegConfig.detect",
@@ -43,8 +45,14 @@ def test_current_persisted_state_reopens_without_migration(tmp_path: Path, monke
     assert len(turns) > 1
     identities = [turn_service.provider_identity(turn.id) for turn in turns]
     assert all(identity is not None for identity in identities)
-    assert all(identity.provider_id == "dialogue" for identity in identities if identity is not None)
-    assert all(identity.model == "fake-v1" for identity in identities if identity is not None)
+    assert all(
+        identity.provider_id == "dialogue"
+        for identity in identities
+        if identity is not None
+    )
+    assert all(
+        identity.model == "fake-v1" for identity in identities if identity is not None
+    )
     assert timeline is not None
     assert timeline.episode_id == ready.episode_id
 
