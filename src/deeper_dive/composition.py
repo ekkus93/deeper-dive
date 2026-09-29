@@ -625,7 +625,6 @@ def _llm_provider_for_role(
     return provider, assignment.model
 
 
-# fmt: off
 def _tts_stage(
     composition: ProductionComposition,
     project_id: str,
@@ -769,7 +768,6 @@ def _tts_artifacts_for_turns(
     if missing:
         raise ValueError("missing TTS artifacts for turns: " + ", ".join(missing))
     return artifacts
-# fmt: on
 
 
 def _durable_stage_boundary(context: PipelineContext) -> None:
