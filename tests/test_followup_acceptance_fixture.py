@@ -146,8 +146,7 @@ def test_followup_fixture_drives_tui_preflight_generation_monitor_review_and_exp
     second = app.preflight_controller.start_generation(app)
     assert first.id == second.id
 
-    composition = app.service._production_composition  # type: ignore[attr-defined]
-    completed = composition.run_generation(ready.project_id, first.id).run
+    completed = app.composition.run_generation(ready.project_id, first.id).run
     assert completed.state == "completed"
 
     snapshot = app.generation_monitor_controller.snapshot(app)
