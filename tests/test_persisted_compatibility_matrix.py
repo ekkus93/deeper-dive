@@ -50,6 +50,8 @@ def test_existing_episode_run_turn_identity_timeline_and_legacy_tts_rows_load(
     )
     runs = GenerationRunRepository(database)
     runs.create(GenerationRunRecord("run", "episode", "export", "completed", "t0", "t1"))
+    turns = HostTurnService(database)
+    artifacts = TTSArtifactRepository(database)
     audio = tmp_path / "legacy.wav"
     audio.write_bytes(b"legacy audio")
 
@@ -97,14 +99,14 @@ def test_existing_episode_run_turn_identity_timeline_and_legacy_tts_rows_load(
 
     episode = episodes.get_episode("episode")
     run = runs.get("run")
-    turns = HostTurnService(database).list_turns("episode")
-    identity = HostTurnService(database).provider_identity("turn")
-    artifact = TTSArtifactRepository(database).get_by_turn_id("turn")
+    loaded_turns = turns.list_turns("episode")
+    identity = turns.provider_identity("turn")
+    artifact = artifacts.get_by_turn_id("turn")
     timeline = AudioTimelineRepository(database).get("episode")
 
     assert episode is not None and episode.title == "Legacy Episode"
     assert run is not None and run.state == "completed"
-    assert len(turns) == 1 and turns[0].text == "legacy turn"
+    assert len(loaded_turns) == 1 and loaded_turns[0].text == "legacy turn"
     assert identity is not None
     assert (identity.provider_id, identity.model) == ("legacy-provider", "legacy-model")
     assert artifact is not None
