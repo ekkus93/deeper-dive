@@ -49,9 +49,7 @@ class _AcceptancePlanGenerator:
             if isinstance(item, dict)
         }
         if self.chunk_id not in evidence_ids:
-            raise AssertionError(
-                f"acceptance fixture did not retrieve {self.chunk_id} evidence"
-            )
+            raise AssertionError(f"acceptance fixture did not retrieve {self.chunk_id} evidence")
         return {
             "segments": [
                 {
