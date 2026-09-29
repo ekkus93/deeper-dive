@@ -46,16 +46,17 @@ async def _monitor_renders_durable_progress_and_controls(tmp_path: Path) -> None
         assert "TTS progress: 1 completed unit(s)" in _text(screen, "#tts-progress")
         assert "Research progress: 1 completed unit(s)" in _text(screen, "#research-progress")
         screen.action_pause()
-        assert service.runs(project_id).get(run_id).pause_requested is True  # type: ignore[union-attr]
-        composition = service._production_composition  # type: ignore[attr-defined]
-        paused = composition.generation_pipeline(project_id).run(run_id)
+        paused_run = service.runs(project_id).get(run_id)
+        assert paused_run is not None and paused_run.pause_requested is True
+        paused = app.composition.generation_pipeline(project_id).run(run_id)
         assert paused.run.state == "paused"
         screen.action_resume()
         resumed = service.runs(project_id).get(run_id)
         assert resumed is not None and resumed.state == "pending"
         assert resumed.pause_requested is False
         screen.action_cancel()
-        assert service.runs(project_id).get(run_id).cancel_requested is True  # type: ignore[union-attr]
+        cancelled = service.runs(project_id).get(run_id)
+        assert cancelled is not None and cancelled.cancel_requested is True
         screen.action_diagnostics()
         assert "Run: " in _text(screen, "#diagnostics-summary")
         screen.action_view_transcript()
@@ -84,7 +85,8 @@ async def _monitor_rejects_resume_when_run_is_not_paused(tmp_path: Path) -> None
         screen.action_resume()
         await pilot.pause()
         assert "Only durably paused runs can resume" in _text(screen, "#screen-status")
-        assert repository.get(run_id).state == "completed"  # type: ignore[union-attr]
+        completed = repository.get(run_id)
+        assert completed is not None and completed.state == "completed"
 
 
 def test_monitor_binds_conversation_state_and_recent_turns(tmp_path: Path) -> None:
@@ -166,7 +168,8 @@ async def _production_monitor_runner_executes_pipeline_from_tui(tmp_path: Path) 
     run = repository.get(run_id)
     assert run is not None
     repository.update(replace(run, state="pending", stage=DEFAULT_STAGES[0]))
-    controller = service._production_composition.generation_monitor_controller  # type: ignore[attr-defined]
+    app = DeeperDiveApp(service)
+    controller = app.composition.generation_monitor_controller
     await asyncio.wait_for(controller.run(run_id), timeout=10.0)
     completed = repository.get(run_id)
     assert completed is not None
