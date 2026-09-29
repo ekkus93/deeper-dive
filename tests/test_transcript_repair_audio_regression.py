@@ -184,7 +184,7 @@ def test_controller_repair_regenerates_audio_timeline_and_review_export(
     assert export_path.is_file()
     exported = export_path.read_text(encoding="utf-8")
     assert "# Transcript review:" in exported
-    assert "segments" in exported
+    assert repaired.text in exported
     assert episode_audio.exists()
     with wave.open(str(episode_audio), "rb") as wav:
         assert wav.getnframes() > 0
