@@ -169,3 +169,15 @@ class CorpusRepository:
                 (source_id,),
             ).fetchall()
         return [SourceChunkRecord(**dict(row)) for row in rows]
+
+    def list_indexed_chunk_ids(self, project_id: str) -> tuple[str, ...]:
+        """Return included, indexed source-chunk IDs in stable project evidence order."""
+
+        with self.database.connection() as db:
+            rows = db.execute(
+                """SELECT c.id FROM source_chunks c JOIN sources s ON s.id=c.source_id
+                WHERE s.project_id=? AND s.included=1 AND s.status='indexed'
+                ORDER BY s.imported_at,s.id,c.ordinal,c.id""",
+                (project_id,),
+            ).fetchall()
+        return tuple(str(row["id"]) for row in rows)

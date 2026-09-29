@@ -71,3 +71,66 @@ def test_foreign_key_cascade_deletes_sources_and_chunks(tmp_path: Path) -> None:
     repo.delete_project("p1")
     assert repo.get_source("s1") is None
     assert repo.list_chunks("s1") == []
+
+
+def test_list_indexed_chunk_ids_uses_project_source_status_and_inclusion(tmp_path: Path) -> None:
+    repo = CorpusRepository(Database(tmp_path / "db.sqlite"))
+    repo.create_project(project())
+    repo.create_project(
+        ProjectRecord("p2", "Other", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z")
+    )
+    repo.create_source(
+        SourceRecord(
+            "s-indexed",
+            "p1",
+            "user",
+            "text",
+            "Indexed",
+            "2026-01-01T00:00:00Z",
+            included=True,
+            status="indexed",
+        )
+    )
+    repo.create_source(
+        SourceRecord(
+            "s-excluded",
+            "p1",
+            "user",
+            "text",
+            "Excluded",
+            "2026-01-02T00:00:00Z",
+            included=False,
+            status="indexed",
+        )
+    )
+    repo.create_source(
+        SourceRecord(
+            "s-pending",
+            "p1",
+            "user",
+            "text",
+            "Pending",
+            "2026-01-03T00:00:00Z",
+            included=True,
+            status="parsed",
+        )
+    )
+    repo.create_source(
+        SourceRecord(
+            "s-other-project",
+            "p2",
+            "user",
+            "text",
+            "Other project",
+            "2026-01-04T00:00:00Z",
+            included=True,
+            status="indexed",
+        )
+    )
+    repo.create_chunk(SourceChunkRecord("c2", "s-indexed", 1, "second", "hash-2"))
+    repo.create_chunk(SourceChunkRecord("c1", "s-indexed", 0, "first", "hash-1"))
+    repo.create_chunk(SourceChunkRecord("excluded", "s-excluded", 0, "excluded", "hash-3"))
+    repo.create_chunk(SourceChunkRecord("pending", "s-pending", 0, "pending", "hash-4"))
+    repo.create_chunk(SourceChunkRecord("other", "s-other-project", 0, "other", "hash-5"))
+
+    assert repo.list_indexed_chunk_ids("p1") == ("c1", "c2")

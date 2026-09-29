@@ -49,6 +49,7 @@ from deeper_dive.research_controller import PersistentResearchController
 from deeper_dive.research_execution import execute_research_gaps
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
+from deeper_dive.storage.repositories import CorpusRepository
 from deeper_dive.storage.run_repositories import GenerationRunRecord, GenerationRunRepository
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.targeted_repair import (
@@ -573,14 +574,7 @@ def _episode_evidence_ids(database: Database, episode_id: str) -> tuple[str, ...
 
 
 def _project_indexed_evidence_ids(database: Database, project_id: str) -> set[str]:
-    with database.connection() as db:
-        rows = db.execute(
-            """SELECT c.id FROM source_chunks c JOIN sources s ON s.id=c.source_id
-            WHERE s.project_id=? AND s.included=1 AND s.status='indexed'
-            ORDER BY s.imported_at,s.id,c.ordinal,c.id""",
-            (project_id,),
-        ).fetchall()
-    return {str(row["id"]) for row in rows}
+    return set(CorpusRepository(database).list_indexed_chunk_ids(project_id))
 
 
 def _verification_stage(
