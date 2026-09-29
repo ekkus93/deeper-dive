@@ -300,6 +300,35 @@ def test_followup_fixture_cli_generate_auto_plans_and_consumes_persisted_plan(
     assert len(turns) > 1
 
 
+def test_followup_fixture_tui_generate_shares_auto_planning_boundary(
+    tmp_path: Path, monkeypatch
+) -> None:
+    ready = create_ready_followup_fixture(tmp_path, with_plan=False)
+    _patch_ffmpeg_detect(monkeypatch, ready.ffmpeg)
+    repository = HostEpisodeRepository(ready.database)
+    assert repository.get_plan(ready.episode_id) is None
+
+    app = DeeperDiveApp(service=ready.composition.service)
+    app.current_project_id = ready.project_id
+    app.current_project_name = "R6 shared acceptance"
+    app.current_episode_id = ready.episode_id
+    app.preflight_controller.ffmpeg_executable = ready.ffmpeg
+
+    presentation = app.preflight_controller.build(app)
+    assert presentation.report.ready
+    run = app.preflight_controller.start_generation(app)
+    completed = app.composition.run_generation(ready.project_id, run.id).run
+    assert completed.state == "completed"
+
+    plan = repository.get_plan(ready.episode_id)
+    assert plan is not None
+    segments = repository.list_segments(plan.id)
+    assert segments
+    assert segments[0].title == "Overview"
+    turns = HostTurnService(ready.database).list_turns(ready.episode_id)
+    assert len(turns) > 1
+
+
 def _patch_ffmpeg_detect(monkeypatch, ffmpeg: Path) -> None:
     monkeypatch.setattr(
         FFmpegConfig,
