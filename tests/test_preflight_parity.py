@@ -36,6 +36,7 @@ class ExplodingTTS(FakeTTSProvider):
 @dataclass(slots=True)
 class AppStub:
     service: DeeperDiveService
+    composition: ProductionComposition
     provider_controller: ProviderController
     preflight_controller: PreflightController
     current_project_id: str | None
@@ -272,6 +273,7 @@ def _app(
     controller = PreflightController(ffmpeg_executable=ffmpeg)
     app = AppStub(
         service=composition.service,
+        composition=composition,
         provider_controller=composition.provider_controller,
         preflight_controller=controller,
         current_project_id=project.id,
