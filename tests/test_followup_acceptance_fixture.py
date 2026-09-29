@@ -362,9 +362,7 @@ def test_followup_fixture_keeps_two_episodes_isolated(
     second_turns = HostTurnService(database).list_turns(second_ready.episode_id)
     assert first_turns
     assert second_turns
-    assert {turn.id for turn in first_turns}.isdisjoint(
-        turn.id for turn in second_turns
-    )
+    assert {turn.id for turn in first_turns}.isdisjoint(turn.id for turn in second_turns)
     assert all(turn.evidence_ids == (first_ready.chunk_id,) for turn in first_turns)
     assert all(turn.evidence_ids == (second_ready.chunk_id,) for turn in second_turns)
 
