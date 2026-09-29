@@ -237,10 +237,7 @@ class EpisodeSetupScreen(Screen[None]):
         return EpisodeConfigurationService(database)
 
     def _composition(self) -> ProductionComposition:
-        return cast(
-            ProductionComposition,
-            getattr(self._app.service, "_production_composition"),  # noqa: B009
-        )
+        return self._app.composition
 
     def _csv(self, selector: str) -> tuple[str, ...]:
         raw = self.query_one(selector, Input).value
