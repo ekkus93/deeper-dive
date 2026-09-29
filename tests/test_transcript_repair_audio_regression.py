@@ -112,10 +112,15 @@ def test_regenerate_episode_audio_sanitizes_runtime_failure(
     project = service.create_project("Failure Case")
     composition = ProductionComposition.build(service=service)
 
-    def fail_tts(_project_id: str, _context: PipelineContext) -> None:
+    def fail_tts(
+        self: ProductionComposition,
+        _project_id: str,
+        _context: PipelineContext,
+    ) -> None:
+        _ = self
         raise RuntimeError("token=secret-value runtime exploded")
 
-    monkeypatch.setattr(composition, "generate_episode_tts", fail_tts)
+    monkeypatch.setattr(ProductionComposition, "generate_episode_tts", fail_tts)
 
     try:
         composition.regenerate_episode_audio(project.id, "episode-1")
