@@ -98,10 +98,7 @@ class GenerationMonitorController:
         project_id = app.current_project_id
         if project_id is None:
             raise RuntimeError("no project open")
-        composition = getattr(app.service, "_production_composition", None)
-        if composition is None:
-            raise RuntimeError("production generation pipeline is not configured")
-        return composition.generation_pipeline(project_id)
+        return app.composition.generation_pipeline(project_id)
 
     @staticmethod
     def _recent_turns(app: MonitorApp, episode_id: str) -> tuple[str, ...]:
@@ -135,6 +132,7 @@ class GenerationMonitorController:
 
 class MonitorApp(Protocol):
     service: DeeperDiveService
+    composition: Any
     generation_monitor_controller: GenerationMonitorController
     current_project_id: str | None
     current_episode_id: str | None

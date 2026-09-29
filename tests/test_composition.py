@@ -45,6 +45,7 @@ def test_production_composition_loads_persisted_providers(tmp_path) -> None:
     assert composition.preflight_service.tts_registry is composition.providers.tts_registry
     assert composition.benchmark_service is not None
     assert composition.playback_controller is not None
+    assert not hasattr(composition.service, "_production_composition")
     assert (
         composition.research_controller.database_for_project(
             "12345678-1234-5678-1234-567812345678"
@@ -97,6 +98,7 @@ def test_injected_provider_controller_refreshes_composition_consumers(tmp_path) 
     assert composition.provider_controller is injected
     assert injected.llm_registry is composition.providers.llm_registry
     assert composition.preflight_service.llm_registry is composition.providers.llm_registry
+    assert not hasattr(composition.service, "_production_composition")
     project = composition.service.create_project("Injected runtime refresh")
     planner = composition.configured_planning_service(project.id, "planner", "fake-v3")
     assert isinstance(planner.generator, LLMEpisodePlanGenerator)

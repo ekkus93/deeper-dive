@@ -147,13 +147,12 @@ class ProductionComposition:
                 gap_ids,
             ),
         )
-        monitor_controller = GenerationMonitorController(
-            runner=lambda run_id, progress: cls._run_generation_pipeline(
-                app_service,
-                run_id,
-                progress,
-            )
-        )
+        composition_ref: list[ProductionComposition] = []
+
+        def run_pipeline(run_id: str, progress: ProgressSink) -> None:
+            composition_ref[0]._run_generation_pipeline(run_id, progress)
+
+        monitor_controller = GenerationMonitorController(runner=run_pipeline)
         composition = cls(
             service=app_service,
             config_store=config_store,
@@ -169,8 +168,8 @@ class ProductionComposition:
             benchmark_service=TTSBenchmarkService(),
             playback_controller=AudioPlaybackController(playback_backend),
         )
+        composition_ref.append(composition)
         composition.attach_provider_controller(provider_controller)
-        app_service._production_composition = composition  # type: ignore[attr-defined]
         return composition
 
     def attach_provider_controller(self, provider_controller: ProviderController) -> None:
@@ -303,7 +302,7 @@ class ProductionComposition:
 
         return self.pipeline_service(
             project_id,
-            handlers or _production_stage_handlers(self.service, project_id),
+            handlers or _production_stage_handlers(self, project_id),
             progress=progress,
         )
 
@@ -373,12 +372,12 @@ class ProductionComposition:
 
         try:
             _tts_stage(
-                self.service,
+                self,
                 project_id,
                 PipelineContext(run_id, episode_id, "tts"),
             )
             _composition_stage(
-                self.service,
+                self,
                 project_id,
                 PipelineContext(run_id, episode_id, "composition"),
             )
@@ -386,19 +385,13 @@ class ProductionComposition:
             safe_message = sanitize_exception_message(exc)
             raise RuntimeError(f"episode audio regeneration failed: {safe_message}") from exc
 
-    @staticmethod
     def _run_generation_pipeline(
-        service: DeeperDiveService,
+        self,
         run_id: str,
         progress: ProgressSink,
     ) -> None:
-        project_id = _project_id_for_run(service, run_id)
-        repository = service.runs(project_id)
-        PipelineOrchestrator(
-            repository,
-            _production_stage_handlers(service, project_id),
-            progress=progress,
-        ).run(run_id)
+        project_id = _project_id_for_run(self.service, run_id)
+        self.generation_pipeline(project_id, progress=progress).run(run_id)
 
 
 def _project_id_for_run(service: DeeperDiveService, run_id: str) -> str:
@@ -409,29 +402,26 @@ def _project_id_for_run(service: DeeperDiveService, run_id: str) -> str:
 
 
 def _production_stage_handlers(
-    service: DeeperDiveService,
+    composition: ProductionComposition,
     project_id: str,
 ) -> dict[str, StageHandler]:
     handlers = {stage: _durable_stage_boundary for stage in DEFAULT_STAGES}
-    handlers["planning"] = lambda context: _planning_stage(service, project_id, context)
-    handlers["conversation"] = lambda context: _conversation_stage(service, project_id, context)
-    handlers["verification"] = lambda context: _verification_stage(service, project_id, context)
-    handlers["tts"] = lambda context: _tts_stage(service, project_id, context)
-    handlers["composition"] = lambda context: _composition_stage(service, project_id, context)
+    handlers["planning"] = lambda context: _planning_stage(composition, project_id, context)
+    handlers["conversation"] = lambda context: _conversation_stage(composition, project_id, context)
+    handlers["verification"] = lambda context: _verification_stage(composition, project_id, context)
+    handlers["tts"] = lambda context: _tts_stage(composition, project_id, context)
+    handlers["composition"] = lambda context: _composition_stage(composition, project_id, context)
     return handlers
 
 
 def _planning_stage(
-    service: DeeperDiveService,
+    composition: ProductionComposition,
     project_id: str,
     context: PipelineContext,
 ) -> None:
-    database = Database(service.workspaces.project_root(project_id) / "project.db")
+    database = composition.database_for_project(project_id)
     if evaluate_episode_plan(database, context.episode_id).usable:
         return
-    composition = getattr(service, "_production_composition", None)
-    if composition is None:
-        raise RuntimeError("production composition is unavailable for episode planning")
     assignments, errors = composition.effective_model_role_assignments_for_episode(
         project_id,
         context.episode_id,
@@ -448,11 +438,11 @@ def _planning_stage(
 
 
 def _conversation_stage(
-    service: DeeperDiveService,
+    composition: ProductionComposition,
     project_id: str,
     context: PipelineContext,
 ) -> None:
-    database = Database(service.workspaces.project_root(project_id) / "project.db")
+    database = composition.database_for_project(project_id)
     repository = HostEpisodeRepository(database)
     host_ids = tuple(repository.list_episode_host_ids(context.episode_id))
     if not host_ids:
@@ -460,9 +450,6 @@ def _conversation_stage(
     episode = repository.get_episode(context.episode_id)
     if episode is None:
         raise KeyError(context.episode_id)
-    composition = getattr(service, "_production_composition", None)
-    if composition is None:
-        raise RuntimeError("production composition is unavailable for conversation generation")
     assignments, errors = composition.effective_model_role_assignments_for_episode(
         project_id, context.episode_id
     )
@@ -539,17 +526,14 @@ def _project_indexed_evidence_ids(database: Database, project_id: str) -> set[st
 
 
 def _verification_stage(
-    service: DeeperDiveService,
+    composition: ProductionComposition,
     project_id: str,
     context: PipelineContext,
 ) -> None:
-    database = Database(service.workspaces.project_root(project_id) / "project.db")
+    database = composition.database_for_project(project_id)
     turns = tuple(HostTurnService(database).list_turns(context.episode_id))
     if not turns:
         return
-    composition = getattr(service, "_production_composition", None)
-    if composition is None:
-        raise RuntimeError("production composition is unavailable for verification")
     assignments, errors = composition.effective_model_role_assignments_for_episode(
         project_id, context.episode_id
     )
@@ -585,18 +569,15 @@ def _llm_provider_for_role(
 
 # fmt: off
 def _tts_stage(
-    service: DeeperDiveService,
+    composition: ProductionComposition,
     project_id: str,
     context: PipelineContext,
 ) -> None:
-    root = service.workspaces.project_root(project_id)
+    root = composition.service.workspaces.project_root(project_id)
     database = Database(root / "project.db")
     turns = HostTurnService(database).list_turns(context.episode_id)
     if not turns:
         return
-    composition = getattr(service, "_production_composition", None)
-    if composition is None:
-        raise RuntimeError("production composition is unavailable for TTS generation")
     repository = HostEpisodeRepository(database)
     hosts = {
         record.id: HostProfile.from_record(record)
@@ -639,18 +620,15 @@ def _tts_turn_for_host(
 
 
 def _composition_stage(
-    service: DeeperDiveService,
+    composition: ProductionComposition,
     project_id: str,
     context: PipelineContext,
 ) -> None:
-    root = service.workspaces.project_root(project_id)
+    root = composition.service.workspaces.project_root(project_id)
     database = Database(root / "project.db")
     turns = HostTurnService(database).list_turns(context.episode_id)
     if not turns:
         return
-    composition = getattr(service, "_production_composition", None)
-    if composition is None:
-        raise RuntimeError("production composition is unavailable for audio composition")
     artifacts = _tts_artifacts_for_turns(composition, project_id, database, turns)
     audio_by_turn = {
         turn.id: _normalized_wav_artifact(turn.id, artifacts[turn.id]) for turn in turns
