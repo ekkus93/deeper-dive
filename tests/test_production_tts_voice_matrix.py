@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 
-from deeper_dive import composition as composition_module
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.host_turn import HostTurnService
 from deeper_dive.hosts import HostProfile
@@ -69,8 +68,7 @@ def test_production_tts_stage_routes_distinct_configured_provider_voices(tmp_pat
             ("turn-bright", episode.id, 0, 1, bright.id, "bright voice text", "[]"),
         )
 
-    composition_module._tts_stage(
-        composition,
+    composition.generate_episode_tts(
         project.id,
         PipelineContext("run-voice-matrix", episode.id, "tts"),
     )
@@ -119,8 +117,7 @@ def test_production_tts_stage_rejects_missing_host_tts_assignment(tmp_path: Path
         )
 
     with pytest.raises(ValueError, match="no TTS provider"):
-        composition_module._tts_stage(
-            composition,
+        composition.generate_episode_tts(
             project.id,
             PipelineContext("run-missing-tts", episode.id, "tts"),
         )
