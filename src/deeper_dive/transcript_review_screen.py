@@ -325,9 +325,7 @@ class TranscriptReviewController:
         return repaired
 
     def _production_repair_service(self, app: DeeperDiveApp) -> TargetedRepairService:
-        composition = getattr(app.service, "_production_composition", None)
-        if composition is None:
-            raise RuntimeError("production targeted transcript repair is not configured")
+        composition = app.composition
         database = self._database(app)
         episode_id = self._episode_id(app)
         provider, model = self._repair_provider(composition, self._project_id(app), episode_id)
@@ -388,10 +386,7 @@ class TranscriptReviewController:
     def _regenerate_episode_audio_if_required(self, app: DeeperDiveApp, had_audio: bool) -> None:
         if not had_audio:
             return
-        composition = getattr(app.service, "_production_composition", None)
-        if composition is None:
-            return
-        composition.regenerate_episode_audio(
+        app.composition.regenerate_episode_audio(
             self._project_id(app),
             self._episode_id(app),
         )

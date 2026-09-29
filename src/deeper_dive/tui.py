@@ -515,6 +515,7 @@ class DeeperDiveApp(App[None]):
     ) -> None:
         super().__init__()
         composition = ProductionComposition.build(service=service)
+        self.composition = composition
         self.service = composition.service
         self.provider_controller = provider_controller or composition.provider_controller
         composition.attach_provider_controller(self.provider_controller)
