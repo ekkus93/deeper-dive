@@ -11,7 +11,6 @@ from deeper_dive.audio_normalization import CanonicalAudio
 from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.composition import (
     ProductionComposition,
-    _composition_stage,
     _normalized_wav_artifact,
 )
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
@@ -58,8 +57,7 @@ def test_composition_stage_writes_single_valid_wav_from_two_turn_artifacts(
         frame_count=7,
     )
 
-    _composition_stage(
-        composition,
+    composition.compose_episode_audio(
         project_id,
         PipelineContext("run-r4", episode_id, "composition"),
     )
@@ -104,8 +102,7 @@ def test_composition_stage_rejects_unsupported_non_wav_artifacts(tmp_path: Path)
     )
 
     with pytest.raises(ValueError, match="unsupported TTS artifact format"):
-        _composition_stage(
-            composition,
+        composition.compose_episode_audio(
             project_id,
             PipelineContext("run-r4", episode_id, "composition"),
         )
@@ -117,8 +114,7 @@ def test_composition_stage_rejects_missing_and_empty_artifacts(tmp_path: Path) -
     _insert_turn(database, episode_id, "turn-missing", 0, host_id, "missing artifact")
 
     with pytest.raises(ValueError, match="missing TTS artifacts for turns: turn-missing"):
-        _composition_stage(
-            composition,
+        composition.compose_episode_audio(
             project_id,
             PipelineContext("run-r4", episode_id, "composition"),
         )
@@ -140,8 +136,7 @@ def test_composition_stage_rejects_missing_and_empty_artifacts(tmp_path: Path) -
     )
 
     with pytest.raises(ValueError, match="missing TTS artifacts for turns: turn-missing"):
-        _composition_stage(
-            composition,
+        composition.compose_episode_audio(
             project_id,
             PipelineContext("run-r4", episode_id, "composition"),
         )
@@ -207,8 +202,7 @@ def test_composition_stage_normalizes_mismatched_wav_parameters(
         channels=2,
     )
 
-    _composition_stage(
-        composition,
+    composition.compose_episode_audio(
         project_id,
         PipelineContext("run-r4", episode_id, "composition"),
     )
