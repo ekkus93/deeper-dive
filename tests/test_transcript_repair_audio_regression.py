@@ -3,7 +3,8 @@ from __future__ import annotations
 import wave
 from pathlib import Path
 
-import deeper_dive.composition as composition_module
+import pytest
+
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.claim_verification import ClaimVerificationService
@@ -12,6 +13,7 @@ from deeper_dive.conversation_state import ConversationStateRepository
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.host_turn import HostTurnService
 from deeper_dive.material_claims import MaterialClaimService
+from deeper_dive.pipeline import PipelineContext
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository, HostProfileRecord
 from deeper_dive.storage.workspace import WorkspaceManager
@@ -103,17 +105,17 @@ def _insert_repair_worthy_claim(database: Database, project_id: str, episode_id:
 
 def test_regenerate_episode_audio_sanitizes_runtime_failure(
     tmp_path: Path,
-    monkeypatch: object,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
     service.workspaces.initialize()
     project = service.create_project("Failure Case")
     composition = ProductionComposition.build(service=service)
 
-    def fail_stage(*_args: object, **_kwargs: object) -> None:
+    def fail_tts(_project_id: str, _context: PipelineContext) -> None:
         raise RuntimeError("token=secret-value runtime exploded")
 
-    monkeypatch.setattr(composition_module, "_tts_stage", fail_stage)
+    monkeypatch.setattr(composition, "generate_episode_tts", fail_tts)
 
     try:
         composition.regenerate_episode_audio(project.id, "episode-1")
