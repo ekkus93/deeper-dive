@@ -100,7 +100,7 @@ class PipelineOrchestrator:
         record = self._refresh(run_id)
         if record.cancel_requested or record.state == "cancelled":
             raise ValueError("cancelled runs cannot be resumed")
-        if record.state != "paused":
+        if record.state not in {"paused", "failed"}:
             raise ValueError(f"cannot resume generation run in {record.state} state")
         resumed = replace(
             record,
