@@ -6,12 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from deeper_dive.composition import (
-    ProductionComposition,
-    _composition_stage,
-    _tts_stage,
-    _tts_turn_for_host,
-)
+from deeper_dive.composition import ProductionComposition, _tts_turn_for_host
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.episode_library_export import EpisodeLibraryExportService
 from deeper_dive.host_turn import HostTurnService
@@ -106,8 +101,7 @@ def test_duplicate_cache_reuse_composes_and_exports_every_turn(tmp_path: Path) -
             ),
         )
 
-    _tts_stage(
-        composition,
+    composition.generate_episode_tts(
         project_id,
         PipelineContext("run-r5-cache", episode_id, "tts"),
     )
@@ -123,8 +117,7 @@ def test_duplicate_cache_reuse_composes_and_exports_every_turn(tmp_path: Path) -
     assert first_artifact.artifact_id == second_artifact.artifact_id
     assert first_artifact.path == second_artifact.path
 
-    _composition_stage(
-        composition,
+    composition.compose_episode_audio(
         project_id,
         PipelineContext("run-r5-cache", episode_id, "composition"),
     )
@@ -183,8 +176,7 @@ def test_production_tts_honors_configured_openai_compatible_mp3(tmp_path: Path) 
     assert production_turn.model == "tts-model"
     assert production_turn.settings == {"response_format": "mp3"}
 
-    _tts_stage(
-        composition,
+    composition.generate_episode_tts(
         project_id,
         PipelineContext("run-r5", episode_id, "tts"),
     )
@@ -234,8 +226,7 @@ def test_production_tts_default_wav_keeps_implicit_default_identity(tmp_path: Pa
     production_turn = _tts_turn_for_host(composition, host, turn)
     assert production_turn.settings is None
 
-    _tts_stage(
-        composition,
+    composition.generate_episode_tts(
         project_id,
         PipelineContext("run-r5", episode_id, "tts"),
     )
@@ -271,8 +262,7 @@ def test_production_kitten_rejects_configured_non_wav_before_success(tmp_path: P
     assert _tts_turn_for_host(composition, host, turn).settings == {"response_format": "mp3"}
 
     with pytest.raises(ValueError, match="WAV only"):
-        _tts_stage(
-            composition,
+        composition.generate_episode_tts(
             project_id,
             PipelineContext("run-r5", episode_id, "tts"),
         )
