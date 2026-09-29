@@ -86,8 +86,7 @@ async def _exercise_tui_acceptance(
         assert before.run is not None
         assert before.run.state == "pending"
 
-        composition = app.service._production_composition
-        composition.run_generation(project.id, before.run.id)
+        app.composition.run_generation(project.id, before.run.id)
         monitor.refresh_monitor()
         after = app.generation_monitor_controller.snapshot(app)
         assert after.run is not None
