@@ -59,7 +59,7 @@ def test_composition_stage_writes_single_valid_wav_from_two_turn_artifacts(
     )
 
     _composition_stage(
-        composition.service,
+        composition,
         project_id,
         PipelineContext("run-r4", episode_id, "composition"),
     )
@@ -105,7 +105,7 @@ def test_composition_stage_rejects_unsupported_non_wav_artifacts(tmp_path: Path)
 
     with pytest.raises(ValueError, match="unsupported TTS artifact format"):
         _composition_stage(
-            composition.service,
+            composition,
             project_id,
             PipelineContext("run-r4", episode_id, "composition"),
         )
@@ -118,7 +118,7 @@ def test_composition_stage_rejects_missing_and_empty_artifacts(tmp_path: Path) -
 
     with pytest.raises(ValueError, match="missing TTS artifacts for turns: turn-missing"):
         _composition_stage(
-            composition.service,
+            composition,
             project_id,
             PipelineContext("run-r4", episode_id, "composition"),
         )
@@ -141,7 +141,7 @@ def test_composition_stage_rejects_missing_and_empty_artifacts(tmp_path: Path) -
 
     with pytest.raises(ValueError, match="missing TTS artifacts for turns: turn-missing"):
         _composition_stage(
-            composition.service,
+            composition,
             project_id,
             PipelineContext("run-r4", episode_id, "composition"),
         )
@@ -208,7 +208,7 @@ def test_composition_stage_normalizes_mismatched_wav_parameters(
     )
 
     _composition_stage(
-        composition.service,
+        composition,
         project_id,
         PipelineContext("run-r4", episode_id, "composition"),
     )
