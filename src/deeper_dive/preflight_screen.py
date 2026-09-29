@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol, cast
+from typing import Any, Protocol, cast
 
 from rich.text import Text
 from textual.app import ComposeResult
@@ -152,10 +152,10 @@ class PreflightController:
         return result.run
 
     def _shared_generation_start(self, app: PreflightApp) -> GenerationStartService | None:
-        composition = getattr(app.service, "_production_composition", None)
+        composition = getattr(app, "composition", None)
         if composition is None:
             return None
-        composition.provider_controller = app.provider_controller
+        composition.attach_provider_controller(app.provider_controller)
         composition.preflight_service = PreflightService(
             app.provider_controller.llm_registry,
             self._tts_registry(app),
@@ -202,7 +202,7 @@ class PreflightController:
         project_id: str,
         episode: EpisodeRecord | None,
     ) -> tuple[ModelRoleAssignments, tuple[PreflightIssue, ...]]:
-        composition = getattr(app.service, "_production_composition", None)
+        composition = getattr(app, "composition", None)
         if composition is None:
             project = app.service.open_project(project_id)
             project_defaults = (
@@ -215,7 +215,7 @@ class PreflightController:
                 project_defaults=project_defaults,
             )
         else:
-            composition.provider_controller = app.provider_controller
+            composition.attach_provider_controller(app.provider_controller)
             if episode is None:
                 assignments, errors = composition.effective_model_role_assignments(project_id)
             else:
@@ -257,6 +257,7 @@ class PreflightController:
 
 class PreflightApp(Protocol):
     service: DeeperDiveService
+    composition: Any
     provider_controller: ProviderController
     preflight_controller: PreflightController
     current_project_id: str | None
