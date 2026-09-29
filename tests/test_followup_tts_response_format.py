@@ -54,16 +54,16 @@ class RecordingCompatibleFactory(ProviderFactory):
             headers: dict[str, str],
             timeout: float,
         ) -> tuple[bytes, str | None]:
+            _ = (url, headers, timeout)
             self.payloads.append(dict(payload))
             return b"deterministic-mp3", "audio/mpeg"
 
         return OpenAICompatibleTTSProvider(
             provider_id=name,
-            base_url=config.base_url or "http://localhost:9999/v1",
-            model=config.default_model or "tts-1",
-            voices=tuple(config.voices),
+            base_url=config.base_url or "https://tts.example.test",
+            model=config.default_model or "tts-model",
+            voices=config.voices or ("voice-a",),
             response_format=config.response_format,
-            timeout=config.timeout_seconds,
             request_binary=request,
         )
 
@@ -107,7 +107,7 @@ def test_duplicate_cache_reuse_composes_and_exports_every_turn(tmp_path: Path) -
         )
 
     _tts_stage(
-        composition.service,
+        composition,
         project_id,
         PipelineContext("run-r5-cache", episode_id, "tts"),
     )
@@ -124,7 +124,7 @@ def test_duplicate_cache_reuse_composes_and_exports_every_turn(tmp_path: Path) -
     assert first_artifact.path == second_artifact.path
 
     _composition_stage(
-        composition.service,
+        composition,
         project_id,
         PipelineContext("run-r5-cache", episode_id, "composition"),
     )
@@ -160,7 +160,7 @@ def test_production_tts_honors_configured_openai_compatible_mp3(tmp_path: Path) 
             providers={
                 "speech": ProviderConfig(
                     provider_type="openai-compatible-tts",
-                    base_url="http://localhost:9999/v1",
+                    base_url="https://tts.example.test",
                     default_model="tts-model",
                     voices=("voice-a",),
                     response_format="mp3",
@@ -184,7 +184,7 @@ def test_production_tts_honors_configured_openai_compatible_mp3(tmp_path: Path) 
     assert production_turn.settings == {"response_format": "mp3"}
 
     _tts_stage(
-        composition.service,
+        composition,
         project_id,
         PipelineContext("run-r5", episode_id, "tts"),
     )
@@ -235,7 +235,7 @@ def test_production_tts_default_wav_keeps_implicit_default_identity(tmp_path: Pa
     assert production_turn.settings is None
 
     _tts_stage(
-        composition.service,
+        composition,
         project_id,
         PipelineContext("run-r5", episode_id, "tts"),
     )
@@ -272,7 +272,7 @@ def test_production_kitten_rejects_configured_non_wav_before_success(tmp_path: P
 
     with pytest.raises(ValueError, match="WAV only"):
         _tts_stage(
-            composition.service,
+            composition,
             project_id,
             PipelineContext("run-r5", episode_id, "tts"),
         )
