@@ -179,3 +179,42 @@ def test_plan_for_another_episode_does_not_satisfy_selected_episode(tmp_path) ->
     result = evaluate_episode_plan(database, episode_id)
     assert not result.usable
     assert result.plan_id is None
+
+
+@pytest.mark.parametrize("field", ["evidence_ids", "lead_host_ids"])
+@pytest.mark.parametrize("value", ["e1", {"id": "e1"}, None, ["e1", 1], [False]])
+def test_malformed_persisted_id_lists_are_not_empty_lists(tmp_path, field, value):
+    database, hosts, episode_id, _ = _fixture(tmp_path)
+    payload = {"title": "Segment", "target_duration_seconds": 600, field: value}
+    _save(hosts, episode_id, segment_json=json.dumps(payload))
+    result = evaluate_episode_plan(database, episode_id)
+    assert not result.usable
+    assert any(f"{field} must be a list of strings" in issue for issue in result.issues)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [{"title": "Different"}, {"target_duration_seconds": 100}, {"target_duration_seconds": "600"}],
+)
+def test_row_json_generation_fields_must_agree(tmp_path, mutation):
+    database, hosts, episode_id, _ = _fixture(tmp_path)
+    payload = {"title": "Segment", "target_duration_seconds": 600, **mutation}
+    _save(hosts, episode_id, segment_json=json.dumps(payload))
+    assert not evaluate_episode_plan(database, episode_id).usable
+
+
+def test_empty_id_lists_remain_valid(tmp_path):
+    database, hosts, episode_id, _ = _fixture(tmp_path)
+    _save(
+        hosts,
+        episode_id,
+        segment_json=json.dumps(
+            {
+                "title": "Segment",
+                "target_duration_seconds": 600,
+                "evidence_ids": [],
+                "lead_host_ids": [],
+            }
+        ),
+    )
+    assert evaluate_episode_plan(database, episode_id).usable

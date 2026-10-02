@@ -1,7 +1,5 @@
 """Provider configuration support for the Textual interface."""
 
-# ruff: noqa: I001
-
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -16,7 +14,6 @@ from deeper_dive.provider_factory import (
 )
 from deeper_dive.tts import TTSProvider
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
-
 
 _PROVIDER_CONFIGURATION_FIELDS: dict[str, frozenset[str]] = {
     "fake": frozenset({"default_model", "network_scope"}),

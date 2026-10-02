@@ -66,6 +66,7 @@ class EpisodePlannerService:
         self.retrieval = LexicalIndex(database)
 
     def build_plan(self, episode_id: str) -> EpisodePlan:
+        self.plan_repository.require_editable(episode_id)
         config = self.configurations.load_configuration(episode_id)
         episode = self.repository.get_episode(episode_id)
         if episode is None:
@@ -94,6 +95,7 @@ class EpisodePlannerService:
         return self.build_plan(episode_id)
 
     def regenerate_segment(self, episode_id: str, ordinal: int) -> EpisodePlan:
+        self.plan_repository.require_editable(episode_id)
         current = self.load_plan(episode_id)
         if ordinal < 0 or ordinal >= len(current.segments):
             raise IndexError(ordinal)
@@ -114,13 +116,14 @@ class EpisodePlannerService:
         segments = list(current.segments)
         segments[ordinal] = replacement[0]
         segments = self._bound_duration(segments, config.target_duration_seconds)
-        plan = EpisodePlan(current.id, episode_id, tuple(segments))
+        plan = EpisodePlan(str(uuid4()), episode_id, tuple(segments))
         self._persist(plan)
         return plan
 
     def edit_segment(self, episode_id: str, ordinal: int, segment: PlannedSegment) -> EpisodePlan:
         """Persist a user-edited segment while retaining plan identity and safety bounds."""
 
+        self.plan_repository.require_editable(episode_id)
         current = self.load_plan(episode_id)
         if ordinal < 0 or ordinal >= len(current.segments):
             raise IndexError(ordinal)
@@ -133,7 +136,7 @@ class EpisodePlannerService:
         segments = list(current.segments)
         segments[ordinal] = validated
         segments = self._bound_duration(segments, config.target_duration_seconds)
-        plan = EpisodePlan(current.id, episode_id, tuple(segments))
+        plan = EpisodePlan(str(uuid4()), episode_id, tuple(segments))
         self._persist(plan)
         return plan
 
@@ -211,13 +214,25 @@ class EpisodePlannerService:
 
     @staticmethod
     def _bound_duration(segments: list[PlannedSegment], target: int) -> list[PlannedSegment]:
+        if not segments or target < len(segments):
+            raise ValueError("target duration cannot support one second per segment")
         total = sum(segment.target_duration_seconds for segment in segments)
+        if any(segment.target_duration_seconds < 1 for segment in segments):
+            raise ValueError("segment duration must be positive")
         lower, upper = int(target * 0.9), int(target * 1.1)
         if lower <= total <= upper:
             return segments
-        scale = target / total
-        durations = [max(1, round(segment.target_duration_seconds * scale)) for segment in segments]
-        durations[-1] += target - sum(durations)
+        # Reserve one second per segment, then apportion the remaining whole
+        # seconds by largest remainder. Integer arithmetic avoids float drift.
+        remaining = target - len(segments)
+        weights = [segment.target_duration_seconds for segment in segments]
+        durations = [1 + remaining * weight // total for weight in weights]
+        order = sorted(
+            range(len(segments)),
+            key=lambda index: (-(remaining * weights[index] % total), index),
+        )
+        for index in order[: target - sum(durations)]:
+            durations[index] += 1
         return [
             PlannedSegment(
                 segment.title,
@@ -243,6 +258,10 @@ class EpisodePlannerService:
 
     @staticmethod
     def _segment_from_payload(item: dict[str, Any]) -> PlannedSegment:
+        for field in ("evidence_ids", "lead_host_ids"):
+            values = item.get(field, [])
+            if not isinstance(values, list) or any(not isinstance(value, str) for value in values):
+                raise ValueError(f"{field} must be a list of strings")
         return PlannedSegment(
             title=str(item.get("title", "")),
             purpose=str(item.get("purpose", "")),

@@ -29,9 +29,10 @@ def required_generation_model_roles(context: GenerationRoleContext) -> tuple[Mod
         roles.append(ModelRole.EPISODE_PLANNING)
     if context.conversation_work_remains:
         roles.append(ModelRole.HOST_GENERATION)
-    for optional_role in (ModelRole.DIRECTING, ModelRole.VERIFICATION):
-        if context.assignments.resolve(optional_role) is not None:
-            roles.append(optional_role)
+    if context.conversation_work_remains and context.assignments.resolve(ModelRole.DIRECTING):
+        roles.append(ModelRole.DIRECTING)
+    if context.assignments.resolve(ModelRole.VERIFICATION) is not None:
+        roles.append(ModelRole.VERIFICATION)
     roles.extend(context.additional_roles)
     return _dedupe(roles)
 

@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from deeper_dive.audio_normalization import normalize_wav
 from deeper_dive.storage.database import Database
 from deeper_dive.tts import TTSAudioResult, TTSProviderRegistry, TTSRequest
 
@@ -269,16 +270,27 @@ class TTSGenerationStage:
     def _synthesize(self, run_id: str, turn: TTSTurn, key: str) -> TTSArtifact:
         provider = self.registry.get(turn.provider_id)
         settings = turn.settings or {}
+        requested_format = str(settings.get("response_format", "wav")).lower().lstrip(".")
+        if requested_format != "wav":
+            raise ValueError("generation supports WAV only TTS response format")
         result = provider.synthesize(
             TTSRequest(
                 text=turn.text,
                 voice=turn.voice,
                 model=turn.model,
-                response_format=str(settings.get("response_format", "wav")),
+                response_format=requested_format,
                 sample_rate_hz=settings.get("sample_rate_hz"),
             )
         )
         self._validate_identity(turn, result)
+        returned_format = self._validated_format(turn, result)
+        if returned_format != requested_format:
+            raise ValueError("TTS response format mismatch: expected WAV")
+        if result.media_type.lower() not in {"audio/wav", "audio/x-wav", "audio/wave"}:
+            raise ValueError("TTS response media type mismatch: expected WAV")
+        if not (result.audio[:4] == b"RIFF" and result.audio[8:12] == b"WAVE"):
+            raise ValueError("TTS response is not a WAV container")
+        normalize_wav(result.audio, source_media_type=result.media_type)
         artifact = self._persist_result(turn, key, result)
         self.repository.save(artifact)
         self.repository.mark_checkpoint(run_id, turn.turn_id)

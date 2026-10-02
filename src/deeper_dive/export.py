@@ -12,8 +12,6 @@ from deeper_dive.audio_normalization import CanonicalAudio
 from deeper_dive.diagnostics import redact
 from deeper_dive.ffmpeg import FFmpegComposer
 
-# fmt: off
-
 
 @dataclass(frozen=True, slots=True)
 class TranscriptClaim:
@@ -131,8 +129,7 @@ class EpisodeExporter:
         heading = f"## {turn.host}"
         if turn.turn_id:
             heading = (
-                f"## Chapter {turn.segment_ordinal + 1} / "
-                f"Turn {turn.turn_ordinal + 1}: {turn.host}"
+                f"## Chapter {turn.segment_ordinal + 1} / Turn {turn.turn_ordinal + 1}: {turn.host}"
             )
         lines = [heading, ""]
         if turn.turn_id:
@@ -172,5 +169,3 @@ class EpisodeExporter:
                 )
             lines.append("")
         return lines
-
-# fmt: on

@@ -16,7 +16,7 @@ from textual.widgets import Button, Footer, Header, Label, Static
 from deeper_dive.application.events import ProgressEvent, ProgressSink
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.conversation_state import ConversationStateRepository
-from deeper_dive.pipeline import DEFAULT_STAGES
+from deeper_dive.pipeline import DEFAULT_STAGES, generation_stage_label
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.transcript_review_screen import TranscriptReviewScreen
@@ -258,7 +258,7 @@ class GenerationMonitorScreen(Screen[None]):
                 (
                     f"Run: {run.id}",
                     f"State: {run.state}",
-                    f"Stage: {run.stage}",
+                    f"Stage: {generation_stage_label(run.stage)}",
                     f"Retries: {run.retry_count}",
                     f"Failure: {run.failure_code or 'none'} - {run.failure_message or 'none'}",
                 )
@@ -287,12 +287,15 @@ class GenerationMonitorScreen(Screen[None]):
         snapshot = self._app.generation_monitor_controller.snapshot(self._app)
         run = snapshot.run
         self.query_one("#generation-state", Static).update(
-            "Run: none" if run is None else f"Run: {run.id} | {run.state} | stage {run.stage}"
+            "Run: none"
+            if run is None
+            else f"Run: {run.id} | {run.state} | stage {generation_stage_label(run.stage)}"
         )
         self.query_one("#stage-checklist", Static).update(
             "Stages:\n"
             + "\n".join(
-                f"{'✓' if stage in snapshot.completed_stages else '○'} {stage}"
+                f"{'✓' if stage in snapshot.completed_stages else '○'} "
+                f"{generation_stage_label(stage)}"
                 for stage in snapshot.stages
             )
         )

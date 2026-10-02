@@ -36,6 +36,18 @@ class PipelineResult:
     skipped_stages: tuple[str, ...]
 
 
+INFORMATIONAL_STAGE_DESCRIPTIONS = {
+    "sources": "Source boundary: uses existing indexed sources; no ingestion performed",
+    "research": "Research boundary: uses existing evidence; no research performed",
+    "export": "Export available: use explicit export to create export artifacts",
+}
+
+
+def generation_stage_label(stage: str) -> str:
+    description = INFORMATIONAL_STAGE_DESCRIPTIONS.get(stage)
+    return stage if description is None else f"{stage}: {description}"
+
+
 DEFAULT_STAGES = (
     "sources",
     "research",
@@ -61,6 +73,7 @@ class PipelineOrchestrator:
         progress: ProgressSink | None = None,
         max_stage_retries: int = 2,
         max_concurrency: int = 1,
+        informational_stages: Mapping[str, str] | None = None,
     ) -> None:
         if max_stage_retries < 0:
             raise ValueError("max_stage_retries must be non-negative")
@@ -71,6 +84,7 @@ class PipelineOrchestrator:
         missing = [stage for stage in stages if stage not in handlers]
         if missing:
             raise ValueError(f"missing stage handlers: {', '.join(missing)}")
+        self.informational_stages = dict(informational_stages or {})
         self.repository = repository
         self.handlers = handlers
         self.stages = tuple(stages)
@@ -245,5 +259,7 @@ class PipelineOrchestrator:
         completed: int | None = None,
         total: int | None = None,
     ) -> None:
+        if operation in self.informational_stages and state in {"running", "completed", "skipped"}:
+            message = self.informational_stages[operation]
         if self.progress is not None:
             self.progress(ProgressEvent(operation, state, message, completed, total))

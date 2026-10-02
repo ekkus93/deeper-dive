@@ -10,6 +10,7 @@ from pathlib import Path
 
 from deeper_dive import cli
 from deeper_dive.composition import ProductionComposition
+from deeper_dive.diagnostics import redact
 from deeper_dive.kitten_model_manager import KittenModelManager, KittenModelState
 from deeper_dive.kitten_tts import KittenTTSMicroProvider
 from deeper_dive.provider_tui import ProviderController
@@ -183,6 +184,7 @@ def _state(state: KittenModelState) -> dict[str, object]:
 
 
 def _output(value: object, json_output: bool) -> int:
+    value = redact(value)
     if json_output:
         print(json.dumps(value, sort_keys=True))
     elif isinstance(value, list):

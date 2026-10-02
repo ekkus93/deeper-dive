@@ -169,3 +169,53 @@ def test_evidence_validation_disabled_is_explicit_and_empty_scope_rejects() -> N
     assert EpisodePlannerService._validate_segments(raw, (), None)[0].evidence_ids == ("unknown",)
     with pytest.raises(ValueError, match="evidence outside retrieved evidence"):
         EpisodePlannerService._validate_segments(raw, (), set())
+
+
+@pytest.mark.parametrize("state", ["pending", "running", "paused", "failed", "completed"])
+@pytest.mark.parametrize("operation", ["build", "regenerate", "segment", "edit"])
+def test_started_plan_is_immutable_and_preserves_history(tmp_path, state, operation):
+    from deeper_dive.conversation_state import ConversationState, ConversationStateRepository
+    from deeper_dive.storage.run_repositories import GenerationRunRecord, GenerationRunRepository
+
+    service, episode_id, fake = _service(tmp_path)
+    original = service.build_plan(episode_id)
+    runs = GenerationRunRepository(service.database)
+    run = GenerationRunRecord("run", episode_id, "conversation", state, "now", "now")
+    runs.create(run)
+    progress = ConversationState(episode_id, segment_ordinal=1, segment_turn=2)
+    ConversationStateRepository(service.database).save(progress)
+    actions = {
+        "build": lambda: service.build_plan(episode_id),
+        "regenerate": lambda: service.regenerate_plan(episode_id),
+        "segment": lambda: service.regenerate_segment(episode_id, 0),
+        "edit": lambda: service.edit_segment(episode_id, 0, PlannedSegment("Changed", "", 600)),
+    }
+    with pytest.raises(ValueError, match="frozen"):
+        actions[operation]()
+    assert fake.calls == 1
+    assert service.load_plan(episode_id) == original
+    assert runs.get("run") == run
+    assert ConversationStateRepository(service.database).get(episode_id) == progress
+    assert service.approve_plan(episode_id) == original
+
+
+@pytest.mark.parametrize(
+    "durations,target",
+    [([1, 1, 10000], 600), ([1] * 600, 600), ([1, 1, 1], 600), ([999, 99, 1], 600)],
+)
+def test_positive_duration_apportionment(durations, target):
+    segments = [PlannedSegment(str(i), "", duration) for i, duration in enumerate(durations)]
+    bounded = EpisodePlannerService._bound_duration(segments, target)
+    assert sum(segment.target_duration_seconds for segment in bounded) == target
+    assert all(segment.target_duration_seconds >= 1 for segment in bounded)
+
+
+def test_infeasible_segment_count_is_rejected_before_persistence(tmp_path):
+    service, episode_id, fake = _service(tmp_path)
+    original = service.build_plan(episode_id)
+    fake.generate_plan = lambda request: {
+        "segments": [{"title": str(i), "target_duration_seconds": 1} for i in range(601)]
+    }
+    with pytest.raises(ValueError, match="one second per segment"):
+        service.regenerate_plan(episode_id)
+    assert service.load_plan(episode_id) == original

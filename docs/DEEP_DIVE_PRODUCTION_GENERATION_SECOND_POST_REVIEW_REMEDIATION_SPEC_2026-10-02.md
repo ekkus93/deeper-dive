@@ -89,3 +89,45 @@ Decide whether `sources`, `research`, and `export` are real generation stages or
 Required focused regression groups: plan revision and resume; provider UI secrets; TTS format identity; role routing; duration normalization; persisted plan shape; pipeline status semantics. Reuse the public production acceptance fixture where it helps exercise real wiring. Run lock, format, lint, mypy, full pytest, package build, CLI/import smoke, installed-wheel fresh-machine workflow, and the selected real-Kitten qualification gate on the final implementation head.
 
 Completion requires all TODO items checked with named tests and exact-head CI evidence, no open high or medium finding above, no compatibility regression, and a final reread of this spec and its TODO from the qualified `master` commit.
+
+## Implementation decisions (2026-10-02)
+
+- The current checklist uses SPR-100–180, superseding the predecessor R4–R15
+  execution grouping for this remediation.
+- Plan edits after generation starts are explicitly rejected. A persisted plan is
+  frozen when any run (including pending, failed, cancelled, or completed), durable
+  conversation state, or turns exist. Create a new episode to generate revised
+  content. Initial automatic planning remains available when a run has no plan.
+  Before generation, every edit/regeneration creates a new plan ID as the revision
+  identity. Unchanged approval preserves plan and segment identities. Conversation
+  state, turns, and resume stay bound to the frozen episode plan; no dependent
+  artifacts or cache references are removed. Repository replacement rechecks this
+  contract in its persistence transaction. Runs also store a content fingerprint
+  in durable plan-revision units; resume checks it independently and rejects
+  out-of-band drift. Legacy runs acquire this binding on first observation.
+- Persisted segment rows are authoritative for title and duration. Present JSON
+  values must agree exactly; omitted legacy fields still use the row. Missing ID
+  lists retain legacy empty-list behavior; explicit null, scalar, mapping, or mixed
+  members are rejected. Generator ID lists use the same strict rule.
+- Duration scaling reserves one second per segment and allocates remaining whole
+  seconds by integer largest remainder. More segments than target seconds fail
+  before persistence. The existing 10% duration tolerance remains unchanged.
+- Production synthesis is WAV-only, matching composition and preflight. Reported
+  format, media type, RIFF/WAVE container, and existing FFmpeg decoder must pass
+  before writing successful audio, a row, or a checkpoint. Legacy cached artifacts
+  remain readable; this does not rewrite historical files.
+- Completed conversation skips host/directing resolution and creates no duplicate
+  turns. Configured verification remains required because production verifies the
+  existing transcript on a new run. Directing is required only for remaining
+  conversation work.
+- Sources, research, and export checkpoints are informational boundaries. Generation
+  consumes already-indexed sources/evidence and composes audio; explicit export
+  creates export artifacts. Progress messages, CLI stage descriptions, and monitor
+  labels state these semantics while preserving persisted stage keys.
+- The predecessor's placeholder closeout cannot establish exact-head qualification
+  of its final reconciled commit. Its completed checklist is preserved unchanged;
+  this remediation requires new exact-head CI evidence and does not infer coverage
+  from an earlier passing run.
+
+Implementation and final CI qualification remain pending until recorded in the
+companion TODO. Focused regressions reuse the shared follow-up acceptance fixture.

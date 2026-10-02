@@ -1,4 +1,3 @@
-# fmt: off
 """Textual Providers screen."""
 
 from __future__ import annotations
@@ -10,6 +9,7 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
+from deeper_dive.diagnostics import redact, sanitize_exception_message
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.user_errors import user_status
 
@@ -100,10 +100,10 @@ class ProvidersScreen(Screen[None]):
             yield Button("Test Health", id="action-health-provider", name="health")
             yield Button("Discover Models", id="action-models-provider", name="models")
             yield Button("Discover Voices", id="action-voices-provider", name="voices")
-            yield Static("", id="llm-provider-list")
-            yield Static("", id="tts-provider-list")
-            yield Static("", id="provider-details")
-            yield Static("Status: Ready", id="screen-status")
+            yield Static("", id="llm-provider-list", markup=False)
+            yield Static("", id="tts-provider-list", markup=False)
+            yield Static("", id="provider-details", markup=False)
+            yield Static("Status: Ready", id="screen-status", markup=False)
         yield Footer()
 
     def on_mount(self) -> None:
@@ -202,8 +202,10 @@ class ProvidersScreen(Screen[None]):
                 health = self.provider_app.provider_controller.tts(name).health()
                 state = "healthy" if health.healthy else "unhealthy"
                 self._status(f"{name}: {state} - {health.message}")
-        except (KeyError, RuntimeError, OSError) as exc:
-            self._status(f"{name}: {user_status('provider', exc)}")
+        except (KeyError, ValueError, RuntimeError, OSError) as exc:
+            self._status(
+                f"{name}: {user_status('provider', exc)} {sanitize_exception_message(exc)}"
+            )
 
     def action_models(self) -> None:
         name = self._selected_name()
@@ -220,10 +222,14 @@ class ProvidersScreen(Screen[None]):
                 f"context={model.capabilities.max_context_tokens or 'unknown'}"
                 for model in models
             ]
-            self.query_one("#provider-details", Static).update("Models:\n" + "\n".join(rows))
+            self.query_one("#provider-details", Static).update(
+                str(redact("Models:\n" + "\n".join(rows)))
+            )
             self._status(f"Discovered {len(models)} model(s) for {name}")
-        except (KeyError, RuntimeError, OSError) as exc:
-            self._status(f"{name}: {user_status('provider', exc)}")
+        except (KeyError, ValueError, RuntimeError, OSError) as exc:
+            self._status(
+                f"{name}: {user_status('provider', exc)} {sanitize_exception_message(exc)}"
+            )
 
     def action_voices(self) -> None:
         name = self._selected_name()
@@ -235,11 +241,15 @@ class ProvidersScreen(Screen[None]):
         try:
             voices = self.provider_app.provider_controller.tts(name).voices()
             self.query_one("#provider-details", Static).update(
-                "Voices:\n" + "\n".join(f"{voice.name} (id={voice.id})" for voice in voices)
+                str(
+                    redact(
+                        "Voices:\n" + "\n".join(f"{voice.name} (id={voice.id})" for voice in voices)
+                    )
+                )
             )
             self._status(f"Discovered {len(voices)} voice(s) for {name}")
-        except (KeyError, RuntimeError, OSError) as exc:
-            self._status(f"{name}: {user_status('tts', exc)}")
+        except (KeyError, ValueError, RuntimeError, OSError) as exc:
+            self._status(f"{name}: {user_status('tts', exc)} {sanitize_exception_message(exc)}")
 
     def refresh_providers(self, status: str = "Ready") -> None:
         providers = self.provider_app.provider_controller.config().providers
@@ -319,9 +329,7 @@ class ProvidersScreen(Screen[None]):
             return user_status("provider", exc)
         kind = provider_type.strip().lower().replace("_", "-")
         supported = ", ".join(
-            _FIELD_LABELS[field]
-            for field in sorted(supported_fields)
-            if field in _FIELD_LABELS
+            _FIELD_LABELS[field] for field in sorted(supported_fields) if field in _FIELD_LABELS
         )
         ignored = ", ".join(
             _FIELD_LABELS[field]
@@ -359,4 +367,4 @@ class ProvidersScreen(Screen[None]):
         return tuple(value.strip() for value in raw_value.split(",") if value.strip())
 
     def _status(self, message: str) -> None:
-        self.query_one("#screen-status", Static).update(f"Status: {message}")
+        self.query_one("#screen-status", Static).update(str(redact(f"Status: {message}")))

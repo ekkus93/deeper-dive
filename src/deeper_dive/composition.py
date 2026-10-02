@@ -34,12 +34,17 @@ from deeper_dive.hosts import HostProfile
 from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
 from deeper_dive.pipeline import (
     DEFAULT_STAGES,
+    INFORMATIONAL_STAGE_DESCRIPTIONS,
     PipelineContext,
     PipelineOrchestrator,
     PipelineResult,
     StageHandler,
 )
-from deeper_dive.plan_validity import evaluate_episode_plan
+from deeper_dive.plan_validity import (
+    bind_generation_plan_revision,
+    conversation_work_remains,
+    evaluate_episode_plan,
+)
 from deeper_dive.preflight import PreflightService
 from deeper_dive.preflight_screen import PreflightController
 from deeper_dive.provider_factory import ProviderBuildResult, ProviderFactory
@@ -301,10 +306,11 @@ class ProductionComposition:
     ) -> PipelineOrchestrator:
         """Construct the production generation pipeline for one project."""
 
-        return self.pipeline_service(
-            project_id,
+        return PipelineOrchestrator(
+            self.generation_run_repository(project_id),
             handlers or _production_stage_handlers(self, project_id),
             progress=progress,
+            informational_stages=INFORMATIONAL_STAGE_DESCRIPTIONS if handlers is None else {},
         )
 
     def run_generation(
@@ -318,6 +324,12 @@ class ProductionComposition:
 
         repository = self.generation_run_repository(project_id)
         try:
+            run = repository.get(run_id)
+            if run is None:
+                raise KeyError(run_id)
+            bind_generation_plan_revision(
+                self.database_for_project(project_id), run_id, run.episode_id
+            )
             _assignments, errors = self.effective_model_role_assignments_for_run(project_id, run_id)
             if errors:
                 raise ValueError("invalid model-role configuration: " + "; ".join(errors))
@@ -480,6 +492,7 @@ def _planning_stage(
 ) -> None:
     database = composition.database_for_project(project_id)
     if evaluate_episode_plan(database, context.episode_id).usable:
+        bind_generation_plan_revision(database, context.run_id, context.episode_id)
         return
     assignments, errors = composition.effective_model_role_assignments_for_episode(
         project_id,
@@ -494,6 +507,7 @@ def _planning_stage(
     )
     planner = composition.planning_service(project_id, LLMEpisodePlanGenerator(provider, model))
     planner.build_plan(context.episode_id)
+    bind_generation_plan_revision(database, context.run_id, context.episode_id)
 
 
 def _conversation_stage(
@@ -502,6 +516,9 @@ def _conversation_stage(
     context: PipelineContext,
 ) -> None:
     database = composition.database_for_project(project_id)
+    bind_generation_plan_revision(database, context.run_id, context.episode_id)
+    if not conversation_work_remains(database, context.episode_id):
+        return
     repository = HostEpisodeRepository(database)
     host_ids = tuple(repository.list_episode_host_ids(context.episode_id))
     if not host_ids:

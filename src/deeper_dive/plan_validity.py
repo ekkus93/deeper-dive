@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -91,7 +92,17 @@ def _validate_segments(
             issues.append(f"segment {segment.ordinal} duration must be positive")
         if payload is None:
             continue
-        for host_id in _strings(payload.get("lead_host_ids", ())):
+        for field in ("evidence_ids", "lead_host_ids"):
+            value = payload.get(field, [])
+            if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+                issues.append(f"segment {segment.ordinal} {field} must be a list of strings")
+        if "title" in payload and payload["title"] != segment.title:
+            issues.append(f"segment {segment.ordinal} title disagrees with stored row")
+        if "target_duration_seconds" in payload:
+            duration = payload["target_duration_seconds"]
+            if type(duration) is not int or duration != segment.target_duration_seconds:
+                issues.append(f"segment {segment.ordinal} duration disagrees with stored row")
+        for host_id in _strings(payload.get("lead_host_ids", [])):
             if host_id not in host_ids:
                 issues.append(
                     f"segment {segment.ordinal} names host {host_id!r} outside the episode"
@@ -119,10 +130,45 @@ def _segment_payload(
 
 
 def _strings(value: object) -> tuple[str, ...]:
-    if not isinstance(value, (list, tuple)):
+    if not isinstance(value, list):
         return ()
-    return tuple(str(item) for item in value)
+    return tuple(item for item in value if isinstance(item, str))
 
 
 def _project_indexed_evidence_ids(database: Database, project_id: str) -> set[str]:
     return set(CorpusRepository(database).list_indexed_chunk_ids(project_id))
+
+
+def bind_generation_plan_revision(database: Database, run_id: str, episode_id: str) -> None:
+    """Bind a run to immutable plan content, rejecting drift on legacy/new resume.
+
+    Existing databases use the durable unit table; no destructive migration is
+    required. A legacy run acquires its binding the first time it is observed.
+    """
+    with database.transaction() as db:
+        run = db.execute("SELECT episode_id FROM generation_runs WHERE id=?", (run_id,)).fetchone()
+        if run is None or run["episode_id"] != episode_id:
+            raise ValueError("generation run does not belong to the selected episode")
+        plan = db.execute(
+            "SELECT * FROM episode_plans WHERE episode_id=?", (episode_id,)
+        ).fetchone()
+        if plan is None:
+            return  # Automatic planning binds after it persists the initial plan.
+        segments = db.execute(
+            "SELECT ordinal,title,purpose,target_duration_seconds,segment_json "
+            "FROM segment_plans WHERE episode_plan_id=? ORDER BY ordinal",
+            (plan["id"],),
+        ).fetchall()
+        payload = [plan["id"], plan["plan_json"], [tuple(row) for row in segments]]
+        revision = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+        bindings = db.execute(
+            "SELECT unit_id FROM generation_run_units WHERE run_id=? AND stage='plan_revision'",
+            (run_id,),
+        ).fetchall()
+        if bindings and any(row["unit_id"] != revision for row in bindings):
+            raise ValueError("generation plan revision changed; cannot resume the old run")
+        db.execute(
+            "INSERT OR IGNORE INTO generation_run_units(run_id,stage,unit_id,completed_at) "
+            "VALUES (?,'plan_revision',?,datetime('now'))",
+            (run_id, revision),
+        )

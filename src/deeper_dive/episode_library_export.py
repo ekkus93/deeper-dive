@@ -18,8 +18,6 @@ from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.storage.workspace import WorkspaceManager
 
-# fmt: off
-
 
 @dataclass(frozen=True, slots=True)
 class EpisodeExportResult:
@@ -267,5 +265,3 @@ class EpisodeLibraryExportService:
         if value is None:
             return ()
         return tuple(str(item) for item in json.loads(str(value)))
-
-# fmt: on

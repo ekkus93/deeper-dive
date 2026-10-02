@@ -1,9 +1,6 @@
-# ruff: noqa: I001
 """Bounded, resumable production conversation generation across episode segments."""
 
 from __future__ import annotations
-
-# fmt: off
 
 import json
 from collections.abc import Callable
@@ -16,6 +13,7 @@ from deeper_dive.episode_planner import PlannedSegment
 from deeper_dive.host_turn import HostTurn, HostTurnProvider, HostTurnService
 from deeper_dive.hosts import HostProfile, HostRelationship
 from deeper_dive.pacing import DurationPacingController, PacingPolicy, PacingState
+from deeper_dive.plan_validity import bind_generation_plan_revision
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository, SegmentPlanRecord
 
@@ -91,6 +89,7 @@ class ConversationGenerationService:
         plan = self.repository.get_plan(episode_id)
         if plan is None:
             raise ValueError("conversation generation requires a persisted episode plan")
+        bind_generation_plan_revision(self.database, run_id, episode_id)
         segment_records = tuple(self.repository.list_segments(plan.id))
         if not segment_records:
             raise ValueError("conversation generation requires at least one planned segment")
@@ -100,9 +99,7 @@ class ConversationGenerationService:
             record.id: HostProfile.from_record(record)
             for record in self.repository.list_hosts(episode.project_id)
         }
-        hosts = tuple(
-            hosts_by_id[host_id] for host_id in host_ids if host_id in hosts_by_id
-        )
+        hosts = tuple(hosts_by_id[host_id] for host_id in host_ids if host_id in hosts_by_id)
         if len(hosts) != len(host_ids) or not hosts:
             raise ValueError("conversation generation requires all participating episode hosts")
         host_id_set = {host.id for host in hosts}
@@ -159,13 +156,10 @@ class ConversationGenerationService:
             )
             decision.validate_scope(host_id_set, set(segment.evidence_ids))
 
-            if (
-                decision.segment_signal is SegmentSignal.CONTINUE
-                and (
-                    state.segment_turn + 1 >= self.policy.max_turns_per_segment
-                    or pacing.remaining_words
-                    <= max(decision.target_words, self.policy.minimum_turn_words)
-                )
+            if decision.segment_signal is SegmentSignal.CONTINUE and (
+                state.segment_turn + 1 >= self.policy.max_turns_per_segment
+                or pacing.remaining_words
+                <= max(decision.target_words, self.policy.minimum_turn_words)
             ):
                 decision = replace(decision, segment_signal=SegmentSignal.COMPLETE_SEGMENT)
 
@@ -199,13 +193,9 @@ class ConversationGenerationService:
         try:
             payload = json.loads(record.segment_json)
         except json.JSONDecodeError as exc:
-            raise ValueError(
-                f"invalid persisted segment JSON at ordinal {record.ordinal}"
-            ) from exc
+            raise ValueError(f"invalid persisted segment JSON at ordinal {record.ordinal}") from exc
         if not isinstance(payload, dict):
-            raise ValueError(
-                f"invalid persisted segment payload at ordinal {record.ordinal}"
-            )
+            raise ValueError(f"invalid persisted segment payload at ordinal {record.ordinal}")
         evidence_ids = tuple(str(value) for value in payload.get("evidence_ids", ()))
         if self.available_evidence_ids is not None:
             evidence_ids = tuple(
@@ -221,5 +211,3 @@ class ConversationGenerationService:
             evidence_ids=evidence_ids,
             lead_host_ids=tuple(str(value) for value in payload.get("lead_host_ids", ())),
         )
-
-# fmt: on

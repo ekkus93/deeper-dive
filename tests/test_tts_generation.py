@@ -346,3 +346,34 @@ def test_production_tts_stage_uses_provider_generation_contract() -> None:
     assert "_deterministic_audio_bytes" not in source
     assert "deterministic-tts" not in source
     assert "_deterministic_audio_bytes" not in composition_source
+
+
+@pytest.mark.parametrize(
+    "format,audio,media_type",
+    [
+        ("mp3", b"ID3unexpected", "audio/mpeg"),
+        ("pcm", b"raw", "audio/L16"),
+        ("wav", b"ID3disguised", "audio/wav"),
+        ("wav", b"RIFF0000WAVEbroken", "audio/wav"),
+    ],
+)
+def test_returned_format_mismatch_leaves_no_success(tmp_path, format, audio, media_type):
+    from deeper_dive.tts import TTSAudioResult
+
+    class BadProvider(FakeTTSProvider):
+        def synthesize(self, request):
+            return TTSAudioResult(audio, media_type, format, self.provider_id, request.voice)
+
+    provider = BadProvider(voices=(TTSVoice("v", "Voice"),))
+    registry = TTSProviderRegistry()
+    registry.register(provider)
+    database = _database(tmp_path / "project.db")
+    repository = TTSArtifactRepository(database)
+    cache = tmp_path / "cache"
+    stage = TTSGenerationStage(registry, repository, cache, max_workers=1)
+    with pytest.raises(ValueError):
+        stage.generate("run", (TTSTurn("bad", "h", "text", provider.provider_id, "v"),))
+    assert repository.get_by_turn_id("bad") is None
+    assert not list(cache.iterdir())
+    with database.connection() as db:
+        assert not db.execute("SELECT * FROM generation_run_units WHERE run_id='run'").fetchall()

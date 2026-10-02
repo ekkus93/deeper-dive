@@ -146,7 +146,7 @@ def test_duplicate_cache_reuse_composes_and_exports_every_turn(tmp_path: Path) -
     assert transcript.count("shared duplicate speech") == 2
 
 
-def test_production_tts_honors_configured_openai_compatible_mp3(tmp_path: Path) -> None:
+def test_production_tts_blocks_configured_openai_compatible_mp3(tmp_path: Path) -> None:
     data_dir = tmp_path / "data"
     UserConfigStore(data_dir / "config.json").save(
         UserConfig(
@@ -176,26 +176,13 @@ def test_production_tts_honors_configured_openai_compatible_mp3(tmp_path: Path) 
     assert production_turn.model == "tts-model"
     assert production_turn.settings == {"response_format": "mp3"}
 
-    composition.generate_episode_tts(
-        project_id,
-        PipelineContext("run-r5", episode_id, "tts"),
-    )
-
-    assert factory.payloads == [
-        {
-            "model": "tts-model",
-            "input": "configured mp3",
-            "voice": "voice-a",
-            "response_format": "mp3",
-        }
-    ]
-    artifact = TTSArtifactRepository(database).get_by_turn_id(turn.id)
-    assert artifact is not None
-    assert artifact.path.suffix == ".mp3"
-    assert artifact.format == "mp3"
-    assert artifact.provider_id == "speech"
-    assert artifact.voice == "voice-a"
-    assert artifact.model == "tts-model"
+    with pytest.raises(ValueError, match="WAV only"):
+        composition.generate_episode_tts(
+            project_id,
+            PipelineContext("run-r5", episode_id, "tts"),
+        )
+    assert factory.payloads == []
+    assert TTSArtifactRepository(database).get_by_turn_id(turn.id) is None
 
 
 def test_production_tts_default_wav_keeps_implicit_default_identity(tmp_path: Path) -> None:

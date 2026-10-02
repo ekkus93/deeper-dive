@@ -1,11 +1,12 @@
-# ruff: noqa: I001
 """Durable, duplicate-safe generation run creation and readiness gating."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
+from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.domain.clock import format_timestamp
 from deeper_dive.domain.ids import new_run_id
 from deeper_dive.episode_config import EpisodeConfigurationService
@@ -22,6 +23,8 @@ from deeper_dive.preflight import (
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository, HostProfileRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 
+if TYPE_CHECKING:
+    from deeper_dive.composition import ProductionComposition
 
 _ACTIVE_STATES = frozenset({"pending", "running", "paused"})
 _TERMINAL_STATES = frozenset({"completed", "failed", "cancelled"})
@@ -39,12 +42,14 @@ class GenerationStartResult:
 class GenerationStartService:
     """Shared CLI/TUI generation-start policy and preflight boundary."""
 
-    def __init__(self, composition: object, *, ffmpeg_executable: Path | None = None) -> None:
+    def __init__(
+        self, composition: ProductionComposition, *, ffmpeg_executable: Path | None = None
+    ) -> None:
         self.composition = composition
         self.ffmpeg_executable = ffmpeg_executable
 
     def preflight(self, project_id: str, episode_id: str) -> PreflightReport:
-        service = self.composition.service  # type: ignore[attr-defined]
+        service = self.composition.service
         repository = service.hosts(project_id)
         episode = repository.get_episode(episode_id)
         if episode is None or episode.project_id != project_id:
@@ -52,7 +57,7 @@ class GenerationStartService:
                 (PreflightIssue("episode_missing", f"episode not found: {episode_id}"),),
                 PreflightEstimate(0, 0, 0, None),
             )
-        database = self.composition.database_for_project(project_id)  # type: ignore[attr-defined]
+        database = self.composition.database_for_project(project_id)
         sources = [source for source in service.list_sources(project_id) if source.included]
         indexed_source_count = sum(
             1 for source in sources if service.list_source_chunks(project_id, source.id)
@@ -62,14 +67,14 @@ class GenerationStartService:
         (
             assignments,
             assignment_errors,
-        ) = self.composition.effective_model_role_assignments_for_episode(  # type: ignore[attr-defined]
+        ) = self.composition.effective_model_role_assignments_for_episode(
             project_id,
             episode_id,
         )
         config = EpisodeConfigurationService(database).load_configuration(episode_id)
         target_seconds = episode.target_duration_seconds or config.target_duration_seconds
         target_minutes = target_seconds / 60 if target_seconds > 0 else 20.0
-        report: PreflightReport = self.composition.preflight_service.check(  # type: ignore[attr-defined]
+        report: PreflightReport = self.composition.preflight_service.check(
             assignments=assignments,
             hosts=hosts,
             source_count=len(sources),
@@ -102,7 +107,7 @@ class GenerationStartService:
         report = self.preflight(project_id, episode_id)
         report.require_ready()
         result = select_or_create_generation_run(
-            self.composition.service,  # type: ignore[attr-defined]
+            self.composition.service,
             project_id,
             episode_id,
         )
@@ -139,15 +144,15 @@ class GenerationStartService:
 
     def _local_provider_ids(self) -> frozenset[str]:
         return ProviderNetworkPolicy.local_provider_ids(
-            self.composition.provider_controller.config()  # type: ignore[attr-defined]
+            self.composition.provider_controller.config()
         )
 
     def _local_only(self) -> bool:
-        config = self.composition.provider_controller.config()  # type: ignore[attr-defined]
+        config = self.composition.provider_controller.config()
         return ProviderNetworkPolicy.local_only(config.defaults)
 
     def _tts_response_formats(self) -> dict[str, str]:
-        config = self.composition.provider_controller.config()  # type: ignore[attr-defined]
+        config = self.composition.provider_controller.config()
         return {
             provider_id: provider_config.response_format
             for provider_id, provider_config in config.providers.items()
@@ -155,7 +160,7 @@ class GenerationStartService:
 
 
 def select_or_create_generation_run(
-    service: object,
+    service: DeeperDiveService,
     project_id: str,
     episode_id: str,
 ) -> GenerationStartResult:
@@ -165,14 +170,14 @@ def select_or_create_generation_run(
     runs do not block a later explicit generation attempt from creating a new run.
     """
 
-    repository = service.runs(project_id)  # type: ignore[attr-defined]
+    repository = service.runs(project_id)
     latest = repository.latest_for_episode(episode_id)
     if latest is not None and latest.state in _ACTIVE_STATES and not latest.cancel_requested:
         return GenerationStartResult(latest, False)
     if latest is not None and latest.state not in _TERMINAL_STATES | _ACTIVE_STATES:
         raise ValueError(f"cannot start generation from unsupported run state: {latest.state}")
 
-    now = format_timestamp(service.clock.now())  # type: ignore[attr-defined]
+    now = format_timestamp(service.clock.now())
     run = GenerationRunRecord(
         id=str(new_run_id()),
         episode_id=episode_id,

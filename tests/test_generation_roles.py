@@ -45,4 +45,4 @@ def test_required_generation_roles_are_extensible_and_deduplicated() -> None:
         )
     )
 
-    assert roles == (ModelRole.DIRECTING, ModelRole.SOURCE_ANALYSIS)
+    assert roles == (ModelRole.SOURCE_ANALYSIS, ModelRole.DIRECTING)

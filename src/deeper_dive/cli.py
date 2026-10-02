@@ -20,6 +20,7 @@ from deeper_dive.episode_library_export import EpisodeLibraryExportService
 from deeper_dive.episode_planner import EpisodePlannerService
 from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.hosts import HostProfile, create_host_from_preset, preset_names
+from deeper_dive.pipeline import generation_stage_label
 from deeper_dive.research_controller import PersistentResearchController
 from deeper_dive.research_gaps import ResearchGap, ResearchGapPlanner
 from deeper_dive.storage.episode_repositories import EpisodeRecord
@@ -504,7 +505,11 @@ def _status_payload(
     episode: EpisodeRecord,
     run: GenerationRunRecord | None,
 ) -> dict[str, object]:
-    return {"episode": asdict(episode), "run": None if run is None else asdict(run)}
+    return {
+        "episode": asdict(episode),
+        "run": None if run is None else asdict(run),
+        "stage_description": None if run is None else generation_stage_label(run.stage),
+    }
 
 
 def _export_episode(
