@@ -1,7 +1,7 @@
 # Deeper Dive Production Generation: Second Post-Review Remediation Spec
 
 **Created:** 2026-10-02
-**Status:** Proposed; implementation and qualification pending
+**Status:** Complete; implementation and exact-head qualification recorded in companion TODO
 **Applies to:** `master` at `7675d07dc615c49cc13c3ca16d21b98156f69f63`
 **Companion checklist:** `docs/DEEP_DIVE_PRODUCTION_GENERATION_SECOND_POST_REVIEW_REMEDIATION_TODO_2026-10-02.md`
 **Predecessor:** `docs/DEEP_DIVE_PRODUCTION_GENERATION_POST_REVIEW_REMEDIATION_TODO_2026-09-27.md`
@@ -129,5 +129,8 @@ Completion requires all TODO items checked with named tests and exact-head CI ev
   this remediation requires new exact-head CI evidence and does not infer coverage
   from an earlier passing run.
 
-Implementation and final CI qualification remain pending until recorded in the
-companion TODO. Focused regressions reuse the shared follow-up acceptance fixture.
+Implementation `e5b62c8f98ec7c2eecd05daf6327fd681c8ae0d0` passed exact-head CI
+run `37068864649`, including quality, installed-wheel fresh-machine acceptance, and
+mandatory real KittenTTS Micro CPU smoke. The companion TODO records the named
+regressions, compatibility decisions, and observed job results. The documentation
+closeout is independently qualified before completion is reported.
