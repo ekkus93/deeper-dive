@@ -1,7 +1,7 @@
 # Deeper Dive Production Generation: Second Post-Review Remediation Spec
 
 **Created:** 2026-10-02
-**Status:** Final cache-format correction under qualification
+**Status:** Complete; implementation and exact-head qualification recorded in companion TODO
 **Applies to:** `master` at `7675d07dc615c49cc13c3ca16d21b98156f69f63`
 **Companion checklist:** `docs/DEEP_DIVE_PRODUCTION_GENERATION_SECOND_POST_REVIEW_REMEDIATION_TODO_2026-10-02.md`
 **Predecessor:** `docs/DEEP_DIVE_PRODUCTION_GENERATION_POST_REVIEW_REMEDIATION_TODO_2026-09-27.md`
@@ -138,3 +138,7 @@ closeout is independently qualified before completion is reported.
 Cache-hit format parity is also enforced before checkpoint persistence. Configured
 MP3 cannot bypass the WAV-only policy through a legacy cache hit. A mismatched
 legacy artifact is regenerated as WAV without deleting a shared old cache file.
+
+Final implementation `94508d41a67eef073db5230b2713b7b1e320ca7a` passed CI run
+`37069342286`: 791 tests, quality, clean installed-wheel workflows, and mandatory
+real KittenTTS Micro CPU smoke. All companion TODO items are reconciled.

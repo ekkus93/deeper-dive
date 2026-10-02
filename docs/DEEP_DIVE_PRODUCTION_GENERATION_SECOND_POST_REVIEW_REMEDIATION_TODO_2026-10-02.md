@@ -1,7 +1,7 @@
 # Deeper Dive Production Generation: Second Post-Review Remediation TODO
 
 **Created:** 2026-10-02
-**Status:** Final cache-format correction under qualification
+**Status:** Complete
 **Authority:** `docs/DEEP_DIVE_PRODUCTION_GENERATION_SECOND_POST_REVIEW_REMEDIATION_SPEC_2026-10-02.md`
 **Predecessor:** `docs/DEEP_DIVE_PRODUCTION_GENERATION_POST_REVIEW_REMEDIATION_TODO_2026-09-27.md`
 
@@ -37,7 +37,7 @@ Checkboxes describe work to be done. Check an implementation item only after pro
 - [x] Compare provider-reported format with the requested response format before file, row, or checkpoint persistence.
 - [x] Validate reported WAV content through the existing decoder before durable success where practical.
 - [x] Ensure an unexpected MP3/raw response under a WAV request leaves no successful artifact or final audio.
-- [ ] Preserve existing provider, voice, model, cache, legacy artifact, and Kitten WAV behavior.
+- [x] Preserve existing provider, voice, model, cache, legacy artifact, and Kitten WAV behavior.
 - [x] Add CLI/TUI preflight and synthesis regressions for configured MP3 and unexpected returned formats.
 
 ## SPR-130 — Role preflight/production parity
@@ -73,9 +73,9 @@ Checkboxes describe work to be done. Check an implementation item only after pro
 
 - [x] Document the historical 2026-09-27 final SHA/CI evidence gap accurately without rewriting its completed checklist.
 - [x] Record implementation commit SHA(s), focused test names, and any necessary compatibility decision.
-- [ ] Observe exact-head quality and fresh-machine CI on the final implementation commit.
+- [x] Observe exact-head quality and fresh-machine CI on the final implementation commit.
 - [x] Record CI run ID, conclusion, quality result, installed-wheel result, and mandatory Kitten result.
-- [ ] Reload this TODO/spec from the qualified `master` head and confirm no unchecked items before declaring completion.
+- [x] Reload this TODO/spec from the qualified `master` head and confirm no unchecked items before declaring completion.
 
 ## SPR-180 — Pipeline stage semantics
 
@@ -100,13 +100,13 @@ Checkboxes describe work to be done. Check an implementation item only after pro
 
 Fill this section only after implementation and qualification. Record exact values, not placeholders marked as completed.
 
-- Implementation SHA: `e5b62c8f98ec7c2eecd05daf6327fd681c8ae0d0` (direct `master` commit).
+- Implementation SHAs: `e5b62c8f98ec7c2eecd05daf6327fd681c8ae0d0` (main remediation), `94508d41a67eef073db5230b2713b7b1e320ca7a` (cache-format correction); both direct `master` commits.
 - Named focused tests: see the evidence mapping below.
-- Qualified implementation `master` SHA: `e5b62c8f98ec7c2eecd05daf6327fd681c8ae0d0`. The subsequent documentation-only closeout is independently CI-qualified before completion is reported; its SHA/run are reported in the completion response to avoid a self-referential commit hash.
-- Implementation exact-head CI: `37068864649`, **success**, https://github.com/ekkus93/deeper-dive/actions/runs/37068864649.
-- Quality job `111043260808`: **success** (lock, format, lint, mypy, full pytest, build, CLI/import smoke).
-- Fresh-machine job `111043260545`: **success** (clean wheel install, installed CLI/TUI launch, corpus/episode workflow).
-- Mandatory real KittenTTS Micro CPU smoke: **success**, step 9 of fresh-machine job `111043260545`.
+- Qualified implementation `master` SHA: `94508d41a67eef073db5230b2713b7b1e320ca7a`. The subsequent documentation-only closeout is independently CI-qualified before completion is reported; its SHA/run are reported in the completion response to avoid a self-referential commit hash.
+- Final implementation exact-head CI: `37069342286`, **success**, https://github.com/ekkus93/deeper-dive/actions/runs/37069342286. Main implementation CI `37068864649` and initial documentation closeout CI `37069170757` also passed.
+- Quality job `111044801276`: **success** (lock, format, lint, mypy, full pytest, build, CLI/import smoke).
+- Fresh-machine job `111044801538`: **success** (clean wheel install, installed CLI/TUI launch, corpus/episode workflow).
+- Mandatory real KittenTTS Micro CPU smoke: **success**, step 9 of fresh-machine job `111044801538`.
 - Compatibility: legacy row-authoritative plan fields and missing ID lists remain readable; malformed explicit ID lists fail. Legacy TTS statuses/cache artifacts remain readable. Post-start plan mutation is explicitly rejected; create a new episode for changed content. No dependent history/cache files are removed. Informational sources/research/export boundaries are disclosed; explicit exports remain supported. No finding is intentionally deferred.
 
 ### Evidence mapping
@@ -135,4 +135,6 @@ stored artifact format to match the request. A mismatched legacy entry is
 resynthesized; files still referenced by another turn are preserved. Regression
 names: `test_legacy_wrong_format_cache_cannot_satisfy_wav_request` and
 `test_configured_mp3_is_rejected_even_when_legacy_cache_exists`. Final exact-head
-qualification and reconciliation of this correction are still required.
+qualification passed in CI run `37069342286`: **791 tests passed**, quality and
+fresh-machine jobs succeeded, including mandatory real KittenTTS. This closeout
+reconciles the correction and is independently qualified before completion is reported.
