@@ -377,3 +377,54 @@ def test_returned_format_mismatch_leaves_no_success(tmp_path, format, audio, med
     assert not list(cache.iterdir())
     with database.connection() as db:
         assert not db.execute("SELECT * FROM generation_run_units WHERE run_id='run'").fetchall()
+
+
+def test_legacy_wrong_format_cache_cannot_satisfy_wav_request(tmp_path):
+    provider = FakeTTSProvider(voices=(TTSVoice("v", "Voice"),))
+    registry = TTSProviderRegistry()
+    registry.register(provider)
+    database = _database(tmp_path / "project.db")
+    repository = TTSArtifactRepository(database)
+    old = tmp_path / "legacy.mp3"
+    old.write_bytes(b"ID3legacy")
+    turn = TTSTurn("new", "h", "text", provider.provider_id, "v")
+    key = TTSGenerationStage.cache_key(turn)
+    repository.save(
+        TTSArtifact("old", "legacy", key, "complete", old, provider.provider_id, "v", None, "mp3")
+    )
+    stage = TTSGenerationStage(registry, repository, tmp_path / "cache", max_workers=1)
+    artifact = stage.generate("run", (turn,))[0]
+    assert len(provider.requests) == 1
+    assert artifact.format == "wav"
+    assert old.read_bytes() == b"ID3legacy"  # Another durable turn still references it.
+
+
+def test_configured_mp3_is_rejected_even_when_legacy_cache_exists(tmp_path):
+    provider = FakeTTSProvider(voices=(TTSVoice("v", "Voice"),))
+    registry = TTSProviderRegistry()
+    registry.register(provider)
+    database = _database(tmp_path / "project.db")
+    repository = TTSArtifactRepository(database)
+    old = tmp_path / "legacy.mp3"
+    old.write_bytes(b"ID3legacy")
+    turn = TTSTurn(
+        "new", "h", "text", provider.provider_id, "v", settings={"response_format": "mp3"}
+    )
+    repository.save(
+        TTSArtifact(
+            "old",
+            "legacy",
+            TTSGenerationStage.cache_key(turn),
+            "complete",
+            old,
+            provider.provider_id,
+            "v",
+            None,
+            "mp3",
+        )
+    )
+    stage = TTSGenerationStage(registry, repository, tmp_path / "cache", max_workers=1)
+    with pytest.raises(ValueError, match="WAV only"):
+        stage.generate("run", (turn,))
+    assert not provider.requests
+    assert repository.get_by_turn_id("new") is None

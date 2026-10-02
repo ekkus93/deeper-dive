@@ -1,7 +1,7 @@
 # Deeper Dive Production Generation: Second Post-Review Remediation TODO
 
 **Created:** 2026-10-02
-**Status:** Complete
+**Status:** Final cache-format correction under qualification
 **Authority:** `docs/DEEP_DIVE_PRODUCTION_GENERATION_SECOND_POST_REVIEW_REMEDIATION_SPEC_2026-10-02.md`
 **Predecessor:** `docs/DEEP_DIVE_PRODUCTION_GENERATION_POST_REVIEW_REMEDIATION_TODO_2026-09-27.md`
 
@@ -37,7 +37,7 @@ Checkboxes describe work to be done. Check an implementation item only after pro
 - [x] Compare provider-reported format with the requested response format before file, row, or checkpoint persistence.
 - [x] Validate reported WAV content through the existing decoder before durable success where practical.
 - [x] Ensure an unexpected MP3/raw response under a WAV request leaves no successful artifact or final audio.
-- [x] Preserve existing provider, voice, model, cache, legacy artifact, and Kitten WAV behavior.
+- [ ] Preserve existing provider, voice, model, cache, legacy artifact, and Kitten WAV behavior.
 - [x] Add CLI/TUI preflight and synthesis regressions for configured MP3 and unexpected returned formats.
 
 ## SPR-130 — Role preflight/production parity
@@ -73,9 +73,9 @@ Checkboxes describe work to be done. Check an implementation item only after pro
 
 - [x] Document the historical 2026-09-27 final SHA/CI evidence gap accurately without rewriting its completed checklist.
 - [x] Record implementation commit SHA(s), focused test names, and any necessary compatibility decision.
-- [x] Observe exact-head quality and fresh-machine CI on the final implementation commit.
+- [ ] Observe exact-head quality and fresh-machine CI on the final implementation commit.
 - [x] Record CI run ID, conclusion, quality result, installed-wheel result, and mandatory Kitten result.
-- [x] Reload this TODO/spec from the qualified `master` head and confirm no unchecked items before declaring completion.
+- [ ] Reload this TODO/spec from the qualified `master` head and confirm no unchecked items before declaring completion.
 
 ## SPR-180 — Pipeline stage semantics
 
@@ -127,3 +127,12 @@ The shared deterministic follow-up fixture exercises real provider factory, plan
 conversation, synthesis, composition, and export services. The production paths are
 shared by CLI and TUI. Repository orientation and all remote commits/CI observations
 used Ralph Bridge. No task branches or pull requests were created.
+
+### Final cache-format correction
+
+The cache-hit path now applies WAV-only configuration validation and requires the
+stored artifact format to match the request. A mismatched legacy entry is
+resynthesized; files still referenced by another turn are preserved. Regression
+names: `test_legacy_wrong_format_cache_cannot_satisfy_wav_request` and
+`test_configured_mp3_is_rejected_even_when_legacy_cache_exists`. Final exact-head
+qualification and reconciliation of this correction are still required.

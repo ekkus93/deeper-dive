@@ -202,9 +202,15 @@ class TTSGenerationStage:
         resolved: dict[str, TTSArtifact] = {}
         missing_by_key: dict[str, list[TTSTurn]] = {}
         for turn in turns:
+            requested_format = self._requested_format(turn)
             key = self.cache_key(turn)
             cached = self.repository.get_by_cache_key(key)
-            if cached is not None and cached.path.is_file() and cached.path.stat().st_size > 0:
+            if (
+                cached is not None
+                and cached.format == requested_format
+                and cached.path.is_file()
+                and cached.path.stat().st_size > 0
+            ):
                 artifact = self._artifact_for_current_turn(turn, key, cached)
                 resolved[turn.turn_id] = artifact
                 self.repository.save(artifact)
@@ -270,9 +276,7 @@ class TTSGenerationStage:
     def _synthesize(self, run_id: str, turn: TTSTurn, key: str) -> TTSArtifact:
         provider = self.registry.get(turn.provider_id)
         settings = turn.settings or {}
-        requested_format = str(settings.get("response_format", "wav")).lower().lstrip(".")
-        if requested_format != "wav":
-            raise ValueError("generation supports WAV only TTS response format")
+        requested_format = self._requested_format(turn)
         result = provider.synthesize(
             TTSRequest(
                 text=turn.text,
@@ -295,6 +299,15 @@ class TTSGenerationStage:
         self.repository.save(artifact)
         self.repository.mark_checkpoint(run_id, turn.turn_id)
         return artifact
+
+    @staticmethod
+    def _requested_format(turn: TTSTurn) -> str:
+        requested_format = (
+            str((turn.settings or {}).get("response_format", "wav")).lower().lstrip(".")
+        )
+        if requested_format != "wav":
+            raise ValueError("generation supports WAV only TTS response format")
+        return requested_format
 
     @staticmethod
     def _validate_identity(turn: TTSTurn, result: TTSAudioResult) -> None:
