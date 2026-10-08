@@ -10,7 +10,7 @@ from textual.widgets import Button, Input, Select
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.guided_app import GuidedDeeperDiveApp
 from deeper_dive.guided_source_wizard import GuidedSourceWizard
-from deeper_dive.parsing import ParseDiagnostic, ParsedBlock, ParseResult, ParseSeverity
+from deeper_dive.parsing import ParsedBlock, ParseDiagnostic, ParseResult, ParseSeverity
 from deeper_dive.source_readiness import source_index_ready, source_readiness_label
 from deeper_dive.storage.workspace import WorkspaceManager
 
