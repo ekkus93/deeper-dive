@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from time import monotonic
+from typing import Protocol, cast
 
 from textual.widget import Widget
 from textual.widgets import Button, Input, Select
@@ -10,6 +11,7 @@ from textual.widgets import Button, Input, Select
 from deeper_dive.diagnostics import redact, sanitize_exception_message
 from deeper_dive.first_run import FirstRunController
 from deeper_dive.llm import LLMMessage, LLMRequest
+from deeper_dive.guided_workflow import CompletionProbe, WizardContext
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.settings_screen import SettingsController
 from deeper_dive.wizard_shell import FirstRunWizardShell
@@ -22,10 +24,14 @@ _REQUIRED_SETUP_ROLES = (
 )
 
 
+class _NavigationApp(Protocol):
+    def action_navigate(self, destination: str) -> None: ...
+
+
 class GuidedFirstRunWizard(FirstRunWizardShell):
     """Complete first-run flow routed through durable provider/settings boundaries."""
 
-    def __init__(self, context, completion_probe) -> None:
+    def __init__(self, context: WizardContext, completion_probe: CompletionProbe) -> None:
         super().__init__(context, completion_probe)
         self._llm_provider_name: str | None = None
         self._tts_provider_name: str | None = None
@@ -483,10 +489,10 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         self.set_status("Saved voice, duration, and research defaults.")
 
     def action_ready_new(self) -> None:
-        self.app.action_navigate("new")
+        cast(_NavigationApp, self.app).action_navigate("new")
 
     def action_ready_home(self) -> None:
-        self.app.action_navigate("home")
+        cast(_NavigationApp, self.app).action_navigate("home")
 
     def _load_existing_setup(self) -> None:
         controller = self.context.composition.provider_controller
