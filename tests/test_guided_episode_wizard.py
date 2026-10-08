@@ -456,9 +456,11 @@ async def _guided_hosts_reorder_edit_and_restart(tmp_path: Path) -> None:
         screen = app.screen
         assert isinstance(screen, GuidedEpisodeWizard)
         project_id, episode_id = await _prepare_to_plan(screen, pilot)
-        original_ids = EpisodeConfigurationService(
-            app.composition.database_for_project(project_id)
-        ).load_configuration(episode_id).host_ids
+        original_ids = (
+            EpisodeConfigurationService(app.composition.database_for_project(project_id))
+            .load_configuration(episode_id)
+            .host_ids
+        )
         assert len(original_ids) == 2
         screen.context.state = screen.context.state.moved_to("hosts")
         screen._toggle()
