@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from textual.app import ComposeResult
@@ -11,6 +12,7 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Label, Static
 
+from deeper_dive.audio_playback import PlaybackState
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.episode_library_export import EpisodeExportResult, EpisodeLibraryExportService
 from deeper_dive.generation_monitor import GenerationMonitorScreen
@@ -75,6 +77,31 @@ class EpisodeLibraryController:
         )
 
     @staticmethod
+    def play(app: DeeperDiveApp, item: EpisodeLibraryItem) -> PlaybackState:
+        audio = EpisodeLibraryController.audio_path(app, item)
+        app.current_episode_id = item.episode.id
+        app.current_run_id = item.run.id if item.run is not None else None
+        return app.composition.playback_controller.play(audio)
+
+    @staticmethod
+    def audio_path(app: DeeperDiveApp, item: EpisodeLibraryItem) -> Path:
+        project_id = EpisodeLibraryController._project_id(app)
+        if item.episode.project_id != project_id:
+            raise ValueError("selected episode does not belong to the open project")
+        if item.run is None:
+            raise ValueError("selected episode has no generation run to play")
+        if item.run.episode_id != item.episode.id:
+            raise ValueError("selected generation run does not belong to the episode")
+        if item.run.state != "completed":
+            raise ValueError(f"run state {item.run.state} is not playable")
+        output = app.service.workspaces.project_root(project_id) / "output"
+        for suffix in (".mp3", ".wav"):
+            candidate = output / f"{item.episode.id}{suffix}"
+            if candidate.is_file():
+                return candidate
+        raise ValueError("selected episode has no completed audio file to play")
+
+    @staticmethod
     def delete(app: DeeperDiveApp, episode_id: str) -> None:
         project_id = EpisodeLibraryController._project_id(app)
         database = Database(app.service.workspaces.project_root(project_id) / "project.db")
@@ -97,6 +124,7 @@ class EpisodeLibraryScreen(Screen[None]):
     """List and manage episodes without conflating their generation runs."""
 
     BINDINGS = [
+        Binding("p", "play_selected", "Play"),
         Binding("o", "open_selected", "Open/review"),
         Binding("r", "resume_selected", "Resume"),
         Binding("d", "duplicate_selected", "Duplicate"),
@@ -131,6 +159,7 @@ class EpisodeLibraryScreen(Screen[None]):
             )
             yield Static("", id="episode-library-list")
             yield Static("", id="episode-library-selection")
+            yield Button("Play", name="play-episode")
             yield Button("Open / Review", name="open-episode")
             yield Button("Resume", name="resume-episode")
             yield Button("Duplicate Configuration", name="duplicate-episode")
@@ -148,6 +177,7 @@ class EpisodeLibraryScreen(Screen[None]):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         name = event.button.name or ""
         actions = {
+            "play-episode": self.action_play_selected,
             "open-episode": self.action_open_selected,
             "resume-episode": self.action_resume_selected,
             "duplicate-episode": self.action_duplicate_selected,
@@ -162,6 +192,21 @@ class EpisodeLibraryScreen(Screen[None]):
             action()
         elif name:
             self._app.action_navigate(name)
+
+    def action_play_selected(self) -> None:
+        item = self._selected()
+        if item is None:
+            self._status("No episode selected")
+            return
+        try:
+            state = EpisodeLibraryController.play(self._app, item)
+        except ValueError as exc:
+            self._status(str(exc).capitalize())
+            return
+        except Exception as exc:
+            self._status(user_status("playback", exc))
+            return
+        self._status(state.message)
 
     def action_open_selected(self) -> None:
         item = self._selected()
