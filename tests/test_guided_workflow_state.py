@@ -154,9 +154,7 @@ def test_resume_preserves_later_location_when_prerequisites_still_valid() -> Non
 
 def test_forward_transition_rejects_invalid_earlier_prerequisite() -> None:
     complete = {step.key: True for step in NEW_DEEP_DIVE_STEPS}
-    navigator = WizardNavigator(
-        WizardState(WizardKind.NEW_DEEP_DIVE, "plan"), complete.__getitem__
-    )
+    navigator = WizardNavigator(WizardState(WizardKind.NEW_DEEP_DIVE, "plan"), complete.__getitem__)
 
     assert navigator.can_continue
     complete["sources"] = False
