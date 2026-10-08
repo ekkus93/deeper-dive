@@ -97,23 +97,23 @@ async def _goal_first_home_exposes_navigation(tmp_path: Path) -> None:
     async with app.run_test(size=(100, 30)) as pilot:
         await pilot.pause()
         assert app.screen.id == "screen-home"
-        primary = tuple(
-            button.name for button in app.screen.query_one("#global-nav").query(Button)
-        )
+        primary = tuple(button.name for button in app.screen.query_one("#global-nav").query(Button))
         assert primary == ("home", "new", "projects", "library")
         advanced = tuple(
             button.name for button in app.screen.query_one("#project-nav").query(Button)
         )
         assert advanced == (
-            "sources", "research", "hosts", "providers",
-            "settings", "help", "episode", "generate",
+            "sources",
+            "research",
+            "hosts",
+            "providers",
+            "settings",
+            "help",
+            "episode",
+            "generate",
         )
-        assert "My source research" in str(
-            app.screen.query_one("#home-recent-projects").render()
-        )
-        assert "Setup ready" in str(
-            app.screen.query_one("#home-readiness").render()
-        )
+        assert "My source research" in str(app.screen.query_one("#home-recent-projects").render())
+        assert "Setup ready" in str(app.screen.query_one("#home-readiness").render())
         app.screen.query_one("#action-new-deep-dive", Button).press()
         await pilot.pause()
         assert app.screen.id == "screen-wizard-new-deep-dive"
@@ -133,6 +133,6 @@ async def _goal_first_home_projects_and_library_routes(tmp_path: Path) -> None:
         app.action_navigate("projects")
         await pilot.pause()
         assert app.screen.id == "screen-home"
-        app.screen.query_one("#nav-providers", Button).press()
+        next(button for button in app.screen.query_one("#project-nav").query(Button) if button.name == "providers").press()
         await pilot.pause()
         assert app.screen.id == "screen-providers"

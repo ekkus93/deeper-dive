@@ -39,27 +39,21 @@ def _recent_episode_lines(app: DeeperDiveApp) -> str:
     if not entries:
         return "Recent episodes: None yet. Start a New Deep Dive."
     entries.sort(key=lambda item: item[0], reverse=True)
-    return "Recent episodes:\n" + "\n".join(
-        f"  • {line}" for _, line in entries[:5]
-    )
+    return "Recent episodes:\n" + "\n".join(f"  • {line}" for _, line in entries[:5])
 
 
 def refresh_goal_home(app: DeeperDiveApp) -> None:
     """Refresh derived Home information whenever the user returns."""
     home = app.get_screen("home")
     home.query_one("#home-readiness", Static).update(Text(_readiness_label(app)))
-    home.query_one("#home-recent-episodes", Static).update(
-        Text(_recent_episode_lines(app))
-    )
+    home.query_one("#home-recent-episodes", Static).update(Text(_recent_episode_lines(app)))
     projects = sorted(
         app.service.list_project_summaries(),
         key=lambda item: item.modified_at,
         reverse=True,
     )
     recent = ", ".join(project.name for project in projects[:5]) or "None yet"
-    home.query_one("#home-recent-projects", Static).update(
-        Text(f"Recent projects: {recent}")
-    )
+    home.query_one("#home-recent-projects", Static).update(Text(f"Recent projects: {recent}"))
     # Retain existing project lifecycle operations, with up-to-date selection.
     home.refresh_projects()  # type: ignore[attr-defined]
 
