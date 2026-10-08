@@ -14,6 +14,7 @@ from deeper_dive.guided_workflow import CompletionProbe, WizardContext
 from deeper_dive.llm import LLMMessage, LLMRequest
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.settings_screen import SettingsController
+from deeper_dive.voice_preview import VoicePreviewService
 from deeper_dive.wizard_shell import FirstRunWizardShell
 
 _REQUIRED_SETUP_ROLES = (
@@ -108,6 +109,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             Button("Discover Voices", id="setup-discover-voices", name="discover-voices"),
             Select([], allow_blank=True, id="setup-host1-voice"),
             Select([], allow_blank=True, id="setup-host2-voice"),
+            Button("Preview Host 1 Voice", id="setup-preview-voice", name="preview-voice"),
             Select(
                 [("10 minutes", "10"), ("20 minutes", "20"), ("30 minutes", "30")],
                 value="20",
@@ -234,6 +236,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             "save-roles": self.action_save_roles,
             "save-speech": self.action_save_speech,
             "discover-voices": self.action_discover_voices,
+            "preview-voice": self.action_preview_voice,
             "save-defaults": self.action_save_defaults,
             "ready-new": self.action_ready_new,
             "ready-home": self.action_ready_home,
@@ -459,6 +462,22 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             )
         self.set_status(f"Discovered {len(voices)} friendly voice option(s) from {name}.")
 
+    def action_preview_voice(self) -> None:
+        name = self._selected_tts_name()
+        voice = self._select_value("#setup-host1-voice")
+        if name is None or not voice:
+            self.set_status("Configure speech and choose a Host 1 voice before previewing.")
+            return
+        try:
+            provider = self.context.composition.provider_controller.tts(name)
+            path = VoicePreviewService(
+                self.context.composition.service.workspaces.data_dir / "voice-previews"
+            ).preview(provider, voice=voice)
+        except (KeyError, OSError, RuntimeError, ValueError) as exc:
+            self.set_status(f"Voice preview failed: {sanitize_exception_message(exc)}")
+            return
+        self.set_status(f"Voice preview synthesized through {name}: {path.name}")
+
     def action_save_defaults(self) -> None:
         config = self.context.composition.provider_controller.config()
         deferred = config.defaults.get("speech_setup") == "deferred"
@@ -600,6 +619,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
                 "#setup-discover-voices",
                 "#setup-host1-voice",
                 "#setup-host2-voice",
+                "#setup-preview-voice",
                 "#setup-duration",
                 "#setup-research-default",
                 "#setup-save-defaults",
@@ -615,6 +635,22 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             self._apply_llm_choice_defaults(force=False)
             manual = self._select_value("#setup-ai-choice") == "manual"
             self.query_one("#setup-provider-adapter", Input).display = manual
+            adapter = self._selected_llm_adapter()
+            controller = self.context.composition.provider_controller
+            fields = (
+                controller.configuration_fields(adapter)
+                if controller.capability(adapter) == "llm"
+                else frozenset()
+            )
+            for selector, field in (
+                ("#setup-provider-base-url", "base_url"),
+                ("#setup-provider-model", "default_model"),
+                ("#setup-provider-credential-env", "credential_env"),
+                ("#setup-provider-network", "network_scope"),
+            ):
+                self.query_one(selector, Input).display = field in fields
+            self.query_one("#setup-model-picker", Select).display = "default_model" in fields
+            self.query_one("#setup-discover-models", Button).display = "default_model" in fields
         if step == "model-test":
             advanced = self.context.state.setup_mode is not None and (
                 self.context.state.setup_mode.value == "advanced"
@@ -633,16 +669,27 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             choice = self._select_value("#setup-speech-choice")
             custom = choice == "advanced"
             deferred = choice == "deferred"
+            adapter = (
+                self.query_one("#setup-speech-adapter", Input).value.strip()
+                if custom
+                else (choice or "")
+            )
+            controller = self.context.composition.provider_controller
+            fields = (
+                controller.configuration_fields(adapter)
+                if controller.capability(adapter) == "tts"
+                else frozenset()
+            )
             self.query_one("#setup-speech-adapter", Input).display = custom
-            for selector in (
-                "#setup-speech-name",
-                "#setup-speech-base-url",
-                "#setup-speech-model",
-                "#setup-speech-credential-env",
-                "#setup-speech-network",
-                "#setup-speech-voices",
+            self.query_one("#setup-speech-name", Input).display = not deferred
+            for selector, field in (
+                ("#setup-speech-base-url", "base_url"),
+                ("#setup-speech-model", "default_model"),
+                ("#setup-speech-credential-env", "credential_env"),
+                ("#setup-speech-network", "network_scope"),
+                ("#setup-speech-voices", "voices"),
             ):
-                self.query_one(selector).display = not deferred
+                self.query_one(selector, Input).display = not deferred and field in fields
 
     def _apply_llm_choice_defaults(self, *, force: bool) -> None:
         choice = self._select_value("#setup-ai-choice") or "ollama"
