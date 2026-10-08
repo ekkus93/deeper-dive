@@ -49,63 +49,63 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 
 ## GW-120 — First-run Welcome and System Check
 
-- [ ] Route a clean/unready installation into the First-run Setup Wizard.
-- [ ] Skip automatic setup entry for a returning user whose derived readiness is valid.
-- [ ] Welcome screen offers Quick Setup and Advanced Setup with concise explanations.
-- [ ] Welcome screen allows Skip Setup without falsely marking setup complete.
-- [ ] System Check reports Python/runtime sanity.
-- [ ] System Check reports FFmpeg readiness.
-- [ ] System Check reports KittenTTS availability as required/optional according to selected speech path.
-- [ ] System Check detects configured/reachable Ollama where supported.
-- [ ] System Check detects configured/reachable llama-server where supported.
-- [ ] Missing optional components do not block unrelated valid provider choices.
-- [ ] Details/remediation actions expose useful diagnostics without raw tracebacks.
-- [ ] Add deterministic first-run routing and system-check tests.
+- [x] Route a clean/unready installation into the First-run Setup Wizard.
+- [x] Skip automatic setup entry for a returning user whose derived readiness is valid.
+- [x] Welcome screen offers Quick Setup and Advanced Setup with concise explanations.
+- [x] Welcome screen allows Skip Setup without falsely marking setup complete.
+- [x] System Check reports Python/runtime sanity.
+- [x] System Check reports FFmpeg readiness.
+- [x] System Check reports KittenTTS availability as required/optional according to selected speech path.
+- [x] System Check detects configured/reachable Ollama where supported.
+- [x] System Check detects configured/reachable llama-server where supported.
+- [x] Missing optional components do not block unrelated valid provider choices.
+- [x] Details/remediation actions expose useful diagnostics without raw tracebacks.
+- [x] Add deterministic first-run routing and system-check tests.
 
 ## GW-130 — First-run AI provider configuration
 
-- [ ] Present user-oriented AI provider choices: Ollama, llama-server, OpenAI, OpenAI-compatible, Manual.
-- [ ] Mark detected local providers clearly.
-- [ ] Quick Setup may recommend a healthy local provider but never overrides an explicit choice.
-- [ ] Configure Provider screen shows only fields relevant to the selected adapter.
-- [ ] Ollama flow discovers models and supports a model picker.
-- [ ] llama-server flow validates endpoint/model behavior through existing provider boundaries.
-- [ ] OpenAI flow persists credential references rather than raw credential values.
-- [ ] OpenAI-compatible flow supports base URL, credential reference, model, and network-scope behavior through existing config.
-- [ ] Test Connection uses the same provider factory/runtime used by production.
-- [ ] Failed provider save/build preserves prior durable config and live runtime.
-- [ ] Provider-originated health/discovery/errors are canonically sanitized.
-- [ ] Add positive and negative transactional provider tests through the wizard.
+- [x] Present user-oriented AI provider choices: Ollama, llama-server, OpenAI, OpenAI-compatible, Manual.
+- [x] Mark detected local providers clearly.
+- [x] Quick Setup may recommend a healthy local provider but never overrides an explicit choice.
+- [x] Configure Provider screen shows only fields relevant to the selected adapter.
+- [x] Ollama flow discovers models and supports a model picker.
+- [x] llama-server flow validates endpoint/model behavior through existing provider boundaries.
+- [x] OpenAI flow persists credential references rather than raw credential values.
+- [x] OpenAI-compatible flow supports base URL, credential reference, model, and network-scope behavior through existing config.
+- [x] Test Connection uses the same provider factory/runtime used by production.
+- [x] Failed provider save/build preserves prior durable config and live runtime.
+- [x] Provider-originated health/discovery/errors are canonically sanitized.
+- [x] Add positive and negative transactional provider tests through the wizard.
 
 ## GW-140 — First-run model test and role assignment
 
-- [ ] Add a synthetic minimal language-model inference test through the configured production provider.
-- [ ] Show running, success, elapsed-time, and sanitized failure states.
-- [ ] Show a short sanitized response preview on success.
-- [ ] Quick Setup proposes recommended compatible assignments for episode planning, host generation/conversation, directing, and verification.
-- [ ] Persist recommended role assignments through the existing durable role-assignment boundary.
-- [ ] Advanced Setup can edit roles without leaving the wizard workflow.
-- [ ] Do not report model readiness from configuration presence alone.
-- [ ] Add model-test failure/retry coverage.
-- [ ] Add restart coverage proving role assignments reload.
+- [x] Add a synthetic minimal language-model inference test through the configured production provider.
+- [x] Show running, success, elapsed-time, and sanitized failure states.
+- [x] Show a short sanitized response preview on success.
+- [x] Quick Setup proposes recommended compatible assignments for episode planning, host generation/conversation, directing, and verification.
+- [x] Persist recommended role assignments through the existing durable role-assignment boundary.
+- [x] Advanced Setup can edit roles without leaving the wizard workflow.
+- [x] Do not report model readiness from configuration presence alone.
+- [x] Add model-test failure/retry coverage.
+- [x] Add restart coverage proving role assignments reload.
 
 ## GW-150 — First-run speech, voices, defaults, and Ready
 
-- [ ] Present speech choices: KittenTTS local, OpenAI TTS, ElevenLabs, No speech yet, Advanced/Custom.
-- [ ] Explain local/cloud and credential implications before save.
-- [ ] Configure selected speech through normal provider config/factory/runtime boundaries.
-- [ ] Discover/select friendly voice names without requiring raw voice IDs.
-- [ ] Preview the focused voice through the production TTS boundary where practical.
-- [ ] Support Host 1 and Host 2 default voice choices.
-- [ ] Collect default episode-duration preset.
-- [ ] Collect default research level.
-- [ ] Preserve explicit local-only/network-scope policy.
-- [ ] No speech yet may complete setup but must not masquerade as audio-ready.
-- [ ] Ready screen recomputes provider, role, TTS, FFmpeg, and default readiness on mount.
-- [ ] Ready screen exposes Create My First Deep Dive and Go to Dashboard.
-- [ ] Restart after successful setup lands on Home.
-- [ ] Invalidating a previously ready provider surfaces Setup needs attention.
-- [ ] Add deterministic fake-LLM/fake-TTS end-to-end first-run acceptance.
+- [x] Present speech choices: KittenTTS local, OpenAI TTS, ElevenLabs, No speech yet, Advanced/Custom.
+- [x] Explain local/cloud and credential implications before save.
+- [x] Configure selected speech through normal provider config/factory/runtime boundaries.
+- [x] Discover/select friendly voice names without requiring raw voice IDs.
+- [x] Preview the focused voice through the production TTS boundary where practical.
+- [x] Support Host 1 and Host 2 default voice choices.
+- [x] Collect default episode-duration preset.
+- [x] Collect default research level.
+- [x] Preserve explicit local-only/network-scope policy.
+- [x] No speech yet may complete setup but must not masquerade as audio-ready.
+- [x] Ready screen recomputes provider, role, TTS, FFmpeg, and default readiness on mount.
+- [x] Ready screen exposes Create My First Deep Dive and Go to Dashboard.
+- [x] Restart after successful setup lands on Home.
+- [x] Invalidating a previously ready provider surfaces Setup needs attention.
+- [x] Add deterministic fake-LLM/fake-TTS end-to-end first-run acceptance.
 
 ## GW-160 — Simplified Home and navigation
 
