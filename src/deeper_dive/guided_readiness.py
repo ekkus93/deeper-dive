@@ -2,16 +2,22 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.first_run import FirstRunController
 from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.guided_workflow import WizardContext, WizardKind
-from deeper_dive.model_roles import ModelRole, effective_model_role_assignments
+from deeper_dive.model_roles import (
+    ModelAssignment,
+    ModelRole,
+    effective_model_role_assignments,
+)
 from deeper_dive.plan_validity import evaluate_episode_plan
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.research_policy import ResearchMode, ResearchPolicyStore
+from deeper_dive.user_config import ProviderConfig
 
 _FIRST_RUN_REQUIRED_ROLES = (
     ModelRole.EPISODE_PLANNING,
@@ -66,11 +72,17 @@ def first_run_readiness(context: WizardContext) -> FirstRunDerivedReadiness:
         user_defaults=config.defaults
     )
     model_roles_ready = not assignment_errors and all(
-        _assignment_targets_configured_llm(controller, config.providers, assignments.resolve(role))
+        _assignment_targets_configured_llm(
+            controller,
+            config.providers,
+            assignments.resolve(role),
+        )
         for role in _FIRST_RUN_REQUIRED_ROLES
     )
 
-    speech_deferred = config.defaults.get("speech_setup", "").strip().lower() == "deferred"
+    speech_deferred = (
+        config.defaults.get("speech_setup", "").strip().lower() == "deferred"
+    )
     tts_provider_id = config.defaults.get("tts_provider", "").strip()
     tts_voice = config.defaults.get("tts_voice", "").strip()
     tts_config = config.providers.get(tts_provider_id)
@@ -86,7 +98,9 @@ def first_run_readiness(context: WizardContext) -> FirstRunDerivedReadiness:
         and tts_config is not None
         and tts_config.provider_type.strip().lower().replace("_", "-") == "kitten"
     )
-    tts_runtime_ready = tts_configured and (not kitten_required or status.kitten_available)
+    tts_runtime_ready = tts_configured and (
+        not kitten_required or status.kitten_available
+    )
     audio_ready = tts_runtime_ready and status.ffmpeg_available
 
     defaults_ready = _defaults_are_valid(config.defaults)
@@ -105,24 +119,20 @@ def first_run_readiness(context: WizardContext) -> FirstRunDerivedReadiness:
 
 def _assignment_targets_configured_llm(
     controller: ProviderController,
-    providers: object,
-    assignment: object,
+    providers: Mapping[str, ProviderConfig],
+    assignment: ModelAssignment | None,
 ) -> bool:
-    from collections.abc import Mapping
-    from deeper_dive.model_roles import ModelAssignment
-    from deeper_dive.user_config import ProviderConfig
-
-    if not isinstance(assignment, ModelAssignment) or not isinstance(providers, Mapping):
+    if assignment is None:
         return False
     provider = providers.get(assignment.provider)
     return (
-        isinstance(provider, ProviderConfig)
+        provider is not None
         and controller.capability(provider.provider_type) == "llm"
         and bool(assignment.model.strip())
     )
 
 
-def _defaults_are_valid(defaults: dict[str, str]) -> bool:
+def _defaults_are_valid(defaults: Mapping[str, str]) -> bool:
     duration = defaults.get("quick_deep_dive_duration_minutes", "20").strip()
     try:
         if int(duration) <= 0:
@@ -186,7 +196,10 @@ class ProductionWizardCompletion:
 
     def _project_ready(self) -> bool:
         project_id = self.context.project_id
-        return project_id is not None and self.context.composition.service.open_project(project_id) is not None
+        return (
+            project_id is not None
+            and self.context.composition.service.open_project(project_id) is not None
+        )
 
     def _sources_ready(self) -> bool:
         project_id = self.context.project_id
@@ -221,7 +234,8 @@ class ProductionWizardCompletion:
             return False
         host_ids = repository.list_episode_host_ids(episode_id)
         return bool(host_ids) and all(
-            (host := repository.get_host(host_id)) is not None and host.project_id == project_id
+            (host := repository.get_host(host_id)) is not None
+            and host.project_id == project_id
             for host_id in host_ids
         )
 

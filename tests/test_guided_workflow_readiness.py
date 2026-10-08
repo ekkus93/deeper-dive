@@ -19,7 +19,11 @@ from deeper_dive.research_policy import ResearchMode, ResearchPolicy
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
-def _configured_composition(tmp_path: Path, *, speech_deferred: bool = False) -> ProductionComposition:
+def _configured_composition(
+    tmp_path: Path,
+    *,
+    speech_deferred: bool = False,
+) -> ProductionComposition:
     data_dir = tmp_path / "data"
     defaults = {role.value: "planner:fake-v1" for role in ModelRole}
     defaults.update(
@@ -51,7 +55,10 @@ def test_first_run_completion_is_recomputed_from_durable_configuration(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     composition = _configured_composition(tmp_path)
-    monkeypatch.setattr("deeper_dive.first_run.shutil.which", lambda _name: "/usr/bin/ffmpeg")
+    monkeypatch.setattr(
+        "deeper_dive.first_run.shutil.which",
+        lambda _name: "/usr/bin/ffmpeg",
+    )
     context = WizardContext(
         composition,
         WizardState(WizardKind.FIRST_RUN, "ready"),
@@ -130,9 +137,15 @@ def test_new_deep_dive_completion_advances_only_with_durable_production_state(
     assert completion("research")
 
     host = create_host_from_preset("curious_explainer", project.id)
-    host_record = replace(host.to_record(), tts_provider="speech", tts_voice="voice-a")
+    host_record = replace(
+        host.to_record(),
+        tts_provider="speech",
+        tts_voice="voice-a",
+    )
     composition.service.hosts(project.id).create_host(host_record)
-    episode = EpisodeConfigurationService(composition.database_for_project(project.id)).create(
+    episode = EpisodeConfigurationService(
+        composition.database_for_project(project.id)
+    ).create(
         project.id,
         EpisodeConfiguration(
             title="Guided readiness episode",
@@ -146,9 +159,11 @@ def test_new_deep_dive_completion_advances_only_with_durable_production_state(
     assert completion("episode")
     assert not completion("plan")
 
-    composition.configured_planning_service(project.id, "planner", "fake-v1").build_plan(
-        episode.id
-    )
+    composition.configured_planning_service(
+        project.id,
+        "planner",
+        "fake-v1",
+    ).build_plan(episode.id)
     assert completion("plan")
 
     monkeypatch.setattr(
@@ -158,7 +173,9 @@ def test_new_deep_dive_completion_advances_only_with_durable_production_state(
     assert completion("preflight")
 
 
-def test_research_step_requires_an_explicit_durable_project_policy(tmp_path: Path) -> None:
+def test_research_step_requires_an_explicit_durable_project_policy(
+    tmp_path: Path,
+) -> None:
     composition = _configured_composition(tmp_path)
     project = composition.service.create_project("Research choice")
     context = WizardContext(
