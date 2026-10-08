@@ -32,9 +32,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
         if not self.context.project_id or not title or not body:
             self.set_status("Project, source title and text required.")
             return
-        self.context.composition.service.add_pasted_source(
-            self.context.project_id, title, body
-        )
+        self.context.composition.service.add_pasted_source(self.context.project_id, title, body)
         self._sync_text()
         self.set_status(f"Imported {title}.")
 
