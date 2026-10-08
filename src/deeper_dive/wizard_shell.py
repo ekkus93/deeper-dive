@@ -180,7 +180,9 @@ class WizardShell(Screen[None]):
             return
         navigator = self.navigator
         self.query_one("#wizard-back", Button).disabled = self.busy or navigator.current_index == 0
-        self.query_one("#wizard-continue", Button).disabled = self.busy or not navigator.can_continue
+        self.query_one("#wizard-continue", Button).disabled = (
+            self.busy or not navigator.can_continue
+        )
         self.query_one("#wizard-save-exit", Button).disabled = self.busy
 
     def _apply_viewport_policy(self, width: int, height: int) -> None:
