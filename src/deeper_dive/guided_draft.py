@@ -14,7 +14,7 @@ from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardState
 if TYPE_CHECKING:
     from deeper_dive.composition import ProductionComposition
 
-_ID = re.compile(r"[a-zA-Z0-9_-]{1,128}\\Z")
+_ID = re.compile(r"[a-zA-Z0-9_-]{1,128}\Z")
 _MAX_DRAFT_BYTES = 8192
 
 
