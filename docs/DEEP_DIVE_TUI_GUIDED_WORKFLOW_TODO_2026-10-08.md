@@ -155,37 +155,37 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 
 ## GW-190 — New Deep Dive: Episode Settings and Review/Plan
 
-- [ ] Episode Settings collects episode title.
-- [ ] Episode Settings collects main question/focus.
-- [ ] Episode Settings offers duration presets plus Custom.
-- [ ] Episode Settings collects audience.
-- [ ] Technical depth, must-cover topics, avoid topics, and similar expert fields are available under Advanced options.
-- [ ] Persist episode state through EpisodeConfigurationService.
-- [ ] Validate episode fields before forward navigation.
-- [ ] Review & Plan builds through EpisodePlannerService.
-- [ ] Render ordered segment title, duration, and purpose/focus.
-- [ ] Provide Edit Plan and Regenerate actions through supported production planner operations.
-- [ ] Respect the existing post-start plan immutability/revision policy.
-- [ ] Continue requires the shared valid-plan policy to pass.
-- [ ] Provider/planner errors are sanitized and actionable.
-- [ ] Add positive plan, negative planner output, invalid persisted plan, and post-start mutation regressions.
+- [x] Episode Settings collects episode title.
+- [x] Episode Settings collects main question/focus.
+- [x] Episode Settings offers duration presets plus Custom.
+- [x] Episode Settings collects audience.
+- [x] Technical depth, must-cover topics, avoid topics, and similar expert fields are available under Advanced options.
+- [x] Persist episode state through EpisodeConfigurationService.
+- [x] Validate episode fields before forward navigation.
+- [x] Review & Plan builds through EpisodePlannerService.
+- [x] Render ordered segment title, duration, and purpose/focus.
+- [x] Provide Edit Plan and Regenerate actions through supported production planner operations.
+- [x] Respect the existing post-start plan immutability/revision policy.
+- [x] Continue requires the shared valid-plan policy to pass.
+- [x] Provider/planner errors are sanitized and actionable.
+- [x] Add positive plan, negative planner output, invalid persisted plan, and post-start mutation regressions.
 
 ## GW-200 — Ready to Generate and actionable preflight
 
-- [ ] Ready to Generate invokes the same shared preflight used by production CLI/TUI generation.
-- [ ] Render readiness for sources.
-- [ ] Render readiness for research policy.
-- [ ] Render readiness for hosts.
-- [ ] Render valid-plan status.
-- [ ] Render model-role/provider/model health.
-- [ ] Render speech/voice readiness.
-- [ ] Render FFmpeg readiness.
-- [ ] Render local-only/network-scope compatibility.
-- [ ] Every blocker has an actionable route back to the relevant wizard step or advanced screen where practical.
-- [ ] Continue/Generate remains disabled while blocking preflight issues exist.
-- [ ] Generate starts through GenerationStartService/shared ProductionComposition.
-- [ ] No wizard-specific run-creation or orchestration path exists.
-- [ ] Add CLI/TUI preflight-parity regression after wizard integration.
+- [x] Ready to Generate invokes the same shared preflight used by production CLI/TUI generation.
+- [x] Render readiness for sources.
+- [x] Render readiness for research policy.
+- [x] Render readiness for hosts.
+- [x] Render valid-plan status.
+- [x] Render model-role/provider/model health.
+- [x] Render speech/voice readiness.
+- [x] Render FFmpeg readiness.
+- [x] Render local-only/network-scope compatibility.
+- [x] Every blocker has an actionable route back to the relevant wizard step or advanced screen where practical.
+- [x] Continue/Generate remains disabled while blocking preflight issues exist.
+- [x] Generate starts through GenerationStartService/shared ProductionComposition.
+- [x] No wizard-specific run-creation or orchestration path exists.
+- [x] Add CLI/TUI preflight-parity regression after wizard integration.
 
 ## GW-210 — Generation Progress and failure recovery
 
