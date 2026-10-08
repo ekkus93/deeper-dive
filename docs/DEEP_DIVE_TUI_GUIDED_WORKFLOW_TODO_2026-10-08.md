@@ -189,30 +189,30 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 
 ## GW-210 — Generation Progress and failure recovery
 
-- [ ] Create a guided Generation Progress screen backed by durable run state.
-- [ ] Show current stage and completed stages.
-- [ ] Preserve current informational-stage semantics; do not claim nonexistent artifacts.
-- [ ] Show honest progress only where production can compute it.
-- [ ] Show elapsed time and sanitized latest status.
-- [ ] Support pause where durable pipeline state permits it.
-- [ ] Support resume where durable pipeline state permits it.
-- [ ] Support cancel with confirmation.
+- [x] Create a guided Generation Progress screen backed by durable run state.
+- [x] Show current stage and completed stages.
+- [x] Preserve current informational-stage semantics; do not claim nonexistent artifacts.
+- [x] Show honest progress only where production can compute it.
+- [x] Show elapsed time and sanitized latest status.
+- [x] Support pause where durable pipeline state permits it.
+- [x] Support resume where durable pipeline state permits it.
+- [x] Support cancel with confirmation.
 - [ ] Reload progress correctly after screen recreation/restart.
-- [ ] Durable failure view shows stage, stable failure code when present, and sanitized message.
+- [x] Durable failure view shows stage, stable failure code when present, and sanitized message.
 - [ ] Provide Retry/Resume only for supported failure states.
-- [ ] Provide route back to configuration for setup/preflight repair.
+- [x] Provide route back to configuration for setup/preflight repair.
 - [ ] Add duplicate-action, pause/resume/cancel, resume-after-failure, and restart regressions.
 
 ## GW-220 — Episode Ready and Library handoff
 
 - [ ] Successful generation transitions to Episode Ready.
-- [ ] Episode Ready shows title, duration when available, and selected hosts.
-- [ ] Episode Ready resolves playback for the selected episode/run only.
-- [ ] Open in Review routes to existing transcript review.
-- [ ] Export Episode uses existing export services.
-- [ ] View in Library selects the generated episode.
-- [ ] Simplified Library prioritizes episodes with project/time/status context.
-- [ ] Library supports Play, Open, and Export.
+- [x] Episode Ready shows title, duration when available, and selected hosts.
+- [x] Episode Ready resolves playback for the selected episode/run only.
+- [x] Open in Review routes to existing transcript review.
+- [x] Export Episode uses existing export services.
+- [x] View in Library selects the generated episode.
+- [x] Simplified Library prioritizes episodes with project/time/status context.
+- [x] Library supports Play, Open, and Export.
 - [ ] Preserve multi-episode isolation for playback/review/export.
 - [ ] Add two-episode guided-workflow isolation acceptance.
 
@@ -345,13 +345,22 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 Populate only as work is completed. Do not pre-check or use placeholders as completion evidence.
 
 - Implementation SHAs:
+  - 22ecdfcb795ce9e44998c6870a57818d94494901 — guided monitor/ready-screen regression repair; exact-head CI 37835540919 passed.
+  - 0ce02ffcf596268b4060ff1d8902d0cd4a1b3af7 — failed-run guided monitor repair route; exact-head CI 37836046970 passed.
+  - 160bbdc607dfb68163731210e956207a3c186aeb — selected episode Library playback; exact-head CI 37836853268 passed.
 - Focused first-run tests:
 - Focused New Deep Dive tests:
+  - tests/test_guided_episode_wizard.py::test_guided_episode_plan_preflight_and_generation_start
+  - tests/test_guided_episode_wizard.py::test_guided_generate_opens_production_monitor_and_confirmed_cancel
+  - tests/test_guided_episode_wizard.py::test_guided_completed_run_shows_episode_ready_and_routes_to_library
+  - tests/test_guided_generation_monitor.py::test_guided_monitor_failed_sources_run_routes_to_sources
+  - tests/test_episode_library_playback.py::test_episode_library_play_uses_selected_episode_audio_only
 - Keyboard/focus/layout tests:
 - Recovery/resume tests:
 - Security/redaction tests:
 - Quick Deep Dive parity tests:
 - Multi-episode isolation tests:
+  - tests/test_episode_library_playback.py::test_episode_library_play_uses_selected_episode_audio_only
 - Compatibility tests:
 - Final master SHA:
 - Final exact-head CI run:
