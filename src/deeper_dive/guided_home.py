@@ -47,6 +47,9 @@ def refresh_goal_home(app: DeeperDiveApp) -> None:
     home = app.get_screen("home")
     home.query_one("#home-readiness", Static).update(Text(_readiness_label(app)))
     home.query_one("#home-recent-episodes", Static).update(Text(_recent_episode_lines(app)))
+    resume = home.query_one("#action-resume-deep-dive", Button)
+    store = getattr(app, "_draft_store", None)
+    resume.display = bool(store is not None and store.has_resume(app.composition))
     projects = sorted(
         app.service.list_project_summaries(),
         key=lambda item: item.modified_at,
@@ -96,6 +99,7 @@ def add_new_deep_dive_action(app: DeeperDiveApp) -> None:
     content = home.query_one("#content")
     content.mount(
         Button("New Deep Dive", name="new", id="action-new-deep-dive"),
+        Button("Resume Deep Dive", name="resume", id="action-resume-deep-dive"),
         before="#new-project-name",
     )
     content.mount(

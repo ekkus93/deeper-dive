@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from textual.binding import Binding
 
+from deeper_dive.guided_draft import GuidedDraftStore
 from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
 from deeper_dive.guided_first_run import GuidedFirstRunWizard
 from deeper_dive.guided_home import add_new_deep_dive_action, refresh_goal_home
@@ -23,7 +24,10 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
     def on_ready(self) -> None:
         add_new_deep_dive_action(self)
 
-        setup_context = WizardContext(
+        self._draft_store = GuidedDraftStore(self.service.workspaces.data_dir)
+        setup_context = self._draft_store.load(
+            self.composition, WizardKind.FIRST_RUN
+        ) or WizardContext(
             self.composition,
             WizardState(WizardKind.FIRST_RUN, "welcome"),
         )
@@ -39,6 +43,7 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
             self.composition,
             WizardState(WizardKind.NEW_DEEP_DIVE, "project"),
         )
+        self._new_context = new_context
         self.install_screen(
             GuidedEpisodeWizard(
                 new_context,
@@ -55,7 +60,23 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
     def action_navigate(self, destination: str) -> None:
         if destination == "setup":
             self.push_screen("setup")
-        elif destination == "new":
+        elif destination in {"new", "resume"}:
+            if destination == "resume":
+                restored = self._draft_store.load(
+                    self.composition, WizardKind.NEW_DEEP_DIVE
+                )
+                if restored is not None:
+                    self._new_context.state = restored.state
+                    self._new_context.project_id = restored.project_id
+                    self._new_context.episode_id = restored.episode_id
+                    self._new_context.run_id = restored.run_id
+                else:
+                    destination = "new"
+            if destination == "new":
+                self._new_context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "project")
+                self._new_context.project_id = None
+                self._new_context.episode_id = None
+                self._new_context.run_id = None
             self.push_screen("new")
         elif destination == "projects":
             self.push_screen("home")

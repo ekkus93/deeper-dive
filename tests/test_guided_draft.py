@@ -1,0 +1,76 @@
+"""Wizard-draft security, compatibility, and corruption recovery."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from deeper_dive.application.service import DeeperDiveService
+from deeper_dive.composition import ProductionComposition
+from deeper_dive.guided_draft import GuidedDraftStore
+from deeper_dive.guided_workflow import SetupMode, WizardContext, WizardKind, WizardState
+from deeper_dive.storage.workspace import WorkspaceManager
+
+
+def _setup(tmp_path: Path) -> tuple[ProductionComposition, GuidedDraftStore]:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    return ProductionComposition.build(service=service), GuidedDraftStore(
+        service.workspaces.data_dir
+    )
+
+
+def test_draft_round_trip_preserves_only_navigation_hints_and_durable_ids(
+    tmp_path: Path,
+) -> None:
+    composition, drafts = _setup(tmp_path)
+    project = composition.service.create_project("Saved")
+    state = WizardState(WizardKind.NEW_DEEP_DIVE, "sources")
+    drafts.save(WizardContext(composition, state, project_id=project.id))
+    restored = drafts.load(composition, WizardKind.NEW_DEEP_DIVE)
+    assert restored is not None
+    assert restored.state == state
+    assert restored.project_id == project.id
+    raw = (tmp_path / "data" / "guided-new-deep-dive-draft.json").read_text()
+    assert set(json.loads(raw)) == {"wizard", "project_id", "episode_id", "run_id"}
+    assert "Saved" not in raw
+
+
+def test_setup_mode_round_trips_without_provider_or_credential_data(tmp_path: Path) -> None:
+    composition, drafts = _setup(tmp_path)
+    state = WizardState(
+        WizardKind.FIRST_RUN, "ai-provider", setup_mode=SetupMode.ADVANCED
+    )
+    drafts.save(WizardContext(composition, state))
+    restored = drafts.load(composition, WizardKind.FIRST_RUN)
+    assert restored is not None
+    assert restored.state == state
+
+
+def test_invalid_or_old_draft_fails_safely(tmp_path: Path) -> None:
+    composition, drafts = _setup(tmp_path)
+    path = tmp_path / "data" / "guided-new-deep-dive-draft.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    for content in ("{not-json", '{"wizard":{"schema_version":999}}'):
+        path.write_text(content)
+        assert drafts.load(composition, WizardKind.NEW_DEEP_DIVE) is None
+    path.write_text(
+        json.dumps({
+            "wizard": WizardState(WizardKind.NEW_DEEP_DIVE, "hosts").to_record(),
+            "project_id": "not-a-project",
+            "episode_id": None,
+            "run_id": None,
+        })
+    )
+    restored = drafts.load(composition, WizardKind.NEW_DEEP_DIVE)
+    assert restored is not None
+    assert restored.state.current_step == "project"
+    assert restored.project_id is None
+
+
+def test_symlink_draft_not_loaded(tmp_path: Path) -> None:
+    composition, drafts = _setup(tmp_path)
+    drafts.data_dir.mkdir(parents=True, exist_ok=True)
+    target = tmp_path / "outside"
+    target.write_text("{}")
+    (drafts.data_dir / "guided-first-run-draft.json").symlink_to(target)
+    assert drafts.load(composition, WizardKind.FIRST_RUN) is None

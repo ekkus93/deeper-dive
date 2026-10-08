@@ -13,7 +13,8 @@ from textual.screen import Screen
 from textual.widget import Widget
 from textual.widgets import Button, Footer, Header, Label, Select, Static
 
-from deeper_dive.diagnostics import redact
+from deeper_dive.diagnostics import redact, sanitize_exception_message
+from deeper_dive.guided_draft import GuidedDraftStore
 from deeper_dive.guided_workflow import (
     CompletionProbe,
     SetupMode,
@@ -185,8 +186,16 @@ class WizardShell(Screen[None]):
     def action_save_exit(self) -> None:
         if self.busy:
             return
+        store = GuidedDraftStore(self.context.composition.service.workspaces.data_dir)
+        try:
+            store.save(self.context)
+        except (OSError, ValueError) as exc:
+            self.set_status(
+                "Could not save wizard progress: " + sanitize_exception_message(exc)
+            )
+            return
         self.save_exit_requested = True
-        self.set_status("Progress is safe to resume; leaving the guided workflow.")
+        self.set_status("Progress checkpoint saved; leaving the guided workflow.")
         self.on_save_exit()
 
     def action_help(self) -> None:

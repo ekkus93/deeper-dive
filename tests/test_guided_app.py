@@ -146,3 +146,40 @@ async def _goal_first_home_projects_and_library_routes(tmp_path: Path) -> None:
         ).press()
         await pilot.pause()
         assert app.screen.id == "screen-providers"
+
+
+def test_saved_new_deep_dive_resumes_from_durable_project_after_restart(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_saved_new_deep_dive_resumes_after_restart(tmp_path))
+
+
+async def _saved_new_deep_dive_resumes_after_restart(tmp_path: Path) -> None:
+    _save_ready_config(tmp_path)
+    service = _service(tmp_path)
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        screen = app.screen
+        screen.query_one("#guided-project-name").value = "Durable Project"
+        screen.query_one("#guided-project-topic").value = "Durable source question"
+        screen.action_create_project()
+        project_id = screen.context.project_id
+        assert project_id is not None
+        screen.action_continue()
+        assert screen.context.state.current_step == "sources"
+        screen.action_save_exit()
+        await pilot.pause()
+        assert app.screen.id == "screen-home"
+
+    restarted = GuidedDeeperDiveApp(service)
+    async with restarted.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        resume = restarted.screen.query_one("#action-resume-deep-dive", Button)
+        assert resume.display
+        resume.press()
+        await pilot.pause()
+        assert restarted.screen.id == "screen-wizard-new-deep-dive"
+        assert restarted.screen.context.project_id == project_id
+        assert restarted.screen.context.state.current_step == "sources"

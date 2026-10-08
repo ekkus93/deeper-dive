@@ -1,0 +1,110 @@
+"""Minimal, versioned wizard checkpoints referencing only durable production IDs."""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import tempfile
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardState
+
+if TYPE_CHECKING:
+    from deeper_dive.composition import ProductionComposition
+
+_ID = re.compile(r"[a-zA-Z0-9_-]{1,128}\\Z")
+_MAX_DRAFT_BYTES = 8192
+
+
+class GuidedDraftStore:
+    """Store navigation hints, never source text, credentials, or business records."""
+
+    def __init__(self, data_dir: Path) -> None:
+        self.data_dir = data_dir
+
+    def _path(self, kind: WizardKind) -> Path:
+        return self.data_dir / f"guided-{kind.value}-draft.json"
+
+    def save(self, context: WizardContext) -> None:
+        record = {
+            "wizard": context.state.to_record(),
+            "project_id": context.project_id,
+            "episode_id": context.episode_id,
+            "run_id": context.run_id,
+        }
+        payload = json.dumps(record, sort_keys=True, separators=(",", ":"))
+        if len(payload.encode("utf-8")) > _MAX_DRAFT_BYTES:
+            raise ValueError("wizard checkpoint exceeds size limit")
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        temporary: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=self.data_dir,
+                prefix=".guided-draft-",
+                delete=False,
+            ) as handle:
+                temporary = Path(handle.name)
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, self._path(context.state.kind))
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+
+    def load(
+        self, composition: ProductionComposition, kind: WizardKind
+    ) -> WizardContext | None:
+        path = self._path(kind)
+        try:
+            if path.is_symlink() or path.stat().st_size > _MAX_DRAFT_BYTES:
+                return None
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict) or set(payload) != {
+                "wizard", "project_id", "episode_id", "run_id"
+            }:
+                return None
+            raw_wizard = payload["wizard"]
+            if not isinstance(raw_wizard, dict):
+                return None
+            state = WizardState.from_record(raw_wizard)
+            if state.kind is not kind:
+                return None
+            refs = (payload["project_id"], payload["episode_id"], payload["run_id"])
+            if not all(
+                ref is None or (isinstance(ref, str) and _ID.fullmatch(ref))
+                for ref in refs
+            ):
+                return None
+            project_id, episode_id, run_id = refs
+            if kind is WizardKind.FIRST_RUN:
+                if any(ref is not None for ref in refs):
+                    return None
+                return WizardContext(composition, state)
+            if project_id is None:
+                return WizardContext(composition, state.moved_to("project"))
+            if composition.service.open_project(project_id) is None:
+                return WizardContext(composition, state.moved_to("project"))
+            if episode_id is not None:
+                episode = composition.service.hosts(project_id).get_episode(episode_id)
+                if episode is None or episode.project_id != project_id:
+                    episode_id, run_id = None, None
+            if run_id is not None and (
+                episode_id is None
+                or (run := composition.service.runs(project_id).get(run_id)) is None
+                or run.episode_id != episode_id
+            ):
+                run_id = None
+            return WizardContext(
+                composition, state, project_id=project_id, episode_id=episode_id,
+                run_id=run_id,
+            )
+        except (OSError, ValueError, TypeError, KeyError, UnicodeError):
+            return None
+
+    def has_resume(self, composition: ProductionComposition) -> bool:
+        return self.load(composition, WizardKind.NEW_DEEP_DIVE) is not None
