@@ -1,4 +1,4 @@
-"""Guided project creation via the shared production service."""
+"""Guided project creation."""
 
 from textual.widgets import Button, Input
 
@@ -38,3 +38,6 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
         self.context.project_id = project.id
         self._sync_text()
         self.set_status(f"Created project {project.name}. Continue to Sources.")
+
+    def on_save_exit(self) -> None:
+        self.app.push_screen("home")
