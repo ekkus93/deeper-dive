@@ -109,7 +109,7 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 
 ## GW-160 — Simplified Home and navigation
 
-- [ ] Replace the default flat subsystem-first navigation with user-goal-first navigation.
+- [x] Replace the default flat subsystem-first navigation with user-goal-first navigation.
 - [x] Primary navigation exposes Home, New Deep Dive, Projects, and Library.
 - [x] Advanced section exposes Sources, Research, Hosts, Providers, Settings, and Help.
 - [x] Preserve access to existing advanced screens.
@@ -118,7 +118,7 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 - [x] Home shows recent projects from durable summaries.
 - [x] Home shows recent episodes where durable data supports it.
 - [x] Home offers Resume Deep Dive when an incomplete wizard can be reconstructed.
-- [ ] Existing project open/rename/delete operations remain available.
+- [x] Existing project open/rename/delete operations remain available.
 - [x] Add keyboard-only navigation regression for Home/Primary/Advanced sections.
 
 ## GW-170 — New Deep Dive: Project and Sources
@@ -139,12 +139,12 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 
 ## GW-180 — New Deep Dive: Research and Hosts
 
-- [ ] Research step offers Use only my sources.
-- [ ] Research step offers Fill important gaps as the recommended middle choice.
-- [ ] Research step offers Research extensively.
-- [ ] Choices map to existing research policy/controller behavior.
-- [ ] External-network implications are disclosed before networked research.
-- [ ] Advanced research options preserve current expert controls.
+- [x] Research step offers Use only my sources.
+- [x] Research step offers Fill important gaps as the recommended middle choice.
+- [x] Research step offers Research extensively.
+- [x] Choices map to existing research policy/controller behavior.
+- [x] External-network implications are disclosed before networked research.
+- [x] Advanced research options preserve current expert controls.
 - [ ] Hosts step renders friendly host rows/cards with behavior summary and voice.
 - [ ] Hosts step supports one or more selected hosts.
 - [ ] Host ordering is explicit and deterministic.
@@ -218,15 +218,15 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 
 ## GW-230 — Quick Deep Dive integration
 
-- [ ] Expose Quick Deep Dive as a recommended shortcut from Home and/or New Deep Dive.
-- [ ] Quick mode still creates/uses normal durable project state.
-- [ ] Quick mode requires or collects source material through normal source services.
-- [ ] Apply documented recommended research, host, and episode defaults.
-- [ ] Build plan through EpisodePlannerService.
-- [ ] Run shared preflight.
+- [x] Expose Quick Deep Dive as a recommended shortcut from Home and/or New Deep Dive.
+- [x] Quick mode still creates/uses normal durable project state.
+- [x] Quick mode requires or collects source material through normal source services.
+- [x] Apply documented recommended research, host, and episode defaults.
+- [x] Build plan through EpisodePlannerService.
+- [x] Run shared preflight.
 - [ ] Start through GenerationStartService and PipelineOrchestrator.
 - [ ] Produce normal durable turns, TTS, timeline/audio, review state, and exports.
-- [ ] Keep QuickDeepDiveService as a convenience boundary rather than a second engine.
+- [x] Keep QuickDeepDiveService as a convenience boundary rather than a second engine.
 - [ ] Add Quick-versus-guided production-equivalence acceptance for shared artifacts/state.
 
 ## GW-240 — Save/resume and durable wizard-state recovery
@@ -346,6 +346,8 @@ Populate only as work is completed. Do not pre-check or use placeholders as comp
 
 - Implementation SHAs:
 
+  - e854f3ca29c3c9214591b2de2c6c41196ce1bdfd, c32084b77f881631a9d503c7b1a148cc1fa8ca31 — advanced Research navigation and project lifecycle regression; exact-head CI 37856266276 passed.
+  - 817ecc66fe05a9f7b0584a8fcc1c9c80446be701, 32df225207ae158cabfbf8c90392899d869b81d6 — source-gated Home Quick entry through existing Episode setup, planner and preflight; exact-head CI 37856994233 passed.
   - ac9d7801911a6f646ca7abd994d3d38c921bdf83 — recovery derives earliest valid wizard prerequisite from production.
   - 5a7226766fcbe57db5310496af27ec6796a82a3c — Home keyboard and source failure/retry/restart acceptance.
   - bf61544c27435e76bdf7876a6e16b1fb46927254 — guided user guide and README entry.
@@ -355,6 +357,10 @@ Populate only as work is completed. Do not pre-check or use placeholders as comp
   - 160bbdc607dfb68163731210e956207a3c186aeb — selected episode Library playback; exact-head CI 37836853268 passed.
 - Focused first-run tests:
 - Focused New Deep Dive tests:
+  - tests/test_guided_app.py::test_goal_first_home_preserves_project_open_rename_delete
+  - tests/test_guided_source_wizard.py::test_guided_research_choices_persist_through_production_controller
+  - tests/test_guided_source_wizard.py::test_guided_advanced_research_preserves_project_context
+  - tests/test_guided_app.py::test_goal_first_quick_requires_sources_then_uses_production_plan
   - tests/test_guided_source_wizard.py::test_guided_source_import_failure_retains_form_then_resumes_after_restart
   - tests/test_guided_episode_wizard.py::test_guided_episode_plan_preflight_and_generation_start
   - tests/test_guided_episode_wizard.py::test_guided_generate_opens_production_monitor_and_confirmed_cancel
