@@ -185,7 +185,9 @@ async def _source_import_failure_retry_and_restart(tmp_path: Path) -> None:
         screen.action_continue()
         screen.query_one("#guided-source-title", Input).value = "Preserved title"
         screen.query_one("#guided-source-text", Input).value = "Indexable source content"
-        with patch.object(service, "add_pasted_source", side_effect=ValueError("synthetic parse error")):
+        with patch.object(
+            service, "add_pasted_source", side_effect=ValueError("synthetic parse error")
+        ):
             screen.action_add_pasted_source()
         assert screen.query_one("#guided-source-title", Input).value == "Preserved title"
         assert screen.query_one("#guided-source-text", Input).value == "Indexable source content"
