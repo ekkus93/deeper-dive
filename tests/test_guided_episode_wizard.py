@@ -500,9 +500,7 @@ async def _guided_hosts_reorder_edit_and_restart(tmp_path: Path) -> None:
         await pilot.pause()
         screen.action_preview_host_voice()
         assert "Previewed" in str(screen.query_one("#wizard-status", Static).render())
-        assert any(
-            (service.workspaces.data_dir / "voice-previews").iterdir()
-        )
+        assert any((service.workspaces.data_dir / "voice-previews").iterdir())
 
         screen.query_one("#guided-host-name", Input).value = "Custom Evidence Host"
         screen.action_create_host()
