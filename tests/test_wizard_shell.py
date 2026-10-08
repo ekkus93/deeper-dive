@@ -24,7 +24,7 @@ def _composition(tmp_path: Path) -> ProductionComposition:
 
 
 class _WizardHarness(App[None]):
-    def __init__(self, screen: FirstRunWizardShell | NewDeepDiveWizardShell) -> None:
+    def __init__(self, screen: WizardShell) -> None:
         super().__init__()
         self.screen_to_test = screen
 
@@ -226,3 +226,34 @@ async def _first_run_system_check_details_are_explicit_and_safe(tmp_path: Path) 
         text = str(screen.query_one("#wizard-step-content", Static).render())
         assert "Details:" in text
         assert "Remediation:" in text
+
+
+class _DiagnosticWizard(WizardShell):
+    def step_content(self, step_key: str) -> str:
+        return "Diagnostic: api_key=example-value"
+
+
+def test_wizard_shell_sanitizes_initial_and_updated_text(tmp_path: Path) -> None:
+    asyncio.run(_wizard_shell_sanitizes_initial_and_updated_text(tmp_path))
+
+
+async def _wizard_shell_sanitizes_initial_and_updated_text(tmp_path: Path) -> None:
+    composition = _composition(tmp_path)
+    screen = _DiagnosticWizard(
+        WizardContext(composition, WizardState(WizardKind.NEW_DEEP_DIVE, "project")),
+        lambda _key: True,
+        title="Diagnostics",
+        status_provider=lambda _key: "Provider: password=example-value",
+    )
+    async with _WizardHarness(screen).run_test(size=(80, 24)):
+        content = str(screen.query_one("#wizard-step-content", Static).render())
+        status = str(screen.query_one("#wizard-status", Static).render())
+        assert "example-value" not in content
+        assert "example-value" not in status
+        assert "[REDACTED]" in content
+        assert "[REDACTED]" in status
+        screen.set_status("Failure: token=another-value")
+        assert "another-value" not in str(screen.query_one("#wizard-status", Static).render())
+        screen._sync_text()
+        assert "example-value" not in str(screen.query_one("#wizard-status", Static).render())
+        assert "example-value" not in str(screen.query_one("#wizard-step-content", Static).render())
