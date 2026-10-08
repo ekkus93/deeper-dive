@@ -86,8 +86,7 @@ class WizardShell(Screen[None]):
         yield Static("", id="wizard-resize-message")
         with VerticalScroll(id="wizard-content"):
             yield Static(self.step_content(navigator.current_step.key), id="wizard-step-content")
-            for control in self.step_controls():
-                yield control
+            yield from self.step_controls()
         yield Static(self._status_text(navigator.current_step.key), id="wizard-status")
         with Horizontal(id="wizard-actions"):
             yield Button("Back", id="wizard-back", name="back")
