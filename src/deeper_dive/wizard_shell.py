@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from dataclasses import replace
 
 from textual import events
 from textual.app import ComposeResult
@@ -10,10 +11,11 @@ from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widget import Widget
-from textual.widgets import Button, Footer, Header, Label, Static
+from textual.widgets import Button, Footer, Header, Label, Select, Static
 
 from deeper_dive.guided_workflow import (
     CompletionProbe,
+    SetupMode,
     WizardContext,
     WizardNavigator,
     WizardStep,
@@ -239,10 +241,70 @@ class WizardShell(Screen[None]):
 
 
 class FirstRunWizardShell(WizardShell):
-    """First-run specialization using the shared shell contract."""
+    """First-run specialization with a welcome and optional system check."""
 
     def __init__(self, context: WizardContext, completion_probe: CompletionProbe) -> None:
         super().__init__(context, completion_probe, title="First-run Setup")
+
+    def step_controls(self) -> tuple[Widget, ...]:
+        return (
+            Select(
+                [
+                    ("Quick Setup (recommended)", SetupMode.QUICK.value),
+                    ("Advanced Setup", SetupMode.ADVANCED.value),
+                ],
+                value=(self.context.state.setup_mode or SetupMode.QUICK).value,
+                allow_blank=False,
+                id="setup-mode",
+            ),
+            Button("Skip Setup", id="setup-skip", name="skip-setup"),
+        )
+
+    def step_content(self, step_key: str) -> str:
+        if step_key == "welcome":
+            return (
+                "Welcome to Deeper Dive. Local AI models are supported; cloud is optional.\n"
+                "Quick Setup recommends defaults. Advanced Setup exposes more controls.\n"
+                "Skip Setup allows project inspection without completing setup."
+            )
+        if step_key == "system-check":
+            from deeper_dive.first_run import FirstRunController
+
+            status = FirstRunController(self.context.composition.provider_controller).status()
+            return "\n".join(status.guidance())
+        return super().step_content(step_key)
+
+    def on_mount(self) -> None:
+        super().on_mount()
+        self._show_welcome_controls()
+
+    def action_continue(self) -> None:
+        super().action_continue()
+        self._show_welcome_controls()
+
+    def action_back(self) -> None:
+        super().action_back()
+        self._show_welcome_controls()
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        if event.select.id == "setup-mode" and isinstance(event.value, str):
+            self.context.state = replace(
+                self.context.state, setup_mode=SetupMode(event.value)
+            )
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.name == "skip-setup":
+            self.on_save_exit()
+        else:
+            super().on_button_pressed(event)
+
+    def on_save_exit(self) -> None:
+        self.app.push_screen("home")
+
+    def _show_welcome_controls(self) -> None:
+        welcome = self.context.state.current_step == "welcome"
+        self.query_one("#setup-mode", Select).display = welcome
+        self.query_one("#setup-skip", Button).display = welcome
 
 
 class NewDeepDiveWizardShell(WizardShell):
