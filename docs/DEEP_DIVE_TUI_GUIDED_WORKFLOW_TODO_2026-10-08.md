@@ -110,31 +110,31 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 ## GW-160 — Simplified Home and navigation
 
 - [ ] Replace the default flat subsystem-first navigation with user-goal-first navigation.
-- [ ] Primary navigation exposes Home, New Deep Dive, Projects, and Library.
-- [ ] Advanced section exposes Sources, Research, Hosts, Providers, Settings, and Help.
-- [ ] Preserve access to existing advanced screens.
-- [ ] Home provides a dominant New Deep Dive action.
-- [ ] Home shows derived setup/readiness status.
-- [ ] Home shows recent projects from durable summaries.
-- [ ] Home shows recent episodes where durable data supports it.
-- [ ] Home offers Resume Deep Dive when an incomplete wizard can be reconstructed.
+- [x] Primary navigation exposes Home, New Deep Dive, Projects, and Library.
+- [x] Advanced section exposes Sources, Research, Hosts, Providers, Settings, and Help.
+- [x] Preserve access to existing advanced screens.
+- [x] Home provides a dominant New Deep Dive action.
+- [x] Home shows derived setup/readiness status.
+- [x] Home shows recent projects from durable summaries.
+- [x] Home shows recent episodes where durable data supports it.
+- [x] Home offers Resume Deep Dive when an incomplete wizard can be reconstructed.
 - [ ] Existing project open/rename/delete operations remain available.
-- [ ] Add keyboard-only navigation regression for Home/Primary/Advanced sections.
+- [x] Add keyboard-only navigation regression for Home/Primary/Advanced sections.
 
 ## GW-170 — New Deep Dive: Project and Sources
 
-- [ ] New Deep Dive opens the shared seven-step guided workflow.
-- [ ] Project Setup collects project name.
-- [ ] Project Setup collects topic/main curiosity prompt.
-- [ ] Project Setup collects user-facing audience preset.
-- [ ] Project creation uses DeeperDiveService and normal workspace persistence.
-- [ ] Save and Exit after project creation leaves a discoverable resumable project.
-- [ ] Sources step exposes Files, Paste Text, URL, and Folder where supported.
-- [ ] Source imports use existing source/corpus application services.
+- [x] New Deep Dive opens the shared seven-step guided workflow.
+- [x] Project Setup collects project name.
+- [x] Project Setup collects topic/main curiosity prompt.
+- [x] Project Setup collects user-facing audience preset.
+- [x] Project creation uses DeeperDiveService and normal workspace persistence.
+- [x] Save and Exit after project creation leaves a discoverable resumable project.
+- [x] Sources step exposes Files, Paste Text, URL, and Folder where supported.
+- [x] Source imports use existing source/corpus application services.
 - [ ] Source rows show friendly identity, inclusion, indexing/readiness, and concise failure state.
-- [ ] Source add/remove/include/exclude actions preserve existing provenance and security behavior.
+- [x] Source add/remove/include/exclude actions preserve existing provenance and security behavior.
 - [ ] Continue semantics reflect actual source/index readiness.
-- [ ] No acceptance test directly seeds source repository rows for the normal path.
+- [x] No acceptance test directly seeds source repository rows for the normal path.
 - [ ] Add import/index failure, retry, restart, and resume regressions.
 
 ## GW-180 — New Deep Dive: Research and Hosts
@@ -197,7 +197,7 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 - [x] Support pause where durable pipeline state permits it.
 - [x] Support resume where durable pipeline state permits it.
 - [x] Support cancel with confirmation.
-- [ ] Reload progress correctly after screen recreation/restart.
+- [x] Reload progress correctly after screen recreation/restart.
 - [x] Durable failure view shows stage, stable failure code when present, and sanitized message.
 - [ ] Provide Retry/Resume only for supported failure states.
 - [x] Provide route back to configuration for setup/preflight repair.
@@ -231,13 +231,13 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 
 ## GW-240 — Save/resume and durable wizard-state recovery
 
-- [ ] Define and implement the minimal versioned wizard draft record only if production state cannot represent a needed UI draft.
-- [ ] Do not duplicate provider config, source data, host definitions, episode config, plan, run, or export data into wizard draft state.
+- [x] Define and implement the minimal versioned wizard draft record only if production state cannot represent a needed UI draft.
+- [x] Do not duplicate provider config, source data, host definitions, episode config, plan, run, or export data into wizard draft state.
 - [ ] Save and Exit preserves partial first-run progress.
-- [ ] Save and Exit preserves partial New Deep Dive progress.
-- [ ] Resume computes the earliest incomplete prerequisite from production state.
-- [ ] Resume preserves a later valid location when prerequisites remain valid.
-- [ ] Invalid/corrupt/old draft state fails safe to the earliest derivable valid step.
+- [x] Save and Exit preserves partial New Deep Dive progress.
+- [x] Resume computes the earliest incomplete prerequisite from production state.
+- [x] Resume preserves a later valid location when prerequisites remain valid.
+- [x] Invalid/corrupt/old draft state fails safe to the earliest derivable valid step.
 - [ ] Previously completed steps move back to Needs attention when their production prerequisite becomes invalid.
 - [ ] Add restart tests at every major wizard boundary.
 
@@ -298,17 +298,17 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 
 ## GW-280 — Documentation
 
-- [ ] Document first-run setup.
-- [ ] Document Quick versus Advanced setup.
-- [ ] Document local versus cloud provider choices.
-- [ ] Document New Deep Dive guided workflow.
-- [ ] Document Quick Deep Dive shortcut semantics.
-- [ ] Document advanced navigation.
-- [ ] Document keyboard controls.
-- [ ] Document terminal-size requirements.
-- [ ] Document Save/Exit/resume behavior.
-- [ ] Document common setup/preflight blockers and recovery.
-- [ ] Document that wizard flows reuse the same production services as CLI and advanced TUI.
+- [x] Document first-run setup.
+- [x] Document Quick versus Advanced setup.
+- [x] Document local versus cloud provider choices.
+- [x] Document New Deep Dive guided workflow.
+- [x] Document Quick Deep Dive shortcut semantics.
+- [x] Document advanced navigation.
+- [x] Document keyboard controls.
+- [x] Document terminal-size requirements.
+- [x] Document Save/Exit/resume behavior.
+- [x] Document common setup/preflight blockers and recovery.
+- [x] Document that wizard flows reuse the same production services as CLI and advanced TUI.
 - [ ] Update screenshots/ASCII examples only after final Textual layout stabilizes.
 
 ## GW-290 — Qualification and closeout
@@ -345,19 +345,31 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 Populate only as work is completed. Do not pre-check or use placeholders as completion evidence.
 
 - Implementation SHAs:
+
+  - ac9d7801911a6f646ca7abd994d3d38c921bdf83 — recovery derives earliest valid wizard prerequisite from production.
+  - 5a7226766fcbe57db5310496af27ec6796a82a3c — Home keyboard and source failure/retry/restart acceptance.
+  - bf61544c27435e76bdf7876a6e16b1fb46927254 — guided user guide and README entry.
+  - 066a96b3b5f509b9bd1953857e6a74c42857632f — canonical monitor diagnostics sanitization and literal display; exact-head CI 37844246239 passed.
   - 22ecdfcb795ce9e44998c6870a57818d94494901 — guided monitor/ready-screen regression repair; exact-head CI 37835540919 passed.
   - 0ce02ffcf596268b4060ff1d8902d0cd4a1b3af7 — failed-run guided monitor repair route; exact-head CI 37836046970 passed.
   - 160bbdc607dfb68163731210e956207a3c186aeb — selected episode Library playback; exact-head CI 37836853268 passed.
 - Focused first-run tests:
 - Focused New Deep Dive tests:
+  - tests/test_guided_source_wizard.py::test_guided_source_import_failure_retains_form_then_resumes_after_restart
   - tests/test_guided_episode_wizard.py::test_guided_episode_plan_preflight_and_generation_start
   - tests/test_guided_episode_wizard.py::test_guided_generate_opens_production_monitor_and_confirmed_cancel
   - tests/test_guided_episode_wizard.py::test_guided_completed_run_shows_episode_ready_and_routes_to_library
   - tests/test_guided_generation_monitor.py::test_guided_monitor_failed_sources_run_routes_to_sources
   - tests/test_episode_library_playback.py::test_episode_library_play_uses_selected_episode_audio_only
 - Keyboard/focus/layout tests:
+  - tests/test_guided_app.py::test_goal_first_home_keyboard_primary_and_advanced_actions
 - Recovery/resume tests:
+  - tests/test_guided_draft.py::test_draft_recovers_to_earliest_missing_production_prerequisite
+  - tests/test_guided_draft.py::test_draft_preserves_valid_later_location_when_prerequisites_are_ready
+  - tests/test_guided_app.py::test_saved_new_deep_dive_resumes_from_durable_project_after_restart
+  - tests/test_guided_generation_monitor.py::test_guided_monitor_reloads_checkpoint_after_restart
 - Security/redaction tests:
+  - tests/test_generation_monitor.py::test_monitor_diagnostics_and_status_redact_persisted_credential_canaries
 - Quick Deep Dive parity tests:
 - Multi-episode isolation tests:
   - tests/test_episode_library_playback.py::test_episode_library_play_uses_selected_episode_audio_only
@@ -365,6 +377,9 @@ Populate only as work is completed. Do not pre-check or use placeholders as comp
 - Final master SHA:
 - Final exact-head CI run:
 - Quality job:
+  - 37844246239 quality: passed (lock check, Ruff, mypy, pytest, package, CLI smoke; exact-head 066a96b3b5f509b9bd1953857e6a74c42857632f).
 - Fresh-machine installed-wheel result:
+  - 37844246239 fresh-machine: passed (installed wheel/entry points/corpus workflow).
 - Mandatory KittenTTS result:
+  - 37844246239 fresh-machine: real KittenTTS Micro CPU smoke passed.
 - Compatibility/migration decision:
