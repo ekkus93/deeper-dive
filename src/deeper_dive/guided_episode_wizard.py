@@ -454,7 +454,11 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             ).has_project_policy(project_id)
         codes = {issue.code for issue in self._preflight.blockers}
         rows = [
-            f"Sources: {'Ready' if not codes & {'sources_missing', 'sources_unindexed'} else 'Needs attention'}",
+            (
+                "Sources: Ready"
+                if not codes & {"sources_missing", "sources_unindexed"}
+                else "Sources: Needs attention"
+            ),
             f"Research policy: {'Ready' if research_ready else 'Needs attention'}",
             f"Hosts: {'Ready' if 'hosts_missing' not in codes else 'Needs attention'}",
             f"Plan: {'Ready' if plan_ready else 'Needs attention'}",
