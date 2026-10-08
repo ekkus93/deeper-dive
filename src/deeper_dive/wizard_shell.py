@@ -92,7 +92,14 @@ class WizardShell(Screen[None]):
         yield Footer()
 
     def on_mount(self) -> None:
-        self._sync_actions()
+        # Production prerequisites may change between sessions; a saved step is
+        # only a hint and must be validated before it is shown to the user.
+        recovered = self.navigator.recovered_state()
+        if recovered != self.context.state:
+            self.context.state = recovered
+            self._sync_text()
+        else:
+            self._sync_actions()
         self._apply_viewport_policy(self.app.size.width, self.app.size.height)
 
     def on_resize(self, event: events.Resize) -> None:
@@ -131,6 +138,11 @@ class WizardShell(Screen[None]):
         try:
             self.context.state = self.navigator.continue_forward()
         except WizardTransitionBlocked as exc:
+            # A dependency can become invalid while the wizard is open.
+            recovered = self.navigator.recovered_state()
+            if recovered != self.context.state:
+                self.context.state = recovered
+                self._sync_text()
             self.set_status(self.blocker_message(exc.step_key))
             return
         self._sync_text()

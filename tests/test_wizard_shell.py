@@ -158,3 +158,22 @@ async def _wizard_shell_escape_is_safe_save_exit(tmp_path: Path) -> None:
         await pilot.pause()
         assert screen.save_exit_requested is True
         assert "safe to resume" in str(screen.query_one("#wizard-status", Static).render())
+
+
+def test_wizard_mount_recovers_when_prior_production_state_is_invalid(tmp_path: Path) -> None:
+    asyncio.run(_wizard_mount_recovers_when_prior_production_state_is_invalid(tmp_path))
+
+
+async def _wizard_mount_recovers_when_prior_production_state_is_invalid(tmp_path: Path) -> None:
+    composition = _composition(tmp_path)
+    complete = {"project": True, "sources": False, "research": True, "hosts": True}
+    screen = NewDeepDiveWizardShell(
+        WizardContext(composition, WizardState(WizardKind.NEW_DEEP_DIVE, "episode")),
+        lambda key: complete.get(key, False),
+    )
+    app = _WizardHarness(screen)
+
+    async with app.run_test(size=(80, 24)):
+        assert screen.context.state.current_step == "sources"
+        assert "Step 2 of 7" in str(screen.query_one("#wizard-heading", Static).render())
+        assert screen.query_one("#wizard-continue", Button).disabled

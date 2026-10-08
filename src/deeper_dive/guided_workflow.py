@@ -216,8 +216,19 @@ class WizardNavigator:
         return self.steps[self.current_index]
 
     @property
+    def first_incomplete_prerequisite(self) -> WizardStep | None:
+        """Find the earliest invalid prior step after external production changes."""
+
+        for step in self.steps[: self.current_index]:
+            if not step.skippable and not self.completion_probe(step.key):
+                return step
+        return None
+
+    @property
     def can_continue(self) -> bool:
-        return self.current_step.skippable or self.completion_probe(self.current_step.key)
+        return self.first_incomplete_prerequisite is None and (
+            self.current_step.skippable or self.completion_probe(self.current_step.key)
+        )
 
     def progress(self) -> tuple[WizardProgressItem, ...]:
         """Derive progress from production readiness instead of stored completion flags."""
@@ -247,6 +258,9 @@ class WizardNavigator:
     def continue_forward(self) -> WizardState:
         """Move forward only when current production-derived completion allows it."""
 
+        missing = self.first_incomplete_prerequisite
+        if missing is not None:
+            raise WizardTransitionBlocked(missing.key)
         if not self.can_continue:
             raise WizardTransitionBlocked(self.current_step.key)
         if self.current_index == len(self.steps) - 1:
@@ -261,9 +275,9 @@ class WizardNavigator:
         incomplete prerequisite.
         """
 
-        for index, step in enumerate(self.steps[: self.current_index]):
-            if not step.skippable and not self.completion_probe(step.key):
-                return self.state.moved_to(self.steps[index].key)
+        missing = self.first_incomplete_prerequisite
+        if missing is not None:
+            return self.state.moved_to(missing.key)
         return self.state
 
 

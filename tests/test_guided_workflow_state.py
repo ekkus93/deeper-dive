@@ -150,3 +150,20 @@ def test_resume_preserves_later_location_when_prerequisites_still_valid() -> Non
     recovered = WizardNavigator(state, complete.__getitem__).recovered_state()
 
     assert recovered.current_step == "plan"
+
+
+def test_forward_transition_rejects_invalid_earlier_prerequisite() -> None:
+    complete = {step.key: True for step in NEW_DEEP_DIVE_STEPS}
+    navigator = WizardNavigator(
+        WizardState(WizardKind.NEW_DEEP_DIVE, "plan"), complete.__getitem__
+    )
+
+    assert navigator.can_continue
+    complete["sources"] = False
+
+    assert not navigator.can_continue
+    assert navigator.first_incomplete_prerequisite == NEW_DEEP_DIVE_STEPS[1]
+    with pytest.raises(WizardTransitionBlocked) as exc:
+        navigator.continue_forward()
+    assert exc.value.step_key == "sources"
+    assert navigator.recovered_state().current_step == "sources"
