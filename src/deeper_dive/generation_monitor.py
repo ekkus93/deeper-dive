@@ -189,8 +189,8 @@ class GenerationMonitorScreen(Screen[None]):
             yield Button("Cancel", name="cancel-generation")
             yield Button("View Transcript", name="view-transcript")
             yield Button("Diagnostics", name="diagnostics")
-            yield Static("", id="diagnostics-summary")
-            yield Static("Status: Ready", id="screen-status")
+            yield Static("", id="diagnostics-summary", markup=False)
+            yield Static("Status: Ready", id="screen-status", markup=False)
         yield Footer()
 
     def on_mount(self) -> None:
