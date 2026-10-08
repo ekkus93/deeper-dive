@@ -13,6 +13,7 @@ from textual.screen import Screen
 from textual.widget import Widget
 from textual.widgets import Button, Footer, Header, Label, Select, Static
 
+from deeper_dive.diagnostics import redact
 from deeper_dive.guided_workflow import (
     CompletionProbe,
     SetupMode,
@@ -182,7 +183,7 @@ class WizardShell(Screen[None]):
             self.set_status(message)
 
     def set_status(self, message: str) -> None:
-        self.query_one("#wizard-status", Static).update(message)
+        self.query_one("#wizard-status", Static).update(str(redact(message)))
 
     def _sync_text(self) -> None:
         navigator = self.navigator
