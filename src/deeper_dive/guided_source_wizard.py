@@ -268,9 +268,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
         ids = {source.id for source in sources}
         if preferred_source_id in ids:
             picker.value = preferred_source_id
-        elif sources and (
-            not isinstance(picker.value, str) or picker.value not in ids
-        ):
+        elif sources and (not isinstance(picker.value, str) or picker.value not in ids):
             picker.value = sources[0].id
         if not sources:
             summary.update("No sources yet. Add pasted text, files/folders, or an explicit URL.")
