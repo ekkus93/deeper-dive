@@ -6,12 +6,16 @@ import asyncio
 from pathlib import Path
 from unittest.mock import patch
 
-from textual.widgets import Input, Select, Static
+from textual.pilot import Pilot
+from textual.widgets import Button, Input, Select, Static
 
+from deeper_dive import cli as cli_module
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.episode_config import EpisodeConfigurationService
+from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.guided_app import GuidedDeeperDiveApp
 from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
+from deeper_dive.llm import LLMResponse
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
@@ -156,3 +160,188 @@ async def _episode_validation_preserves_typed_input(tmp_path: Path) -> None:
         screen.action_save_episode()
         assert screen.query_one("#guided-episode-title", Input).value == "Typed title"
         assert screen.query_one("#guided-episode-focus", Input).value == "Typed focus"
+
+
+
+async def _prepare_to_plan(
+    screen: GuidedEpisodeWizard,
+    pilot: Pilot[None],
+) -> tuple[str, str]:
+    screen.query_one("#guided-project-name", Input).value = "Regression"
+    screen.query_one("#guided-project-topic", Input).value = "What should we understand?"
+    screen.action_create_project()
+    project_id = screen.context.project_id
+    assert project_id is not None
+    screen.action_continue()
+
+    screen.query_one("#guided-source-title", Input).value = "Notes"
+    screen.query_one("#guided-source-text", Input).value = "Evidence for the regression."
+    for button in screen.query(Button):
+        if button.name == "add-source":
+            button.press()
+            break
+    await pilot.pause()
+    screen.action_continue()
+
+    screen.query_one("#guided-research-policy", Select).value = "useful"
+    screen.action_save_research()
+    screen.action_continue()
+
+    screen.action_create_recommended_hosts()
+    screen.action_save_host_order()
+    episode_id = screen.context.episode_id
+    assert episode_id is not None
+    screen.action_continue()
+
+    screen.query_one("#guided-episode-title", Input).value = "Regression Episode"
+    screen.query_one("#guided-episode-focus", Input).value = "Explain the evidence"
+    screen.query_one("#guided-episode-duration", Select).value = "10"
+    screen.action_save_episode()
+    screen.action_continue()
+    assert screen.context.state.current_step == "plan"
+    return project_id, episode_id
+
+
+def test_guided_planner_invalid_output_is_actionable_and_retryable(tmp_path: Path) -> None:
+    asyncio.run(_planner_invalid_output_is_actionable_and_retryable(tmp_path))
+
+
+async def _planner_invalid_output_is_actionable_and_retryable(tmp_path: Path) -> None:
+    service = _service_and_config(tmp_path)
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        screen = app.screen
+        assert isinstance(screen, GuidedEpisodeWizard)
+        await _prepare_to_plan(screen, pilot)
+
+        provider = app.composition.provider_controller.llm("fake")
+        with patch.object(
+            provider,
+            "generate",
+            return_value=LLMResponse('{"segments":[]}', "fake-v1"),
+        ):
+            screen.action_build_plan()
+
+        assert screen._plan is None
+        status = str(screen.query_one("#wizard-status", Static).render())
+        assert "Episode planning failed" in status
+        assert "non-empty segments list" in status
+        assert screen.context.state.current_step == "plan"
+
+        screen.action_build_plan()
+        assert screen._plan is not None
+        assert screen.query_one("#wizard-continue", Button).disabled is False
+
+
+def test_guided_invalid_persisted_plan_blocks_continue(tmp_path: Path) -> None:
+    asyncio.run(_invalid_persisted_plan_blocks_continue(tmp_path))
+
+
+async def _invalid_persisted_plan_blocks_continue(tmp_path: Path) -> None:
+    service = _service_and_config(tmp_path)
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        screen = app.screen
+        assert isinstance(screen, GuidedEpisodeWizard)
+        project_id, _episode_id = await _prepare_to_plan(screen, pilot)
+        screen.action_build_plan()
+        assert screen._plan is not None
+
+        database = app.composition.database_for_project(project_id)
+        with database.transaction() as connection:
+            connection.execute(
+                "UPDATE segment_plans SET target_duration_seconds=0 "
+                "WHERE episode_plan_id=(SELECT id FROM episode_plans LIMIT 1)"
+            )
+
+        screen._sync_text()
+        assert screen.query_one("#wizard-continue", Button).disabled is True
+        screen.action_continue()
+        assert screen.context.state.current_step == "plan"
+
+
+def test_guided_post_start_plan_mutation_is_rejected(tmp_path: Path) -> None:
+    asyncio.run(_post_start_plan_mutation_is_rejected(tmp_path))
+
+
+async def _post_start_plan_mutation_is_rejected(tmp_path: Path) -> None:
+    service = _service_and_config(tmp_path)
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        screen = app.screen
+        assert isinstance(screen, GuidedEpisodeWizard)
+        _project_id, _episode_id = await _prepare_to_plan(screen, pilot)
+        screen.action_build_plan()
+        assert screen._plan is not None
+        original_plan_id = screen._plan.id
+
+        screen.action_continue()
+        with patch("deeper_dive.ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"):
+            screen.action_check_preflight()
+            assert screen._preflight is not None and screen._preflight.ready
+            screen.action_generate_deep_dive()
+        assert screen.context.run_id is not None
+
+        screen.action_back()
+        assert screen.context.state.current_step == "plan"
+        screen.action_regenerate_plan()
+
+        status = str(screen.query_one("#wizard-status", Static).render())
+        assert "frozen" in status.lower()
+        assert screen._plan is not None
+        assert screen._plan.id == original_plan_id
+
+
+def test_guided_and_cli_preflight_report_same_blocker(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    asyncio.run(_guided_and_cli_preflight_report_same_blocker(tmp_path, capsys))
+
+
+async def _guided_and_cli_preflight_report_same_blocker(tmp_path: Path, capsys) -> None:
+    service = _service_and_config(tmp_path)
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        screen = app.screen
+        assert isinstance(screen, GuidedEpisodeWizard)
+        project_id, episode_id = await _prepare_to_plan(screen, pilot)
+        screen.action_build_plan()
+        screen.action_continue()
+
+        with patch("deeper_dive.ffmpeg.shutil.which", return_value=None):
+            screen.action_check_preflight()
+            assert screen._preflight is not None
+            blockers = {issue.code: issue.message for issue in screen._preflight.blockers}
+            assert "ffmpeg_unavailable" in blockers
+
+            direct = GenerationStartService(app.composition).preflight(project_id, episode_id)
+            assert direct == screen._preflight
+
+            with patch.object(
+                cli_module.ProductionComposition,
+                "build",
+                return_value=app.composition,
+            ):
+                code = cli_module.main(
+                    [
+                        "--data-dir",
+                        str(service.workspaces.data_dir),
+                        "episode",
+                        "generate",
+                        project_id,
+                        episode_id,
+                    ]
+                )
+
+        assert code == 2
+        captured = capsys.readouterr()
+        assert blockers["ffmpeg_unavailable"] in captured.err
