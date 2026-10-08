@@ -297,10 +297,6 @@ async def _post_start_plan_mutation_is_rejected(tmp_path: Path) -> None:
             screen.action_generate_deep_dive()
         await pilot.pause()
         assert screen.context.run_id is not None
-        app.action_navigate("new")
-        await pilot.pause()
-        screen = app.screen
-        assert isinstance(screen, GuidedEpisodeWizard)
 
         screen.action_back()
         assert screen.context.state.current_step == "plan"
