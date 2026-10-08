@@ -64,37 +64,26 @@ def add_new_deep_dive_action(app: DeeperDiveApp) -> None:
     primary = home.query_one("#global-nav")
     advanced = home.query_one("#project-nav")
 
-    # Reuse the existing buttons so their event handlers and focus order stay stable.
-    for button, (label, destination) in zip(
-        primary.query(Button),
-        (
-            ("Home", "home"),
-            ("New Deep Dive", "new"),
-            ("Projects", "projects"),
-            ("Library", "library"),
-        ),
-        strict=True,
-    ):
-        button.label = label
-        button.name = destination
+    # Keep legacy screen widgets intact for compatibility, but replace their
+    # presentation with goal-first buttons. DOMNode.name is read-only.
+    for button in primary.query(Button):
+        button.display = False
+    for button in advanced.query(Button):
+        button.display = False
 
-    for button, (label, destination) in zip(
-        advanced.query(Button),
-        (
-            ("Sources", "sources"),
-            ("Research", "research"),
-            ("Hosts", "hosts"),
-            ("Providers", "providers"),
-            ("Settings", "settings"),
-            ("Help", "help"),
-        ),
-        strict=True,
-    ):
-        button.label = label
-        button.name = destination
-
-    # Existing episode and preflight screens remain reachable for expert users.
+    primary.mount(
+        Button("Home", name="home", id="guided-nav-home"),
+        Button("New Deep Dive", name="new", id="guided-nav-new"),
+        Button("Projects", name="projects", id="guided-nav-projects"),
+        Button("Library", name="library", id="guided-nav-library"),
+    )
     advanced.mount(
+        Button("Sources", name="sources", id="guided-nav-sources"),
+        Button("Research", name="research", id="guided-nav-research"),
+        Button("Hosts", name="hosts", id="guided-nav-hosts"),
+        Button("Providers", name="providers", id="guided-nav-providers"),
+        Button("Settings", name="settings", id="guided-nav-settings"),
+        Button("Help", name="help", id="guided-nav-help"),
         Button("Episode", name="episode", id="guided-advanced-episode"),
         Button("Generate", name="generate", id="guided-advanced-generate"),
     )
