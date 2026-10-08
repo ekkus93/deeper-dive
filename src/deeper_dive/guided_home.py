@@ -46,12 +46,10 @@ def refresh_goal_home(app: DeeperDiveApp) -> None:
     """Refresh derived Home information whenever the user returns."""
     home = app.get_screen("home")
     home.query_one("#home-readiness", Static).update(Text(_readiness_label(app)))
-    setup_context = WizardContext(
-        app.composition, WizardState(WizardKind.FIRST_RUN, "welcome")
-    )
-    home.query_one("#action-resume-setup", Button).display = (
-        not first_run_readiness(setup_context).setup_ready
-    )
+    setup_context = WizardContext(app.composition, WizardState(WizardKind.FIRST_RUN, "welcome"))
+    home.query_one("#action-resume-setup", Button).display = not first_run_readiness(
+        setup_context
+    ).setup_ready
     home.query_one("#home-recent-episodes", Static).update(Text(_recent_episode_lines(app)))
     resume = home.query_one("#action-resume-deep-dive", Button)
     store = getattr(app, "_draft_store", None)
