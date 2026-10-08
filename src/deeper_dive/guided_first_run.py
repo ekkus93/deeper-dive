@@ -225,6 +225,10 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         elif event.select.id == "setup-speech-choice":
             self._apply_speech_choice_defaults(force=True)
 
+    def on_input_changed(self, event: Input.Changed) -> None:
+        if event.input.id in {"setup-provider-adapter", "setup-speech-adapter"}:
+            self._sync_setup_controls()
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         action = event.button.name
         handlers = {
