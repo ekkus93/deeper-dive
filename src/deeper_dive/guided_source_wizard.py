@@ -7,6 +7,7 @@ from pathlib import Path
 from textual.widget import Widget
 from textual.widgets import Button, Input, Select, Static
 
+from deeper_dive.application.service import SourceImportSummary
 from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.guided_new_deep_dive import GuidedProjectWizard
 from deeper_dive.guided_workflow import CompletionProbe, WizardContext
@@ -323,7 +324,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
         return self.context.composition.service.get_source(project_id, value)
 
     @staticmethod
-    def _import_summary(kind: str, summary: object) -> str:
+    def _import_summary(kind: str, summary: SourceImportSummary) -> str:
         imported = len(summary.imported)
         skipped = len(summary.plan.candidates) - imported
         return f"Imported {imported} {kind} source(s); skipped {skipped}."
