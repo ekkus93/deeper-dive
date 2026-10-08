@@ -325,22 +325,25 @@ async def _guided_and_cli_preflight_report_same_blocker(tmp_path: Path, capsys) 
             direct = GenerationStartService(app.composition).preflight(project_id, episode_id)
             assert direct == screen._preflight
 
-            with patch.object(
-                cli_module.ProductionComposition,
-                "build",
-                return_value=app.composition,
-            ):
-                code = cli_module.main(
-                    [
-                        "--data-dir",
-                        str(service.workspaces.data_dir),
-                        "episode",
-                        "generate",
-                        project_id,
-                        episode_id,
-                    ]
-                )
+    with (
+        patch("deeper_dive.ffmpeg.shutil.which", return_value=None),
+        patch.object(
+            cli_module.ProductionComposition,
+            "build",
+            return_value=app.composition,
+        ),
+    ):
+        code = cli_module.main(
+            [
+                "--data-dir",
+                str(service.workspaces.data_dir),
+                "episode",
+                "generate",
+                project_id,
+                episode_id,
+            ]
+        )
 
-        assert code == 2
-        captured = capsys.readouterr()
-        assert blockers["ffmpeg_unavailable"] in captured.err
+    assert code == 2
+    captured = capsys.readouterr()
+    assert blockers["ffmpeg_unavailable"] in captured.err
