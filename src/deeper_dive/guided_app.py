@@ -61,7 +61,14 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
 
         self.call_after_refresh(lambda: refresh_goal_home(self))
 
-        if not first_run_readiness(setup_context).setup_ready:
+        # Only a genuinely fresh installation enters setup automatically.
+        # Returning users with invalidated providers can still inspect projects
+        # and the Library, then explicitly resume setup from Home.
+        config = self.provider_controller.config()
+        returning_user = bool(
+            config.providers or config.defaults or self.service.list_project_summaries()
+        )
+        if not first_run_readiness(setup_context).setup_ready and not returning_user:
             self.push_screen("setup")
 
     def action_navigate(self, destination: str) -> None:

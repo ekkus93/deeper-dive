@@ -31,3 +31,21 @@ async def _check(tmp_path: Path) -> None:
         app.screen.query_one("#action-new-deep-dive", Button).press()
         await pilot.pause()
         assert app.screen is first_wizard
+
+
+def test_returning_project_owner_can_open_home_and_resume_setup(tmp_path: Path) -> None:
+    asyncio.run(_returning_project_owner_can_open_home_and_resume_setup(tmp_path))
+
+
+async def _returning_project_owner_can_open_home_and_resume_setup(tmp_path: Path) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    service.create_project("Existing project")
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(80, 24)) as pilot:
+        assert app.screen.id == "screen-home"
+        await pilot.pause()
+        setup = app.screen.query_one("#action-resume-setup", Button)
+        assert setup.display
+        setup.press()
+        await pilot.pause()
+        assert app.screen.id == "screen-wizard-first-run"

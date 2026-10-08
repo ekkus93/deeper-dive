@@ -200,7 +200,13 @@ async def _fake_tts_voice_preview_and_ready_restart(tmp_path: Path) -> None:
 
     restarted.provider_controller.remove_provider("fixture")
     invalidated = GuidedDeeperDiveApp(service)
-    async with invalidated.run_test(size=(100, 30)):
+    async with invalidated.run_test(size=(100, 30)) as pilot:
+        assert invalidated.screen.id == "screen-home"
+        await pilot.pause()
+        resume_setup = invalidated.screen.query_one("#action-resume-setup", Button)
+        assert resume_setup.display
+        resume_setup.press()
+        await pilot.pause()
         assert invalidated.screen.id == "screen-wizard-first-run"
 
 
