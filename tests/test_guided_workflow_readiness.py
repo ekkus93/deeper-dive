@@ -143,9 +143,7 @@ def test_new_deep_dive_completion_advances_only_with_durable_production_state(
         tts_voice="voice-a",
     )
     composition.service.hosts(project.id).create_host(host_record)
-    episode = EpisodeConfigurationService(
-        composition.database_for_project(project.id)
-    ).create(
+    episode = EpisodeConfigurationService(composition.database_for_project(project.id)).create(
         project.id,
         EpisodeConfiguration(
             title="Guided readiness episode",

@@ -68,9 +68,7 @@ def first_run_readiness(context: WizardContext) -> FirstRunDerivedReadiness:
         for provider in config.providers.values()
     )
 
-    assignments, assignment_errors = effective_model_role_assignments(
-        user_defaults=config.defaults
-    )
+    assignments, assignment_errors = effective_model_role_assignments(user_defaults=config.defaults)
     model_roles_ready = not assignment_errors and all(
         _assignment_targets_configured_llm(
             controller,
@@ -80,9 +78,7 @@ def first_run_readiness(context: WizardContext) -> FirstRunDerivedReadiness:
         for role in _FIRST_RUN_REQUIRED_ROLES
     )
 
-    speech_deferred = (
-        config.defaults.get("speech_setup", "").strip().lower() == "deferred"
-    )
+    speech_deferred = config.defaults.get("speech_setup", "").strip().lower() == "deferred"
     tts_provider_id = config.defaults.get("tts_provider", "").strip()
     tts_voice = config.defaults.get("tts_voice", "").strip()
     tts_config = config.providers.get(tts_provider_id)
@@ -98,9 +94,7 @@ def first_run_readiness(context: WizardContext) -> FirstRunDerivedReadiness:
         and tts_config is not None
         and tts_config.provider_type.strip().lower().replace("_", "-") == "kitten"
     )
-    tts_runtime_ready = tts_configured and (
-        not kitten_required or status.kitten_available
-    )
+    tts_runtime_ready = tts_configured and (not kitten_required or status.kitten_available)
     audio_ready = tts_runtime_ready and status.ffmpeg_available
 
     defaults_ready = _defaults_are_valid(config.defaults)
@@ -170,9 +164,7 @@ class ProductionWizardCompletion:
         if step_key == "speech":
             return readiness.speech_choice_made
         if step_key == "voice-defaults":
-            return readiness.defaults_ready and (
-                readiness.speech_deferred or readiness.audio_ready
-            )
+            return readiness.defaults_ready and (readiness.speech_deferred or readiness.audio_ready)
         if step_key == "ready":
             return readiness.setup_ready
         raise KeyError(step_key)
@@ -234,8 +226,7 @@ class ProductionWizardCompletion:
             return False
         host_ids = repository.list_episode_host_ids(episode_id)
         return bool(host_ids) and all(
-            (host := repository.get_host(host_id)) is not None
-            and host.project_id == project_id
+            (host := repository.get_host(host_id)) is not None and host.project_id == project_id
             for host_id in host_ids
         )
 
@@ -273,9 +264,13 @@ class ProductionWizardCompletion:
         if project_id is None or episode_id is None or not self._plan_ready():
             return False
         try:
-            return GenerationStartService(self.context.composition).preflight(
-                project_id,
-                episode_id,
-            ).ready
+            return (
+                GenerationStartService(self.context.composition)
+                .preflight(
+                    project_id,
+                    episode_id,
+                )
+                .ready
+            )
         except (KeyError, ValueError):
             return False
