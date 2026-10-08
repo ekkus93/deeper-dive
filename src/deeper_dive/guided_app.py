@@ -6,8 +6,8 @@ from textual.binding import Binding
 
 from deeper_dive.guided_first_run import GuidedFirstRunWizard
 from deeper_dive.guided_home import add_new_deep_dive_action
+from deeper_dive.guided_host_wizard import GuidedHostWizard
 from deeper_dive.guided_readiness import ProductionWizardCompletion, first_run_readiness
-from deeper_dive.guided_source_wizard import GuidedSourceWizard
 from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardState
 from deeper_dive.tui import DeeperDiveApp
 
@@ -40,7 +40,7 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
             WizardState(WizardKind.NEW_DEEP_DIVE, "project"),
         )
         self.install_screen(
-            GuidedSourceWizard(
+            GuidedHostWizard(
                 new_context,
                 ProductionWizardCompletion(new_context),
             ),
