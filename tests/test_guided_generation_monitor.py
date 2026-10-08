@@ -109,7 +109,7 @@ async def _guided_monitor_reloads_checkpoint_after_restart(tmp_path) -> None:
             assert isinstance(screen, GuidedGenerationMonitorScreen)
             assert "paused" in str(screen.query_one("#generation-state", Static).render())
             assert "stage research" in str(screen.query_one("#generation-state", Static).render())
-            assert "✓ Sources" in str(screen.query_one("#stage-checklist", Static).render())
+            assert "✓ sources: Source boundary" in str(screen.query_one("#stage-checklist", Static).render())
             assert screen._button("resume-generation").disabled is False
             assert screen._button("pause-generation").disabled is True
 
