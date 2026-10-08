@@ -57,6 +57,11 @@ class ResearchPolicyStore:
             return
         self._put("episode", episode_id, policy)
 
+    def has_project_policy(self, project_id: str) -> bool:
+        """Return whether the user/project has an explicit durable policy choice."""
+
+        return self._get("project", project_id) is not None
+
     def project(self, project_id: str) -> ResearchPolicy:
         return self._get("project", project_id) or ResearchPolicy()
 
