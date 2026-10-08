@@ -18,7 +18,10 @@ class GuidedSourceWizard(GuidedProjectWizard):
                 [
                     ("Use only my sources — no external research", ResearchMode.OFF.value),
                     ("Fill important gaps — may access the network", ResearchMode.USEFUL.value),
-                    ("Research extensively — may access the network", ResearchMode.AGGRESSIVE.value),
+                    (
+                        "Research extensively — may access the network",
+                        ResearchMode.AGGRESSIVE.value,
+                    ),
                 ],
                 value=ResearchMode.USEFUL.value,
                 allow_blank=False,

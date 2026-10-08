@@ -40,6 +40,7 @@ async def _check(tmp_path: Path) -> None:
         assert len(sources) == 1
         assert service.list_source_chunks(project_id, sources[0].id)
 
+
 def test_guided_research_choices_persist_through_production_controller(tmp_path: Path) -> None:
     asyncio.run(_guided_research_choices_persist(tmp_path))
 
