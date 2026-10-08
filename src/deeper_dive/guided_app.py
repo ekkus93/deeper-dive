@@ -62,9 +62,7 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
             self.push_screen("setup")
         elif destination in {"new", "resume"}:
             if destination == "resume":
-                restored = self._draft_store.load(
-                    self.composition, WizardKind.NEW_DEEP_DIVE
-                )
+                restored = self._draft_store.load(self.composition, WizardKind.NEW_DEEP_DIVE)
                 if restored is not None:
                     self._new_context.state = restored.state
                     self._new_context.project_id = restored.project_id

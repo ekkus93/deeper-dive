@@ -190,9 +190,7 @@ class WizardShell(Screen[None]):
         try:
             store.save(self.context)
         except (OSError, ValueError) as exc:
-            self.set_status(
-                "Could not save wizard progress: " + sanitize_exception_message(exc)
-            )
+            self.set_status("Could not save wizard progress: " + sanitize_exception_message(exc))
             return
         self.save_exit_requested = True
         self.set_status("Progress checkpoint saved; leaving the guided workflow.")

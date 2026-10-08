@@ -56,16 +56,17 @@ class GuidedDraftStore:
             if temporary is not None:
                 temporary.unlink(missing_ok=True)
 
-    def load(
-        self, composition: ProductionComposition, kind: WizardKind
-    ) -> WizardContext | None:
+    def load(self, composition: ProductionComposition, kind: WizardKind) -> WizardContext | None:
         path = self._path(kind)
         try:
             if path.is_symlink() or path.stat().st_size > _MAX_DRAFT_BYTES:
                 return None
             payload = json.loads(path.read_text(encoding="utf-8"))
             if not isinstance(payload, dict) or set(payload) != {
-                "wizard", "project_id", "episode_id", "run_id"
+                "wizard",
+                "project_id",
+                "episode_id",
+                "run_id",
             }:
                 return None
             raw_wizard = payload["wizard"]
@@ -76,8 +77,7 @@ class GuidedDraftStore:
                 return None
             refs = (payload["project_id"], payload["episode_id"], payload["run_id"])
             if not all(
-                ref is None or (isinstance(ref, str) and _ID.fullmatch(ref))
-                for ref in refs
+                ref is None or (isinstance(ref, str) and _ID.fullmatch(ref)) for ref in refs
             ):
                 return None
             project_id, episode_id, run_id = refs
@@ -100,7 +100,10 @@ class GuidedDraftStore:
             ):
                 run_id = None
             return WizardContext(
-                composition, state, project_id=project_id, episode_id=episode_id,
+                composition,
+                state,
+                project_id=project_id,
+                episode_id=episode_id,
                 run_id=run_id,
             )
         except (OSError, ValueError, TypeError, KeyError, UnicodeError):

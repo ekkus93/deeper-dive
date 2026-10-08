@@ -37,9 +37,7 @@ def test_draft_round_trip_preserves_only_navigation_hints_and_durable_ids(
 
 def test_setup_mode_round_trips_without_provider_or_credential_data(tmp_path: Path) -> None:
     composition, drafts = _setup(tmp_path)
-    state = WizardState(
-        WizardKind.FIRST_RUN, "ai-provider", setup_mode=SetupMode.ADVANCED
-    )
+    state = WizardState(WizardKind.FIRST_RUN, "ai-provider", setup_mode=SetupMode.ADVANCED)
     drafts.save(WizardContext(composition, state))
     restored = drafts.load(composition, WizardKind.FIRST_RUN)
     assert restored is not None
@@ -54,12 +52,14 @@ def test_invalid_or_old_draft_fails_safely(tmp_path: Path) -> None:
         path.write_text(content)
         assert drafts.load(composition, WizardKind.NEW_DEEP_DIVE) is None
     path.write_text(
-        json.dumps({
-            "wizard": WizardState(WizardKind.NEW_DEEP_DIVE, "hosts").to_record(),
-            "project_id": "not-a-project",
-            "episode_id": None,
-            "run_id": None,
-        })
+        json.dumps(
+            {
+                "wizard": WizardState(WizardKind.NEW_DEEP_DIVE, "hosts").to_record(),
+                "project_id": "not-a-project",
+                "episode_id": None,
+                "run_id": None,
+            }
+        )
     )
     restored = drafts.load(composition, WizardKind.NEW_DEEP_DIVE)
     assert restored is not None
