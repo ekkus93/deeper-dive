@@ -4,11 +4,11 @@ import asyncio
 from pathlib import Path
 
 from textual.app import App
-from textual.widgets import Button, Static
+from textual.widgets import Button, Select, Static
 
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.composition import ProductionComposition
-from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardState
+from deeper_dive.guided_workflow import SetupMode, WizardContext, WizardKind, WizardState
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.wizard_shell import (
     FirstRunWizardShell,
@@ -177,3 +177,27 @@ async def _wizard_mount_recovers_when_prior_production_state_is_invalid(tmp_path
         assert screen.context.state.current_step == "sources"
         assert "Step 2 of 7" in str(screen.query_one("#wizard-heading", Static).render())
         assert screen.query_one("#wizard-continue", Button).disabled
+
+
+def test_first_run_welcome_mode_and_optional_system_check(tmp_path: Path) -> None:
+    asyncio.run(_first_run_welcome_mode_and_optional_system_check(tmp_path))
+
+
+async def _first_run_welcome_mode_and_optional_system_check(tmp_path: Path) -> None:
+    composition = _composition(tmp_path)
+    screen = FirstRunWizardShell(
+        WizardContext(composition, WizardState(WizardKind.FIRST_RUN, "welcome")),
+        lambda _key: True,
+    )
+    app = _WizardHarness(screen)
+    async with app.run_test(size=(80, 24)) as pilot:
+        assert "Quick Setup" in str(screen.query_one("#wizard-step-content", Static).render())
+        selector = screen.query_one("#setup-mode", Select)
+        selector.value = SetupMode.ADVANCED.value
+        await pilot.pause()
+        assert screen.context.state.setup_mode is SetupMode.ADVANCED
+        screen.action_continue()
+        await pilot.pause()
+        assert screen.context.state.current_step == "system-check"
+        assert "FFmpeg:" in str(screen.query_one("#wizard-step-content", Static).render())
+        assert not selector.display
