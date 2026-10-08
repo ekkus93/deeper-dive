@@ -441,3 +441,60 @@ async def _guided_completed_run_shows_episode_ready(tmp_path: Path) -> None:
         await pilot.pause()
         assert app.screen.id == "screen-library"
         assert app.screen.selected_episode_id == episode_id
+
+
+def test_guided_hosts_reorder_edit_and_restart_from_production_state(tmp_path: Path) -> None:
+    asyncio.run(_guided_hosts_reorder_edit_and_restart(tmp_path))
+
+
+async def _guided_hosts_reorder_edit_and_restart(tmp_path: Path) -> None:
+    service = _service_and_config(tmp_path)
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        screen = app.screen
+        assert isinstance(screen, GuidedEpisodeWizard)
+        project_id, episode_id = await _prepare_to_plan(screen, pilot)
+        original_ids = EpisodeConfigurationService(
+            app.composition.database_for_project(project_id)
+        ).load_configuration(episode_id).host_ids
+        assert len(original_ids) == 2
+        screen.context.state = screen.context.state.moved_to("hosts")
+        screen._toggle()
+        picker = screen.query_one("#guided-host-picker", Select)
+        picker.value = original_ids[1]
+        await pilot.pause()
+        screen._move_selected_host(-1)
+        screen.action_save_host_order()
+        saved = EpisodeConfigurationService(
+            app.composition.database_for_project(project_id)
+        ).load_configuration(episode_id)
+        assert saved.host_ids == (original_ids[1], original_ids[0])
+
+        screen.query_one("#guided-host-name", Input).value = "Reordered Evidence Host"
+        screen.action_save_host()
+        updated = service.hosts(project_id).get_host(original_ids[1])
+        assert updated is not None
+        assert updated.display_name == "Reordered Evidence Host"
+        order = str(screen.query_one("#guided-host-order", Static).render())
+        assert "Reordered Evidence Host" in order
+        assert original_ids[1] not in order
+
+        screen.action_save_exit()
+        await pilot.pause()
+        assert app.screen.id == "screen-home"
+
+    restarted = GuidedDeeperDiveApp(service)
+    async with restarted.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        restarted.screen.query_one("#action-resume-deep-dive", Button).press()
+        await pilot.pause()
+        wizard = restarted.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        assert wizard.context.project_id == project_id
+        assert wizard.context.episode_id == episode_id
+        assert wizard._selected_host_ids == [original_ids[1], original_ids[0]]
+        assert "Reordered Evidence Host" in str(
+            wizard.query_one("#guided-host-order", Static).render()
+        )
