@@ -9,7 +9,8 @@ import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardState
+from deeper_dive.guided_readiness import ProductionWizardCompletion
+from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardNavigator, WizardState
 
 if TYPE_CHECKING:
     from deeper_dive.composition import ProductionComposition
@@ -103,13 +104,19 @@ class GuidedDraftStore:
                 or run.episode_id != episode_id
             ):
                 run_id = None
-            return WizardContext(
+            context = WizardContext(
                 composition,
                 state,
                 project_id=project_id,
                 episode_id=episode_id,
                 run_id=run_id,
             )
+            # A stored position is only a navigation hint: production readiness
+            # decides whether earlier prerequisites still permit that position.
+            context.state = WizardNavigator(
+                state, ProductionWizardCompletion(context)
+            ).recovered_state()
+            return context
         except (OSError, ValueError, TypeError, KeyError, UnicodeError):
             return None
 

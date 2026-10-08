@@ -74,3 +74,37 @@ def test_symlink_draft_not_loaded(tmp_path: Path) -> None:
     target.write_text("{}")
     (drafts.data_dir / "guided-first-run-draft.json").symlink_to(target)
     assert drafts.load(composition, WizardKind.FIRST_RUN) is None
+
+
+def test_draft_recovers_to_earliest_missing_production_prerequisite(tmp_path: Path) -> None:
+    composition, drafts = _setup(tmp_path)
+    project = composition.service.create_project("Incomplete")
+    drafts.save(
+        WizardContext(
+            composition,
+            WizardState(WizardKind.NEW_DEEP_DIVE, "plan"),
+            project_id=project.id,
+        )
+    )
+    recovered = drafts.load(composition, WizardKind.NEW_DEEP_DIVE)
+    assert recovered is not None
+    assert recovered.project_id == project.id
+    # No included/indexed source exists: a stale Plan bookmark must not skip it.
+    assert recovered.state.current_step == "sources"
+
+
+def test_draft_preserves_valid_later_location_when_prerequisites_are_ready(
+    tmp_path: Path,
+) -> None:
+    composition, drafts = _setup(tmp_path)
+    project = composition.service.create_project("Working")
+    drafts.save(
+        WizardContext(
+            composition,
+            WizardState(WizardKind.NEW_DEEP_DIVE, "sources"),
+            project_id=project.id,
+        )
+    )
+    resumed = drafts.load(composition, WizardKind.NEW_DEEP_DIVE)
+    assert resumed is not None
+    assert resumed.state.current_step == "sources"
