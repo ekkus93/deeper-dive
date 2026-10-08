@@ -7,7 +7,6 @@ workflow acceptance suite instead of freezing the obsolete interface forever.
 
 from pathlib import Path
 
-
 BASELINE_PATH = (
     Path(__file__).resolve().parents[1]
     / "docs/DEEP_DIVE_TUI_GUIDED_WORKFLOW_BASELINE_2026-10-08.md"
