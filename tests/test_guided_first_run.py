@@ -202,3 +202,36 @@ async def _fake_tts_voice_preview_and_ready_restart(tmp_path: Path) -> None:
     invalidated = GuidedDeeperDiveApp(service)
     async with invalidated.run_test(size=(100, 30)):
         assert invalidated.screen.id == "screen-wizard-first-run"
+
+
+def test_first_run_model_test_failure_and_retry(tmp_path: Path) -> None:
+    asyncio.run(_model_test_failure_and_retry(tmp_path))
+
+
+async def _model_test_failure_and_retry(tmp_path: Path) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 30)) as pilot:
+        screen = app.screen
+        assert isinstance(screen, GuidedFirstRunWizard)
+        screen.action_continue()
+        screen.action_continue()
+        screen.query_one("#setup-ai-choice", Select).value = "manual"
+        await pilot.pause()
+        screen.action_continue()
+        screen.query_one("#setup-provider-name", Input).value = "fixture"
+        screen.query_one("#setup-provider-adapter", Input).value = "fake"
+        screen.query_one("#setup-provider-model", Input).value = "fake-v1"
+        screen.query_one("#setup-provider-network", Input).value = "local"
+        await pilot.pause()
+        screen.action_save_provider()
+        screen.action_continue()
+        provider = app.provider_controller.llm("fixture")
+        with patch.object(provider, "generate", side_effect=RuntimeError("provider unavailable")):
+            screen.action_run_model_test()
+            assert "Model test failed" in str(screen.query_one("#wizard-status", Static).render())
+            assert screen._model_test_identity is None
+            screen.action_continue()
+            assert screen.context.state.current_step == "model-test"
+        screen.action_run_model_test()
+        assert "Model test succeeded" in str(screen.query_one("#wizard-status", Static).render())
