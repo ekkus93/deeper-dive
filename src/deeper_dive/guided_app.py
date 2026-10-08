@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from textual.binding import Binding
+
+from deeper_dive.guided_new_deep_dive import GuidedProjectWizard
 from deeper_dive.guided_readiness import ProductionWizardCompletion, first_run_readiness
 from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardState
 from deeper_dive.tui import DeeperDiveApp
@@ -9,12 +12,15 @@ from deeper_dive.wizard_shell import FirstRunWizardShell
 
 
 class GuidedDeeperDiveApp(DeeperDiveApp):
-    """Launch setup only when durable provider/default readiness is incomplete."""
+    """Route first-run and New Deep Dive through the shared production context."""
+
+    BINDINGS = [
+        *DeeperDiveApp.BINDINGS,
+        Binding("ctrl+g", "navigate('new')", "New Deep Dive"),
+    ]
 
     def on_ready(self) -> None:
-        # The base app installs and pushes Home during on_mount. Textual dispatches
-        # lifecycle handlers across the inheritance chain, so installing Home again
-        # in a subclass on_mount would raise ScreenError.
+        # Base on_mount already installs Home; avoid duplicate lifecycle installs.
         context = WizardContext(self.composition, WizardState(WizardKind.FIRST_RUN, "welcome"))
         self.install_screen(
             FirstRunWizardShell(context, ProductionWizardCompletion(context)),
@@ -26,6 +32,11 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
     def action_navigate(self, destination: str) -> None:
         if destination == "setup":
             self.push_screen("setup")
+        elif destination == "new":
+            context = WizardContext(
+                self.composition, WizardState(WizardKind.NEW_DEEP_DIVE, "project")
+            )
+            self.push_screen(GuidedProjectWizard(context, ProductionWizardCompletion(context)))
         else:
             super().action_navigate(destination)
 
