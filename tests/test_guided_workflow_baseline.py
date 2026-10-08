@@ -1,38 +1,43 @@
+"""Assert the archived pre-wizard baseline, not the evolving production UI.
+
+These tests intentionally pin historical evidence in the baseline document.
+Tests that inspect current navigation or episode controls belong in the guided
+workflow acceptance suite instead of freezing the obsolete interface forever.
+"""
+
 from __future__ import annotations
 
-import inspect
+from pathlib import Path
 
-from deeper_dive.episode_setup_screen import EpisodeSetupScreen
 from deeper_dive.first_run import FirstRunController
-from deeper_dive.tui import GLOBAL_SCREENS, PROJECT_SCREENS
 
 
-def test_pre_guided_navigation_baseline_is_flat_and_subsystem_first() -> None:
-    assert GLOBAL_SCREENS == ("home", "providers", "settings", "help")
-    assert PROJECT_SCREENS == (
-        "sources",
-        "research",
-        "hosts",
-        "episode",
-        "generate",
-        "library",
-    )
+BASELINE_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "docs/DEEP_DIVE_TUI_GUIDED_WORKFLOW_BASELINE_2026-10-08.md"
+)
 
 
-def test_pre_guided_episode_setup_baseline_exposes_implementation_fields() -> None:
-    source = inspect.getsource(EpisodeSetupScreen.compose)
+def test_pre_guided_navigation_baseline_records_flat_subsystem_first_ui() -> None:
+    baseline = BASELINE_PATH.read_text(encoding="utf-8")
 
-    assert "Host IDs in order, comma separated" in source
-    assert 'id="episode-hosts"' in source
-    assert 'id="episode-research-policy"' in source
-    assert 'id="episode-citation"' in source
-    assert 'placeholder="Target duration seconds"' in source
+    assert "global: `home`, `providers`, `settings`, `help`" in baseline
+    assert "project: `sources`, `research`, `hosts`, `episode`" in baseline
+    assert "implementation subsystems as peer destinations" in baseline
 
 
-def test_first_run_baseline_is_a_derived_probe_not_a_completion_flag() -> None:
-    source = inspect.getsource(FirstRunController)
+def test_pre_guided_episode_setup_baseline_records_implementation_fields() -> None:
+    baseline = BASELINE_PATH.read_text(encoding="utf-8")
 
-    assert "def status" in source
-    assert "ffmpeg_available" in source
-    assert "kitten_available" in source
-    assert "setup_complete" not in source
+    assert "Host IDs in order, comma separated" in baseline
+    assert "raw research-policy and citation-behavior strings" in baseline
+    assert "raw duration seconds" in baseline
+    assert "EpisodeConfigurationService" in baseline
+
+
+def test_first_run_baseline_records_side_effect_free_probe() -> None:
+    baseline = BASELINE_PATH.read_text(encoding="utf-8")
+
+    assert "side-effect-free readiness probe only" in baseline
+    assert "does not store a setup-complete flag" in baseline
+    assert callable(FirstRunController.status)
