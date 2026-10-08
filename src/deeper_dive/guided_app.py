@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from textual.binding import Binding
 
+from deeper_dive.guided_home import add_new_deep_dive_action
 from deeper_dive.guided_readiness import ProductionWizardCompletion, first_run_readiness
 from deeper_dive.guided_source_wizard import GuidedSourceWizard
 from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardState
@@ -20,7 +21,7 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
     ]
 
     def on_ready(self) -> None:
-        # Base on_mount already installs Home; avoid duplicate lifecycle installs.
+        add_new_deep_dive_action(self)
         context = WizardContext(self.composition, WizardState(WizardKind.FIRST_RUN, "welcome"))
         self.install_screen(
             FirstRunWizardShell(context, ProductionWizardCompletion(context)),
