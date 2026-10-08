@@ -86,8 +86,7 @@ def first_run_readiness(context: WizardContext) -> FirstRunDerivedReadiness:
     tts_voice = config.defaults.get("tts_voice", "").strip()
     tts_config = config.providers.get(tts_provider_id)
     tts_provider_configured = (
-        tts_config is not None
-        and controller.capability(tts_config.provider_type) == "tts"
+        tts_config is not None and controller.capability(tts_config.provider_type) == "tts"
     )
     speech_choice_made = speech_deferred or tts_provider_configured
 

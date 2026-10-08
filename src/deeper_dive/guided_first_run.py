@@ -131,9 +131,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         if step_key in {"welcome", "system-check"}:
             return super().step_content(step_key)
         if step_key == "ai-provider":
-            check = FirstRunController(
-                self.context.composition.provider_controller
-            ).system_check()
+            check = FirstRunController(self.context.composition.provider_controller).system_check()
             detected = []
             if check.ollama_reachable:
                 detected.append("Ollama")
@@ -157,8 +155,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         if step_key == "model-test":
             return (
                 "Test the selected production provider with a small synthetic prompt; no user "
-                "source content is sent.\n"
-                + self._model_test_summary
+                "source content is sent.\n" + self._model_test_summary
             )
         if step_key == "speech":
             return (
@@ -333,9 +330,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             )
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
             self._model_test_identity = None
-            self._model_test_summary = (
-                "Model test failed: " + sanitize_exception_message(exc)
-            )
+            self._model_test_summary = "Model test failed: " + sanitize_exception_message(exc)
             self.set_busy(False)
             self._sync_text()
             self.set_status(self._model_test_summary)
@@ -366,9 +361,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
                 "#setup-role-host-generation", Input
             ).value.strip(),
             ModelRole.DIRECTING: self.query_one("#setup-role-directing", Input).value.strip(),
-            ModelRole.VERIFICATION: self.query_one(
-                "#setup-role-verification", Input
-            ).value.strip(),
+            ModelRole.VERIFICATION: self.query_one("#setup-role-verification", Input).value.strip(),
         }
         if any(not value for value in values.values()):
             self.set_status("All required model roles need provider:model assignments.")
@@ -523,8 +516,8 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             if controller.capability(provider.provider_type) == "tts"
         ]
         selected_tts = config.defaults.get("tts_provider")
-        self._tts_provider_name = selected_tts if selected_tts in tts_names else (
-            tts_names[0] if tts_names else None
+        self._tts_provider_name = (
+            selected_tts if selected_tts in tts_names else (tts_names[0] if tts_names else None)
         )
         if self._tts_provider_name:
             provider = config.providers[self._tts_provider_name]

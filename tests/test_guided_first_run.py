@@ -42,9 +42,7 @@ async def _check(tmp_path: Path) -> None:
         screen.query_one("#setup-provider-network", Input).value = "local"
         screen.query_one("#setup-save-provider", Button).press()
         await pilot.pause()
-        assert "Saved provider fixture" in str(
-            screen.query_one("#wizard-status", Static).render()
-        )
+        assert "Saved provider fixture" in str(screen.query_one("#wizard-status", Static).render())
 
         screen.query_one("#setup-test-provider", Button).press()
         await pilot.pause()
