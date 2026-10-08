@@ -12,6 +12,7 @@ from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfiguratio
 from deeper_dive.guided_source_wizard import GuidedSourceWizard
 from deeper_dive.guided_workflow import CompletionProbe, WizardContext
 from deeper_dive.hosts import HostProfile, create_host_from_preset, preset_names
+from deeper_dive.storage.episode_repositories import HostProfileRecord
 from deeper_dive.voice_preview import VoicePreviewService
 
 
@@ -364,7 +365,7 @@ class GuidedHostWizard(GuidedSourceWizard):
         self._selected_host_ids = valid_ids
         output.update("Episode host order:\n" + "\n".join(rows) if rows else "Episode hosts: none.")
 
-    def _selected_host_record(self):
+    def _selected_host_record(self) -> HostProfileRecord | None:
         project_id = self.context.project_id
         value = self.query_one("#guided-host-picker", Select).value
         if project_id is None or not isinstance(value, str):
