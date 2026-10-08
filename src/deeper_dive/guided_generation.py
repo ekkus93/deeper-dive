@@ -102,7 +102,11 @@ class GuidedGenerationMonitorScreen(GenerationMonitorScreen):
             seconds = 0
         existing = self.query_one("#generation-state", Static)
         existing.update(
-            str(redact(f"Run: {run.id} | {run.state} | stage {generation_stage_label(run.stage)} | elapsed {seconds}s"))
+            str(
+                redact(
+                    f"Run: {run.id} | {run.state} | stage {generation_stage_label(run.stage)} | elapsed {seconds}s"
+                )
+            )
         )
         if run.state == "failed":
             self.query_one("#diagnostics-summary", Static).update(
