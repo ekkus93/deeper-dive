@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
 from dataclasses import replace
+from pathlib import Path
 from unittest.mock import patch
 
 from textual.pilot import Pilot
