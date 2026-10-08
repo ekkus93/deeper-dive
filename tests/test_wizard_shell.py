@@ -82,6 +82,8 @@ async def _wizard_shell_keyboard_navigation_focus_and_progress(tmp_path: Path) -
             screen.query_one("#wizard-progress", Static).render()
         )
 
+        await pilot.press("tab")
+        assert screen.focused is screen.query_one("#wizard-save-exit", Button)
         await pilot.press("shift+tab")
         assert screen.focused is screen.query_one("#wizard-back", Button)
 
