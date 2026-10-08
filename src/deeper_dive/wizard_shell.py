@@ -40,6 +40,7 @@ class WizardShell(Screen[None]):
 
     BINDINGS = [
         Binding("escape", "save_exit", "Save and Exit"),
+        Binding("space", "activate_focused_button", "Activate button", show=False),
         Binding("f1", "help", "Help"),
         Binding("?", "help", "Help"),
     ]
@@ -118,14 +119,11 @@ class WizardShell(Screen[None]):
     def on_resize(self, event: events.Resize) -> None:
         self._apply_viewport_policy(event.size.width, event.size.height)
 
-    def on_key(self, event: events.Key) -> None:
-        """Activate a focused wizard button with Space, matching Enter."""
+    def action_activate_focused_button(self) -> None:
+        """Activate a focused button once through Textual's binding dispatch."""
         focused = self.focused
-        if event.key == "space" and isinstance(focused, Button):
-            event.stop()
-            event.prevent_default()
-            if not focused.disabled:
-                focused.press()
+        if isinstance(focused, Button) and not focused.disabled:
+            focused.press()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         action = event.button.name
