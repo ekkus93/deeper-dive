@@ -160,3 +160,52 @@ async def _guided_project_and_multi_source_actions(tmp_path: Path) -> None:
 
         screen.action_continue()
         assert screen.context.state.current_step == "research"
+
+
+def test_guided_source_import_failure_retains_form_then_resumes_after_restart(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_source_import_failure_retry_and_restart(tmp_path))
+
+
+async def _source_import_failure_retry_and_restart(tmp_path: Path) -> None:
+    workspace = WorkspaceManager(tmp_path / "restart-source")
+    service = DeeperDiveService(workspace)
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        screen = app.screen
+        assert isinstance(screen, GuidedSourceWizard)
+        screen.query_one("#guided-project-name", Input).value = "Resumable sources"
+        screen.query_one("#guided-project-topic", Input).value = "What is reproducible?"
+        screen.action_create_project()
+        project_id = screen.context.project_id
+        assert project_id is not None
+        screen.action_continue()
+        screen.query_one("#guided-source-title", Input).value = "Preserved title"
+        screen.query_one("#guided-source-text", Input).value = "Indexable source content"
+        with patch.object(service, "add_pasted_source", side_effect=ValueError("synthetic parse error")):
+            screen.action_add_pasted_source()
+        assert screen.query_one("#guided-source-title", Input).value == "Preserved title"
+        assert screen.query_one("#guided-source-text", Input).value == "Indexable source content"
+        assert not service.list_sources(project_id)
+        screen.action_add_pasted_source()
+        assert len(service.list_sources(project_id)) == 1
+        screen.action_continue()
+        assert screen.context.state.current_step == "research"
+        screen.action_save_exit()
+        await pilot.pause()
+        assert app.screen.id == "screen-home"
+
+    restarted = GuidedDeeperDiveApp(DeeperDiveService(workspace))
+    async with restarted.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        assert restarted.screen.id == "screen-home"
+        button = restarted.screen.query_one("#action-resume-deep-dive", Button)
+        assert button.display
+        button.press()
+        await pilot.pause()
+        assert isinstance(restarted.screen, GuidedSourceWizard)
+        assert restarted.screen.context.project_id == project_id
+        assert restarted.screen.context.state.current_step == "research"

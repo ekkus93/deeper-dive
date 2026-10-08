@@ -185,3 +185,27 @@ async def _saved_new_deep_dive_resumes_after_restart(tmp_path: Path) -> None:
         assert restarted.screen.context.state.current_step == "sources"
         assert restarted.screen.query_one("#guided-source-add-paste", Button).display
         assert not restarted.screen.query_one("#guided-project-create", Button).display
+
+
+def test_goal_first_home_keyboard_primary_and_advanced_actions(tmp_path: Path) -> None:
+    asyncio.run(_goal_first_home_keyboard_primary_and_advanced_actions(tmp_path))
+
+
+async def _goal_first_home_keyboard_primary_and_advanced_actions(tmp_path: Path) -> None:
+    _save_ready_config(tmp_path)
+    app = GuidedDeeperDiveApp(_service(tmp_path))
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        assert app.screen.id == "screen-home"
+        library = app.screen.query_one("#guided-nav-library", Button)
+        library.focus()
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.screen.id == "screen-library"
+        app.action_navigate("home")
+        await pilot.pause()
+        advanced = app.screen.query_one("#guided-nav-providers", Button)
+        advanced.focus()
+        await pilot.press("enter")
+        await pilot.pause()
+        assert app.screen.id == "screen-providers"
