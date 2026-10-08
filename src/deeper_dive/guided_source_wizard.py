@@ -1,5 +1,6 @@
 """Guided source import and research-policy steps."""
 
+from textual.widget import Widget
 from textual.widgets import Button, Input, Select
 
 from deeper_dive.diagnostics import sanitize_exception_message
@@ -8,7 +9,7 @@ from deeper_dive.research_policy import ResearchMode, ResearchPolicy
 
 
 class GuidedSourceWizard(GuidedProjectWizard):
-    def step_controls(self) -> tuple[Input | Button | Select, ...]:
+    def step_controls(self) -> tuple[Widget, ...]:
         return (
             *super().step_controls(),
             Input(placeholder="Title", id="guided-source-title"),

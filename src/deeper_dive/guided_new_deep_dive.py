@@ -1,5 +1,6 @@
 """Guided project creation."""
 
+from textual.widget import Widget
 from textual.widgets import Button, Input
 
 from deeper_dive.diagnostics import sanitize_exception_message
@@ -7,7 +8,7 @@ from deeper_dive.wizard_shell import NewDeepDiveWizardShell
 
 
 class GuidedProjectWizard(NewDeepDiveWizardShell):
-    def step_controls(self) -> tuple[Input | Button, ...]:
+    def step_controls(self) -> tuple[Widget, ...]:
         return (
             Input(placeholder="Project name", id="guided-project-name"),
             Input(placeholder="Main curiosity prompt", id="guided-project-topic"),
