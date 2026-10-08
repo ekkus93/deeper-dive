@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 from textual.widget import Widget
 from textual.widgets import Button, Input, Select, Static
@@ -13,6 +14,7 @@ from deeper_dive.guided_new_deep_dive import GuidedProjectWizard
 from deeper_dive.guided_workflow import CompletionProbe, WizardContext
 from deeper_dive.research_policy import ResearchMode, ResearchPolicy
 from deeper_dive.storage.repositories import SourceRecord
+from deeper_dive.tui import DeeperDiveApp
 
 
 class GuidedSourceWizard(GuidedProjectWizard):
@@ -67,6 +69,11 @@ class GuidedSourceWizard(GuidedProjectWizard):
                 id="guided-research-save",
                 name="save-research",
             ),
+            Button(
+                "Advanced Research Controls",
+                id="guided-research-advanced",
+                name="advanced-research",
+            ),
         )
 
     def step_content(self, step_key: str) -> str:
@@ -115,6 +122,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
             "toggle-source": self.action_toggle_source,
             "delete-source": self.action_delete_source,
             "save-research": self.action_save_research,
+            "advanced-research": self.action_open_advanced_research,
         }
         handler = handlers.get(action)
         if handler is not None:
@@ -245,6 +253,21 @@ class GuidedSourceWizard(GuidedProjectWizard):
         self._sync_text()
         self.set_status(f"Saved research choice: {mode.value}.")
 
+    def action_open_advanced_research(self) -> None:
+        """Open existing expert controls against this wizard's durable project."""
+        project_id = self.context.project_id
+        if project_id is None:
+            self.set_status("Create a project before opening advanced research.")
+            return
+        project = self.context.composition.service.open_project(project_id)
+        if project is None:
+            self.set_status("The selected project is no longer available.")
+            return
+        app = cast(DeeperDiveApp, self.app)
+        app.current_project_id = project_id
+        app.current_project_name = project.name
+        app.action_navigate("research")
+
     def _refresh_sources(self, preferred_source_id: str | None = None) -> None:
         project_id = self.context.project_id
         picker = self.query_one("#guided-source-picker", Select)
@@ -342,3 +365,4 @@ class GuidedSourceWizard(GuidedProjectWizard):
             self.query_one(selector).display = step == "sources"
         self.query_one("#guided-research-policy", Select).display = step == "research"
         self.query_one("#guided-research-save", Button).display = step == "research"
+        self.query_one("#guided-research-advanced", Button).display = step == "research"

@@ -211,3 +211,33 @@ async def _source_import_failure_retry_and_restart(tmp_path: Path) -> None:
         assert isinstance(restarted.screen, GuidedSourceWizard)
         assert restarted.screen.context.project_id == project_id
         assert restarted.screen.context.state.current_step == "research"
+
+def test_guided_advanced_research_preserves_project_context(tmp_path: Path) -> None:
+    asyncio.run(_guided_advanced_research_preserves_project_context(tmp_path))
+
+
+async def _guided_advanced_research_preserves_project_context(tmp_path: Path) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "advanced-research"))
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(80, 24)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        screen = app.screen
+        screen.query_one("#guided-project-name", Input).value = "Context Project"
+        screen.query_one("#guided-project-topic", Input).value = "Investigate evidence"
+        screen.action_create_project()
+        project_id = screen.context.project_id
+        assert project_id is not None
+        screen.action_continue()
+        screen.query_one("#guided-source-title", Input).value = "Evidence"
+        screen.query_one("#guided-source-text", Input).value = "Research context text."
+        screen.action_add_pasted_source()
+        screen.action_continue()
+        assert screen.context.state.current_step == "research"
+        advanced = screen.query_one("#guided-research-advanced", Button)
+        assert advanced.display
+        advanced.press()
+        await pilot.pause()
+        assert app.screen.id == "screen-research"
+        assert app.current_project_id == project_id
+        assert app.current_project_name == "Context Project"

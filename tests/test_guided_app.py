@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
-from textual.widgets import Button
+from textual.widgets import Button, Input
 
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.guided_app import GuidedDeeperDiveApp
@@ -209,3 +209,40 @@ async def _goal_first_home_keyboard_primary_and_advanced_actions(tmp_path: Path)
         await pilot.press("enter")
         await pilot.pause()
         assert app.screen.id == "screen-providers"
+
+def test_goal_first_home_preserves_project_open_rename_delete(tmp_path: Path) -> None:
+    asyncio.run(_goal_first_home_project_lifecycle(tmp_path))
+
+
+async def _goal_first_home_project_lifecycle(tmp_path: Path) -> None:
+    _save_ready_config(tmp_path)
+    service = _service(tmp_path)
+    project = service.create_project("Original")
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        home = app.screen
+        home.query_one("#rename-project-name", Input).value = "Renamed Project"
+        home.query_one("#action-rename-project", Button).press()
+        await pilot.pause()
+        assert service.open_project(project.id).name == "Renamed Project"
+
+        home.query_one("#action-open-project", Button).press()
+        await pilot.pause()
+        assert app.current_project_id == project.id
+        assert app.screen.id == "screen-sources"
+
+        app.action_navigate("projects")
+        await pilot.pause()
+        home = app.screen
+        home.query_one("#action-delete-project", Button).press()
+        await pilot.pause()
+        assert service.open_project(project.id) is not None
+        home.query_one("#action-cancel-delete", Button).press()
+        await pilot.pause()
+        assert service.open_project(project.id) is not None
+
+        home.query_one("#action-delete-project", Button).press()
+        home.query_one("#action-confirm-delete", Button).press()
+        await pilot.pause()
+        assert service.open_project(project.id) is None
