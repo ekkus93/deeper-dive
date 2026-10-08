@@ -119,9 +119,9 @@ async def _failed_provider_build_preserves_prior_runtime_and_config(tmp_path: Pa
 
         screen.query_one("#setup-provider-adapter", Input).value = "openai"
         screen.query_one("#setup-provider-model", Input).value = "gpt-test"
-        screen.query_one("#setup-provider-credential-env", Input).value = (
-            "DEEPER_DIVE_MISSING_TEST_CREDENTIAL"
-        )
+        screen.query_one(
+            "#setup-provider-credential-env", Input
+        ).value = "DEEPER_DIVE_MISSING_TEST_CREDENTIAL"
         screen.query_one("#setup-provider-network", Input).value = "remote"
         await pilot.pause()
         screen.action_save_provider()
