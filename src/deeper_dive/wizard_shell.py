@@ -305,9 +305,7 @@ class FirstRunWizardShell(WizardShell):
         if event.button.name == "skip-setup":
             self.on_save_exit()
         elif event.button.name == "system-check-details":
-            self._system_details_visible = not getattr(
-                self, "_system_details_visible", False
-            )
+            self._system_details_visible = not getattr(self, "_system_details_visible", False)
             self._sync_text()
         else:
             super().on_button_pressed(event)
