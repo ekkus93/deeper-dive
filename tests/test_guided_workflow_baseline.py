@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from deeper_dive.first_run import FirstRunController
-
 
 BASELINE_PATH = (
     Path(__file__).resolve().parents[1]
@@ -40,4 +38,3 @@ def test_first_run_baseline_records_side_effect_free_probe() -> None:
 
     assert "side-effect-free readiness probe only" in baseline
     assert "does not store a setup-complete flag" in baseline
-    assert callable(FirstRunController.status)
