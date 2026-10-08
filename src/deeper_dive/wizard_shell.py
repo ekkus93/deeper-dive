@@ -274,9 +274,7 @@ class FirstRunWizardShell(WizardShell):
         if step_key == "system-check":
             from deeper_dive.first_run import FirstRunController
 
-            check = FirstRunController(
-                self.context.composition.provider_controller
-            ).system_check()
+            check = FirstRunController(self.context.composition.provider_controller).system_check()
             rows = list(check.summary())
             if getattr(self, "_system_details_visible", False):
                 rows.extend(("", "Details:", *check.diagnostics))
