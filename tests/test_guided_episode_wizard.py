@@ -483,6 +483,33 @@ async def _guided_hosts_reorder_edit_and_restart(tmp_path: Path) -> None:
         assert "Reordered Evidence Host" in order
         assert original_ids[1] not in order
 
+        # Single-host selection remains valid and durable; re-add through
+        # the friendly host picker without entering comma-separated raw IDs.
+        picker.value = original_ids[0]
+        await pilot.pause()
+        screen.action_remove_selected_host()
+        screen.action_save_host_order()
+        single = EpisodeConfigurationService(
+            app.composition.database_for_project(project_id)
+        ).load_configuration(episode_id)
+        assert single.host_ids == (original_ids[1],)
+        screen.action_select_host()
+        screen.action_save_host_order()
+
+        picker.value = original_ids[1]
+        await pilot.pause()
+        screen.action_preview_host_voice()
+        assert "Previewed" in str(screen.query_one("#wizard-status", Static).render())
+        assert any(
+            (service.workspaces.data_dir / "voice-previews").iterdir()
+        )
+
+        screen.query_one("#guided-host-name", Input).value = "Custom Evidence Host"
+        screen.action_create_host()
+        assert any(
+            host.display_name == "Custom Evidence Host"
+            for host in service.hosts(project_id).list_hosts(project_id)
+        )
         screen.action_save_exit()
         await pilot.pause()
         assert app.screen.id == "screen-home"
