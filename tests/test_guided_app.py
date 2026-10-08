@@ -247,3 +247,32 @@ async def _goal_first_home_project_lifecycle(tmp_path: Path) -> None:
         home.query_one("#action-confirm-delete", Button).press()
         await pilot.pause()
         assert service.open_project(project.id) is None
+
+def test_goal_first_quick_requires_sources_then_uses_production_plan(tmp_path: Path) -> None:
+    asyncio.run(_goal_first_quick_requires_sources_then_uses_production_plan(tmp_path))
+
+
+async def _goal_first_quick_requires_sources_then_uses_production_plan(tmp_path: Path) -> None:
+    _save_ready_config(tmp_path)
+    service = _service(tmp_path)
+    project = service.create_project("Quick from Home")
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        app.screen.query_one("#action-quick-deep-dive", Button).press()
+        await pilot.pause()
+        assert app.screen.id == "screen-sources"
+        assert app.current_project_id == project.id
+        assert service.hosts(project.id).list_episodes(project.id) == []
+
+        service.add_pasted_source(project.id, "Notes", "Source content for quick planning.")
+        app.action_navigate("home")
+        await pilot.pause()
+        app.screen.query_one("#action-quick-deep-dive", Button).press()
+        await pilot.pause()
+        assert app.current_episode_id is not None
+        assert app.screen.id == "screen-generate"
+        assert any(
+            episode.id == app.current_episode_id
+            for episode in service.hosts(project.id).list_episodes(project.id)
+        )

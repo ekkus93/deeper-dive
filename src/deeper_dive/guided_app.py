@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from textual.binding import Binding
 
+from deeper_dive.episode_setup_screen import EpisodeSetupScreen
 from deeper_dive.guided_draft import GuidedDraftStore
 from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
 from deeper_dive.guided_first_run import GuidedFirstRunWizard
@@ -90,6 +91,25 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
                 self._new_context.episode_id = None
                 self._new_context.run_id = None
             self.push_screen("new")
+        elif destination == "quick":
+            # Reuse the normal QuickDeepDiveService -> planner -> shared
+            # preflight route; do not introduce a guided-only generation engine.
+            selected = getattr(self.get_screen("home"), "selected_project_id", None)
+            project_id = selected or self.current_project_id
+            project = self.service.open_project(project_id) if project_id else None
+            if project is None:
+                self.action_navigate("new")
+                return
+            self.current_project_id = project.id
+            self.current_project_name = project.name
+            if not any(
+                source.included and self.service.list_source_chunks(project.id, source.id)
+                for source in self.service.list_sources(project.id)
+            ):
+                self.action_navigate("sources")
+                return
+            self.action_navigate("episode")
+            self.call_after_refresh(self._launch_quick_deep_dive)
         elif destination == "projects":
             self.push_screen("home")
             self.call_after_refresh(lambda: refresh_goal_home(self))
@@ -98,6 +118,12 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
             self.call_after_refresh(lambda: refresh_goal_home(self))
         else:
             super().action_navigate(destination)
+
+
+    def _launch_quick_deep_dive(self) -> None:
+        screen = self.screen
+        if isinstance(screen, EpisodeSetupScreen):
+            screen.action_quick_deep_dive()
 
 
 def main() -> None:

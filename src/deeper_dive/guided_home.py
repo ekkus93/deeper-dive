@@ -103,12 +103,19 @@ def add_new_deep_dive_action(app: DeeperDiveApp) -> None:
     content = home.query_one("#content")
     content.mount(
         Button("New Deep Dive", name="new", id="action-new-deep-dive"),
+        Button("Quick Deep Dive", name="quick", id="action-quick-deep-dive"),
         Button("Resume Deep Dive", name="resume", id="action-resume-deep-dive"),
         Button("Resume Setup", name="setup", id="action-resume-setup"),
         before="#new-project-name",
     )
     content.mount(
         Static(Text(_readiness_label(app)), id="home-readiness"),
+        Static(
+            "Quick uses an existing project with indexed sources. "
+            "Research may contact external services according to your saved policy; "
+            "generation always runs shared preflight.",
+            id="home-quick-guidance",
+        ),
         Static(Text("Recent projects: None yet"), id="home-recent-projects"),
         Static(Text(_recent_episode_lines(app)), id="home-recent-episodes"),
         before="#new-project-name",
