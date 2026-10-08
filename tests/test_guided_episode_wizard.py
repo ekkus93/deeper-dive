@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from dataclasses import replace
 from unittest.mock import patch
 
 from textual.pilot import Pilot
@@ -16,6 +17,7 @@ from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.guided_app import GuidedDeeperDiveApp
 from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
 from deeper_dive.guided_generation import GuidedGenerationMonitorScreen
+from deeper_dive.guided_ready import GuidedEpisodeReadyScreen
 from deeper_dive.llm import LLMResponse
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.storage.workspace import WorkspaceManager
@@ -397,3 +399,42 @@ async def _guided_generate_opens_production_monitor(tmp_path: Path) -> None:
         monitor.action_cancel()
         after = service.runs(project_id).get(run_id)
         assert after is not None and after.cancel_requested
+
+
+def test_guided_completed_run_shows_episode_ready_and_routes_to_library(tmp_path: Path) -> None:
+    asyncio.run(_guided_completed_run_shows_episode_ready(tmp_path))
+
+
+async def _guided_completed_run_shows_episode_ready(tmp_path: Path) -> None:
+    service = _service_and_config(tmp_path)
+    app = GuidedDeeperDiveApp(service)
+    app.generation_monitor_controller.runner = None
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        project_id, episode_id = await _prepare_to_plan(wizard, pilot)
+        wizard.action_build_plan()
+        wizard.action_continue()
+        with patch("deeper_dive.ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"):
+            wizard.action_check_preflight()
+            wizard.action_generate_deep_dive()
+        await pilot.pause()
+        run_id = wizard.context.run_id
+        assert run_id is not None
+        repository = service.runs(project_id)
+        run = repository.get(run_id)
+        assert run is not None
+        repository.update(replace(run, state="completed"))
+        app.action_navigate("ready")
+        await pilot.pause()
+        ready = app.screen
+        assert isinstance(ready, GuidedEpisodeReadyScreen)
+        summary = str(ready.query_one("#ready-summary", Static).render())
+        assert "Regression Episode" in summary
+        assert "Generation status: completed" in summary
+        ready.query_one('Button[name="ready-library"]', Button).press()
+        await pilot.pause()
+        assert app.screen.id == "screen-library"
+        assert app.screen.selected_episode_id == episode_id

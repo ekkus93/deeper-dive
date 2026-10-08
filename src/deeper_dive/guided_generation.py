@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from textual.widgets import Button, Static
+
 from deeper_dive.diagnostics import redact
 from deeper_dive.domain.clock import parse_timestamp
 from deeper_dive.generation_monitor import GenerationMonitorScreen
-from textual.widgets import Button, Static
 
 
 class GuidedGenerationMonitorScreen(GenerationMonitorScreen):
@@ -22,6 +23,17 @@ class GuidedGenerationMonitorScreen(GenerationMonitorScreen):
 
     def on_screen_resume(self) -> None:
         self.refresh_monitor()
+
+    async def _background_run(self, run_id: str) -> None:
+        await super()._background_run(run_id)
+        run = self._run()
+        if (
+            run is not None
+            and run.id == run_id
+            and run.state == "completed"
+            and self.app.screen is self
+        ):
+            self._app.action_navigate("ready")
 
     def action_cancel(self) -> None:
         if not self._cancel_confirmation_pending:
