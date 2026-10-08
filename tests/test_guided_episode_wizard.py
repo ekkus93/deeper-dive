@@ -441,7 +441,7 @@ async def _guided_completed_run_shows_episode_ready(tmp_path: Path) -> None:
         summary = str(ready.query_one("#ready-summary", Static).render())
         assert "Regression Episode" in summary
         assert "Generation status: completed" in summary
-        ready.query_one('Button[name="ready-library"]', Button).press()
+        ready.query_one("#ready-library", Button).press()
         await pilot.pause()
         assert app.screen.id == "screen-library"
         assert app.screen.selected_episode_id == episode_id

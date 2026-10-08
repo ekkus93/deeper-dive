@@ -37,11 +37,11 @@ class GuidedEpisodeReadyScreen(Screen[None]):
         with VerticalScroll(id="content"):
             yield Label("Your Deep Dive Is Ready", id="screen-title")
             yield Static("", id="ready-summary")
-            yield Button("Play Episode", name="ready-play")
-            yield Button("Open in Review", name="ready-review")
-            yield Button("Export Episode", name="ready-export")
-            yield Button("View in Library", name="ready-library")
-            yield Button("Home", name="ready-home")
+            yield Button("Play Episode", id="ready-play", name="ready-play")
+            yield Button("Open in Review", id="ready-review", name="ready-review")
+            yield Button("Export Episode", id="ready-export", name="ready-export")
+            yield Button("View in Library", id="ready-library", name="ready-library")
+            yield Button("Home", id="ready-home", name="ready-home")
             yield Static("", id="ready-status")
         yield Footer()
 
@@ -93,8 +93,8 @@ class GuidedEpisodeReadyScreen(Screen[None]):
                     )
                 )
             )
-        for name in ("ready-play", "ready-review", "ready-export", "ready-library"):
-            self.query_one(f'Button[name="{name}"]', Button).disabled = item is None
+        for button_id in ("#ready-play", "#ready-review", "#ready-export", "#ready-library"):
+            self.query_one(button_id, Button).disabled = item is None
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         action = event.button.name

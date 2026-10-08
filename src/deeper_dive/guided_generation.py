@@ -82,13 +82,19 @@ class GuidedGenerationMonitorScreen(GenerationMonitorScreen):
                     )
                 )
             )
-        self.query_one('Button[name="resume-generation"]', Button).disabled = run.state != "paused"
-        self.query_one('Button[name="pause-generation"]', Button).disabled = run.state not in {
+        self._button("resume-generation").disabled = run.state != "paused"
+        self._button("pause-generation").disabled = run.state not in {
             "running",
             "pending",
         }
-        self.query_one('Button[name="cancel-generation"]', Button).disabled = run.state in {
+        self._button("cancel-generation").disabled = run.state in {
             "completed",
             "failed",
             "cancelled",
         }
+
+    def _button(self, name: str) -> Button:
+        for button in self.query(Button):
+            if button.name == name:
+                return button
+        raise LookupError(name)
