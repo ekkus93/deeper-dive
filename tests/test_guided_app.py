@@ -82,3 +82,57 @@ async def _skip_setup_does_not_manufacture_readiness(tmp_path: Path) -> None:
     restarted = GuidedDeeperDiveApp(service)
     async with restarted.run_test(size=(100, 30)):
         assert restarted.screen.id == "screen-wizard-first-run"
+
+
+def test_goal_first_home_exposes_primary_and_advanced_navigation(tmp_path: Path) -> None:
+    asyncio.run(_goal_first_home_exposes_navigation(tmp_path))
+
+
+async def _goal_first_home_exposes_navigation(tmp_path: Path) -> None:
+    _save_ready_config(tmp_path)
+    service = _service(tmp_path)
+    service.create_project("My source research")
+    app = GuidedDeeperDiveApp(service)
+
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        assert app.screen.id == "screen-home"
+        primary = tuple(
+            button.name for button in app.screen.query_one("#global-nav").query(Button)
+        )
+        assert primary == ("home", "new", "projects", "library")
+        advanced = tuple(
+            button.name for button in app.screen.query_one("#project-nav").query(Button)
+        )
+        assert advanced == (
+            "sources", "research", "hosts", "providers",
+            "settings", "help", "episode", "generate",
+        )
+        assert "My source research" in str(
+            app.screen.query_one("#home-recent-projects").render()
+        )
+        assert "Setup ready" in str(
+            app.screen.query_one("#home-readiness").render()
+        )
+        app.screen.query_one("#action-new-deep-dive", Button).press()
+        await pilot.pause()
+        assert app.screen.id == "screen-wizard-new-deep-dive"
+
+
+def test_goal_first_home_projects_and_library_routes(tmp_path: Path) -> None:
+    asyncio.run(_goal_first_home_projects_and_library_routes(tmp_path))
+
+
+async def _goal_first_home_projects_and_library_routes(tmp_path: Path) -> None:
+    _save_ready_config(tmp_path)
+    app = GuidedDeeperDiveApp(_service(tmp_path))
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.action_navigate("library")
+        await pilot.pause()
+        assert app.screen.id == "screen-library"
+        app.action_navigate("projects")
+        await pilot.pause()
+        assert app.screen.id == "screen-home"
+        app.screen.query_one("#nav-providers", Button).press()
+        await pilot.pause()
+        assert app.screen.id == "screen-providers"
