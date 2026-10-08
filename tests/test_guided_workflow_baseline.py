@@ -4,9 +4,6 @@ These tests intentionally pin historical evidence in the baseline document.
 Tests that inspect current navigation or episode controls belong in the guided
 workflow acceptance suite instead of freezing the obsolete interface forever.
 """
-
-from __future__ import annotations
-
 from pathlib import Path
 
 
