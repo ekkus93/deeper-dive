@@ -134,6 +134,8 @@ async def _episode_plan_preflight_and_generation_start(tmp_path: Path) -> None:
                 screen.query_one("#guided-preflight-summary", Static).render()
             )
             screen.action_generate_deep_dive()
+        await pilot.pause()
+        assert isinstance(app.screen, GuidedGenerationMonitorScreen)
 
         assert screen.context.run_id is not None
         run = service.runs(project_id).get(screen.context.run_id)
@@ -293,7 +295,12 @@ async def _post_start_plan_mutation_is_rejected(tmp_path: Path) -> None:
             screen.action_check_preflight()
             assert screen._preflight is not None and screen._preflight.ready
             screen.action_generate_deep_dive()
+        await pilot.pause()
         assert screen.context.run_id is not None
+        app.action_navigate("new")
+        await pilot.pause()
+        screen = app.screen
+        assert isinstance(screen, GuidedEpisodeWizard)
 
         screen.action_back()
         assert screen.context.state.current_step == "plan"
