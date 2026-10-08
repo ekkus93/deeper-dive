@@ -20,6 +20,7 @@ from deeper_dive.preflight import (
     PreflightIssue,
     PreflightReport,
 )
+from deeper_dive.source_readiness import source_index_ready
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository, HostProfileRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 
@@ -60,7 +61,9 @@ class GenerationStartService:
         database = self.composition.database_for_project(project_id)
         sources = [source for source in service.list_sources(project_id) if source.included]
         indexed_source_count = sum(
-            1 for source in sources if service.list_source_chunks(project_id, source.id)
+            1
+            for source in sources
+            if source_index_ready(source, len(service.list_source_chunks(project_id, source.id)))
         )
         host_records = self._episode_hosts(repository, project_id, episode_id)
         hosts = tuple(HostProfile.from_record(host) for host in host_records)

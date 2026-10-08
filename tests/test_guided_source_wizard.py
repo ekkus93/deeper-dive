@@ -1,6 +1,7 @@
 """Guided source import acceptance."""
 
 import asyncio
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -10,8 +11,61 @@ from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.guided_app import GuidedDeeperDiveApp
 from deeper_dive.guided_source_wizard import GuidedSourceWizard
 from deeper_dive.parsing import ParsedBlock, ParseResult
+from deeper_dive.source_readiness import source_index_ready, source_readiness_label
 from deeper_dive.storage.workspace import WorkspaceManager
 
+
+
+def test_source_readiness_uses_status_and_durable_chunks(tmp_path: Path) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "source-readiness"))
+    project = service.create_project("Source readiness")
+    source = service.add_pasted_source(project.id, "Evidence", "Indexable source content.")
+    chunks = service.list_source_chunks(project.id, source.id)
+    assert chunks
+    assert source_index_ready(source, len(chunks))
+    assert "ready" in source_readiness_label(source, len(chunks))
+    assert not source_index_ready(source, 0)
+    assert "needs indexing" in source_readiness_label(source, 0)
+    failed = replace(source, status="error")
+    assert not source_index_ready(failed, len(chunks))
+    assert "failed" in source_readiness_label(failed, len(chunks))
+    excluded = replace(source, included=False)
+    assert "excluded" in source_readiness_label(excluded, len(chunks))
+
+
+def test_guided_source_continue_reflects_index_readiness(tmp_path: Path) -> None:
+    asyncio.run(_guided_source_continue_reflects_index_readiness(tmp_path))
+
+
+async def _guided_source_continue_reflects_index_readiness(tmp_path: Path) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "readiness-ui"))
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(80, 24)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        screen = app.screen
+        assert isinstance(screen, GuidedSourceWizard)
+        screen.query_one("#guided-project-name", Input).value = "Readiness"
+        screen.query_one("#guided-project-topic", Input).value = "Why?"
+        screen.action_create_project()
+        screen.action_continue()
+        screen.query_one("#guided-source-title", Input).value = "Notes"
+        screen.query_one("#guided-source-text", Input).value = "Some indexed evidence."
+        screen.action_add_pasted_source()
+        assert not screen.query_one("#wizard-continue", Button).disabled
+        assert "ready" in str(screen.query_one("#guided-source-summary").render())
+        with patch.object(service, "list_source_chunks", return_value=[]):
+            screen._refresh_sources()
+            screen._sync_text()
+            assert screen.query_one("#wizard-continue", Button).disabled
+            assert "needs indexing" in str(screen.query_one("#guided-source-summary").render())
+            screen.action_continue()
+            assert screen.context.state.current_step == "sources"
+        screen._refresh_sources()
+        screen._sync_text()
+        assert not screen.query_one("#wizard-continue", Button).disabled
+        screen.action_continue()
+        assert screen.context.state.current_step == "research"
 
 def test_guided_source_import(tmp_path: Path) -> None:
     asyncio.run(_check(tmp_path))

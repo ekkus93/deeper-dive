@@ -17,6 +17,7 @@ from deeper_dive.model_roles import (
 from deeper_dive.plan_validity import evaluate_episode_plan
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.research_policy import ResearchMode, ResearchPolicyStore
+from deeper_dive.source_readiness import source_index_ready
 from deeper_dive.user_config import ProviderConfig
 
 _FIRST_RUN_REQUIRED_ROLES = (
@@ -252,7 +253,10 @@ class ProductionWizardCompletion:
             if source.included
         ]
         return bool(sources) and all(
-            self.context.composition.service.list_source_chunks(project_id, source.id)
+            source_index_ready(
+                source,
+                len(self.context.composition.service.list_source_chunks(project_id, source.id)),
+            )
             for source in sources
         )
 

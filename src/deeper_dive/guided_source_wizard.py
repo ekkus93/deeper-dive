@@ -13,6 +13,7 @@ from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.guided_new_deep_dive import GuidedProjectWizard
 from deeper_dive.guided_workflow import CompletionProbe, WizardContext
 from deeper_dive.research_policy import ResearchMode, ResearchPolicy
+from deeper_dive.source_readiness import source_index_ready, source_readiness_label
 from deeper_dive.storage.repositories import SourceRecord
 from deeper_dive.tui import DeeperDiveApp
 
@@ -43,8 +44,8 @@ class GuidedSourceWizard(GuidedProjectWizard):
             ),
             Button("Add URLs", id="guided-source-add-urls", name="add-url-sources"),
             Select([], allow_blank=True, id="guided-source-picker"),
-            Static("", id="guided-source-summary"),
-            Static("", id="guided-source-details"),
+            Static("", id="guided-source-summary", markup=False),
+            Static("", id="guided-source-details", markup=False),
             Button(
                 "Include / Exclude",
                 id="guided-source-toggle",
@@ -277,14 +278,17 @@ class GuidedSourceWizard(GuidedProjectWizard):
             summary.update("Create the project before adding sources.")
             self._refresh_source_details()
             return
-        sources = self.context.composition.service.list_sources(project_id)
+        service = self.context.composition.service
+        sources = service.list_sources(project_id)
+        readiness = {
+            source.id: source_readiness_label(
+                source, len(service.list_source_chunks(project_id, source.id))
+            )
+            for source in sources
+        }
         picker.set_options(
             [
-                (
-                    f"{source.title} — {'included' if source.included else 'excluded'} "
-                    f"— {source.status} — {source.source_type}",
-                    source.id,
-                )
+                (f"{source.title} — {readiness[source.id]} — {source.source_type}", source.id)
                 for source in sources
             ]
         )
@@ -298,7 +302,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
         else:
             rows = [
                 (
-                    f"{source.title} | {'included' if source.included else 'excluded'} "
+                    f"{source.title} | {readiness[source.id]} "
                     f"| {source.status} | {source.source_type}"
                 )
                 for source in sources
@@ -326,6 +330,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
                     f"Inclusion: {'included' if source.included else 'excluded'}",
                     f"Type: {source.source_type}",
                     f"Parsed/indexed chunks: {chunk_count}",
+                    f"Readiness: {source_readiness_label(source, chunk_count)}",
                     f"Locator: {source.locator or 'none'}",
                 )
             )
