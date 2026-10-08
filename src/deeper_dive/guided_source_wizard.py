@@ -13,7 +13,7 @@ from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.guided_new_deep_dive import GuidedProjectWizard
 from deeper_dive.guided_workflow import CompletionProbe, WizardContext
 from deeper_dive.research_policy import ResearchMode, ResearchPolicy
-from deeper_dive.source_readiness import source_index_ready, source_readiness_label
+from deeper_dive.source_readiness import source_readiness_label
 from deeper_dive.storage.repositories import SourceRecord
 from deeper_dive.tui import DeeperDiveApp
 

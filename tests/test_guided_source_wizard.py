@@ -15,7 +15,6 @@ from deeper_dive.source_readiness import source_index_ready, source_readiness_la
 from deeper_dive.storage.workspace import WorkspaceManager
 
 
-
 def test_source_readiness_uses_status_and_durable_chunks(tmp_path: Path) -> None:
     service = DeeperDiveService(WorkspaceManager(tmp_path / "source-readiness"))
     project = service.create_project("Source readiness")
@@ -66,6 +65,7 @@ async def _guided_source_continue_reflects_index_readiness(tmp_path: Path) -> No
         assert not screen.query_one("#wizard-continue", Button).disabled
         screen.action_continue()
         assert screen.context.state.current_step == "research"
+
 
 def test_guided_source_import(tmp_path: Path) -> None:
     asyncio.run(_check(tmp_path))
