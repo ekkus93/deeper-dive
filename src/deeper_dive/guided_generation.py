@@ -33,20 +33,23 @@ class GuidedGenerationMonitorScreen(GenerationMonitorScreen):
         super().on_mount()
         self.query_one("#screen-title", Static).update("Generating Your Deep Dive")
         self.set_interval(1.0, self.refresh_monitor)
+        self.call_after_refresh(self._route_completed_run)
 
     def on_screen_resume(self) -> None:
         self.refresh_monitor()
+        self.call_after_refresh(self._route_completed_run)
+
+    def _route_completed_run(self) -> None:
+        """Recover the Ready handoff from durable state after reopening a monitor."""
+        run = self._run()
+        if run is not None and run.state == "completed" and self.app.screen is self:
+            self._app.action_navigate("ready")
 
     async def _background_run(self, run_id: str) -> None:
         await super()._background_run(run_id)
         run = self._run()
-        if (
-            run is not None
-            and run.id == run_id
-            and run.state == "completed"
-            and self.app.screen is self
-        ):
-            self._app.action_navigate("ready")
+        if run is not None and run.id == run_id:
+            self._route_completed_run()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.name == "repair-generation":
