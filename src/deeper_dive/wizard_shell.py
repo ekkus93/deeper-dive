@@ -296,6 +296,10 @@ class FirstRunWizardShell(WizardShell):
             super().on_button_pressed(event)
 
     def on_save_exit(self) -> None:
+        try:
+            self.app.get_screen("home")
+        except KeyError:
+            return
         self.app.push_screen("home")
 
     def _show_welcome_controls(self) -> None:
