@@ -118,6 +118,15 @@ class WizardShell(Screen[None]):
     def on_resize(self, event: events.Resize) -> None:
         self._apply_viewport_policy(event.size.width, event.size.height)
 
+    def on_key(self, event: events.Key) -> None:
+        """Activate a focused wizard button with Space, matching Enter."""
+        focused = self.focused
+        if event.key == "space" and isinstance(focused, Button):
+            event.stop()
+            event.prevent_default()
+            if not focused.disabled:
+                focused.press()
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         action = event.button.name
         if action == "back":
