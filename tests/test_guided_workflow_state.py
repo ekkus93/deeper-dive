@@ -118,8 +118,8 @@ def test_navigation_progress_is_derived_not_stored() -> None:
     assert progress[0].visual_state is WizardStepVisualState.COMPLETE
     assert progress[1].visual_state is WizardStepVisualState.CURRENT
     assert progress[2].visual_state is WizardStepVisualState.UPCOMING
-    assert progress[0].text_marker == "[x]"
-    assert progress[1].text_marker == "[>]"
+    assert progress[0].text_marker == "✓"
+    assert progress[1].text_marker == "▶"
 
     with pytest.raises(WizardTransitionBlocked):
         navigator.continue_forward()

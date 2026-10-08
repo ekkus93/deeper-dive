@@ -64,7 +64,7 @@ async def _wizard_shell_keyboard_navigation_focus_and_progress(tmp_path: Path) -
 
     async with app.run_test(size=(100, 30)) as pilot:
         assert "Step 1 of 7" in str(screen.query_one("#wizard-heading", Static).render())
-        assert "[>] Project Setup (current)" in str(
+        assert "▶ Project Setup (current)" in str(
             screen.query_one("#wizard-progress", Static).render()
         )
         continue_button = screen.query_one("#wizard-continue", Button)
@@ -78,7 +78,7 @@ async def _wizard_shell_keyboard_navigation_focus_and_progress(tmp_path: Path) -
         assert screen.context.state.current_step == "sources"
         assert continue_button.disabled is True
         assert "Step 2 of 7" in str(screen.query_one("#wizard-heading", Static).render())
-        assert "[x] Project Setup (complete)" in str(
+        assert "✓ Project Setup (complete)" in str(
             screen.query_one("#wizard-progress", Static).render()
         )
 

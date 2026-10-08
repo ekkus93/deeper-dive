@@ -183,10 +183,10 @@ class WizardProgressItem:
         """Return a non-color marker for the visual state."""
 
         return {
-            WizardStepVisualState.COMPLETE: "[x]",
-            WizardStepVisualState.CURRENT: "[>]",
-            WizardStepVisualState.UPCOMING: "[ ]",
-            WizardStepVisualState.NEEDS_ATTENTION: "[!]",
+            WizardStepVisualState.COMPLETE: "✓",
+            WizardStepVisualState.CURRENT: "▶",
+            WizardStepVisualState.UPCOMING: "○",
+            WizardStepVisualState.NEEDS_ATTENTION: "!",
         }[self.visual_state]
 
 
