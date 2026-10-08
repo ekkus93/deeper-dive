@@ -133,6 +133,10 @@ async def _goal_first_home_projects_and_library_routes(tmp_path: Path) -> None:
         app.action_navigate("projects")
         await pilot.pause()
         assert app.screen.id == "screen-home"
-        next(button for button in app.screen.query_one("#project-nav").query(Button) if button.name == "providers").press()
+        next(
+            button
+            for button in app.screen.query_one("#project-nav").query(Button)
+            if button.name == "providers"
+        ).press()
         await pilot.pause()
         assert app.screen.id == "screen-providers"
