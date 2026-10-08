@@ -29,3 +29,7 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
 
 def main() -> None:
     GuidedDeeperDiveApp().run()
+
+
+if __name__ == "__main__":  # pragma: no cover
+    main()
