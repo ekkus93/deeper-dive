@@ -416,9 +416,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         if self._selected_segment_ordinal >= len(self._plan.segments):
             self._selected_segment_ordinal = 0
         picker.value = str(self._selected_segment_ordinal)
-        summary.update(
-            f"Plan total: {self._plan.target_duration_seconds}s\n" + "\n".join(rows)
-        )
+        summary.update(f"Plan total: {self._plan.target_duration_seconds}s\n" + "\n".join(rows))
         self._load_selected_segment()
         self._set_plan_controls()
 
@@ -428,9 +426,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         segment = self._plan.segments[self._selected_segment_ordinal]
         self.query_one("#guided-plan-title", Input).value = segment.title
         self.query_one("#guided-plan-purpose", Input).value = segment.purpose
-        self.query_one("#guided-plan-duration", Input).value = str(
-            segment.target_duration_seconds
-        )
+        self.query_one("#guided-plan-duration", Input).value = str(segment.target_duration_seconds)
 
     def _refresh_preflight(self) -> None:
         if self.context.state.current_step != "preflight":
@@ -469,8 +465,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             ),
             (
                 "Speech/voices: Ready"
-                if not codes
-                & {"tts_assignment", "tts_unhealthy", "tts_format_unsupported"}
+                if not codes & {"tts_assignment", "tts_unhealthy", "tts_format_unsupported"}
                 else "Speech/voices: Needs attention"
             ),
             f"FFmpeg: {'Ready' if 'ffmpeg_unavailable' not in codes else 'Needs attention'}",
