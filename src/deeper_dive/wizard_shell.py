@@ -288,9 +288,7 @@ class FirstRunWizardShell(WizardShell):
 
     def on_select_changed(self, event: Select.Changed) -> None:
         if event.select.id == "setup-mode" and isinstance(event.value, str):
-            self.context.state = replace(
-                self.context.state, setup_mode=SetupMode(event.value)
-            )
+            self.context.state = replace(self.context.state, setup_mode=SetupMode(event.value))
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.name == "skip-setup":
