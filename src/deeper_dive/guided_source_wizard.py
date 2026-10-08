@@ -201,9 +201,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
         self._pending_delete_source_id = None
         self._refresh_sources(source.id)
         self._sync_text()
-        self.set_status(
-            f"{'Included' if not source.included else 'Excluded'} {source.title}."
-        )
+        self.set_status(f"{'Included' if not source.included else 'Excluded'} {source.title}.")
 
     def action_delete_source(self) -> None:
         project_id = self.context.project_id
@@ -213,9 +211,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
             return
         if self._pending_delete_source_id != source.id:
             self._pending_delete_source_id = source.id
-            self.set_status(
-                f"Delete {source.title}? Choose Delete Source again to confirm."
-            )
+            self.set_status(f"Delete {source.title}? Choose Delete Source again to confirm.")
             return
         try:
             self.context.composition.service.delete_source(project_id, source.id)
@@ -277,9 +273,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
         elif isinstance(picker.value, str) and picker.value not in ids and sources:
             picker.value = sources[0].id
         if not sources:
-            summary.update(
-                "No sources yet. Add pasted text, files/folders, or an explicit URL."
-            )
+            summary.update("No sources yet. Add pasted text, files/folders, or an explicit URL.")
         else:
             rows = [
                 (

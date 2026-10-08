@@ -84,7 +84,6 @@ async def _guided_research_choices_persist(tmp_path: Path) -> None:
     assert restarted.composition.research_controller.policy(project_id).mode.value == "aggressive"
 
 
-
 def test_guided_project_and_multi_source_actions_use_production_services(tmp_path: Path) -> None:
     asyncio.run(_guided_project_and_multi_source_actions(tmp_path))
 
@@ -101,7 +100,9 @@ async def _guided_project_and_multi_source_actions(tmp_path: Path) -> None:
         screen.query_one("#guided-project-name", Input).value = "Energy"
         screen.query_one("#guided-project-topic", Input).value = "How does storage scale?"
         screen.query_one("#guided-project-audience", Select).value = "technical"
-        screen.query_one("#guided-project-description", Input).value = "Compare practical tradeoffs."
+        screen.query_one(
+            "#guided-project-description", Input
+        ).value = "Compare practical tradeoffs."
         screen.action_create_project()
         project_id = screen.context.project_id
         assert project_id is not None
