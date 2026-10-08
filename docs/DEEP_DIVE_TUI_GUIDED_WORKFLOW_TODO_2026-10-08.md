@@ -131,9 +131,9 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 - [x] Save and Exit after project creation leaves a discoverable resumable project.
 - [x] Sources step exposes Files, Paste Text, URL, and Folder where supported.
 - [x] Source imports use existing source/corpus application services.
-- [ ] Source rows show friendly identity, inclusion, indexing/readiness, and concise failure state.
+- [x] Source rows show friendly identity, inclusion, indexing/readiness, and concise failure state.
 - [x] Source add/remove/include/exclude actions preserve existing provenance and security behavior.
-- [ ] Continue semantics reflect actual source/index readiness.
+- [x] Continue semantics reflect actual source/index readiness.
 - [x] No acceptance test directly seeds source repository rows for the normal path.
 - [ ] Add import/index failure, retry, restart, and resume regressions.
 
@@ -346,6 +346,8 @@ Populate only as work is completed. Do not pre-check or use placeholders as comp
 
 - Implementation SHAs:
 
+  - 004198882412bccb0789a89b91e7b2514539194a, 1666f072a9434917d0fc077113401bb496319b98, d9010ee5f471563680c46b7200c4f40b22f0364a — shared source readiness for wizard and generation preflight, status-aware rows, negative/positive indexing gates; exact-head CI 37859564426 passed.
+
   - 179adb1ee0e7616fa0da5afd7c8eea93e1bcc679, 8873119ca22d5b4f7100f265874e558b69f6f4c5 — guided host order/edit/restart regression; exact-head CI 37857593854 passed.
   - c9e78253cd80c3a141138ef2f7b10f24567aaac4, f4c662b4610a2dc4631a91e27f822d5126918455 — single-host, voice-preview, and custom-host regression; exact-head CI 37858305157 passed.
   - e854f3ca29c3c9214591b2de2c6c41196ce1bdfd, c32084b77f881631a9d503c7b1a148cc1fa8ca31 — advanced Research navigation and project lifecycle regression; exact-head CI 37856266276 passed.
@@ -359,6 +361,8 @@ Populate only as work is completed. Do not pre-check or use placeholders as comp
   - 160bbdc607dfb68163731210e956207a3c186aeb — selected episode Library playback; exact-head CI 37836853268 passed.
 - Focused first-run tests:
 - Focused New Deep Dive tests:
+  - tests/test_guided_source_wizard.py::test_source_readiness_uses_status_and_durable_chunks
+  - tests/test_guided_source_wizard.py::test_guided_source_continue_reflects_index_readiness
   - tests/test_guided_episode_wizard.py::test_guided_hosts_reorder_edit_and_restart_from_production_state
   - tests/test_guided_app.py::test_goal_first_home_preserves_project_open_rename_delete
   - tests/test_guided_source_wizard.py::test_guided_research_choices_persist_through_production_controller
