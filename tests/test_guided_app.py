@@ -97,10 +97,16 @@ async def _goal_first_home_exposes_navigation(tmp_path: Path) -> None:
     async with app.run_test(size=(100, 30)) as pilot:
         await pilot.pause()
         assert app.screen.id == "screen-home"
-        primary = tuple(button.name for button in app.screen.query_one("#global-nav").query(Button) if button.display)
+        primary = tuple(
+            button.name
+            for button in app.screen.query_one("#global-nav").query(Button)
+            if button.display
+        )
         assert primary == ("home", "new", "projects", "library")
         advanced = tuple(
-            button.name for button in app.screen.query_one("#project-nav").query(Button) if button.display
+            button.name
+            for button in app.screen.query_one("#project-nav").query(Button)
+            if button.display
         )
         assert advanced == (
             "sources",
