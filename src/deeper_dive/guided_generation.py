@@ -5,6 +5,7 @@ from __future__ import annotations
 from deeper_dive.diagnostics import redact
 from deeper_dive.domain.clock import parse_timestamp
 from deeper_dive.generation_monitor import GenerationMonitorScreen
+from textual.widgets import Button, Static
 
 
 class GuidedGenerationMonitorScreen(GenerationMonitorScreen):
@@ -16,7 +17,7 @@ class GuidedGenerationMonitorScreen(GenerationMonitorScreen):
 
     def on_mount(self) -> None:
         super().on_mount()
-        self.query_one("#screen-title").update("Generating Your Deep Dive")
+        self.query_one("#screen-title", Static).update("Generating Your Deep Dive")
         self.set_interval(1.0, self.refresh_monitor)
 
     def on_screen_resume(self) -> None:
@@ -46,28 +47,36 @@ class GuidedGenerationMonitorScreen(GenerationMonitorScreen):
             return
         try:
             seconds = max(
-                0, int((self._app.service.clock.now() - parse_timestamp(run.created_at)).total_seconds())
+                0,
+                int(
+                    (
+                        self._app.service.clock.now() - parse_timestamp(run.created_at)
+                    ).total_seconds()
+                ),
             )
         except ValueError:
             seconds = 0
-        existing = self.query_one("#generation-state")
+        existing = self.query_one("#generation-state", Static)
         existing.update(
-            str(redact(
-                f"Run: {run.id} | {run.state} | stage {run.stage} | elapsed {seconds}s"
-            ))
+            str(redact(f"Run: {run.id} | {run.state} | stage {run.stage} | elapsed {seconds}s"))
         )
         if run.state == "failed":
-            self.query_one("#diagnostics-summary").update(
-                str(redact(
-                    f"Generation failed at stage {run.stage}. "
-                    f"Code: {run.failure_code or 'unknown'}. "
-                    f"{run.failure_message or 'Inspect diagnostics for details.'}"
-                ))
+            self.query_one("#diagnostics-summary", Static).update(
+                str(
+                    redact(
+                        f"Generation failed at stage {run.stage}. "
+                        f"Code: {run.failure_code or 'unknown'}. "
+                        f"{run.failure_message or 'Inspect diagnostics for details.'}"
+                    )
+                )
             )
-        self.query_one('Button[name="resume-generation"]').disabled = run.state != "paused"
-        self.query_one('Button[name="pause-generation"]').disabled = run.state not in {
-            "running", "pending"
+        self.query_one('Button[name="resume-generation"]', Button).disabled = run.state != "paused"
+        self.query_one('Button[name="pause-generation"]', Button).disabled = run.state not in {
+            "running",
+            "pending",
         }
-        self.query_one('Button[name="cancel-generation"]').disabled = run.state in {
-            "completed", "failed", "cancelled"
+        self.query_one('Button[name="cancel-generation"]', Button).disabled = run.state in {
+            "completed",
+            "failed",
+            "cancelled",
         }
