@@ -248,6 +248,7 @@ async def _goal_first_home_project_lifecycle(tmp_path: Path) -> None:
         await pilot.pause()
         assert service.open_project(project.id) is None
 
+
 def test_goal_first_quick_requires_sources_then_uses_production_plan(tmp_path: Path) -> None:
     asyncio.run(_goal_first_quick_requires_sources_then_uses_production_plan(tmp_path))
 

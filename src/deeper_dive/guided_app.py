@@ -119,7 +119,6 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
         else:
             super().action_navigate(destination)
 
-
     def _launch_quick_deep_dive(self) -> None:
         screen = self.screen
         if isinstance(screen, EpisodeSetupScreen):
