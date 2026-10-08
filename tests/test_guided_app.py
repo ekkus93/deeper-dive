@@ -183,3 +183,5 @@ async def _saved_new_deep_dive_resumes_after_restart(tmp_path: Path) -> None:
         assert restarted.screen.id == "screen-wizard-new-deep-dive"
         assert restarted.screen.context.project_id == project_id
         assert restarted.screen.context.state.current_step == "sources"
+        assert restarted.screen.query_one("#guided-source-add-paste", Button).display
+        assert not restarted.screen.query_one("#guided-project-create", Button).display

@@ -129,6 +129,21 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         self._refresh_preflight()
         self._toggle()
 
+    def on_screen_resume(self) -> None:
+        """A previously mounted wizard must reload production state when re-entered."""
+        if not self.is_mounted:
+            return
+        self.context.state = self.navigator.recovered_state()
+        self._selected_host_ids = []
+        self._load_episode_host_order()
+        self._refresh_sources()
+        self._refresh_hosts()
+        self._load_episode_form()
+        self._refresh_plan()
+        self._refresh_preflight()
+        self._sync_text()
+        self._toggle()
+
     def action_continue(self) -> None:
         super().action_continue()
         self._load_episode_form()

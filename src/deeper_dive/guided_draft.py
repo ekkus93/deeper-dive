@@ -87,7 +87,11 @@ class GuidedDraftStore:
                 return WizardContext(composition, state)
             if project_id is None:
                 return WizardContext(composition, state.moved_to("project"))
-            if composition.service.open_project(project_id) is None:
+            try:
+                project = composition.service.open_project(project_id)
+            except (OSError, ValueError, KeyError):
+                project = None
+            if project is None:
                 return WizardContext(composition, state.moved_to("project"))
             if episode_id is not None:
                 episode = composition.service.hosts(project_id).get_episode(episode_id)
