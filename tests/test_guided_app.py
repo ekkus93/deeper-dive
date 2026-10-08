@@ -23,6 +23,8 @@ def _save_ready_config(tmp_path: Path) -> None:
         ModelRole.DIRECTING.value: "fake:fake-v1",
         ModelRole.VERIFICATION.value: "fake:fake-v1",
         "speech_setup": "deferred",
+        "quick_deep_dive_duration_minutes": "20",
+        "research_policy": "useful",
     }
     UserConfigStore(tmp_path / "data" / "config.json").save(
         UserConfig(
