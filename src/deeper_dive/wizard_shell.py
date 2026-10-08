@@ -176,8 +176,6 @@ class WizardShell(Screen[None]):
         self._sync_actions()
 
     def _sync_actions(self) -> None:
-        if not self.is_mounted:
-            return
         navigator = self.navigator
         self.query_one("#wizard-back", Button).disabled = self.busy or navigator.current_index == 0
         self.query_one("#wizard-continue", Button).disabled = (
@@ -186,8 +184,6 @@ class WizardShell(Screen[None]):
         self.query_one("#wizard-save-exit", Button).disabled = self.busy
 
     def _apply_viewport_policy(self, width: int, height: int) -> None:
-        if not self.is_mounted:
-            return
         too_small = width < MINIMUM_TERMINAL_WIDTH or height < MINIMUM_TERMINAL_HEIGHT
         warning = self.query_one("#wizard-resize-message", Static)
         content = self.query_one("#wizard-content", VerticalScroll)
