@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from textual.binding import Binding
 
-from deeper_dive.guided_source_wizard import GuidedSourceWizard
 from deeper_dive.guided_readiness import ProductionWizardCompletion, first_run_readiness
+from deeper_dive.guided_source_wizard import GuidedSourceWizard
 from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardState
 from deeper_dive.tui import DeeperDiveApp
 from deeper_dive.wizard_shell import FirstRunWizardShell
