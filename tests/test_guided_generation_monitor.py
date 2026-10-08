@@ -146,6 +146,4 @@ async def _guided_completed_run_recovers_ready_handoff(tmp_path) -> None:
         app.action_navigate("monitor")
         await pilot.pause()
         assert isinstance(app.screen, GuidedEpisodeReadyScreen)
-        assert "Completed episode" in str(
-            app.screen.query_one("#ready-summary", Static).render()
-        )
+        assert "Completed episode" in str(app.screen.query_one("#ready-summary", Static).render())
