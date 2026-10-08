@@ -22,22 +22,39 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
 
     def on_ready(self) -> None:
         add_new_deep_dive_action(self)
-        context = WizardContext(self.composition, WizardState(WizardKind.FIRST_RUN, "welcome"))
+
+        setup_context = WizardContext(
+            self.composition,
+            WizardState(WizardKind.FIRST_RUN, "welcome"),
+        )
         self.install_screen(
-            FirstRunWizardShell(context, ProductionWizardCompletion(context)),
+            FirstRunWizardShell(
+                setup_context,
+                ProductionWizardCompletion(setup_context),
+            ),
             name="setup",
         )
-        if not first_run_readiness(context).setup_ready:
+
+        new_context = WizardContext(
+            self.composition,
+            WizardState(WizardKind.NEW_DEEP_DIVE, "project"),
+        )
+        self.install_screen(
+            GuidedSourceWizard(
+                new_context,
+                ProductionWizardCompletion(new_context),
+            ),
+            name="new",
+        )
+
+        if not first_run_readiness(setup_context).setup_ready:
             self.push_screen("setup")
 
     def action_navigate(self, destination: str) -> None:
         if destination == "setup":
             self.push_screen("setup")
         elif destination == "new":
-            context = WizardContext(
-                self.composition, WizardState(WizardKind.NEW_DEEP_DIVE, "project")
-            )
-            self.push_screen(GuidedSourceWizard(context, ProductionWizardCompletion(context)))
+            self.push_screen("new")
         else:
             super().action_navigate(destination)
 

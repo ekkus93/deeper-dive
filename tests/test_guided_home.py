@@ -24,3 +24,10 @@ async def _check(tmp_path: Path) -> None:
         await pilot.pause()
         assert isinstance(app.screen, GuidedSourceWizard)
         assert app.screen.context.state.current_step == "project"
+        first_wizard = app.screen
+
+        app.action_navigate("home")
+        await pilot.pause()
+        app.screen.query_one("#action-new-deep-dive", Button).press()
+        await pilot.pause()
+        assert app.screen is first_wizard
