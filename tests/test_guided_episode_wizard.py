@@ -162,7 +162,6 @@ async def _episode_validation_preserves_typed_input(tmp_path: Path) -> None:
         assert screen.query_one("#guided-episode-focus", Input).value == "Typed focus"
 
 
-
 async def _prepare_to_plan(
     screen: GuidedEpisodeWizard,
     pilot: Pilot[None],
