@@ -21,5 +21,5 @@ def source_readiness_label(source: SourceRecord, chunk_count: int) -> str:
     if chunk_count <= 0:
         return "needs indexing — no parsed chunks"
     if source.status == "warning":
-        return f"ready with warnings ({chunk_count} indexed chunks)"
-    return f"ready ({chunk_count} indexed chunks)"
+        return f"included — ready with warnings ({chunk_count} indexed chunks)"
+    return f"included — ready ({chunk_count} indexed chunks)"
