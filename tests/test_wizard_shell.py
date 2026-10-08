@@ -257,3 +257,32 @@ async def _wizard_shell_sanitizes_initial_and_updated_text(tmp_path: Path) -> No
         screen._sync_text()
         assert "example-value" not in str(screen.query_one("#wizard-status", Static).render())
         assert "example-value" not in str(screen.query_one("#wizard-step-content", Static).render())
+
+
+def test_wizard_shell_native_select_arrow_and_space_activation(tmp_path: Path) -> None:
+    asyncio.run(_wizard_shell_native_select_arrow_and_space_activation(tmp_path))
+
+
+async def _wizard_shell_native_select_arrow_and_space_activation(tmp_path: Path) -> None:
+    composition = _composition(tmp_path)
+    screen = FirstRunWizardShell(
+        WizardContext(composition, WizardState(WizardKind.FIRST_RUN, "welcome")),
+        lambda _key: True,
+    )
+    app = _WizardHarness(screen)
+
+    async with app.run_test(size=(100, 30)) as pilot:
+        selector = screen.query_one("#setup-mode", Select)
+        selector.focus()
+        await pilot.press("enter")
+        await pilot.press("down")
+        await pilot.press("enter")
+        await pilot.pause()
+        assert selector.value == SetupMode.ADVANCED.value
+        assert screen.context.state.setup_mode is SetupMode.ADVANCED
+
+        continue_button = screen.query_one("#wizard-continue", Button)
+        continue_button.focus()
+        await pilot.press("space")
+        await pilot.pause()
+        assert screen.context.state.current_step == "system-check"
