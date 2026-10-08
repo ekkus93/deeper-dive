@@ -10,7 +10,7 @@ from textual.widgets import Button, Input, Select
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.guided_app import GuidedDeeperDiveApp
 from deeper_dive.guided_source_wizard import GuidedSourceWizard
-from deeper_dive.parsing import ParsedBlock, ParseResult
+from deeper_dive.parsing import ParseDiagnostic, ParsedBlock, ParseResult, ParseSeverity
 from deeper_dive.source_readiness import source_index_ready, source_readiness_label
 from deeper_dive.storage.workspace import WorkspaceManager
 
@@ -62,6 +62,74 @@ async def _guided_source_continue_reflects_index_readiness(tmp_path: Path) -> No
             assert screen.context.state.current_step == "sources"
         screen._refresh_sources()
         screen._sync_text()
+        assert not screen.query_one("#wizard-continue", Button).disabled
+        screen.action_continue()
+        assert screen.context.state.current_step == "research"
+
+
+def test_guided_failed_parse_restart_and_retry_uses_source_services(tmp_path: Path) -> None:
+    asyncio.run(_guided_failed_parse_restart_and_retry(tmp_path))
+
+
+async def _guided_failed_parse_restart_and_retry(tmp_path: Path) -> None:
+    workspace = WorkspaceManager(tmp_path / "failed-parse-retry")
+    service = DeeperDiveService(workspace)
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(80, 24)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        screen = app.screen
+        assert isinstance(screen, GuidedSourceWizard)
+        screen.query_one("#guided-project-name", Input).value = "Repair import"
+        screen.query_one("#guided-project-topic", Input).value = "Can evidence be recovered?"
+        screen.action_create_project()
+        project_id = screen.context.project_id
+        assert project_id is not None
+        screen.action_continue()
+        screen.query_one("#guided-source-title", Input).value = "Failed document"
+        screen.query_one("#guided-source-text", Input).value = "Some source text."
+        failed_result = ParseResult(
+            "text-markdown",
+            "1",
+            (),
+            diagnostics=(
+                ParseDiagnostic(ParseSeverity.ERROR, "synthetic-failure", "Could not parse."),
+            ),
+        )
+        with patch(
+            "deeper_dive.application.service.TextMarkdownParser.parse",
+            return_value=failed_result,
+        ):
+            screen.action_add_pasted_source()
+        failed_sources = service.list_sources(project_id)
+        assert len(failed_sources) == 1
+        assert failed_sources[0].status == "error"
+        assert not service.list_source_chunks(project_id, failed_sources[0].id)
+        assert "import failed" in str(screen.query_one("#guided-source-summary").render())
+        assert screen.query_one("#wizard-continue", Button).disabled
+        screen.action_save_exit()
+        await pilot.pause()
+
+    restarted = GuidedDeeperDiveApp(DeeperDiveService(workspace))
+    async with restarted.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        restarted.screen.query_one("#action-resume-deep-dive", Button).press()
+        await pilot.pause()
+        screen = restarted.screen
+        assert isinstance(screen, GuidedSourceWizard)
+        assert screen.context.project_id == project_id
+        assert screen.context.state.current_step == "sources"
+        assert screen.query_one("#wizard-continue", Button).disabled
+        assert "import failed" in str(screen.query_one("#guided-source-summary").render())
+        screen.action_delete_source()
+        screen.action_delete_source()
+        assert not restarted.service.list_sources(project_id)
+        screen.query_one("#guided-source-title", Input).value = "Recovered document"
+        screen.query_one("#guided-source-text", Input).value = "Valid indexed evidence."
+        screen.action_add_pasted_source()
+        assert restarted.service.list_source_chunks(
+            project_id, restarted.service.list_sources(project_id)[0].id
+        )
         assert not screen.query_one("#wizard-continue", Button).disabled
         screen.action_continue()
         assert screen.context.state.current_step == "research"
