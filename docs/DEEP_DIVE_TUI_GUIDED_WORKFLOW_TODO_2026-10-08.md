@@ -1,7 +1,7 @@
 # Deeper Dive TUI Guided Workflow TODO
 
 **Created:** 2026-10-08
-**Status:** Not started
+**Status:** In progress
 **Authority:** docs/DEEP_DIVE_TUI_GUIDED_WORKFLOW_SPEC_2026-10-08.md
 **Predecessor:** docs/DEEP_DIVE_PRODUCTION_GENERATION_SECOND_POST_REVIEW_REMEDIATION_TODO_2026-10-02.md
 
@@ -24,28 +24,28 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 
 - [ ] Inventory current DeeperDiveApp navigation, screen ownership, controller/service boundaries, and first-run readiness behavior.
 - [ ] Record the current flat global/project navigation and implementation-heavy Episode Setup behavior with focused baseline tests before replacing UX.
-- [ ] Define a typed shared WizardState/WizardContext boundary that references production IDs/state instead of copying business entities.
+- [x] Define a typed shared WizardState/WizardContext boundary that references production IDs/state instead of copying business entities.
 - [ ] Define first-run completion as derived readiness, not a one-time boolean.
 - [ ] Define New Deep Dive step completion from durable project/source/host/episode/plan/preflight state.
-- [ ] Define the minimal permitted UI-only draft state and versioning/recovery policy.
-- [ ] Add shared navigation/transition helpers used by both wizards.
-- [ ] Ensure ProductionComposition remains the production application context used by guided flows.
+- [x] Define the minimal permitted UI-only draft state and versioning/recovery policy.
+- [x] Add shared navigation/transition helpers used by both wizards.
+- [x] Ensure ProductionComposition remains the production application context used by guided flows.
 
 ## GW-110 — Shared Textual wizard shell
 
-- [ ] Implement one reusable wizard shell for first-run and New Deep Dive.
-- [ ] Render wizard title and Step N of M.
-- [ ] Render completed/current/upcoming progress state with text plus symbols, not color alone.
-- [ ] Implement consistent Back, Continue, Save and Exit, Help, and status areas.
-- [ ] Implement deterministic Tab and Shift+Tab focus order.
+- [x] Implement one reusable wizard shell for first-run and New Deep Dive.
+- [x] Render wizard title and Step N of M.
+- [x] Render completed/current/upcoming progress state with text plus symbols, not color alone.
+- [x] Implement consistent Back, Continue, Save and Exit, Help, and status areas.
+- [x] Implement deterministic Tab and Shift+Tab focus order.
 - [ ] Implement arrow-key/radio/select navigation where appropriate.
-- [ ] Implement Enter activation and Space toggle semantics where appropriate.
+- [x] Implement Enter activation and Space toggle semantics where appropriate.
 - [ ] Implement Escape modal cancellation and safe Save/Exit behavior.
-- [ ] Keep primary actions visible while main content scrolls.
-- [ ] Add busy-state protection against unsafe duplicate actions.
-- [ ] Add pilot tests for keyboard-only navigation and focus order.
-- [ ] Add recommended-size and 80x24 compact-layout tests.
-- [ ] Add explicit terminal-too-small behavior below the supported minimum.
+- [x] Keep primary actions visible while main content scrolls.
+- [x] Add busy-state protection against unsafe duplicate actions.
+- [x] Add pilot tests for keyboard-only navigation and focus order.
+- [x] Add recommended-size and 80x24 compact-layout tests.
+- [x] Add explicit terminal-too-small behavior below the supported minimum.
 
 ## GW-120 — First-run Welcome and System Check
 
