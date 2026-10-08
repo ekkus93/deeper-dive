@@ -120,10 +120,20 @@ class WizardShell(Screen[None]):
         self._apply_viewport_policy(event.size.width, event.size.height)
 
     def action_activate_focused_button(self) -> None:
-        """Activate a focused button once through Textual's binding dispatch."""
+        """Activate a focused shared-shell button exactly once on Space."""
         focused = self.focused
-        if isinstance(focused, Button) and not focused.disabled:
-            focused.press()
+        if not isinstance(focused, Button) or focused.disabled:
+            return
+        action = focused.name or ""
+        handlers = {
+            "back": self.action_back,
+            "continue": self.action_continue,
+            "save-exit": self.action_save_exit,
+            "help": self.action_help,
+        }
+        handler = handlers.get(action)
+        if handler is not None:
+            handler()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         action = event.button.name
