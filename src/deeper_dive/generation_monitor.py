@@ -50,7 +50,14 @@ class GenerationMonitorController:
         if project_id is None or episode_id is None:
             return MonitorSnapshot(None, DEFAULT_STAGES, frozenset())
         repository = app.service.runs(project_id)
-        run = repository.latest_for_episode(episode_id)
+        # An explicitly selected run must not silently become a different run
+        # when an episode has multiple attempts (or when selection is stale).
+        if app.current_run_id is not None:
+            run = repository.get(app.current_run_id)
+            if run is None or run.episode_id != episode_id:
+                return MonitorSnapshot(None, DEFAULT_STAGES, frozenset())
+        else:
+            run = repository.latest_for_episode(episode_id)
         if run is None:
             return MonitorSnapshot(None, DEFAULT_STAGES, frozenset())
         completed = frozenset(repository.list_completed_stages(run.id))
