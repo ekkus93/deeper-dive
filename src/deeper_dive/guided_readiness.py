@@ -62,17 +62,20 @@ def first_run_readiness(context: WizardContext) -> FirstRunDerivedReadiness:
     config = controller.config()
     status = FirstRunController(controller).status()
 
-    llm_provider_ready = any(
-        controller.capability(provider.provider_type) == "llm"
-        and bool((provider.default_model or "").strip())
-        for provider in config.providers.values()
-    )
+    llm_runtime: dict[str, bool] = {}
+    for name, provider in config.providers.items():
+        if controller.capability(provider.provider_type) != "llm":
+            continue
+        llm_runtime[name] = _llm_runtime_ready(controller, name, provider)
+
+    llm_provider_ready = any(llm_runtime.values())
 
     assignments, assignment_errors = effective_model_role_assignments(user_defaults=config.defaults)
     model_roles_ready = not assignment_errors and all(
-        _assignment_targets_configured_llm(
+        _assignment_targets_ready_llm(
             controller,
             config.providers,
+            llm_runtime,
             assignments.resolve(role),
         )
         for role in _FIRST_RUN_REQUIRED_ROLES
@@ -82,19 +85,23 @@ def first_run_readiness(context: WizardContext) -> FirstRunDerivedReadiness:
     tts_provider_id = config.defaults.get("tts_provider", "").strip()
     tts_voice = config.defaults.get("tts_voice", "").strip()
     tts_config = config.providers.get(tts_provider_id)
-    tts_configured = (
+    tts_provider_configured = (
         tts_config is not None
         and controller.capability(tts_config.provider_type) == "tts"
-        and bool(tts_voice)
     )
-    speech_choice_made = speech_deferred or tts_configured
+    speech_choice_made = speech_deferred or tts_provider_configured
 
     kitten_required = (
-        tts_configured
+        tts_provider_configured
         and tts_config is not None
         and tts_config.provider_type.strip().lower().replace("_", "-") == "kitten"
     )
-    tts_runtime_ready = tts_configured and (not kitten_required or status.kitten_available)
+    tts_runtime_ready = (
+        tts_provider_configured
+        and bool(tts_voice)
+        and _tts_runtime_ready(controller, tts_provider_id, tts_voice)
+        and (not kitten_required or status.kitten_available)
+    )
     audio_ready = tts_runtime_ready and status.ffmpeg_available
 
     defaults_ready = _defaults_are_valid(config.defaults)
@@ -111,9 +118,43 @@ def first_run_readiness(context: WizardContext) -> FirstRunDerivedReadiness:
     )
 
 
-def _assignment_targets_configured_llm(
+def _llm_runtime_ready(
+    controller: ProviderController,
+    name: str,
+    provider: ProviderConfig,
+) -> bool:
+    model = (provider.default_model or "").strip()
+    if not model:
+        return False
+    try:
+        runtime = controller.llm(name)
+        health = runtime.health()
+        if not health.healthy:
+            return False
+        return any(item.model == model for item in runtime.models())
+    except (KeyError, OSError, RuntimeError, ValueError):
+        return False
+
+
+def _tts_runtime_ready(
+    controller: ProviderController,
+    provider_id: str,
+    voice_id: str,
+) -> bool:
+    try:
+        provider = controller.tts(provider_id)
+        health = provider.health()
+        if not health.healthy:
+            return False
+        return any(voice.id == voice_id for voice in provider.voices())
+    except (KeyError, OSError, RuntimeError, ValueError):
+        return False
+
+
+def _assignment_targets_ready_llm(
     controller: ProviderController,
     providers: Mapping[str, ProviderConfig],
+    runtime_ready: Mapping[str, bool],
     assignment: ModelAssignment | None,
 ) -> bool:
     if assignment is None:
@@ -122,19 +163,26 @@ def _assignment_targets_configured_llm(
     return (
         provider is not None
         and controller.capability(provider.provider_type) == "llm"
+        and runtime_ready.get(assignment.provider, False)
         and bool(assignment.model.strip())
+        and assignment.model == (provider.default_model or "").strip()
     )
 
 
 def _defaults_are_valid(defaults: Mapping[str, str]) -> bool:
-    duration = defaults.get("quick_deep_dive_duration_minutes", "20").strip()
+    duration = defaults.get("quick_deep_dive_duration_minutes", "").strip()
+    if not duration:
+        return False
     try:
         if int(duration) <= 0:
             return False
     except ValueError:
         return False
+    research = defaults.get("research_policy", "").strip()
+    if not research:
+        return False
     try:
-        ResearchMode(defaults.get("research_policy", "useful").strip() or "useful")
+        ResearchMode(research)
     except ValueError:
         return False
     return True
@@ -157,7 +205,9 @@ class ProductionWizardCompletion:
             return True
         if step_key == "system-check":
             return True
-        if step_key in {"ai-provider", "provider-config"}:
+        if step_key == "ai-provider":
+            return True
+        if step_key == "provider-config":
             return readiness.llm_provider_ready
         if step_key == "model-test":
             return readiness.model_roles_ready

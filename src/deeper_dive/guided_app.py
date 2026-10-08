@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from textual.binding import Binding
 
+from deeper_dive.guided_first_run import GuidedFirstRunWizard
 from deeper_dive.guided_home import add_new_deep_dive_action
 from deeper_dive.guided_readiness import ProductionWizardCompletion, first_run_readiness
 from deeper_dive.guided_source_wizard import GuidedSourceWizard
 from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardState
 from deeper_dive.tui import DeeperDiveApp
-from deeper_dive.wizard_shell import FirstRunWizardShell
 
 
 class GuidedDeeperDiveApp(DeeperDiveApp):
@@ -28,7 +28,7 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
             WizardState(WizardKind.FIRST_RUN, "welcome"),
         )
         self.install_screen(
-            FirstRunWizardShell(
+            GuidedFirstRunWizard(
                 setup_context,
                 ProductionWizardCompletion(setup_context),
             ),
