@@ -56,3 +56,40 @@ def test_first_run_recognizes_local_only_provider(tmp_path: Path) -> None:
     assert "FFmpeg: available" in text
     assert "KittenTTS Micro: runtime available" in text
     assert "Local providers: desk" in text
+
+
+def test_explicit_system_check_reports_runtime_and_local_detection(tmp_path: Path) -> None:
+    controller = _controller(tmp_path, UserConfig())
+    with (
+        patch("deeper_dive.first_run.shutil.which", return_value=None),
+        patch("deeper_dive.first_run.importlib.util.find_spec", return_value=None),
+    ):
+        check = controller.system_check(lambda url: "11434" in url)
+
+    assert check.python_runtime.startswith("Python ")
+    assert check.ffmpeg_available is False
+    assert check.kitten_available is False
+    assert check.ollama_reachable is True
+    assert check.llama_server_reachable is False
+    summary = "\n".join(check.summary())
+    assert "FFmpeg: Needs attention for audio" in summary
+    assert "KittenTTS: Optional / not installed" in summary
+    assert "Ollama: Detected" in summary
+    assert "llama-server: Not detected (optional)" in summary
+
+
+def test_explicit_system_check_sanitizes_probe_diagnostics(tmp_path: Path) -> None:
+    controller = _controller(tmp_path, UserConfig())
+
+    def failing_probe(_url: str) -> bool:
+        raise RuntimeError("Authorization: super-secret")
+
+    with (
+        patch("deeper_dive.first_run.shutil.which", return_value="/usr/bin/ffmpeg"),
+        patch("deeper_dive.first_run.importlib.util.find_spec", return_value=object()),
+    ):
+        check = controller.system_check(failing_probe)
+
+    details = "\n".join(check.diagnostics)
+    assert "super-secret" not in details
+    assert "[REDACTED]" in details
