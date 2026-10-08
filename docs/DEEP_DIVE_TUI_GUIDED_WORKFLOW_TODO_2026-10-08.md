@@ -22,11 +22,11 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 
 ## GW-100 — Baseline and guided-workflow architecture
 
-- [ ] Inventory current DeeperDiveApp navigation, screen ownership, controller/service boundaries, and first-run readiness behavior.
-- [ ] Record the current flat global/project navigation and implementation-heavy Episode Setup behavior with focused baseline tests before replacing UX.
+- [x] Inventory current DeeperDiveApp navigation, screen ownership, controller/service boundaries, and first-run readiness behavior.
+- [x] Record the current flat global/project navigation and implementation-heavy Episode Setup behavior with focused baseline tests before replacing UX.
 - [x] Define a typed shared WizardState/WizardContext boundary that references production IDs/state instead of copying business entities.
-- [ ] Define first-run completion as derived readiness, not a one-time boolean.
-- [ ] Define New Deep Dive step completion from durable project/source/host/episode/plan/preflight state.
+- [x] Define first-run completion as derived readiness, not a one-time boolean.
+- [x] Define New Deep Dive step completion from durable project/source/host/episode/plan/preflight state.
 - [x] Define the minimal permitted UI-only draft state and versioning/recovery policy.
 - [x] Add shared navigation/transition helpers used by both wizards.
 - [x] Ensure ProductionComposition remains the production application context used by guided flows.
