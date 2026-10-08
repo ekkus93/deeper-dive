@@ -201,3 +201,28 @@ async def _first_run_welcome_mode_and_optional_system_check(tmp_path: Path) -> N
         assert screen.context.state.current_step == "system-check"
         assert "FFmpeg:" in str(screen.query_one("#wizard-step-content", Static).render())
         assert not selector.display
+
+
+def test_first_run_system_check_details_are_explicit_and_safe(tmp_path: Path) -> None:
+    asyncio.run(_first_run_system_check_details_are_explicit_and_safe(tmp_path))
+
+
+async def _first_run_system_check_details_are_explicit_and_safe(tmp_path: Path) -> None:
+    composition = _composition(tmp_path)
+    screen = FirstRunWizardShell(
+        WizardContext(composition, WizardState(WizardKind.FIRST_RUN, "system-check")),
+        lambda _key: True,
+    )
+    app = _WizardHarness(screen)
+
+    async with app.run_test(size=(100, 30)) as pilot:
+        details = screen.query_one("#system-check-details", Button)
+        assert details.display
+        assert "Python/runtime: Ready" in str(
+            screen.query_one("#wizard-step-content", Static).render()
+        )
+        details.press()
+        await pilot.pause()
+        text = str(screen.query_one("#wizard-step-content", Static).render())
+        assert "Details:" in text
+        assert "Remediation:" in text

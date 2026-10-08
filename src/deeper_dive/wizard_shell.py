@@ -257,6 +257,11 @@ class FirstRunWizardShell(WizardShell):
                 id="setup-mode",
             ),
             Button("Skip Setup", id="setup-skip", name="skip-setup"),
+            Button(
+                "System Check Details",
+                id="system-check-details",
+                name="system-check-details",
+            ),
         )
 
     def step_content(self, step_key: str) -> str:
@@ -269,8 +274,17 @@ class FirstRunWizardShell(WizardShell):
         if step_key == "system-check":
             from deeper_dive.first_run import FirstRunController
 
-            status = FirstRunController(self.context.composition.provider_controller).status()
-            return "\n".join(status.guidance())
+            check = FirstRunController(
+                self.context.composition.provider_controller
+            ).system_check()
+            rows = list(check.summary())
+            if getattr(self, "_system_details_visible", False):
+                rows.extend(("", "Details:", *check.diagnostics))
+                rows.append(
+                    "Remediation: choose any healthy supported provider. "
+                    "Install FFmpeg before audio generation."
+                )
+            return "\n".join(rows)
         return super().step_content(step_key)
 
     def on_mount(self) -> None:
@@ -292,6 +306,11 @@ class FirstRunWizardShell(WizardShell):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.name == "skip-setup":
             self.on_save_exit()
+        elif event.button.name == "system-check-details":
+            self._system_details_visible = not getattr(
+                self, "_system_details_visible", False
+            )
+            self._sync_text()
         else:
             super().on_button_pressed(event)
 
@@ -304,8 +323,10 @@ class FirstRunWizardShell(WizardShell):
 
     def _show_welcome_controls(self) -> None:
         welcome = self.context.state.current_step == "welcome"
+        system_check = self.context.state.current_step == "system-check"
         self.query_one("#setup-mode", Select).display = welcome
         self.query_one("#setup-skip", Button).display = welcome
+        self.query_one("#system-check-details", Button).display = system_check
 
 
 class NewDeepDiveWizardShell(WizardShell):
