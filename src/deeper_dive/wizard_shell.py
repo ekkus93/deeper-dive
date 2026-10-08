@@ -86,9 +86,9 @@ class WizardShell(Screen[None]):
         yield Static(self._progress_text(navigator), id="wizard-progress")
         yield Static("", id="wizard-resize-message")
         with VerticalScroll(id="wizard-content"):
-            yield Static(self.step_content(navigator.current_step.key), id="wizard-step-content")
+            yield Static(str(redact(self.step_content(navigator.current_step.key))), id="wizard-step-content")
             yield from self.step_controls()
-        yield Static(self._status_text(navigator.current_step.key), id="wizard-status")
+        yield Static(str(redact(self._status_text(navigator.current_step.key))), id="wizard-status")
         with Horizontal(id="wizard-actions"):
             yield Button("Back", id="wizard-back", name="back")
             yield Button("Continue", id="wizard-continue", name="continue", variant="primary")
@@ -190,10 +190,10 @@ class WizardShell(Screen[None]):
         self.query_one("#wizard-heading", Label).update(self._heading_text(navigator))
         self.query_one("#wizard-progress", Static).update(self._progress_text(navigator))
         self.query_one("#wizard-step-content", Static).update(
-            self.step_content(navigator.current_step.key)
+            str(redact(self.step_content(navigator.current_step.key)))
         )
         self.query_one("#wizard-status", Static).update(
-            self._status_text(navigator.current_step.key)
+            str(redact(self._status_text(navigator.current_step.key)))
         )
         self._sync_actions()
 
