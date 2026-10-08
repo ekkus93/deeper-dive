@@ -16,6 +16,7 @@ from textual.widgets import Button, Footer, Header, Label, Static
 from deeper_dive.application.events import ProgressEvent, ProgressSink
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.conversation_state import ConversationStateRepository
+from deeper_dive.diagnostics import redact
 from deeper_dive.pipeline import DEFAULT_STAGES, generation_stage_label
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.run_repositories import GenerationRunRecord
@@ -270,7 +271,7 @@ class GenerationMonitorScreen(Screen[None]):
                     f"Failure: {run.failure_code or 'none'} - {run.failure_message or 'none'}",
                 )
             )
-        self.query_one("#diagnostics-summary", Static).update(text)
+        self.query_one("#diagnostics-summary", Static).update(str(redact(text)))
 
     def start_background_generation(self) -> None:
         run = self._run()
@@ -335,4 +336,4 @@ class GenerationMonitorScreen(Screen[None]):
         return self._app.generation_monitor_controller.snapshot(self._app).run
 
     def _status(self, message: str) -> None:
-        self.query_one("#screen-status", Static).update(f"Status: {message}")
+        self.query_one("#screen-status", Static).update(str(redact(f"Status: {message}")))

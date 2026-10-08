@@ -238,3 +238,44 @@ def _monitor(app: DeeperDiveApp) -> GenerationMonitorScreen:
 
 def _text(screen: GenerationMonitorScreen, selector: str) -> str:
     return str(screen.query_one(selector, Static).render())
+
+
+def test_monitor_diagnostics_and_status_redact_persisted_credential_canaries(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_monitor_diagnostics_redact_persisted_credential_canaries(tmp_path))
+
+
+async def _monitor_diagnostics_redact_persisted_credential_canaries(
+    tmp_path: Path,
+) -> None:
+    service, project_id, episode_id, run_id = _fixture(tmp_path)
+    repository = service.runs(project_id)
+    run = repository.get(run_id)
+    assert run is not None
+    secret = "synthetic-canary-credential"
+    repository.update(
+        replace(
+            run,
+            state="failed",
+            failure_code="provider_auth_failed",
+            failure_message=f"Authorization: Bearer {secret}",
+        )
+    )
+    app = DeeperDiveApp(service)
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.current_project_id = project_id
+        app.current_episode_id = episode_id
+        app.current_run_id = run_id
+        app.action_navigate("monitor")
+        await pilot.pause()
+        monitor = _monitor(app)
+        monitor.action_diagnostics()
+        diagnostics = _text(monitor, "#diagnostics-summary")
+        assert "provider_auth_failed" in diagnostics
+        assert secret not in diagnostics
+        assert "[REDACTED]" in diagnostics
+        monitor._status(f"Authorization: Bearer {secret}")
+        status = _text(monitor, "#screen-status")
+        assert secret not in status
+        assert "[REDACTED]" in status
