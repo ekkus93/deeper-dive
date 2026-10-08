@@ -1,4 +1,4 @@
-"""Guided source import through the production service."""
+"""Guided source step."""
 
 from textual.widgets import Button, Input
 
@@ -20,6 +20,10 @@ class GuidedSourceWizard(GuidedProjectWizard):
 
     def action_continue(self) -> None:
         super().action_continue()
+        self._toggle()
+
+    def action_back(self) -> None:
+        super().action_back()
         self._toggle()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
