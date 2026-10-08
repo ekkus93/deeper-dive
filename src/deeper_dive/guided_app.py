@@ -13,9 +13,7 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
 
     def on_mount(self) -> None:
         self.install_screen(HomeProjectsScreen(), name="home")
-        context = WizardContext(
-            self.composition, WizardState(WizardKind.FIRST_RUN, "welcome")
-        )
+        context = WizardContext(self.composition, WizardState(WizardKind.FIRST_RUN, "welcome"))
         self.install_screen(
             FirstRunWizardShell(context, ProductionWizardCompletion(context)),
             name="setup",
