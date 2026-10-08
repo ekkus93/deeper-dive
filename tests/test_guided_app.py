@@ -1,0 +1,82 @@
+from __future__ import annotations
+
+import asyncio
+from pathlib import Path
+
+from textual.widgets import Button
+
+from deeper_dive.application.service import DeeperDiveService
+from deeper_dive.guided_app import GuidedDeeperDiveApp
+from deeper_dive.model_roles import ModelRole
+from deeper_dive.storage.workspace import WorkspaceManager
+from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
+
+
+def _service(tmp_path: Path) -> DeeperDiveService:
+    return DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+
+
+def _save_ready_config(tmp_path: Path) -> None:
+    defaults = {
+        ModelRole.EPISODE_PLANNING.value: "fake:fake-v1",
+        ModelRole.HOST_GENERATION.value: "fake:fake-v1",
+        ModelRole.DIRECTING.value: "fake:fake-v1",
+        ModelRole.VERIFICATION.value: "fake:fake-v1",
+        "speech_setup": "deferred",
+    }
+    UserConfigStore(tmp_path / "data" / "config.json").save(
+        UserConfig(
+            providers={
+                "fake": ProviderConfig(
+                    provider_type="fake",
+                    default_model="fake-v1",
+                    network_scope="local",
+                )
+            },
+            defaults=defaults,
+        )
+    )
+
+
+def test_clean_install_routes_to_first_run_setup(tmp_path: Path) -> None:
+    asyncio.run(_clean_install_routes_to_first_run_setup(tmp_path))
+
+
+async def _clean_install_routes_to_first_run_setup(tmp_path: Path) -> None:
+    app = GuidedDeeperDiveApp(_service(tmp_path))
+
+    async with app.run_test(size=(100, 30)):
+        assert app.screen.id == "screen-wizard-first-run"
+
+
+def test_derived_ready_install_skips_automatic_setup(tmp_path: Path) -> None:
+    asyncio.run(_derived_ready_install_skips_automatic_setup(tmp_path))
+
+
+async def _derived_ready_install_skips_automatic_setup(tmp_path: Path) -> None:
+    _save_ready_config(tmp_path)
+    app = GuidedDeeperDiveApp(_service(tmp_path))
+
+    async with app.run_test(size=(100, 30)):
+        assert app.screen.id == "screen-home"
+
+
+def test_skip_setup_does_not_manufacture_readiness_and_restart_returns_to_setup(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_skip_setup_does_not_manufacture_readiness(tmp_path))
+
+
+async def _skip_setup_does_not_manufacture_readiness(tmp_path: Path) -> None:
+    service = _service(tmp_path)
+    app = GuidedDeeperDiveApp(service)
+
+    async with app.run_test(size=(100, 30)) as pilot:
+        assert app.screen.id == "screen-wizard-first-run"
+        app.screen.query_one("#setup-skip", Button).press()
+        await pilot.pause()
+        assert app.screen.id == "screen-home"
+
+    restarted = GuidedDeeperDiveApp(service)
+    async with restarted.run_test(size=(100, 30)):
+        assert restarted.screen.id == "screen-wizard-first-run"

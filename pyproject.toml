@@ -16,7 +16,7 @@ dependencies = [
 
 [project.scripts]
 deeper-dive = "deeper_dive.command:main"
-deeper-dive-tui = "deeper_dive.tui:main"
+deeper-dive-tui = "deeper_dive.guided_app:main"
 
 [dependency-groups]
 dev = [
