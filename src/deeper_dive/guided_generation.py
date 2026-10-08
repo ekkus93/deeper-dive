@@ -2,11 +2,23 @@
 
 from __future__ import annotations
 
+from textual.containers import VerticalScroll
 from textual.widgets import Button, Static
 
 from deeper_dive.diagnostics import redact
 from deeper_dive.domain.clock import parse_timestamp
 from deeper_dive.generation_monitor import GenerationMonitorScreen
+
+_STAGE_REPAIR_ROUTES = {
+    "sources": "sources",
+    "research": "research",
+    "planning": "episode",
+    "conversation": "providers",
+    "verification": "providers",
+    "tts": "providers",
+    "composition": "providers",
+    "export": "library",
+}
 
 
 class GuidedGenerationMonitorScreen(GenerationMonitorScreen):
@@ -17,6 +29,7 @@ class GuidedGenerationMonitorScreen(GenerationMonitorScreen):
         self._cancel_confirmation_pending = False
 
     def on_mount(self) -> None:
+        self._ensure_repair_action()
         super().on_mount()
         self.query_one("#screen-title", Static).update("Generating Your Deep Dive")
         self.set_interval(1.0, self.refresh_monitor)
@@ -34,6 +47,21 @@ class GuidedGenerationMonitorScreen(GenerationMonitorScreen):
             and self.app.screen is self
         ):
             self._app.action_navigate("ready")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.name == "repair-generation":
+            event.stop()
+            self.action_repair_configuration()
+            return
+        super().on_button_pressed(event)
+
+    def action_repair_configuration(self) -> None:
+        run = self._run()
+        if run is None:
+            self._status("No generation run is selected.")
+            return
+        destination = _STAGE_REPAIR_ROUTES.get(run.stage, "providers")
+        self._app.action_navigate(destination)
 
     def action_cancel(self) -> None:
         if not self._cancel_confirmation_pending:
@@ -92,6 +120,19 @@ class GuidedGenerationMonitorScreen(GenerationMonitorScreen):
             "failed",
             "cancelled",
         }
+        self._button("repair-generation").disabled = run.state != "failed"
+
+    def _ensure_repair_action(self) -> None:
+        if any(button.id == "guided-monitor-repair" for button in self.query(Button)):
+            return
+        self.query_one("#content", VerticalScroll).mount(
+            Button(
+                "Repair Configuration",
+                id="guided-monitor-repair",
+                name="repair-generation",
+            ),
+            before="#screen-status",
+        )
 
     def _button(self, name: str) -> Button:
         for button in self.query(Button):
