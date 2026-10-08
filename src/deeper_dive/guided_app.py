@@ -7,6 +7,7 @@ from textual.binding import Binding
 from deeper_dive.guided_draft import GuidedDraftStore
 from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
 from deeper_dive.guided_first_run import GuidedFirstRunWizard
+from deeper_dive.guided_generation import GuidedGenerationMonitorScreen
 from deeper_dive.guided_home import add_new_deep_dive_action, refresh_goal_home
 from deeper_dive.guided_readiness import ProductionWizardCompletion, first_run_readiness
 from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardState
@@ -20,6 +21,7 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
         *DeeperDiveApp.BINDINGS,
         Binding("ctrl+g", "navigate('new')", "New Deep Dive"),
     ]
+    SCREENS = {**DeeperDiveApp.SCREENS, "monitor": GuidedGenerationMonitorScreen}
 
     def on_ready(self) -> None:
         add_new_deep_dive_action(self)

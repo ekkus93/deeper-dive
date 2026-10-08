@@ -15,6 +15,7 @@ from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.guided_app import GuidedDeeperDiveApp
 from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
+from deeper_dive.guided_generation import GuidedGenerationMonitorScreen
 from deeper_dive.llm import LLMResponse
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.storage.workspace import WorkspaceManager
@@ -355,3 +356,44 @@ async def _guided_and_cli_preflight_report_same_blocker(tmp_path: Path, capsys) 
     assert code == 2
     captured = capsys.readouterr()
     assert blockers["ffmpeg_unavailable"] in captured.err
+
+
+def test_guided_generate_opens_production_monitor_and_confirmed_cancel(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_guided_generate_opens_production_monitor(tmp_path))
+
+
+async def _guided_generate_opens_production_monitor(tmp_path: Path) -> None:
+    service = _service_and_config(tmp_path)
+    app = GuidedDeeperDiveApp(service)
+    # Keep this test deterministic: run creation must be durable, but a
+    # live executor is neither needed nor started in this focused test.
+    app.generation_monitor_controller.runner = None
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        project_id, episode_id = await _prepare_to_plan(wizard, pilot)
+        wizard.action_build_plan()
+        wizard.action_continue()
+        with patch("deeper_dive.ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"):
+            wizard.action_check_preflight()
+            assert wizard._preflight is not None and wizard._preflight.ready
+            wizard.action_generate_deep_dive()
+        await pilot.pause()
+        assert isinstance(app.screen, GuidedGenerationMonitorScreen)
+        monitor = app.screen
+        run_id = wizard.context.run_id
+        assert run_id is not None
+        assert app.current_project_id == project_id
+        assert app.current_episode_id == episode_id
+        assert app.current_run_id == run_id
+        assert "elapsed" in str(monitor.query_one("#generation-state", Static).render())
+        monitor.action_cancel()
+        before = service.runs(project_id).get(run_id)
+        assert before is not None and not before.cancel_requested
+        monitor.action_cancel()
+        after = service.runs(project_id).get(run_id)
+        assert after is not None and after.cancel_requested

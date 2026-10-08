@@ -12,6 +12,7 @@ from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.episode_planner import EpisodePlan, EpisodePlannerService, PlannedSegment
 from deeper_dive.generation_start import GenerationStartService
+from deeper_dive.guided_generation import GuidedGenerationMonitorScreen
 from deeper_dive.guided_host_wizard import GuidedHostWizard
 from deeper_dive.guided_workflow import CompletionProbe, WizardContext
 from deeper_dive.model_roles import ModelRole
@@ -347,6 +348,13 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             "Generation run is ready: "
             + ("created a new durable run." if result.created else "reused the active durable run.")
         )
+        cast(_NavigationApp, app).action_navigate("monitor")
+        app.call_after_refresh(self._start_guided_generation)
+
+    def _start_guided_generation(self) -> None:
+        screen = self.app.screen
+        if isinstance(screen, GuidedGenerationMonitorScreen):
+            screen.start_background_generation()
 
     def _run_plan_operation(self, operation: str) -> None:
         episode_id = self.context.episode_id
