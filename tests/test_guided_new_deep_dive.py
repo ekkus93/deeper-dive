@@ -32,7 +32,9 @@ async def _guided_project_creation_is_durable(tmp_path: Path) -> None:
         project = service.open_project(project_id)
         assert project is not None
         assert project.name == "Climate"
-        assert project.instructions == "How do oceans store heat?"
+        assert project.instructions == (
+            "Main curiosity: How do oceans store heat?\nAudience: general"
+        )
         assert not screen.query_one("#wizard-continue", Button).disabled
         screen.action_continue()
         assert screen.context.state.current_step == "sources"
