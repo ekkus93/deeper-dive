@@ -87,10 +87,16 @@ class WizardShell(Screen[None]):
         yield Static("", id="wizard-resize-message")
         with VerticalScroll(id="wizard-content"):
             yield Static(
-                str(redact(self.step_content(navigator.current_step.key))), id="wizard-step-content"
+                str(redact(self.step_content(navigator.current_step.key))),
+                id="wizard-step-content",
+                markup=False,
             )
             yield from self.step_controls()
-        yield Static(str(redact(self._status_text(navigator.current_step.key))), id="wizard-status")
+        yield Static(
+            str(redact(self._status_text(navigator.current_step.key))),
+            id="wizard-status",
+            markup=False,
+        )
         with Horizontal(id="wizard-actions"):
             yield Button("Back", id="wizard-back", name="back")
             yield Button("Continue", id="wizard-continue", name="continue", variant="primary")
