@@ -39,7 +39,7 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 - [x] Implement consistent Back, Continue, Save and Exit, Help, and status areas.
 - [x] Implement deterministic Tab and Shift+Tab focus order.
 - [ ] Implement arrow-key/radio/select navigation where appropriate.
-- [x] Implement Enter activation and Space toggle semantics where appropriate.
+- [ ] Implement Enter activation and Space toggle semantics where appropriate.
 - [ ] Implement Escape modal cancellation and safe Save/Exit behavior.
 - [x] Keep primary actions visible while main content scrolls.
 - [x] Add busy-state protection against unsafe duplicate actions.
