@@ -108,3 +108,19 @@ def test_draft_preserves_valid_later_location_when_prerequisites_are_ready(
     resumed = drafts.load(composition, WizardKind.NEW_DEEP_DIVE)
     assert resumed is not None
     assert resumed.state.current_step == "sources"
+
+
+def test_first_run_draft_recovers_when_provider_readiness_is_invalid(
+    tmp_path: Path,
+) -> None:
+    composition, drafts = _setup(tmp_path)
+    drafts.save(
+        WizardContext(
+            composition,
+            WizardState(WizardKind.FIRST_RUN, "ready", setup_mode=SetupMode.ADVANCED),
+        )
+    )
+    resumed = drafts.load(composition, WizardKind.FIRST_RUN)
+    assert resumed is not None
+    assert resumed.state.current_step == "provider-config"
+    assert resumed.state.setup_mode is SetupMode.ADVANCED

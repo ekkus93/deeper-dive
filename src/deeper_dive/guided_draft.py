@@ -85,7 +85,11 @@ class GuidedDraftStore:
             if kind is WizardKind.FIRST_RUN:
                 if any(ref is not None for ref in refs):
                     return None
-                return WizardContext(composition, state)
+                context = WizardContext(composition, state)
+                context.state = WizardNavigator(
+                    state, ProductionWizardCompletion(context)
+                ).recovered_state()
+                return context
             if project_id is None:
                 return WizardContext(composition, state.moved_to("project"))
             try:
