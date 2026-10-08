@@ -9,6 +9,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
+from textual.widget import Widget
 from textual.widgets import Button, Footer, Header, Label, Static
 
 from deeper_dive.guided_workflow import (
@@ -83,6 +84,8 @@ class WizardShell(Screen[None]):
         yield Static("", id="wizard-resize-message")
         with VerticalScroll(id="wizard-content"):
             yield Static(self.step_content(navigator.current_step.key), id="wizard-step-content")
+            for control in self.step_controls():
+                yield control
         yield Static(self._status_text(navigator.current_step.key), id="wizard-status")
         with Horizontal(id="wizard-actions"):
             yield Button("Back", id="wizard-back", name="back")
@@ -120,6 +123,11 @@ class WizardShell(Screen[None]):
         """Return concrete workflow content; subclasses replace this per step."""
 
         return f"Guided workflow step: {step_key}"
+
+    def step_controls(self) -> tuple[Widget, ...]:
+        """Optional workflow controls within the scrolling step content."""
+
+        return ()
 
     def blocker_message(self, step_key: str) -> str:
         """Return the first actionable blocker for a required incomplete step."""
