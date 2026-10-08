@@ -104,7 +104,8 @@ class GuidedGenerationMonitorScreen(GenerationMonitorScreen):
         existing.update(
             str(
                 redact(
-                    f"Run: {run.id} | {run.state} | stage {generation_stage_label(run.stage)} | elapsed {seconds}s"
+                    f"Run: {run.id} | {run.state} | "
+                    f"stage {generation_stage_label(run.stage)} | elapsed {seconds}s"
                 )
             )
         )
