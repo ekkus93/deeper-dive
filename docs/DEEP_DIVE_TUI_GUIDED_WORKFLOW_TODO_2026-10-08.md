@@ -145,13 +145,13 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 - [x] Choices map to existing research policy/controller behavior.
 - [x] External-network implications are disclosed before networked research.
 - [x] Advanced research options preserve current expert controls.
-- [ ] Hosts step renders friendly host rows/cards with behavior summary and voice.
-- [ ] Hosts step supports one or more selected hosts.
-- [ ] Host ordering is explicit and deterministic.
-- [ ] Voice preview is available from the host selection workflow where speech is configured.
-- [ ] Custom host creation/editing uses existing host services.
-- [ ] Episode host selection never requires comma-separated raw host IDs in the normal wizard.
-- [ ] Add research-policy mapping and host-order persistence tests.
+- [x] Hosts step renders friendly host rows/cards with behavior summary and voice.
+- [x] Hosts step supports one or more selected hosts.
+- [x] Host ordering is explicit and deterministic.
+- [x] Voice preview is available from the host selection workflow where speech is configured.
+- [x] Custom host creation/editing uses existing host services.
+- [x] Episode host selection never requires comma-separated raw host IDs in the normal wizard.
+- [x] Add research-policy mapping and host-order persistence tests.
 
 ## GW-190 — New Deep Dive: Episode Settings and Review/Plan
 
@@ -346,6 +346,8 @@ Populate only as work is completed. Do not pre-check or use placeholders as comp
 
 - Implementation SHAs:
 
+  - 179adb1ee0e7616fa0da5afd7c8eea93e1bcc679, 8873119ca22d5b4f7100f265874e558b69f6f4c5 — guided host order/edit/restart regression; exact-head CI 37857593854 passed.
+  - c9e78253cd80c3a141138ef2f7b10f24567aaac4, f4c662b4610a2dc4631a91e27f822d5126918455 — single-host, voice-preview, and custom-host regression; exact-head CI 37858305157 passed.
   - e854f3ca29c3c9214591b2de2c6c41196ce1bdfd, c32084b77f881631a9d503c7b1a148cc1fa8ca31 — advanced Research navigation and project lifecycle regression; exact-head CI 37856266276 passed.
   - 817ecc66fe05a9f7b0584a8fcc1c9c80446be701, 32df225207ae158cabfbf8c90392899d869b81d6 — source-gated Home Quick entry through existing Episode setup, planner and preflight; exact-head CI 37856994233 passed.
   - ac9d7801911a6f646ca7abd994d3d38c921bdf83 — recovery derives earliest valid wizard prerequisite from production.
@@ -357,6 +359,7 @@ Populate only as work is completed. Do not pre-check or use placeholders as comp
   - 160bbdc607dfb68163731210e956207a3c186aeb — selected episode Library playback; exact-head CI 37836853268 passed.
 - Focused first-run tests:
 - Focused New Deep Dive tests:
+  - tests/test_guided_episode_wizard.py::test_guided_hosts_reorder_edit_and_restart_from_production_state
   - tests/test_guided_app.py::test_goal_first_home_preserves_project_open_rename_delete
   - tests/test_guided_source_wizard.py::test_guided_research_choices_persist_through_production_controller
   - tests/test_guided_source_wizard.py::test_guided_advanced_research_preserves_project_context
