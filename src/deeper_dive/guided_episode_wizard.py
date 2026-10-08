@@ -8,7 +8,7 @@ from textual.widget import Widget
 from textual.widgets import Button, Input, Select, Static
 
 from deeper_dive.diagnostics import sanitize_exception_message
-from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
+from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.episode_planner import EpisodePlan, EpisodePlannerService, PlannedSegment
 from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.guided_host_wizard import GuidedHostWizard

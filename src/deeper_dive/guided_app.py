@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from textual.binding import Binding
 
+from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
 from deeper_dive.guided_first_run import GuidedFirstRunWizard
 from deeper_dive.guided_home import add_new_deep_dive_action
-from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
 from deeper_dive.guided_readiness import ProductionWizardCompletion, first_run_readiness
 from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardState
 from deeper_dive.tui import DeeperDiveApp
