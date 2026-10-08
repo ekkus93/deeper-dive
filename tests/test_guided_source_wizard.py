@@ -212,6 +212,7 @@ async def _source_import_failure_retry_and_restart(tmp_path: Path) -> None:
         assert restarted.screen.context.project_id == project_id
         assert restarted.screen.context.state.current_step == "research"
 
+
 def test_guided_advanced_research_preserves_project_context(tmp_path: Path) -> None:
     asyncio.run(_guided_advanced_research_preserves_project_context(tmp_path))
 

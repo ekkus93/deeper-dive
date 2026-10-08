@@ -210,6 +210,7 @@ async def _goal_first_home_keyboard_primary_and_advanced_actions(tmp_path: Path)
         await pilot.pause()
         assert app.screen.id == "screen-providers"
 
+
 def test_goal_first_home_preserves_project_open_rename_delete(tmp_path: Path) -> None:
     asyncio.run(_goal_first_home_project_lifecycle(tmp_path))
 
