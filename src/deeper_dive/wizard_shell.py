@@ -193,7 +193,7 @@ class WizardShell(Screen[None]):
             self.set_status("Could not save wizard progress: " + sanitize_exception_message(exc))
             return
         self.save_exit_requested = True
-        self.set_status("Progress checkpoint saved; leaving the guided workflow.")
+        self.set_status("Progress checkpoint saved; safe to resume from this checkpoint.")
         self.on_save_exit()
 
     def action_help(self) -> None:
