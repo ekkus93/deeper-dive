@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import Protocol, cast
 
 from textual.widget import Widget
 from textual.widgets import Button, Input, Select, Static
@@ -19,6 +20,10 @@ from deeper_dive.preflight import PreflightReport
 from deeper_dive.research_policy import ResearchPolicyStore
 
 
+class _NavigationApp(Protocol):
+    def action_navigate(self, destination: str) -> None: ...
+
+
 class GuidedEpisodeWizard(GuidedHostWizard):
     """Carry New Deep Dive through durable episode setup, plan review, and preflight."""
 
@@ -27,6 +32,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         self._plan: EpisodePlan | None = None
         self._selected_segment_ordinal = 0
         self._preflight: PreflightReport | None = None
+        self._episode_advanced = False
 
     def step_controls(self) -> tuple[Widget, ...]:
         return (
@@ -54,6 +60,11 @@ class GuidedEpisodeWizard(GuidedHostWizard):
                 value="general",
                 allow_blank=False,
                 id="guided-episode-audience",
+            ),
+            Button(
+                "Advanced Options",
+                id="guided-episode-advanced",
+                name="toggle-episode-advanced",
             ),
             Select(
                 [
@@ -144,6 +155,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         handlers = {
+            "toggle-episode-advanced": self.action_toggle_episode_advanced,
             "save-episode": self.action_save_episode,
             "build-plan": self.action_build_plan,
             "save-plan-segment": self.action_save_plan_segment,
@@ -159,6 +171,15 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             handler()
             return
         super().on_button_pressed(event)
+
+    def action_toggle_episode_advanced(self) -> None:
+        self._episode_advanced = not self._episode_advanced
+        self._toggle()
+        self.set_status(
+            "Advanced episode options shown."
+            if self._episode_advanced
+            else "Advanced episode options hidden."
+        )
 
     def action_save_episode(self) -> None:
         project_id = self.context.project_id
@@ -272,9 +293,13 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             self.set_status("No blocking preflight issue is currently available.")
             return
         code = self._preflight.blockers[0].code
+        external = self._advanced_route_for_issue(code)
+        if external is not None:
+            cast(_NavigationApp, self.app).action_navigate(external)
+            return
         step = self._route_for_issue(code)
         if step is None:
-            self.set_status("Open advanced setup/help for this blocker.")
+            self.set_status("Open Help for this blocker.")
             return
         self.context.state = self.context.state.moved_to(step)
         self._sync_text()
@@ -533,16 +558,29 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             self.query_one(selector).disabled = not has_plan
 
     @staticmethod
+    def _advanced_route_for_issue(code: str) -> str | None:
+        if code == "ffmpeg_unavailable":
+            return "setup"
+        if code in {
+            "llm_assignment",
+            "llm_unhealthy",
+            "tts_unhealthy",
+            "tts_format_unsupported",
+            "local_only_violation",
+            "source_content_remote",
+        }:
+            return "providers"
+        return None
+
+    @staticmethod
     def _route_for_issue(code: str) -> str | None:
         if code in {"sources_missing", "sources_unindexed"}:
             return "sources"
-        if code in {"hosts_missing", "tts_assignment", "tts_unhealthy", "tts_format_unsupported"}:
+        if code in {"hosts_missing", "tts_assignment"}:
             return "hosts"
         if code in {"episode_missing", "duration_invalid"}:
             return "episode"
         if code.startswith("plan"):
-            return "plan"
-        if code in {"llm_assignment", "llm_unhealthy"}:
             return "plan"
         return None
 
@@ -555,12 +593,16 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             "#guided-episode-duration",
             "#guided-episode-custom-duration",
             "#guided-episode-audience",
-            "#guided-episode-depth",
-            "#guided-episode-must-cover",
-            "#guided-episode-avoid",
+            "#guided-episode-advanced",
             "#guided-episode-save",
         ):
             self.query_one(selector).display = step == "episode"
+        for selector in (
+            "#guided-episode-depth",
+            "#guided-episode-must-cover",
+            "#guided-episode-avoid",
+        ):
+            self.query_one(selector).display = step == "episode" and self._episode_advanced
         self._toggle_custom_duration()
         if step != "episode":
             self.query_one("#guided-episode-custom-duration", Input).display = False

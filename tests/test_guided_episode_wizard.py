@@ -153,6 +153,11 @@ async def _episode_validation_preserves_typed_input(tmp_path: Path) -> None:
         assert isinstance(screen, GuidedEpisodeWizard)
         screen.context.state = screen.context.state.moved_to("episode")
         screen._toggle()
+        assert screen.query_one("#guided-episode-depth", Select).display is False
+        screen.action_toggle_episode_advanced()
+        assert screen.query_one("#guided-episode-depth", Select).display is True
+        assert screen.query_one("#guided-episode-must-cover", Input).display is True
+        assert screen.query_one("#guided-episode-avoid", Input).display is True
         screen.query_one("#guided-episode-title", Input).value = "Typed title"
         screen.query_one("#guided-episode-focus", Input).value = "Typed focus"
         screen.query_one("#guided-episode-duration", Select).value = "custom"
@@ -324,6 +329,9 @@ async def _guided_and_cli_preflight_report_same_blocker(tmp_path: Path, capsys) 
 
             direct = GenerationStartService(app.composition).preflight(project_id, episode_id)
             assert direct == screen._preflight
+            screen.action_fix_preflight()
+            await pilot.pause()
+            assert app.screen.id == "screen-wizard-first-run"
 
     with (
         patch("deeper_dive.ffmpeg.shutil.which", return_value=None),
