@@ -13,6 +13,7 @@ from textual.widgets import Button, Footer, Header, Input, Label, Static
 
 from deeper_dive.application.service import DeeperDiveService, ProjectSummary, SourceImportSummary
 from deeper_dive.composition import ProductionComposition
+from deeper_dive.diagnostics import redact
 from deeper_dive.episode_library_screen import EpisodeLibraryScreen
 from deeper_dive.episode_plan_screen import EpisodePlanController, EpisodePlanScreen
 from deeper_dive.episode_setup_screen import EpisodeSetupScreen
@@ -203,7 +204,7 @@ class HomeProjectsScreen(NavigationMixin, Screen[None]):
         return "none"
 
     def _set_status(self, value: str) -> None:
-        self.query_one("#screen-status", Static).update(f"Status: {value}")
+        self.query_one("#screen-status", Static).update(str(redact(f"Status: {value}")))
 
 
 class SourcesScreen(NavigationMixin, Screen[None]):
@@ -433,7 +434,7 @@ class SourcesScreen(NavigationMixin, Screen[None]):
         return f"Imported {imported}; skipped {skipped}"
 
     def _set_status(self, value: str) -> None:
-        self.query_one("#screen-status", Static).update(f"Status: {value}")
+        self.query_one("#screen-status", Static).update(str(redact(f"Status: {value}")))
 
 
 class ShellScreen(NavigationMixin, Screen[None]):

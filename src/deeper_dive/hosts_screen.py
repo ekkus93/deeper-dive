@@ -12,6 +12,7 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
+from deeper_dive.diagnostics import redact
 from deeper_dive.hosts import HostProfile, HostRelationship, create_host_from_preset, preset_names
 from deeper_dive.kitten_model_manager import KittenModelManager
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
@@ -340,4 +341,4 @@ class HostsScreen(Screen[None]):
         )
 
     def _status(self, value: str) -> None:
-        self.query_one("#screen-status", Static).update(f"Status: {value}")
+        self.query_one("#screen-status", Static).update(str(redact(f"Status: {value}")))

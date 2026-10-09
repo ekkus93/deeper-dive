@@ -22,6 +22,7 @@ from deeper_dive.claim_evidence_retrieval import ClaimEvidenceRetriever
 from deeper_dive.claim_inspector_screen import ClaimInspectorController, ClaimInspectorScreen
 from deeper_dive.claim_verification import ClaimVerificationService
 from deeper_dive.conversation_state import ConversationStateRepository
+from deeper_dive.diagnostics import redact
 from deeper_dive.host_turn import HostTurn
 from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
 from deeper_dive.material_claims import MaterialClaimService
@@ -663,4 +664,4 @@ class TranscriptReviewScreen(Screen[None]):
         return None if not self.turns else self.turns[self.selected_index]
 
     def _status(self, message: str) -> None:
-        self.query_one("#screen-status", Static).update(f"Status: {message}")
+        self.query_one("#screen-status", Static).update(str(redact(f"Status: {message}")))

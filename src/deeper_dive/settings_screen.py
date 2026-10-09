@@ -13,6 +13,7 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
+from deeper_dive.diagnostics import redact
 from deeper_dive.kitten_tts import MICRO_MODEL_ID
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.provider_tui import ProviderController
@@ -300,4 +301,4 @@ class SettingsScreen(Screen[None]):
         self.refresh_settings(success)
 
     def _status(self, message: str) -> None:
-        self.query_one("#screen-status", Static).update(f"Status: {message}")
+        self.query_one("#screen-status", Static).update(str(redact(f"Status: {message}")))

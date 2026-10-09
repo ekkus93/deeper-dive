@@ -13,6 +13,7 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Label, Static
 
 from deeper_dive.audio_playback import PlaybackState
+from deeper_dive.diagnostics import redact
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.episode_library_export import EpisodeExportResult, EpisodeLibraryExportService
 from deeper_dive.generation_monitor import GenerationMonitorScreen
@@ -319,4 +320,4 @@ class EpisodeLibraryScreen(Screen[None]):
         return None
 
     def _status(self, message: str) -> None:
-        self.query_one("#screen-status", Static).update(f"Status: {message}")
+        self.query_one("#screen-status", Static).update(str(redact(f"Status: {message}")))

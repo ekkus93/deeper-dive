@@ -9,6 +9,7 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Checkbox, Footer, Header, Input, Label, Static
 
+from deeper_dive.diagnostics import redact
 from deeper_dive.episode_planner import EpisodePlan, PlannedSegment
 
 if TYPE_CHECKING:
@@ -219,4 +220,4 @@ class EpisodePlanScreen(Screen[None]):
         )
 
     def _status(self, value: str) -> None:
-        self.query_one("#screen-status", Static).update(f"Status: {value}")
+        self.query_one("#screen-status", Static).update(str(redact(f"Status: {value}")))

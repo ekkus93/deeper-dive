@@ -10,7 +10,7 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
 from deeper_dive.composition import ProductionComposition
-from deeper_dive.diagnostics import sanitize_provider_error
+from deeper_dive.diagnostics import redact, sanitize_provider_error
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.model_roles import ModelAssignment, ModelRole, preflight_model_roles
 from deeper_dive.storage.database import Database
@@ -244,4 +244,4 @@ class EpisodeSetupScreen(Screen[None]):
         return tuple(value.strip() for value in raw.split(",") if value.strip())
 
     def _status(self, value: str) -> None:
-        self.query_one("#screen-status", Static).update(f"Status: {value}")
+        self.query_one("#screen-status", Static).update(str(redact(f"Status: {value}")))

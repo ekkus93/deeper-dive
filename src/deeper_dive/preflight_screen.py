@@ -13,7 +13,7 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Label, Static
 
 from deeper_dive.application.service import DeeperDiveService
-from deeper_dive.diagnostics import sanitize_exception_message
+from deeper_dive.diagnostics import redact, sanitize_exception_message
 from deeper_dive.generation_monitor import GenerationMonitorScreen
 from deeper_dive.generation_start import GenerationStartService, select_or_create_generation_run
 from deeper_dive.hosts import HostProfile
@@ -414,4 +414,4 @@ class PreflightScreen(Screen[None]):
         return "\n".join(lines)
 
     def _status(self, message: str) -> None:
-        self.query_one("#screen-status", Static).update(Text(f"Status: {message}"))
+        self.query_one("#screen-status", Static).update(Text(str(redact(f"Status: {message}"))))
