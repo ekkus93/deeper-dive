@@ -27,9 +27,7 @@ def test_restarted_guided_runtime_preserves_host_plan_and_provider_identity(
     assert first.audio_path != second.audio_path
     assert set(first.turn_ids).isdisjoint(second.turn_ids)
 
-    restored = DeeperDiveService(
-        WorkspaceManager(first.service.workspaces.data_dir)
-    )
+    restored = DeeperDiveService(WorkspaceManager(first.service.workspaces.data_dir))
     composition = ProductionComposition.build(service=restored)
     project_id = first.project_id
     hosts = restored.hosts(project_id).list_hosts(project_id)
