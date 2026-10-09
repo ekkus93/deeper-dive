@@ -9,6 +9,7 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Checkbox, Footer, Header, Input, Label, Select, Static
 
+from deeper_dive.diagnostics import redact
 from deeper_dive.research_candidates import CandidateOutcome
 from deeper_dive.research_gaps import ResearchGap
 from deeper_dive.research_policy import ResearchControls, ResearchMode, ResearchPolicy
@@ -219,4 +220,4 @@ class ResearchScreen(Screen[None]):
         return f"Research complete: {accepted} accepted, {len(outcomes) - accepted} rejected"
 
     def _status(self, message: str) -> None:
-        self.query_one("#screen-status", Static).update(f"Status: {message}")
+        self.query_one("#screen-status", Static).update(f"Status: {redact(message)}")
