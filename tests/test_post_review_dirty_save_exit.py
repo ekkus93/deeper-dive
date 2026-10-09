@@ -140,9 +140,7 @@ async def _new_source_discard(tmp_path: Path) -> None:
         assert app.screen is screen
         assert screen.query_one("#wizard-exit-confirmation").display
         screen.action_cancel_exit_confirmation()
-        assert "Unsaved source body canary" in screen.query_one(
-            "#guided-source-text", Input
-        ).value
+        assert "Unsaved source body canary" in screen.query_one("#guided-source-text", Input).value
         screen.action_save_exit()
         screen.action_confirm_discard_exit()
         await pilot.pause()

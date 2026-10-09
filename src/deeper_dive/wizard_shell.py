@@ -35,43 +35,68 @@ RECOMMENDED_TERMINAL_HEIGHT = 30
 # pickers, action buttons, and generated status text are intentionally excluded.
 _FORM_FIELDS: dict[tuple[WizardKind, str], tuple[str, ...]] = {
     (WizardKind.FIRST_RUN, "provider-config"): (
-        "setup-provider-name", "setup-provider-adapter", "setup-provider-base-url",
-        "setup-provider-model", "setup-provider-credential-env", "setup-provider-network",
+        "setup-provider-name",
+        "setup-provider-adapter",
+        "setup-provider-base-url",
+        "setup-provider-model",
+        "setup-provider-credential-env",
+        "setup-provider-network",
     ),
     (WizardKind.FIRST_RUN, "model-test"): (
-        "setup-role-episode-planning", "setup-role-host-generation",
-        "setup-role-directing", "setup-role-verification",
+        "setup-role-episode-planning",
+        "setup-role-host-generation",
+        "setup-role-directing",
+        "setup-role-verification",
     ),
     (WizardKind.FIRST_RUN, "speech"): (
-        "setup-speech-choice", "setup-speech-name", "setup-speech-adapter",
-        "setup-speech-base-url", "setup-speech-model",
-        "setup-speech-credential-env", "setup-speech-network", "setup-speech-voices",
+        "setup-speech-choice",
+        "setup-speech-name",
+        "setup-speech-adapter",
+        "setup-speech-base-url",
+        "setup-speech-model",
+        "setup-speech-credential-env",
+        "setup-speech-network",
+        "setup-speech-voices",
     ),
     (WizardKind.FIRST_RUN, "voice-defaults"): (
-        "setup-host1-voice", "setup-host2-voice",
-        "setup-duration", "setup-research-default",
+        "setup-host1-voice",
+        "setup-host2-voice",
+        "setup-duration",
+        "setup-research-default",
     ),
     (WizardKind.NEW_DEEP_DIVE, "project"): (
-        "guided-project-name", "guided-project-topic", "guided-project-audience",
+        "guided-project-name",
+        "guided-project-topic",
+        "guided-project-audience",
         "guided-project-description",
     ),
     (WizardKind.NEW_DEEP_DIVE, "sources"): (
-        "guided-source-title", "guided-source-text",
-        "guided-source-paths", "guided-source-urls",
+        "guided-source-title",
+        "guided-source-text",
+        "guided-source-paths",
+        "guided-source-urls",
     ),
     (WizardKind.NEW_DEEP_DIVE, "research"): ("guided-research-policy",),
     (WizardKind.NEW_DEEP_DIVE, "hosts"): (
-        "guided-host-name", "guided-host-role", "guided-host-expertise",
+        "guided-host-name",
+        "guided-host-role",
+        "guided-host-expertise",
         "guided-host-instructions",
     ),
     (WizardKind.NEW_DEEP_DIVE, "episode"): (
-        "guided-episode-title", "guided-episode-focus",
-        "guided-episode-duration", "guided-episode-custom-duration",
-        "guided-episode-audience", "guided-episode-depth",
-        "guided-episode-must-cover", "guided-episode-avoid",
+        "guided-episode-title",
+        "guided-episode-focus",
+        "guided-episode-duration",
+        "guided-episode-custom-duration",
+        "guided-episode-audience",
+        "guided-episode-depth",
+        "guided-episode-must-cover",
+        "guided-episode-avoid",
     ),
     (WizardKind.NEW_DEEP_DIVE, "plan"): (
-        "guided-plan-title", "guided-plan-purpose", "guided-plan-duration",
+        "guided-plan-title",
+        "guided-plan-purpose",
+        "guided-plan-duration",
     ),
 }
 
@@ -156,15 +181,15 @@ class WizardShell(Screen[None]):
             yield Button("Save and Exit", id="wizard-save-exit", name="save-exit")
             yield Button("Help", id="wizard-help", name="help")
         with Horizontal(id="wizard-exit-confirmation"):
-            yield Button(
-                "Save changes and exit", id="wizard-confirm-save", name="confirm-save"
-            )
+            yield Button("Save changes and exit", id="wizard-confirm-save", name="confirm-save")
             yield Button(
                 "Exit without changes", id="wizard-confirm-discard", name="confirm-discard"
             )
             yield Button(
-                "Continue editing", id="wizard-confirm-cancel",
-                name="confirm-cancel", variant="primary"
+                "Continue editing",
+                id="wizard-confirm-cancel",
+                name="confirm-cancel",
+                variant="primary",
             )
         yield Footer()
 
@@ -287,8 +312,7 @@ class WizardShell(Screen[None]):
             self._exit_confirmation_pending = True
             self._sync_exit_confirmation()
             self.set_status(
-                "Unsaved changes. Save changes and exit, explicitly discard, "
-                "or continue editing."
+                "Unsaved changes. Save changes and exit, explicitly discard, or continue editing."
             )
             self.query_one("#wizard-confirm-cancel", Button).focus()
             return
@@ -342,9 +366,9 @@ class WizardShell(Screen[None]):
         self.set_status("Continuing to edit; unsaved changes are still present.")
 
     def _sync_exit_confirmation(self) -> None:
-        self.query_one("#wizard-exit-confirmation", Horizontal).display = (
-            self._exit_confirmation_pending
-        )
+        self.query_one(
+            "#wizard-exit-confirmation", Horizontal
+        ).display = self._exit_confirmation_pending
         self.query_one("#wizard-save-exit", Button).disabled = self._exit_confirmation_pending
 
     def action_help(self) -> None:
@@ -400,9 +424,9 @@ class WizardShell(Screen[None]):
         self.query_one("#wizard-save-exit", Button).disabled = (
             self.busy or self._exit_confirmation_pending
         )
-        self.query_one("#wizard-exit-confirmation", Horizontal).display = (
-            self._exit_confirmation_pending
-        )
+        self.query_one(
+            "#wizard-exit-confirmation", Horizontal
+        ).display = self._exit_confirmation_pending
 
     def _apply_viewport_policy(self, width: int, height: int) -> None:
         self._viewport_width = width
