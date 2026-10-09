@@ -5,6 +5,7 @@ from __future__ import annotations
 from time import monotonic
 from typing import Protocol, cast
 
+from textual.css.query import NoMatches
 from textual.widget import Widget
 from textual.widgets import Button, Input, Select
 
@@ -777,7 +778,12 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         return value or None
 
     def _select_value(self, selector: str) -> str | None:
-        value = self.query_one(selector, Select).value
+        # Compose can render a resumed step before its controls are mounted.
+        # A missing Select is not a user choice and must not crash startup.
+        try:
+            value = self.query_one(selector, Select).value
+        except NoMatches:
+            return None
         return value if isinstance(value, str) and value else None
 
     @staticmethod
