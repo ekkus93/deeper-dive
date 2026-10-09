@@ -52,9 +52,7 @@ async def _verify_delete_confirmation(tmp_path: Path, size: tuple[int, int]) -> 
 
         screen.action_delete_source()
         assert screen._pending_delete_source_id == first.id
-        assert "again to confirm" in str(
-            screen.query_one("#wizard-status", Static).render()
-        )
+        assert "again to confirm" in str(screen.query_one("#wizard-status", Static).render())
         assert len(service.list_sources(project_id)) == 2
 
         # Back and Continue are not a second confirmation.
