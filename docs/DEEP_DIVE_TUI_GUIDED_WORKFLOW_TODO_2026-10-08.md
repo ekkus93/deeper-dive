@@ -345,6 +345,7 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 Populate only as work is completed. Do not pre-check or use placeholders as completion evidence.
 
 - Implementation SHAs:
+  - d5bd8563a8ca66f367a16982a32c7ad34b8ed2ca, 67d49783e06ad233e26b099d921af937d40e154e — removed the hidden pytest collection exclusion, retired superseded monitor tests and retained a deterministic no-Pilot failure-status regression; exact-head CI 37917348223 passed (939 tests, quality and fresh-machine).
   - f58b024b39bfc531ef1d5a3fd9f954b54559ead8 — real generated-turn targeted repair through restarted guided Library/Review and production repair + regenerated audio; exact-head CI 37913595718 passed.
   - e956b8c2e62abc5e152b2cc205f5355c94459dc0, c2171aef3b6dfd30e818718dd8365c5814140e19 — shared Help/redaction/focus/80x24 + 100x30 test matrix and host failure F1-only handlers; exact-head CI 37914520588 passed.
   - 321f2afcd944b8597521335685e30b06379a72c5 — URL and cloud TTS preview network disclosures and matrix assertions; exact-head CI 37914699940 passed.
@@ -418,13 +419,14 @@ Populate only as work is completed. Do not pre-check or use placeholders as comp
   - tests/test_episode_library_export.py::test_review_and_real_exports_stay_isolated_across_two_episodes
   - tests/test_guided_episode_wizard.py::test_guided_and_quick_runs_produce_isolated_durable_artifacts
 - Compatibility tests:
+  - tests/test_generation_monitor.py::test_failed_background_runner_maps_to_actionable_sanitized_status (bounded, no implicit collection filtering)
   - tests/test_guided_persisted_compatibility.py::test_guided_tui_reopens_completed_legacy_artifacts_and_advanced_routes
   - tests/test_guided_persisted_identity.py::test_restarted_guided_runtime_preserves_host_plan_and_provider_identity
   - tests/test_guided_targeted_repair_compatibility.py::test_restarted_guided_library_repairs_generated_turn_through_production
   - tests/test_guided_help_security_matrix.py::test_guided_error_details_are_keyboard_accessible_and_redacted (2 wizards x 2 terminal sizes)
   - tests/test_guided_help_security_matrix.py::test_guided_host_failure_details_are_help_only
-- Final master SHA: `1d0058c4c91c7a8658b7894035a2b944ab56af8b` (qualified final implementation head before this documentation-only closeout; the closeout commit's exact SHA is in its own Git commit receipt and the exact-head CI run, since a Git commit cannot contain its own SHA).
-- Final exact-head CI run: `37915339255` — success on `1d0058c4c91c7a8658b7894035a2b944ab56af8b` at 2026-10-09 10:09:21 UTC. Quality job `113770022645` succeeded: `uv lock --check`, Ruff format, Ruff lint, mypy, **938 pytest tests passed**, package build, and CLI/import smoke. Fresh-machine job `113770022964` succeeded: clean-wheel installation, installed CLI/TUI launch, corpus/episode workflow, installed-wheel guided TUI acceptance, and **real KittenTTS Micro CPU** WAV generation (202444 bytes, 24 kHz). CI: https://github.com/ekkus93/deeper-dive/actions/runs/37915339255
+- Final master SHA: `67d49783e06ad233e26b099d921af937d40e154e` (latest fully qualified implementation and test-harness head, before this documentation-only evidence reconciliation; the reconciliation commit's own exact SHA is provided by its Git receipt and CI run, since a commit cannot contain its own SHA).
+- Final exact-head CI run: `37917348223` — success on `67d49783e06ad233e26b099d921af937d40e154e` (quality job `113776669353`: lock check, Ruff format, Ruff lint, mypy, **939 pytest tests passed**, build, CLI/import smoke; fresh-machine job `113776669670`: installed wheel, deterministic CLI/TUI production workflow and real KittenTTS Micro CPU). CI: https://github.com/ekkus93/deeper-dive/actions/runs/37917348223
 - Final GW-290 matrices: the named first-run, New Deep Dive, focus/accessibility, 80x24/100x30 and below-minimum layout, save/resume/restart, security/redaction, provider/preflight, durable run control, multi-episode isolation, Quick/guided parity, and persisted compatibility tests listed below were all included in the successful 938-test exact-head quality run. Existing focused test names are retained below for independent verification.
 - Reconciliation rule: this closeout changes only the authoritative TODO. The exact reconciliation commit must also pass its own push CI before completion is declared; its SHA and CI run are available from the GitHub commit/CI records (not embedded self-referentially in the commit itself).
 - Quality job:
