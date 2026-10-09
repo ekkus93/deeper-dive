@@ -56,10 +56,7 @@ def test_restarted_guided_runtime_preserves_host_plan_and_provider_identity(
         assert plan.episode_id == completed.episode_id
         assert plan.target_duration_seconds > 0
         assert plan.segments
-        assert all(
-            set(segment.lead_host_ids).issubset(host_ids)
-            for segment in plan.segments
-        )
+        assert all(set(segment.lead_host_ids).issubset(host_ids) for segment in plan.segments)
 
         run = restored.runs(project_id).get(completed.run_id)
         assert run is not None and run.state == "completed"
