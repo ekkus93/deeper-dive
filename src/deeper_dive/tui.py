@@ -13,6 +13,7 @@ from textual.widgets import Button, Footer, Header, Input, Label, Static
 
 from deeper_dive.application.service import DeeperDiveService, ProjectSummary, SourceImportSummary
 from deeper_dive.composition import ProductionComposition
+from deeper_dive.destructive_confirmation import PendingRemoval
 from deeper_dive.diagnostics import redact
 from deeper_dive.episode_library_screen import EpisodeLibraryScreen
 from deeper_dive.episode_plan_screen import EpisodePlanController, EpisodePlanScreen
@@ -221,6 +222,7 @@ class SourcesScreen(NavigationMixin, Screen[None]):
     def __init__(self) -> None:
         super().__init__(id="screen-sources")
         self.selected_source_id: str | None = None
+        self._pending_source_delete = PendingRemoval()
 
     @property
     def _app(self) -> DeeperDiveApp:
@@ -243,6 +245,14 @@ class SourcesScreen(NavigationMixin, Screen[None]):
             yield Button("Add URLs", id="action-add-urls", name="add-urls")
             yield Button("Include/Exclude", id="action-toggle-source", name="toggle-source")
             yield Button("Delete Source", id="action-delete-source", name="delete-source")
+            yield Button(
+                "Confirm Delete", id="action-confirm-source-delete",
+                name="confirm-source-delete", disabled=True,
+            )
+            yield Button(
+                "Cancel Delete", id="action-cancel-source-delete",
+                name="cancel-source-delete", variant="primary", disabled=True,
+            )
             yield Static("", id="source-list")
             yield Static("", id="source-details")
             yield Static("", id="source-text-preview")
@@ -264,6 +274,10 @@ class SourcesScreen(NavigationMixin, Screen[None]):
             self.action_toggle_included()
         elif action == "delete-source":
             self.action_delete_selected()
+        elif action == "confirm-source-delete":
+            self.action_confirm_delete()
+        elif action == "cancel-source-delete":
+            self.action_cancel_delete()
         else:
             super().on_button_pressed(event)
 
@@ -332,9 +346,36 @@ class SourcesScreen(NavigationMixin, Screen[None]):
             return
         project_id = self._app.current_project_id
         assert project_id is not None
+        self._pending_source_delete.request(f"{project_id}:{source.id}")
+        self._sync_source_delete_controls()
+        self._set_status(
+            f"Delete source {source.title}? Confirm Delete or Cancel Delete."
+        )
+        self.query_one("#action-cancel-source-delete", Button).focus()
+
+    def action_confirm_delete(self) -> None:
+        source = self._selected_source()
+        project_id = self._app.current_project_id
+        target = f"{project_id}:{source.id}" if project_id and source else None
+        if not self._pending_source_delete.consume(target):
+            self._sync_source_delete_controls()
+            return
+        self._sync_source_delete_controls()
+        assert project_id is not None
+        assert source is not None
         self._app.service.delete_source(project_id, source.id)
         self.selected_source_id = None
         self.refresh_sources("Deleted source")
+
+    def action_cancel_delete(self) -> None:
+        if self._pending_source_delete.cancel():
+            self._sync_source_delete_controls()
+            self._set_status("Source deletion cancelled.")
+
+    def _sync_source_delete_controls(self) -> None:
+        pending = self._pending_source_delete.target is not None
+        self.query_one("#action-confirm-source-delete", Button).disabled = not pending
+        self.query_one("#action-cancel-source-delete", Button).disabled = not pending
 
     def refresh_sources(self, status: str = "Ready") -> None:
         project_id = self._app.current_project_id
@@ -348,6 +389,14 @@ class SourcesScreen(NavigationMixin, Screen[None]):
         ids = {source.id for source in sources}
         if self.selected_source_id not in ids:
             self.selected_source_id = sources[0].id if sources else None
+        selected_target = (
+            f"{project_id}:{self.selected_source_id}"
+            if self.selected_source_id is not None
+            else None
+        )
+        if self._pending_source_delete.target != selected_target:
+            self._pending_source_delete.cancel()
+        self._sync_source_delete_controls()
         self.query_one("#source-list", Static).update(self._source_list_text(sources))
         self.query_one("#source-details", Static).update(self._details_text())
         self.query_one("#source-text-preview", Static).update(self._preview_text())

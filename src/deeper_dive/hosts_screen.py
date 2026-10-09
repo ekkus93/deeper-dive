@@ -12,6 +12,7 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
+from deeper_dive.destructive_confirmation import PendingRemoval
 from deeper_dive.diagnostics import redact
 from deeper_dive.hosts import HostProfile, HostRelationship, create_host_from_preset, preset_names
 from deeper_dive.kitten_model_manager import KittenModelManager
@@ -30,6 +31,7 @@ class HostsScreen(Screen[None]):
         super().__init__(id="screen-hosts")
         self.selected_host_id: str | None = None
         self.display_order: list[str] = []
+        self._pending_removal = PendingRemoval()
 
     @property
     def _app(self) -> DeeperDiveApp:
@@ -74,10 +76,22 @@ class HostsScreen(Screen[None]):
                     ("Save", "save-host"),
                     ("Duplicate", "duplicate-host"),
                     ("Remove", "remove-host"),
+                    ("Confirm Remove", "confirm-remove-host"),
+                    ("Cancel Remove", "cancel-remove-host"),
                     ("Up", "move-up"),
                     ("Down", "move-down"),
                 ):
-                    yield Button(label, name=name)
+                    yield Button(
+                        label,
+                        name=name,
+                        id=(
+                            "host-confirm-remove" if name == "confirm-remove-host"
+                            else "host-cancel-remove" if name == "cancel-remove-host"
+                            else None
+                        ),
+                        disabled=name in {"confirm-remove-host", "cancel-remove-host"},
+                        variant="primary" if name == "cancel-remove-host" else "default",
+                    )
             yield Input(placeholder="Relationship target host ID", id="relationship-target")
             yield Input(value="peer", placeholder="Relationship stance", id="relationship-stance")
             yield Input(placeholder="Relationship instructions", id="relationship-instructions")
@@ -87,6 +101,7 @@ class HostsScreen(Screen[None]):
 
     def on_mount(self) -> None:
         self.refresh_hosts()
+        self._sync_removal_controls()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         actions = {
@@ -94,6 +109,8 @@ class HostsScreen(Screen[None]):
             "save-host": self.action_save_host,
             "duplicate-host": self.action_duplicate_host,
             "remove-host": self.action_remove_host,
+            "confirm-remove-host": self.action_confirm_remove_host,
+            "cancel-remove-host": self.action_cancel_remove_host,
             "move-up": lambda: self._move(-1),
             "move-down": lambda: self._move(1),
             "save-relationship": self.action_save_relationship,
@@ -127,6 +144,14 @@ class HostsScreen(Screen[None]):
         self.display_order.extend(item for item in ids if item not in self.display_order)
         if self.selected_host_id not in ids:
             self.selected_host_id = self.display_order[0] if self.display_order else None
+        project_id_for_removal = self._app.current_project_id
+        current = (
+            f"{project_id_for_removal}:{self.selected_host_id}"
+            if project_id_for_removal and self.selected_host_id
+            else None
+        )
+        if self._pending_removal.target != current:
+            self._pending_removal.cancel()
         by_id = {record.id: record for record in records}
         rows = [
             f"{'*' if item == self.selected_host_id else ' '} {by_id[item].display_name} [{item}]"
@@ -134,6 +159,7 @@ class HostsScreen(Screen[None]):
         ]
         self.query_one("#host-list", Static).update("\n".join(rows) if rows else "No hosts yet.")
         self._load_selected()
+        self._sync_removal_controls()
         self._status(status)
 
     def _load_selected(self) -> None:
@@ -221,12 +247,48 @@ class HostsScreen(Screen[None]):
 
     def action_remove_host(self) -> None:
         repository = self._repository()
+        project_id = self._app.current_project_id
+        if repository is None or project_id is None or self.selected_host_id is None:
+            return
+        record = repository.get_host(self.selected_host_id)
+        if record is None:
+            return
+        self._pending_removal.request(f"{project_id}:{record.id}")
+        self._sync_removal_controls()
+        self._status(
+            f"Remove host {record.display_name}? Confirm Remove or Cancel Remove."
+        )
+        self.query_one("#host-cancel-remove", Button).focus()
+
+    def action_confirm_remove_host(self) -> None:
+        project_id = self._app.current_project_id
+        target = (
+            f"{project_id}:{self.selected_host_id}"
+            if project_id and self.selected_host_id
+            else None
+        )
+        if not self._pending_removal.consume(target):
+            self._sync_removal_controls()
+            return
+        self._sync_removal_controls()
+        repository = self._repository()
         if repository is None or self.selected_host_id is None:
             return
-        repository.delete_host(self.selected_host_id)
-        self.display_order = [item for item in self.display_order if item != self.selected_host_id]
+        removed = self.selected_host_id
+        repository.delete_host(removed)
+        self.display_order = [item for item in self.display_order if item != removed]
         self.selected_host_id = self.display_order[0] if self.display_order else None
         self.refresh_hosts("Removed host")
+
+    def action_cancel_remove_host(self) -> None:
+        if self._pending_removal.cancel():
+            self._sync_removal_controls()
+            self._status("Host removal cancelled.")
+
+    def _sync_removal_controls(self) -> None:
+        pending = self._pending_removal.target is not None
+        self.query_one("#host-confirm-remove", Button).disabled = not pending
+        self.query_one("#host-cancel-remove", Button).disabled = not pending
 
     def _move(self, delta: int) -> None:
         if self.selected_host_id not in self.display_order:

@@ -1,4 +1,4 @@
-"""Single-use, target-bound destructive action confirmation state."""
+"""Reusable one-shot confirmation guard for destructive TUI mutations."""
 
 from __future__ import annotations
 
@@ -6,20 +6,23 @@ from dataclasses import dataclass
 
 
 @dataclass(slots=True)
-class DestructiveConfirmation:
-    """A request arms a target; only an explicit confirmation can consume it."""
+class PendingRemoval:
+    """Bind an explicit confirmation to one exact selected durable identity."""
 
     target: str | None = None
 
-    def request(self, target: str) -> None:
-        if not target:
-            raise ValueError("confirmation target is required")
-        self.target = target
+    def request(self, identity: str) -> None:
+        if not identity:
+            raise ValueError("a non-empty target identity is required")
+        self.target = identity
 
-    def consume(self, current_target: str) -> bool:
-        accepted = self.target is not None and self.target == current_target
+    def consume(self, selected: str | None) -> bool:
+        """Confirm only the originally selected identity, once."""
+        approved = self.target is not None and self.target == selected
         self.target = None
-        return accepted
+        return approved
 
-    def cancel(self) -> None:
+    def cancel(self) -> bool:
+        was_pending = self.target is not None
         self.target = None
+        return was_pending

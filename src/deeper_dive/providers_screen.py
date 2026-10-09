@@ -10,6 +10,7 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
 from deeper_dive.diagnostics import redact, sanitize_exception_message
+from deeper_dive.destructive_confirmation import PendingRemoval
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.user_errors import user_status
 
@@ -46,6 +47,7 @@ class ProvidersScreen(Screen[None]):
     def __init__(self) -> None:
         super().__init__(id="screen-providers")
         self.selected_provider: str | None = None
+        self._pending_removal = PendingRemoval()
 
     @property
     def provider_app(self) -> ProviderApp:
@@ -97,6 +99,14 @@ class ProvidersScreen(Screen[None]):
             )
             yield Button("Add / Edit", id="action-save-provider", name="save")
             yield Button("Remove", id="action-remove-provider", name="remove")
+            yield Button(
+                "Confirm Remove", id="action-confirm-provider-remove",
+                name="confirm-remove", disabled=True,
+            )
+            yield Button(
+                "Cancel Remove", id="action-cancel-provider-remove",
+                name="cancel-remove", variant="primary", disabled=True,
+            )
             yield Button("Test Health", id="action-health-provider", name="health")
             yield Button("Discover Models", id="action-models-provider", name="models")
             yield Button("Discover Voices", id="action-voices-provider", name="voices")
@@ -108,8 +118,12 @@ class ProvidersScreen(Screen[None]):
 
     def on_mount(self) -> None:
         self.refresh_providers()
+        self._sync_removal_controls()
 
     def on_input_changed(self, event: Input.Changed) -> None:
+        if event.input.id == "provider-name" and self._pending_removal.target is not None:
+            if event.input.value.strip() != self._pending_removal.target:
+                self.action_cancel_remove()
         if event.input.id == "provider-type":
             self.query_one("#provider-details", Static).update(
                 self._provider_type_details(event.input.value.strip())
@@ -123,6 +137,10 @@ class ProvidersScreen(Screen[None]):
             self.action_save()
         elif action == "remove":
             self.action_remove()
+        elif action == "confirm-remove":
+            self.action_confirm_remove()
+        elif action == "cancel-remove":
+            self.action_cancel_remove()
         elif action == "health":
             self.action_health()
         elif action == "models":
@@ -177,6 +195,7 @@ class ProvidersScreen(Screen[None]):
         except ValueError as exc:
             self._status(user_status("provider", exc))
             return
+        self._pending_removal.cancel()
         self.selected_provider = name
         self.refresh_providers(f"Saved {provider_type} provider {name}")
 
@@ -184,9 +203,35 @@ class ProvidersScreen(Screen[None]):
         name = self._selected_name()
         if name is None:
             return
+        self._pending_removal.request(name)
+        self._sync_removal_controls()
+        self._status(f"Remove provider {name}? Confirm Remove or Cancel Remove.")
+        self.query_one("#action-cancel-provider-remove", Button).focus()
+
+    def action_confirm_remove(self) -> None:
+        name = self._pending_removal.target
+        if name is None:
+            return
+        current = self.query_one("#provider-name", Input).value.strip()
+        selected = current or self.selected_provider
+        if not self._pending_removal.consume(selected):
+            self._sync_removal_controls()
+            self._status("Provider removal cancelled because the selection changed.")
+            return
+        self._sync_removal_controls()
         self.provider_app.provider_controller.remove_provider(name)
         self.selected_provider = None
         self.refresh_providers(f"Removed provider {name}")
+
+    def action_cancel_remove(self) -> None:
+        if self._pending_removal.cancel():
+            self._sync_removal_controls()
+            self._status("Provider removal cancelled.")
+
+    def _sync_removal_controls(self) -> None:
+        pending = self._pending_removal.target is not None
+        self.query_one("#action-confirm-provider-remove", Button).disabled = not pending
+        self.query_one("#action-cancel-provider-remove", Button).disabled = not pending
 
     def action_health(self) -> None:
         name = self._selected_name()
@@ -253,6 +298,8 @@ class ProvidersScreen(Screen[None]):
 
     def refresh_providers(self, status: str = "Ready") -> None:
         providers = self.provider_app.provider_controller.config().providers
+        if self._pending_removal.target not in providers:
+            self._pending_removal.cancel()
         if self.selected_provider not in providers:
             self.selected_provider = next(iter(sorted(providers)), None)
         llm = [
@@ -268,6 +315,7 @@ class ProvidersScreen(Screen[None]):
         self.query_one("#llm-provider-list", Static).update(self._list_text("LLM providers", llm))
         self.query_one("#tts-provider-list", Static).update(self._list_text("TTS providers", tts))
         self.query_one("#provider-details", Static).update(self._details_text())
+        self._sync_removal_controls()
         self._status(status)
 
     def _list_text(self, title: str, names: list[str]) -> str:
