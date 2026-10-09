@@ -563,14 +563,12 @@ async def _guided_and_quick_runs_produce_isolated_durable_artifacts(tmp_path: Pa
 
         quick_episode = service.quick_deep_dive(project_id)
         assert quick_episode.id != guided_episode_id
-        planner = app.composition.configured_planning_service(
-            project_id, "fake", "fake-v1"
-        )
+        planner = app.composition.configured_planning_service(project_id, "fake", "fake-v1")
         planner.build_plan(quick_episode.id)
         with patch("deeper_dive.ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"):
-            quick_run = GenerationStartService(app.composition).start(
-                project_id, quick_episode.id
-            ).run
+            quick_run = (
+                GenerationStartService(app.composition).start(project_id, quick_episode.id).run
+            )
         app.composition.run_generation(project_id, quick_run.id)
         completed_quick = service.runs(project_id).get(quick_run.id)
         assert completed_quick is not None and completed_quick.state == "completed"
@@ -590,7 +588,8 @@ async def _guided_and_quick_runs_produce_isolated_durable_artifacts(tmp_path: Pa
             audio = service.workspaces.project_root(project_id) / "output" / f"{episode_id}.wav"
             assert audio.is_file()
             item = next(
-                item for item in EpisodeLibraryController.items(app)
+                item
+                for item in EpisodeLibraryController.items(app)
                 if item.episode.id == episode_id
             )
             assert item.run is not None and item.run.id == run_id
