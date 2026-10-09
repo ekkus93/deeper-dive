@@ -68,7 +68,7 @@ def test_discovered_role_model_is_eligible_even_if_provider_default_is_unavailab
     )
     controller = cast(
         ProviderController,
-        SimpleNamespace(llm=lambda provider_name: runtime),
+        SimpleNamespace(llm=lambda provider_name: runtime, capability=lambda adapter: "llm"),
     )
     discovered = _llm_runtime_ready(controller, "planner")
     assert discovered == frozenset({"model-b"})
