@@ -312,9 +312,7 @@ def test_quick_created_hosts_inherit_first_run_speech_provider_and_voices(
     config = EpisodeConfigurationService(
         Database(service.workspaces.project_root(project.id) / "project.db")
     ).load_configuration(episode.id)
-    hosts = {
-        host.id: host for host in service.hosts(project.id).list_hosts(project.id)
-    }
+    hosts = {host.id: host for host in service.hosts(project.id).list_hosts(project.id)}
     assert [hosts[host_id].tts_provider for host_id in config.host_ids] == [
         "speech",
         "speech",
