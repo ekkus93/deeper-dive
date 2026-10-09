@@ -244,22 +244,22 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 ## GW-250 — Validation, security, accessibility, and compact-terminal UX
 
 - [x] Preserve typed input after validation failure.
-- [ ] Use inline validation for local field errors.
-- [ ] Use screen-level blockers for workflow errors.
+- [x] Use inline validation for local field errors.
+- [x] Use screen-level blockers for workflow errors.
 - [ ] Put technical detail behind an explicit details/help action.
 - [ ] Never show raw tracebacks in the normal wizard path.
 - [ ] Apply canonical recursive sanitization to all provider/runtime/user-visible errors.
 - [ ] Preserve credential-reference and non-persistence rules.
 - [ ] Disclose cloud/network behavior before networked actions.
-- [ ] Use synthetic minimal prompts for setup tests rather than private user source material.
-- [ ] Visible focus meets keyboard-only requirements.
-- [ ] Completion/current/error state is not color-only.
-- [ ] Primary action placement and Back semantics remain consistent.
+- [x] Use synthetic minimal prompts for setup tests rather than private user source material.
+- [x] Visible focus meets keyboard-only requirements.
+- [x] Completion/current/error state is not color-only.
+- [x] Primary action placement and Back semantics remain consistent.
 - [ ] No normal screen requires a raw internal ID as the primary user input.
 - [ ] Destructive actions require confirmation.
-- [ ] 100x30 recommended layout passes.
-- [ ] 80x24 compact layout passes without primary horizontal scrolling.
-- [ ] Below-minimum viewport shows a clear resize message while preserving state.
+- [x] 100x30 recommended layout passes.
+- [x] 80x24 compact layout passes without primary horizontal scrolling.
+- [x] Below-minimum viewport shows a clear resize message while preserving state.
 - [ ] Add accessibility/focus/layout regression matrix.
 
 ## GW-260 — Shared acceptance fixture and end-to-end guided workflow
@@ -345,6 +345,7 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 Populate only as work is completed. Do not pre-check or use placeholders as completion evidence.
 
 - Implementation SHAs:
+  - c1b48250404349b2f6dc461cdfec345cda43f039 — GW-250 focus, inline validation, screen blockers, sanitized runtime failure and terminal layout tests; exact-head CI 37904031350 passed (quality and fresh-machine).
 
   - a5dfdd6cfdc8f00bd151bd612c5556c74e329adf, 58a662116a4a32f9a70ee781e47f7191ef5852b3 — Guided Episode Ready reuses Library playback; two-episode action-selection regression; exact-head CI 37869998015 passed.
   - 7f750cb35d7522022882bbdea4f2c8f4b0e96999 — Home Quick Deep Dive now invokes shared preflight and GenerationStartService via the normal Generate action, then uses the production monitor/pipeline; existing Quick pipeline acceptance covers persisted turns, TTS, timeline, audio, review and export; exact-head CI 37870163029 passed.
