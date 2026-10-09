@@ -243,7 +243,7 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 
 ## GW-250 — Validation, security, accessibility, and compact-terminal UX
 
-- [ ] Preserve typed input after validation failure.
+- [x] Preserve typed input after validation failure.
 - [ ] Use inline validation for local field errors.
 - [ ] Use screen-level blockers for workflow errors.
 - [ ] Put technical detail behind an explicit details/help action.
@@ -276,7 +276,7 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 - [x] Acceptance builds a plan through EpisodePlannerService.
 - [x] Acceptance passes shared preflight.
 - [x] Acceptance starts through GenerationStartService.
-- [ ] Acceptance generates multiple durable turns through PipelineOrchestrator.
+- [x] Acceptance generates multiple durable turns through PipelineOrchestrator.
 - [x] Acceptance synthesizes TTS/timeline/audio through production services.
 - [x] Acceptance reaches Episode Ready and exports through shared export services.
 - [x] Acceptance reopens the episode from Library.
