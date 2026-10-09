@@ -316,7 +316,8 @@ async def _post_start_plan_mutation_is_rejected(tmp_path: Path) -> None:
         assert "Episode planning failed" in status
         assert "frozen" not in status.lower()
         screen.action_help()
-        assert "frozen" in str(screen.query_one("#wizard-status", Static).render()).lower()
+        details = str(screen.query_one("#wizard-status", Static).render())
+        assert "frozen" in details.lower()
         assert screen._plan is not None
         assert screen._plan.id == original_plan_id
 
