@@ -47,9 +47,7 @@ async def _first_run_viewport_progress(tmp_path: Path, width: int, height: int) 
             save_exit = screen.query_one("#wizard-save-exit", Button)
             assert save_exit.display
             screen.action_help()
-            assert "Tab/Shift+Tab" in str(
-                screen.query_one("#wizard-status", Static).render()
-            )
+            assert "Tab/Shift+Tab" in str(screen.query_one("#wizard-status", Static).render())
             await pilot.press("tab")
             assert screen.focused is not None
             assert screen.context.state.current_step == "welcome"
