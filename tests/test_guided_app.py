@@ -122,6 +122,9 @@ async def _goal_first_home_exposes_navigation(tmp_path: Path) -> None:
         )
         assert "My source research" in str(app.screen.query_one("#home-recent-projects").render())
         assert "Setup ready" in str(app.screen.query_one("#home-readiness").render())
+        quick_notice = str(app.screen.query_one("#home-quick-guidance").render())
+        assert "automatically starts generation" in quick_notice
+        assert "external services" in quick_notice
         app.screen.query_one("#action-new-deep-dive", Button).press()
         await pilot.pause()
         assert app.screen.id == "screen-wizard-new-deep-dive"

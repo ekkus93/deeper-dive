@@ -111,9 +111,10 @@ def add_new_deep_dive_action(app: DeeperDiveApp) -> None:
     content.mount(
         Static(Text(_readiness_label(app)), id="home-readiness"),
         Static(
-            "Quick uses an existing project with indexed sources. "
-            "Research may contact external services according to your saved policy; "
-            "generation always runs shared preflight.",
+            "Quick uses an existing project with indexed sources and automatically "
+            "starts generation after shared preflight passes. If preflight blocks, "
+            "review the required fix first. Research may contact external services "
+            "according to your saved network policy.",
             id="home-quick-guidance",
         ),
         Static(Text("Recent projects: None yet"), id="home-recent-projects"),
