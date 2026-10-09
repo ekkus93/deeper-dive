@@ -523,6 +523,9 @@ async def _guided_hosts_reorder_edit_and_restart(tmp_path: Path) -> None:
             for host in service.hosts(project_id).list_hosts(project_id)
         )
         screen.action_save_exit()
+        assert screen.query_one("#wizard-exit-confirmation").display
+        # Host changes were durably saved; discard only the remaining form edits.
+        screen.action_confirm_discard_exit()
         await pilot.pause()
         assert app.screen.id == "screen-home"
 
