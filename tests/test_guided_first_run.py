@@ -241,3 +241,45 @@ async def _model_test_failure_and_retry(tmp_path: Path) -> None:
             assert screen.context.state.current_step == "model-test"
         screen.action_run_model_test()
         assert "Model test succeeded" in str(screen.query_one("#wizard-status", Static).render())
+
+
+def test_first_run_save_exit_resumes_durable_partial_provider_setup(tmp_path: Path) -> None:
+    asyncio.run(_first_run_save_exit_resumes_durable_partial_provider_setup(tmp_path))
+
+
+async def _first_run_save_exit_resumes_durable_partial_provider_setup(tmp_path: Path) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 30)) as pilot:
+        screen = app.screen
+        assert isinstance(screen, GuidedFirstRunWizard)
+        screen.action_continue()
+        screen.action_continue()
+        screen.query_one("#setup-ai-choice", Select).value = "manual"
+        await pilot.pause()
+        screen.action_continue()
+        assert screen.context.state.current_step == "provider-config"
+        screen.query_one("#setup-provider-name", Input).value = "fixture"
+        screen.query_one("#setup-provider-adapter", Input).value = "fake"
+        screen.query_one("#setup-provider-model", Input).value = "fake-v1"
+        screen.query_one("#setup-provider-network", Input).value = "local"
+        await pilot.pause()
+        screen.action_save_provider()
+        screen.action_save_exit()
+        await pilot.pause()
+        assert app.screen.id == "screen-home"
+        assert (tmp_path / "data" / "guided-first-run-draft.json").is_file()
+
+    restarted = GuidedDeeperDiveApp(service)
+    async with restarted.run_test(size=(100, 30)) as pilot:
+        assert restarted.screen.id == "screen-home"
+        resume = restarted.screen.query_one("#action-resume-setup", Button)
+        assert resume.display
+        resume.press()
+        await pilot.pause()
+        screen = restarted.screen
+        assert isinstance(screen, GuidedFirstRunWizard)
+        assert screen.context.state.current_step == "provider-config"
+        assert screen.context.composition.provider_controller.config().providers["fixture"].default_model == "fake-v1"
+        screen.action_continue()
+        assert screen.context.state.current_step == "model-test"
