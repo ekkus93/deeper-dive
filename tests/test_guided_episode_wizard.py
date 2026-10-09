@@ -13,13 +13,16 @@ from textual.widgets import Button, Input, Select, Static
 from deeper_dive import cli as cli_module
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.audio_timeline import AudioTimelineRepository
+from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.episode_library_screen import EpisodeLibraryController
 from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.guided_app import GuidedDeeperDiveApp
+from deeper_dive.guided_draft import GuidedDraftStore
 from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
 from deeper_dive.guided_generation import GuidedGenerationMonitorScreen
 from deeper_dive.guided_ready import GuidedEpisodeReadyScreen
+from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardState
 from deeper_dive.llm import LLMResponse
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.storage.workspace import WorkspaceManager
@@ -619,3 +622,49 @@ async def _guided_and_quick_runs_produce_isolated_durable_artifacts(tmp_path: Pa
         assert all(
             first != second for first, second in zip(first_export, second_export, strict=True)
         )
+
+
+def test_new_deep_dive_restarts_at_each_guided_wizard_boundary(tmp_path: Path) -> None:
+    asyncio.run(_new_deep_dive_restarts_at_each_guided_wizard_boundary(tmp_path))
+
+
+async def _new_deep_dive_restarts_at_each_guided_wizard_boundary(tmp_path: Path) -> None:
+    service = _service_and_config(tmp_path)
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        project_id, episode_id = await _prepare_to_plan(wizard, pilot)
+        wizard.action_build_plan()
+        assert wizard._plan is not None
+
+        drafts = GuidedDraftStore(service.workspaces.data_dir)
+        for step in (
+            "project",
+            "sources",
+            "research",
+            "hosts",
+            "episode",
+            "plan",
+            "preflight",
+        ):
+            drafts.save(
+                WizardContext(
+                    app.composition,
+                    WizardState(WizardKind.NEW_DEEP_DIVE, step),
+                    project_id=project_id,
+                    episode_id=episode_id,
+                )
+            )
+            # Build a fresh production context each time, not merely a new
+            # in-memory wizard: persisted prerequisites determine recovery.
+            fresh_service = DeeperDiveService(WorkspaceManager(service.workspaces.data_dir))
+            fresh = ProductionComposition.build(service=fresh_service)
+            with patch("deeper_dive.ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"):
+                restored = drafts.load(fresh, WizardKind.NEW_DEEP_DIVE)
+            assert restored is not None
+            assert restored.project_id == project_id
+            assert restored.episode_id == episode_id
+            assert restored.state.current_step == step
