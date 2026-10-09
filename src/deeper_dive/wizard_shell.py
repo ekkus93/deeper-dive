@@ -277,10 +277,6 @@ class WizardShell(Screen[None]):
         summary = f"✓ {complete} done"
         if needs_attention:
             summary += f", ! {needs_attention} need attention"
-        if index == 0 and len(progress) > 1:
-            # The compact rail still distinguishes upcoming navigation from
-            # already-ready steps even when the next prerequisite is complete.
-            summary += f" | ○ {len(progress) - 1} steps ahead"
         result = f"{prefix} | {current_label} | {summary}"
         budget = max(30, self._viewport_width - 4)
         if index:
@@ -291,8 +287,16 @@ class WizardShell(Screen[None]):
             )
             if len(candidate) <= budget:
                 result = candidate
-        if index + 1 < len(progress):
-            following = progress[index + 1]
+        # Prefer the next genuinely upcoming step, which may be farther
+        # ahead than an already-ready intermediate prerequisite.
+        upcoming = next(
+            (item for item in progress[index + 1 :] if item.visual_state.value == "upcoming"),
+            None,
+        )
+        following = upcoming or (
+            progress[index + 1] if index + 1 < len(progress) else None
+        )
+        if following is not None:
             suffix = (
                 f" | {following.text_marker} {following.label} ({following.visual_state.value})"
             )
