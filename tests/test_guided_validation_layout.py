@@ -62,6 +62,13 @@ async def _project_validation_is_inline_and_preserves_draft(
         assert topic.value == "How does it work?"
         for field in ("name", "topic", "audience"):
             assert not str(screen.query_one(f"#guided-project-{field}-error", Static).render())
+        screen._apply_viewport_policy(79, 23)
+        assert screen.query_one("#wizard-resize-message", Static).display
+        assert not screen.query_one("#wizard-actions").display
+        assert name.value == "Persistent draft"
+        screen._apply_viewport_policy(*size)
+        assert not screen.query_one("#wizard-resize-message", Static).display
+        assert screen.query_one("#wizard-actions").display
 
 
 @pytest.mark.parametrize("size", [(80, 24), (100, 30)])
