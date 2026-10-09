@@ -84,5 +84,23 @@ def test_guided_tui_reopens_completed_legacy_artifacts_and_advanced_routes(
                 item.episode.id == completed.episode_id
                 for item in EpisodeLibraryController.items(app)
             )
+            # Existing Library -> Transcript Review remains fully navigable.
+            # The repair action must remain reachable without invoking it here.
+            library = app.screen
+            library.action_open_selected()
+            await pilot.pause()
+            assert app.screen.id == "screen-review"
+            assert {turn.id for turn in app.screen.turns} == set(completed.turn_ids)
+            assert any(
+                button.name == "regenerate-turn"
+                for button in app.screen.query("Button")
+            )
+            app.screen.action_export()
+            review_export = (
+                restored.workspaces.project_root(project.id)
+                / "output"
+                / f"{completed.episode_id}-transcript-review.md"
+            )
+            assert review_export.is_file()
 
     asyncio.run(verify_tui())
