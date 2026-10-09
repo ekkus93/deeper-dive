@@ -259,6 +259,33 @@ jobs:
           asyncio.run(check())
           print("Installed-wheel guided TUI acceptance passed.")
           PY
+      - name: Installed-wheel post-review remediation matrix
+        run: |
+          uv pip install --python /tmp/deeper-dive-fresh/bin/python "pytest==8.4.2"
+          export INSTALLED_PKG="$(
+            /tmp/deeper-dive-fresh/bin/python -c 'import deeper_dive; print(deeper_dive.__file__)'
+          )"
+          case "$INSTALLED_PKG" in
+            /tmp/deeper-dive-fresh/*) ;;
+            *)
+              echo "Expected installed wheel, got: $INSTALLED_PKG" >&2
+              exit 1
+              ;;
+          esac
+          cd /tmp
+          /tmp/deeper-dive-fresh/bin/python -m pytest \
+            "$GITHUB_WORKSPACE/tests/test_research_execution_cli.py" \
+            "$GITHUB_WORKSPACE/tests/test_ddr111_cli_acceptance.py" \
+            "$GITHUB_WORKSPACE/tests/test_post_review_dirty_save_exit.py" \
+            "$GITHUB_WORKSPACE/tests/test_post_review_defaults.py" \
+            "$GITHUB_WORKSPACE/tests/test_post_review_completed_resume.py" \
+            "$GITHUB_WORKSPACE/tests/test_post_review_host_clear_restart.py" \
+            "$GITHUB_WORKSPACE/tests/test_post_review_advanced_delete_matrix.py" \
+            "$GITHUB_WORKSPACE/tests/test_post_review_atomic_settings.py" \
+            "$GITHUB_WORKSPACE/tests/test_post_review_security.py" \
+            "$GITHUB_WORKSPACE/tests/test_post_review_async_readiness.py" \
+            "$GITHUB_WORKSPACE/tests/test_cli.py::test_cli_visible_errors_are_sanitized"
+
       - name: Install real KittenTTS runtime
         run: |
           uv pip install --python /tmp/deeper-dive-fresh/bin/python \
