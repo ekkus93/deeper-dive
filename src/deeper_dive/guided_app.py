@@ -10,7 +10,11 @@ from deeper_dive.guided_draft import GuidedDraftStore
 from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
 from deeper_dive.guided_first_run import GuidedFirstRunWizard
 from deeper_dive.guided_generation import GuidedGenerationMonitorScreen
-from deeper_dive.guided_home import add_new_deep_dive_action, refresh_goal_home
+from deeper_dive.guided_home import (
+    GuidedHomeProjectsScreen,
+    add_new_deep_dive_action,
+    refresh_goal_home,
+)
 from deeper_dive.guided_readiness import ProductionWizardCompletion
 from deeper_dive.guided_ready import GuidedEpisodeReadyScreen
 from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardState
@@ -27,6 +31,7 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
     ]
     SCREENS = {
         **DeeperDiveApp.SCREENS,
+        "home": GuidedHomeProjectsScreen,
         "monitor": GuidedGenerationMonitorScreen,
         "ready": GuidedEpisodeReadyScreen,
     }
