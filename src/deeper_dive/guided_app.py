@@ -84,9 +84,7 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
         if not returning_user:
             self.push_screen("setup")
 
-    def on_first_run_readiness_dispatch(
-        self, event: FirstRunReadinessDispatch
-    ) -> None:
+    def on_first_run_readiness_dispatch(self, event: FirstRunReadinessDispatch) -> None:
         event.run()
 
     def action_navigate(self, destination: str) -> None:
