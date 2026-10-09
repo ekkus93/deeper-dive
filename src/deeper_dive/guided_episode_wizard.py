@@ -267,7 +267,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
                 revised,
             )
         except (IndexError, KeyError, OSError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Plan edit failed: {sanitize_exception_message(exc)}")
+            self.set_error("Plan edit failed.", exc)
             return
         self._render_plan()
         self._sync_text()
@@ -283,7 +283,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
                 self._selected_segment_ordinal,
             )
         except (IndexError, KeyError, OSError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Segment regeneration failed: {sanitize_exception_message(exc)}")
+            self.set_error("Segment regeneration failed.", exc)
             return
         self._render_plan()
         self._sync_text()
@@ -301,7 +301,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
                 episode_id,
             )
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Preflight failed: {sanitize_exception_message(exc)}")
+            self.set_error("Preflight failed.", exc)
             return
         self._render_preflight()
         self._sync_text()
@@ -340,7 +340,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
                 episode_id,
             )
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Generation could not start: {sanitize_exception_message(exc)}")
+            self.set_error("Generation could not start.", exc)
             return
         self.context.run_id = result.run.id
         app = self.app
@@ -378,7 +378,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             self._selected_segment_ordinal = 0
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
             self.set_busy(False)
-            self.set_status(f"Episode planning failed: {sanitize_exception_message(exc)}")
+            self.set_error("Episode planning failed.", exc)
             return
         self.set_busy(False)
         self._render_plan()
