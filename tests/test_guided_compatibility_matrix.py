@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
 
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.guided_app import GuidedDeeperDiveApp
+from deeper_dive.storage.database import Database
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.transcript_review_screen import TranscriptReviewController
 
@@ -35,8 +35,8 @@ async def _reopen_completed_guided_project(created) -> None:
     assert run is not None and run.state == "completed"
     assert created.transcript_path.is_file() and created.audio_path.is_file()
     assert AudioTimelineRepository(
-        service.workspaces.project_root(project.id) / "project.db"
-    ) is not None
+        Database(service.workspaces.project_root(project.id) / "project.db")
+    ).get(created.episode_id) is not None
 
     app = GuidedDeeperDiveApp(service)
     app.current_project_id = project.id
