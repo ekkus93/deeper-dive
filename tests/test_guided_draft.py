@@ -71,10 +71,9 @@ def test_invalid_or_old_draft_fails_safely(tmp_path: Path) -> None:
             }
         )
     )
-    restored = drafts.load(composition, WizardKind.NEW_DEEP_DIVE)
-    assert restored is not None
-    assert restored.state.current_step == "project"
-    assert restored.project_id is None
+    # A checkpoint pointing at a deleted or unknown project cannot be resumed.
+    assert drafts.load(composition, WizardKind.NEW_DEEP_DIVE) is None
+    assert not path.exists()
 
 
 def test_symlink_draft_not_loaded(tmp_path: Path) -> None:
