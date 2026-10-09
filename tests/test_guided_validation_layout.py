@@ -50,9 +50,7 @@ async def _project_validation_is_inline_and_preserves_draft(
         screen.action_create_project()
         assert screen.focused is topic
         assert name.value == "Persistent draft"
-        assert "needs attention" in str(
-            screen.query_one("#wizard-status", Static).render()
-        )
+        assert "needs attention" in str(screen.query_one("#wizard-status", Static).render())
 
         topic.value = "How does it work?"
         screen.action_create_project()
@@ -60,9 +58,7 @@ async def _project_validation_is_inline_and_preserves_draft(
         assert name.value == "Persistent draft"
         assert topic.value == "How does it work?"
         for field in ("name", "topic", "audience"):
-            assert not str(
-                screen.query_one(f"#guided-project-{field}-error", Static).render()
-            )
+            assert not str(screen.query_one(f"#guided-project-{field}-error", Static).render())
 
 
 @pytest.mark.parametrize("width", [80, 100])
@@ -70,12 +66,8 @@ def test_progress_rail_fits_terminal_width(tmp_path: Path, width: int) -> None:
     composition = ProductionComposition.build(
         service=DeeperDiveService(WorkspaceManager(tmp_path / "data"))
     )
-    context = WizardContext(
-        composition, WizardState(WizardKind.NEW_DEEP_DIVE, "sources")
-    )
-    screen = NewDeepDiveWizardShell(
-        context, lambda key: key == "project"
-    )
+    context = WizardContext(composition, WizardState(WizardKind.NEW_DEEP_DIVE, "sources"))
+    screen = NewDeepDiveWizardShell(context, lambda key: key == "project")
     screen._viewport_width = width
     progress = screen._progress_text(screen.navigator)
     assert "✓ Project Setup (complete)" in progress

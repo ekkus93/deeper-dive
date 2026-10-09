@@ -271,13 +271,9 @@ class WizardShell(Screen[None]):
         index = navigator.current_index
         current = progress[index]
         prefix = f"{index + 1}/{len(progress)}"
-        current_label = (
-            f"{current.text_marker} {current.label} ({current.visual_state.value})"
-        )
+        current_label = f"{current.text_marker} {current.label} ({current.visual_state.value})"
         complete = sum(item.visual_state.value == "complete" for item in progress)
-        needs_attention = sum(
-            item.visual_state.value == "needs-attention" for item in progress
-        )
+        needs_attention = sum(item.visual_state.value == "needs-attention" for item in progress)
         summary = f"✓ {complete} done"
         if needs_attention:
             summary += f", ! {needs_attention} need attention"
@@ -294,8 +290,7 @@ class WizardShell(Screen[None]):
         if index + 1 < len(progress):
             following = progress[index + 1]
             suffix = (
-                f" | {following.text_marker} {following.label} "
-                f"({following.visual_state.value})"
+                f" | {following.text_marker} {following.label} ({following.visual_state.value})"
             )
             if len(result) + len(suffix) <= budget:
                 result += suffix
