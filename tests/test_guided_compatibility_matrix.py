@@ -34,9 +34,12 @@ async def _reopen_completed_guided_project(created) -> None:
     run = service.runs(project.id).get(created.run_id)
     assert run is not None and run.state == "completed"
     assert created.transcript_path.is_file() and created.audio_path.is_file()
-    assert AudioTimelineRepository(
-        Database(service.workspaces.project_root(project.id) / "project.db")
-    ).get(created.episode_id) is not None
+    assert (
+        AudioTimelineRepository(
+            Database(service.workspaces.project_root(project.id) / "project.db")
+        ).get(created.episode_id)
+        is not None
+    )
 
     app = GuidedDeeperDiveApp(service)
     app.current_project_id = project.id
