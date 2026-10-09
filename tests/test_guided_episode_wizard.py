@@ -242,7 +242,11 @@ async def _planner_invalid_output_is_actionable_and_retryable(tmp_path: Path) ->
         assert screen._plan is None
         status = str(screen.query_one("#wizard-status", Static).render())
         assert "Episode planning failed" in status
-        assert "non-empty segments list" in status
+        assert "Press F1 for details" in status
+        assert "non-empty segments list" not in status
+        screen.action_help()
+        details = str(screen.query_one("#wizard-status", Static).render())
+        assert "non-empty segments list" in details
         assert screen.context.state.current_step == "plan"
 
         screen.action_build_plan()
