@@ -560,6 +560,21 @@ async def _guided_and_quick_runs_produce_isolated_durable_artifacts(tmp_path: Pa
         app.composition.run_generation(project_id, guided_run_id)
         completed_guided = service.runs(project_id).get(guided_run_id)
         assert completed_guided is not None and completed_guided.state == "completed"
+        # Normal monitor completion hands off to the guided Ready screen.
+        monitor = app.screen
+        assert isinstance(monitor, GuidedGenerationMonitorScreen)
+        monitor._route_completed_run()
+        await pilot.pause()
+        ready = app.screen
+        assert isinstance(ready, GuidedEpisodeReadyScreen)
+        assert "Regression Episode" in str(ready.query_one("#ready-summary", Static).render())
+        ready.query_one("#ready-export", Button).press()
+        await pilot.pause()
+        assert "Exported" in str(ready.query_one("#ready-status", Static).render())
+        ready.query_one("#ready-library", Button).press()
+        await pilot.pause()
+        assert app.screen.id == "screen-library"
+        assert app.screen.selected_episode_id == guided_episode_id
 
         quick_episode = service.quick_deep_dive(project_id)
         assert quick_episode.id != guided_episode_id
