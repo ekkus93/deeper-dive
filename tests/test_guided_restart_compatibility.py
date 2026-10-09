@@ -50,6 +50,8 @@ async def _reopen_existing_project_and_provider(tmp_path: Path) -> None:
     )
     service = DeeperDiveService(WorkspaceManager(data_dir))
     project = service.create_project("Persisted legacy project")
+    source = service.add_pasted_source(project.id, "Legacy evidence", "Durable notes.")
+    assert service.list_source_chunks(project.id, source.id)
 
     # The second process must use disk-backed data, not the original service.
     restarted = GuidedDeeperDiveApp(DeeperDiveService(WorkspaceManager(data_dir)))
@@ -60,6 +62,8 @@ async def _reopen_existing_project_and_provider(tmp_path: Path) -> None:
         assert "Persisted legacy project" in str(
             restarted.screen.query_one("#home-recent-projects").render()
         )
+        assert restarted.service.list_sources(project.id)[0].id == source.id
+        assert restarted.service.list_source_chunks(project.id, source.id)
         restarted.current_project_id = project.id
         restarted.action_navigate("library")
         await pilot.pause()
