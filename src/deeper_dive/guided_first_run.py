@@ -9,7 +9,7 @@ from textual.css.query import NoMatches
 from textual.widget import Widget
 from textual.widgets import Button, Input, Select
 
-from deeper_dive.diagnostics import redact, sanitize_exception_message
+from deeper_dive.diagnostics import redact
 from deeper_dive.first_run import FirstRunController
 from deeper_dive.guided_workflow import CompletionProbe, WizardContext
 from deeper_dive.llm import LLMMessage, LLMRequest
