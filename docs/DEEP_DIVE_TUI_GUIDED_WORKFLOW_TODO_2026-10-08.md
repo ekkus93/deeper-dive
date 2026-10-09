@@ -199,9 +199,9 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 - [x] Support cancel with confirmation.
 - [x] Reload progress correctly after screen recreation/restart.
 - [x] Durable failure view shows stage, stable failure code when present, and sanitized message.
-- [ ] Provide Retry/Resume only for supported failure states.
+- [x] Provide Retry/Resume only for supported failure states.
 - [x] Provide route back to configuration for setup/preflight repair.
-- [ ] Add duplicate-action, pause/resume/cancel, resume-after-failure, and restart regressions.
+- [x] Add duplicate-action, pause/resume/cancel, resume-after-failure, and restart regressions.
 
 ## GW-220 — Episode Ready and Library handoff
 
@@ -359,6 +359,7 @@ Populate only as work is completed. Do not pre-check or use placeholders as comp
   - 22ecdfcb795ce9e44998c6870a57818d94494901 — guided monitor/ready-screen regression repair; exact-head CI 37835540919 passed.
   - 0ce02ffcf596268b4060ff1d8902d0cd4a1b3af7 — failed-run guided monitor repair route; exact-head CI 37836046970 passed.
   - 160bbdc607dfb68163731210e956207a3c186aeb — selected episode Library playback; exact-head CI 37836853268 passed.
+  - 8fa7bf02998525137d222ebd55405a3044cce58e, 19189a36cff518d8aeef53b2dd37f64e949fac81, ced678e2b20da528153d082da18011d4a620ef19, 0b43631f9ab79a231aaf522b0f51b0e292fecde6 — supported failed-stage retry gating and durable pause/resume/cancel/duplicate-action regressions; exact-head CI 37864545949 passed.
 - Focused first-run tests:
 - Focused New Deep Dive tests:
   - tests/test_guided_source_wizard.py::test_source_readiness_uses_status_and_durable_chunks
@@ -381,6 +382,8 @@ Populate only as work is completed. Do not pre-check or use placeholders as comp
   - tests/test_guided_draft.py::test_draft_preserves_valid_later_location_when_prerequisites_are_ready
   - tests/test_guided_app.py::test_saved_new_deep_dive_resumes_from_durable_project_after_restart
   - tests/test_guided_generation_monitor.py::test_guided_monitor_reloads_checkpoint_after_restart
+  - tests/test_guided_generation_monitor.py::test_guided_monitor_retries_only_supported_failed_stages
+  - tests/test_guided_generation_monitor.py::test_guided_monitor_pause_resume_cancel_controls_are_durable
 - Security/redaction tests:
   - tests/test_generation_monitor.py::test_monitor_diagnostics_and_status_redact_persisted_credential_canaries
 - Quick Deep Dive parity tests:
