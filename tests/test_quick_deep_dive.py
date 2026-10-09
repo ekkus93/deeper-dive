@@ -284,3 +284,42 @@ def test_shared_completed_episode_fixture_uses_real_quick_services(
     assert completed.transcript_path.is_file()
     assert completed.audio_path.is_file()
     assert completed.episode_id in completed.transcript_path.name
+
+
+def test_quick_created_hosts_inherit_first_run_speech_provider_and_voices(
+    tmp_path: Path,
+) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    project = service.create_project("First-run speech defaults")
+    UserConfigStore(service.workspaces.data_dir / "config.json").save(
+        UserConfig(
+            providers={
+                "speech": ProviderConfig(
+                    provider_type="fake-tts",
+                    network_scope="local",
+                    voices=("voice-a", "voice-b"),
+                )
+            },
+            defaults={
+                "tts_provider": "speech",
+                "tts_voice": "voice-a",
+                "tts_voice_host_1": "voice-a",
+                "tts_voice_host_2": "voice-b",
+            },
+        )
+    )
+    episode = service.quick_deep_dive(project.id)
+    config = EpisodeConfigurationService(
+        Database(service.workspaces.project_root(project.id) / "project.db")
+    ).load_configuration(episode.id)
+    hosts = {
+        host.id: host for host in service.hosts(project.id).list_hosts(project.id)
+    }
+    assert [hosts[host_id].tts_provider for host_id in config.host_ids] == [
+        "speech",
+        "speech",
+    ]
+    assert [hosts[host_id].tts_voice for host_id in config.host_ids] == [
+        "voice-a",
+        "voice-b",
+    ]

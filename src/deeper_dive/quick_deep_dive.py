@@ -125,9 +125,21 @@ class QuickDeepDiveService:
         existing = self.hosts.list_hosts(project_id)
         if existing:
             return tuple(host.id for host in existing[:2])
+        # Respect first-run voice defaults for newly created Quick hosts.
+        # Never silently rewrite voice assignments on existing project hosts.
+        defaults = UserConfigStore(
+            self.database.path.parents[2] / "config.json"
+        ).load().defaults
+        provider_id = defaults.get("tts_provider", "").strip()
         created: list[str] = []
-        for preset in presets:
+        for ordinal, preset in enumerate(presets, start=1):
             host = create_host_from_preset(preset, project_id)
+            voice = defaults.get(
+                f"tts_voice_host_{ordinal}", defaults.get("tts_voice", "")
+            ).strip()
+            if provider_id and voice:
+                host.tts_provider = provider_id
+                host.tts_voice = voice
             self.hosts.create_host(host.to_record())
             created.append(host.id)
         return tuple(created)
