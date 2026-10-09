@@ -21,11 +21,6 @@ from deeper_dive.transcript_review_screen import TranscriptReviewController
 from deeper_dive.tui import DeeperDiveApp
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
-_SUPERSEDED_MONITOR_TESTS = {
-    "test_production_monitor_runner_executes_pipeline_from_tui",
-    "test_background_generation_failure_uses_actionable_status",
-}
-
 _NO_DEFAULT_FFMPEG_NAME_PARTS = (
     "ffmpeg_unavailable",
     "ffmpeg_missing",
@@ -105,18 +100,6 @@ def pytest_runtest_setup(item: object) -> None:
 def pytest_runtest_teardown(item: object, nextitem: object | None) -> None:
     """Cancel the per-test deadlock guard after normal completion."""
     faulthandler.cancel_dump_traceback_later()
-
-
-def pytest_collection_modifyitems(items: list[object]) -> None:
-    """Temporarily drop superseded monitor cases while isolating the CI deadlock.
-
-    Production runner coverage lives in test_generation_monitor_production.py. The
-    failure-surface case is being replaced with a deterministic no-Pilot-drain variant
-    before DDR-023 reconciliation; this hook must not remain in the merged result.
-    """
-    items[:] = [
-        item for item in items if getattr(item, "name", "") not in _SUPERSEDED_MONITOR_TESTS
-    ]
 
 
 @dataclass(frozen=True, slots=True)
