@@ -66,6 +66,8 @@ async def _providers_workflow(tmp_path: Path) -> None:
         assert "bob" in _text(screen, "#provider-details")
 
         screen.action_remove()
+        assert "speech" in controller.config().providers
+        screen.action_confirm_remove()
         assert "speech" not in controller.config().providers
 
 
