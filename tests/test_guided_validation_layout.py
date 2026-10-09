@@ -37,6 +37,7 @@ async def _project_validation_is_inline_and_preserves_draft(
         name = screen.query_one("#guided-project-name", Input)
         topic = screen.query_one("#guided-project-topic", Input)
         screen.action_create_project()
+        await pilot.pause()
         assert "Error: Project name is required." in str(
             screen.query_one("#guided-project-name-error", Static).render()
         )
@@ -48,6 +49,7 @@ async def _project_validation_is_inline_and_preserves_draft(
 
         name.value = "Persistent draft"
         screen.action_create_project()
+        await pilot.pause()
         assert screen.focused is topic
         assert name.value == "Persistent draft"
         assert "needs attention" in str(screen.query_one("#wizard-status", Static).render())
