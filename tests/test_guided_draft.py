@@ -215,6 +215,7 @@ def test_ready_first_run_restores_each_wizard_checkpoint(tmp_path: Path, step: s
     assert resumed is not None
     assert resumed.state.current_step == step
 
+
 def test_resume_requires_recoverable_incomplete_work_after_restart(tmp_path: Path) -> None:
     composition, drafts = _setup(tmp_path)
     drafts.data_dir.mkdir(parents=True, exist_ok=True)
@@ -234,4 +235,3 @@ def test_resume_requires_recoverable_incomplete_work_after_restart(tmp_path: Pat
     assert store.has_resume(reloaded)
     store.clear(WizardKind.NEW_DEEP_DIVE)
     assert not store.has_resume(reloaded)
-
