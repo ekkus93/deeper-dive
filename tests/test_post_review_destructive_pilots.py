@@ -35,6 +35,7 @@ async def _provider_removal(tmp_path: Path) -> None:
         assert "remove-me" in app.provider_controller.config().providers
         cancel = screen.query_one("#action-cancel-provider-remove", Button)
         assert not cancel.disabled
+        await pilot.pause()
         assert screen.focused is cancel
 
         screen.action_cancel_remove()
@@ -71,6 +72,7 @@ async def _host_removal(tmp_path: Path) -> None:
         screen.action_remove_host()
         assert len(service.hosts(project.id).list_hosts(project.id)) == 1
         cancel = screen.query_one("#host-cancel-remove", Button)
+        await pilot.pause()
         assert screen.focused is cancel
 
         screen.action_cancel_remove_host()
@@ -100,6 +102,7 @@ async def _source_removal(tmp_path: Path) -> None:
         screen.selected_source_id = one.id
         screen.action_delete_selected()
         assert service.get_source(project.id, one.id) is not None
+        await pilot.pause()
         assert screen.focused is screen.query_one("#action-cancel-source-delete", Button)
 
         screen.selected_source_id = two.id
