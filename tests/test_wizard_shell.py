@@ -302,7 +302,9 @@ async def _shared_wizard_action_geometry(
     tmp_path: Path, kind: WizardKind, size: tuple[int, int]
 ) -> None:
     composition = _composition(tmp_path)
-    context = WizardContext(composition, WizardState(kind, "welcome" if kind is WizardKind.FIRST_RUN else "project"))
+    context = WizardContext(
+        composition, WizardState(kind, "welcome" if kind is WizardKind.FIRST_RUN else "project")
+    )
     screen = (
         FirstRunWizardShell(context, lambda _key: True)
         if kind is WizardKind.FIRST_RUN
