@@ -9,8 +9,8 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
-from deeper_dive.diagnostics import redact, sanitize_exception_message
 from deeper_dive.destructive_confirmation import PendingRemoval
+from deeper_dive.diagnostics import redact, sanitize_exception_message
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.user_errors import user_status
 
