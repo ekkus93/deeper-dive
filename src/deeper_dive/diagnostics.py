@@ -22,12 +22,8 @@ _SECRET_PAIRS = frozenset(
 # Sanitize complete authorization values before generic assignment redaction.
 # The delimiter preserves adjacent diagnostic fields (e.g. status=401).
 # Digest can contain a comma-separated collection of credential components.
-_AUTH_DIGEST = re.compile(
-    r"(?i)(\bauthorization\s*[:=]\s*)digest\b[^;\r\n}\]]*"
-)
-_AUTH_QUOTED = re.compile(
-    r"(?i)((['\"])authorization\2\s*:\s*)(['\"])(?:\\.|(?!\3).)*?\3"
-)
+_AUTH_DIGEST = re.compile(r"(?i)(\bauthorization\s*[:=]\s*)digest\b[^;\r\n}\]]*")
+_AUTH_QUOTED = re.compile(r"(?i)((['\"])authorization\2\s*:\s*)(['\"])(?:\\.|(?!\3).)*?\3")
 _AUTH_FIELD = re.compile(
     r"(?i)(\bauthorization\s*[:=]\s*)"
     r"(?:(?!\s+[A-Za-z_][\w.-]*\s*[:=]|\s+https?://|[,;}\]\r\n]).)+"
