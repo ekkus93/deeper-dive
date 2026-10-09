@@ -183,3 +183,39 @@ def test_diagnostic_url_userinfo_and_sensitive_queries_are_redacted(
     assert canary not in result
     assert "[REDACTED]" in result
     assert "example.test" in result
+
+@pytest.mark.parametrize(
+    ("message", "canaries", "retained"),
+    [
+        (
+            "Authorization: Token token-left,token-right; status=401",
+            ("token-left", "token-right"),
+            "status=401",
+        ),
+        (
+            "authorization=Basic basic-left,basic-right, status=403",
+            ("basic-left", "basic-right"),
+            "status=403",
+        ),
+        (
+            "Authorization: Custom part-a,part-b Authorization: Basic part-c,part-d",
+            ("part-a", "part-b", "part-c", "part-d"),
+            "Authorization: [REDACTED] Authorization: [REDACTED]",
+        ),
+        (
+            '{"Authorization": "Token json-left,json-right", "status": 401}',
+            ("json-left", "json-right"),
+            '"status": 401',
+        ),
+    ],
+)
+def test_authorization_with_commas_repeated_and_idempotent(
+    message: str, canaries: tuple[str, ...], retained: str
+) -> None:
+    for sanitizer in (redact, redact_text):
+        sanitized = str(sanitizer(message))
+        assert "[REDACTED]" in sanitized
+        assert retained in sanitized
+        assert all(canary not in sanitized for canary in canaries)
+        assert sanitizer(sanitized) == sanitized
+

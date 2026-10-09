@@ -26,7 +26,7 @@ _AUTH_DIGEST = re.compile(r"(?i)(\bauthorization\s*[:=]\s*)digest\b[^;\r\n}\]]*"
 _AUTH_QUOTED = re.compile(r"(?i)((['\"])authorization\2\s*:\s*)(['\"])(?:\\.|(?!\3).)*?\3")
 _AUTH_FIELD = re.compile(
     r"(?i)(\bauthorization\s*[:=]\s*)"
-    r"(?:(?!\s+[A-Za-z_][\w.-]*\s*[:=]|\s+https?://|[,;}\]\r\n]).)+"
+    # Opaque non-Digest credentials may include commas. Stop only at an\n    # explicitly separated next diagnostic field, not every comma.\n    r"(?:(?!\s+[A-Za-z_][\w.-]*\s*[:=]|\s+https?://"\n    r"|,\s+[\'\"]?[A-Za-z_][\w.-]*[\'\"]?\s*[:=]|[;}\]\r\n]).)+"
 )
 _BEARER = re.compile(r"(?i)bearer\s+[A-Za-z0-9._~+/=-]+")
 _ASSIGNMENT = re.compile(
