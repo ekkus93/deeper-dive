@@ -56,10 +56,7 @@ async def _reopen_existing_project_and_provider(tmp_path: Path) -> None:
     async with restarted.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
         assert restarted.screen.id == "screen-home"
-        assert (
-            restarted.provider_controller.config().providers["legacy"].provider_type
-            == "fake"
-        )
+        assert restarted.provider_controller.config().providers["legacy"].provider_type == "fake"
         assert "Persisted legacy project" in str(
             restarted.screen.query_one("#home-recent-projects").render()
         )
