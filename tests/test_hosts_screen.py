@@ -57,6 +57,8 @@ async def _exercise_hosts(tmp_path: Path) -> None:
         screen.action_duplicate_host()
         assert len(service.hosts(project.id).list_hosts(project.id)) == 7
         screen.action_remove_host()
+        assert len(service.hosts(project.id).list_hosts(project.id)) == 7
+        screen.action_confirm_remove_host()
         assert len(service.hosts(project.id).list_hosts(project.id)) == 6
 
         screen.selected_host_id = screen.display_order[0]

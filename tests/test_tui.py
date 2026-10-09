@@ -388,6 +388,9 @@ async def _sources_tui_workflow(tmp_path: Path) -> None:
 
         sources.action_delete_selected()
         await pilot.pause()
+        assert "Notes | excluded" in _text(sources, "#source-list")
+        sources.action_confirm_delete()
+        await pilot.pause()
         assert "No sources yet" in _text(sources, "#source-list")
 
 
