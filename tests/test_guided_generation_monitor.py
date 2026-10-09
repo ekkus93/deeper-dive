@@ -167,8 +167,14 @@ async def _guided_monitor_retries_only_supported_failed_stages(tmp_path) -> None
         run_id = str(new_run_id())
         service.runs(project.id).create(
             GenerationRunRecord(
-                run_id, episode_id, "conversation", "failed", now, now,
-                failure_code=failure_code, failure_message="Recoverable diagnostic",
+                run_id,
+                episode_id,
+                "conversation",
+                "failed",
+                now,
+                now,
+                failure_code=failure_code,
+                failure_message="Recoverable diagnostic",
             )
         )
         app = GuidedDeeperDiveApp(service)
