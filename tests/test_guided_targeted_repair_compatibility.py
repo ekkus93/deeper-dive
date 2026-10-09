@@ -12,6 +12,7 @@ from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.claim_verification import ClaimVerificationService
 from deeper_dive.guided_app import GuidedDeeperDiveApp
+from deeper_dive.host_turn import HostTurn
 from deeper_dive.material_claims import ExtractedClaim, MaterialClaimService
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.transcript_review_screen import TranscriptReviewController
@@ -52,9 +53,18 @@ def test_restarted_guided_library_repairs_generated_turn_through_production(
     database = app.composition.database_for_project(completed.project_id)
     # Use real extraction and verification services to put a generated turn in
     # a durable repair-worthy state; no conversation/artifact repository seeding.
+    production_turn = HostTurn(
+        selected.id,
+        completed.episode_id,
+        selected.segment_ordinal,
+        selected.turn_ordinal,
+        selected.speaker_id,
+        selected.text,
+        selected.evidence_ids,
+    )
     claims = MaterialClaimService(database, _SelectedTurnExtractor()).extract_turn(
         completed.project_id,
-        selected,
+        production_turn,
     )
     assert len(claims) == 1
     result = ClaimVerificationService(database, _NeedsRepairVerifier()).verify(claims[0], [])
