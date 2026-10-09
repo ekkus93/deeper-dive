@@ -37,7 +37,11 @@ _QUOTED_MAPPING_ASSIGNMENT = re.compile(
     r"(?i)(['\"])([A-Za-z0-9_-]*(?:authorization|api[-_]?key|token|secret|password|cookie)"
     r"[A-Za-z0-9_-]*)\1(\s*:\s*)(['\"])([^'\"]+)\4"
 )
-_CREDENTIAL_URL = re.compile(r"(?i)(https?://)([^/@\s:]+):([^/@\s]+)@")
+_CREDENTIAL_URL = re.compile(r"(?i)(https?://)([^/@\s:]+)(?::([^/@\s]+))?@")
+_CREDENTIAL_QUERY = re.compile(
+    r"(?i)([?&](?:api_key|apikey|key|token|access_token|auth|authorization|password|secret)=)"
+    r"([^&#\s]+)"
+)
 _CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 _WORD_SPLIT = re.compile(r"[^A-Za-z0-9]+")
 
@@ -83,6 +87,7 @@ def _redact_text(value: str) -> str:
     value = _BEARER.sub("Bearer [REDACTED]", value)
     value = _QUOTED_MAPPING_ASSIGNMENT.sub(_redact_quoted_mapping_assignment, value)
     value = _ASSIGNMENT.sub(_redact_assignment, value)
+    value = _CREDENTIAL_QUERY.sub(r"\1[REDACTED]", value)
     return _CREDENTIAL_URL.sub(r"\1[REDACTED]@", value)
 
 
@@ -115,7 +120,7 @@ def sanitize_exception_message(exc: BaseException) -> str:
     current: BaseException | None = exc
     while current is not None and id(current) not in seen:
         seen.add(id(current))
-        parts.append(str(current))
+        parts.append(str(redact(str(current))))
         if current.__cause__ is not None:
             parts.append("caused by:")
             current = current.__cause__
@@ -124,7 +129,7 @@ def sanitize_exception_message(exc: BaseException) -> str:
             current = current.__context__
         else:
             current = None
-    return str(redact(" | ".join(part for part in parts if part)))
+    return " | ".join(part for part in parts if part)
 
 
 @dataclass(frozen=True, slots=True)

@@ -166,3 +166,20 @@ def test_nested_exception_chain_redacts_every_level_and_terminates_on_cycle() ->
     cycle_result = sanitize_exception_message(outer)
     assert "deep-inner-secret" not in cycle_result
     assert "middle-level-secret" not in cycle_result
+
+
+@pytest.mark.parametrize(
+    ("message", "canary"),
+    [
+        ("GET https://sensitive-user@example.test/v1", "sensitive-user"),
+        ("GET https://example.test/v1?key=url-key-secret&safe=1", "url-key-secret"),
+        ("GET https://example.test/v1?AUTH=url-auth-secret", "url-auth-secret"),
+    ],
+)
+def test_diagnostic_url_userinfo_and_sensitive_queries_are_redacted(
+    message: str, canary: str
+) -> None:
+    result = str(redact(message))
+    assert canary not in result
+    assert "[REDACTED]" in result
+    assert "example.test" in result
