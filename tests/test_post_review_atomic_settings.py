@@ -68,3 +68,55 @@ def test_failed_atomic_batch_does_not_write_partial_config(tmp_path: Path) -> No
         controller.save_tts_defaults("speech", "voice-a")
     assert store.writes == 1
     assert store.path.read_bytes() == original
+
+
+def test_speech_provider_and_defaults_use_one_write(tmp_path: Path) -> None:
+    store = CountingStore(tmp_path / "config.json")
+    controller = ProviderController(store, LLMProviderRegistry(), {})
+    controller.save_provider(
+        "speech",
+        "fake-tts",
+        voices=("voice-a",),
+        default_updates={
+            "speech_setup": "configured",
+            "tts_provider": "speech",
+            "tts_voice": "",
+        },
+    )
+    assert store.writes == 1
+    config = store.load()
+    assert config.providers["speech"].voices == ("voice-a",)
+    assert config.defaults["speech_setup"] == "configured"
+    assert config.defaults["tts_provider"] == "speech"
+    assert "tts_voice" not in config.defaults
+
+
+def test_speech_provider_save_failure_preserves_previous_bytes(tmp_path: Path) -> None:
+    store = CountingStore(tmp_path / "config.json")
+    store.save(UserConfig(defaults={"speech_setup": "deferred"}))
+    original = store.path.read_bytes()
+    store.writes = 0
+    store.fail = True
+    controller = ProviderController(store, LLMProviderRegistry(), {})
+    with pytest.raises(OSError, match="simulated disk write failure"):
+        controller.save_provider(
+            "speech",
+            "fake-tts",
+            default_updates={"speech_setup": "configured", "tts_provider": "speech"},
+        )
+    assert store.writes == 1
+    assert store.path.read_bytes() == original
+    assert "speech" not in store.load().providers
+
+
+def test_invalid_speech_default_batch_cannot_persist_provider(tmp_path: Path) -> None:
+    store = CountingStore(tmp_path / "config.json")
+    controller = ProviderController(store, LLMProviderRegistry(), {})
+    with pytest.raises(ValueError, match="settings key is required"):
+        controller.save_provider(
+            "speech",
+            "fake-tts",
+            default_updates={"speech_setup": "configured", " ": "bad"},
+        )
+    assert store.writes == 0
+    assert not store.path.exists()
