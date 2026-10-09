@@ -177,6 +177,37 @@ async def _new_source_discard(tmp_path: Path) -> None:
         assert "Unsaved source body canary" not in draft.read_text(encoding="utf-8")
 
 
+def test_partial_pasted_source_is_not_discarded_by_other_source_import(tmp_path: Path) -> None:
+    asyncio.run(_partial_source_preserved(tmp_path))
+
+
+async def _partial_source_preserved(tmp_path: Path) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    app = GuidedDeeperDiveApp(service)
+    source_file = tmp_path / "source.md"
+    source_file.write_text("Durable source content for research.", encoding="utf-8")
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        screen = app.screen
+        screen.query_one("#guided-project-name", Input).value = "Partial source project"
+        screen.query_one("#guided-project-topic", Input).value = "Unfinished source"
+        screen.action_create_project()
+        screen.action_continue()
+        await pilot.pause()
+        assert screen.context.state.current_step == "sources"
+        screen.query_one("#guided-source-title", Input).value = "Incomplete paste"
+        screen.query_one("#guided-source-paths", Input).value = str(source_file)
+        await pilot.pause()
+        screen.action_save_exit()
+        assert screen.query_one("#wizard-exit-confirmation").display
+        screen.action_confirm_save_exit()
+        assert app.screen is screen
+        assert screen.query_one("#guided-source-title", Input).value == "Incomplete paste"
+        assert screen.query_one("#guided-source-paths", Input).value == str(source_file)
+        assert not service.list_sources(screen.context.project_id)
+
+
 def test_delayed_baseline_cannot_swallow_form_edits() -> None:
     from types import SimpleNamespace
     from typing import cast

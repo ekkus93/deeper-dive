@@ -42,6 +42,13 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             self.action_create_project()
             return self._last_form_status.startswith("Created project ")
         if step == "sources":
+            # Importing a file/URL must not implicitly discard an unrelated,
+            # incomplete pasted-source form when Save changes and exit is chosen.
+            title = self.query_one("#guided-source-title", Input).value.strip()
+            body = self.query_one("#guided-source-text", Input).value.strip()
+            if bool(title) != bool(body):
+                self.set_status("Provide both pasted-source title and text, or discard edits.")
+                return False
             actions: tuple[tuple[str, str], ...] = (
                 ("#guided-source-text", "action_add_pasted_source"),
                 ("#guided-source-paths", "action_add_file_sources"),
