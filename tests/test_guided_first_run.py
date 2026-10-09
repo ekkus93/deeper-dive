@@ -280,6 +280,7 @@ async def _first_run_save_exit_resumes_durable_partial_provider_setup(tmp_path: 
         screen = restarted.screen
         assert isinstance(screen, GuidedFirstRunWizard)
         assert screen.context.state.current_step == "provider-config"
-        assert screen.context.composition.provider_controller.config().providers["fixture"].default_model == "fake-v1"
+        provider = screen.context.composition.provider_controller.config().providers["fixture"]
+        assert provider.default_model == "fake-v1"
         screen.action_continue()
         assert screen.context.state.current_step == "model-test"
