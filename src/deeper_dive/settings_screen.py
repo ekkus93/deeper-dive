@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import shutil
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Protocol, cast
 
@@ -30,17 +30,24 @@ class SettingsController:
 
     provider_controller: ProviderController
 
-    def set_default(self, key: str, value: str) -> None:
-        normalized_key = key.strip()
-        if not normalized_key:
-            raise ValueError("settings key is required")
+    def set_defaults(self, values: Mapping[str, str]) -> None:
+        """Validate a logical batch before a single durable config replacement."""
+        normalized: dict[str, str] = {}
+        for key, value in values.items():
+            name = key.strip()
+            if not name:
+                raise ValueError("settings key is required")
+            normalized[name] = value.strip()
         config = self.provider_controller.config()
-        normalized_value = value.strip()
-        if normalized_value:
-            config.defaults[normalized_key] = normalized_value
-        else:
-            config.defaults.pop(normalized_key, None)
+        for name, value in normalized.items():
+            if value:
+                config.defaults[name] = value
+            else:
+                config.defaults.pop(name, None)
         self.provider_controller.config_store.save(config)
+
+    def set_default(self, key: str, value: str) -> None:
+        self.set_defaults({key: value})
 
     def save_model_default(self, role: str, provider_model: str) -> None:
         role_key = ModelRole(role.strip()).value
@@ -49,12 +56,10 @@ class SettingsController:
         self.set_default(role_key, provider_model)
 
     def save_tts_defaults(self, provider: str, voice: str) -> None:
-        self.set_default("tts_provider", provider)
-        self.set_default("tts_voice", voice)
+        self.set_defaults({"tts_provider": provider, "tts_voice": voice})
 
     def save_research_defaults(self, policy: str, network_policy: str) -> None:
-        self.set_default("research_policy", policy)
-        self.set_default("network_policy", network_policy)
+        self.set_defaults({"research_policy": policy, "network_policy": network_policy})
 
     def save_quick_deep_dive_defaults(
         self,
@@ -66,9 +71,13 @@ class SettingsController:
             minutes = int(duration_minutes)
             if minutes <= 0:
                 raise ValueError("Quick Deep Dive duration must be positive")
-        self.set_default("quick_deep_dive_duration_minutes", duration_minutes)
-        self.set_default("quick_deep_dive_host_presets", host_presets)
-        self.set_default("quick_deep_dive_research_policy", research_policy)
+        self.set_defaults(
+            {
+                "quick_deep_dive_duration_minutes": duration_minutes,
+                "quick_deep_dive_host_presets": host_presets,
+                "quick_deep_dive_research_policy": research_policy,
+            }
+        )
 
     def save_runtime_defaults(
         self,
@@ -76,9 +85,13 @@ class SettingsController:
         kitten_model_dir: str,
         diagnostic_logging: str,
     ) -> None:
-        self.set_default("ffmpeg_executable", ffmpeg_executable)
-        self.set_default("kitten_model_dir", kitten_model_dir)
-        self.set_default("diagnostic_logging", diagnostic_logging)
+        self.set_defaults(
+            {
+                "ffmpeg_executable": ffmpeg_executable,
+                "kitten_model_dir": kitten_model_dir,
+                "diagnostic_logging": diagnostic_logging,
+            }
+        )
 
     def readiness_summary(self) -> tuple[str, ...]:
         """Report non-mutating runtime readiness for optional production dependencies."""

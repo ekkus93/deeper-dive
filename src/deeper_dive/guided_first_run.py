@@ -384,8 +384,9 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
 
     def _persist_roles(self, assignments: dict[ModelRole, str]) -> None:
         try:
-            for role, identity in assignments.items():
-                self.settings.save_model_default(role.value, identity)
+            self.settings.set_defaults(
+                {role.value: identity for role, identity in assignments.items()}
+            )
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
             self.set_error("Role assignment failed.", exc)
             return
@@ -403,9 +404,9 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
     def action_save_speech(self) -> None:
         choice = self._select_value("#setup-speech-choice") or "kitten"
         if choice == "deferred":
-            self.settings.set_default("speech_setup", "deferred")
-            self.settings.set_default("tts_provider", "")
-            self.settings.set_default("tts_voice", "")
+            self.settings.set_defaults(
+                {"speech_setup": "deferred", "tts_provider": "", "tts_voice": ""}
+            )
             self._tts_provider_name = None
             self._sync_text()
             self.set_status("Speech intentionally deferred. Audio generation will remain blocked.")
@@ -436,9 +437,9 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
                 network_scope=self._optional_input("#setup-speech-network"),
                 voices=voices,
             )
-            self.settings.set_default("speech_setup", "configured")
-            self.settings.set_default("tts_provider", name)
-            self.settings.set_default("tts_voice", "")
+            self.settings.set_defaults(
+                {"speech_setup": "configured", "tts_provider": name, "tts_voice": ""}
+            )
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
             self.set_error("Speech configuration failed.", exc)
             return
@@ -497,15 +498,23 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             self.set_status("Choose default duration and research level.")
             return
         try:
-            self.settings.set_default("quick_deep_dive_duration_minutes", duration)
-            self.settings.set_default("research_policy", research)
+            candidate = {
+                "quick_deep_dive_duration_minutes": duration,
+                "research_policy": research,
+            }
             if not deferred:
                 provider = self._selected_tts_name()
                 if provider is None:
                     raise ValueError("speech provider is not configured")
-                self.settings.save_tts_defaults(provider, voice1 or "")
-                self.settings.set_default("tts_voice_host_1", voice1 or "")
-                self.settings.set_default("tts_voice_host_2", voice2 or "")
+                candidate.update(
+                    {
+                        "tts_provider": provider,
+                        "tts_voice": voice1 or "",
+                        "tts_voice_host_1": voice1 or "",
+                        "tts_voice_host_2": voice2 or "",
+                    }
+                )
+            self.settings.set_defaults(candidate)
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
             self.set_error("Default save failed.", exc)
             return
