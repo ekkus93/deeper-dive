@@ -135,7 +135,7 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 - [x] Source add/remove/include/exclude actions preserve existing provenance and security behavior.
 - [x] Continue semantics reflect actual source/index readiness.
 - [x] No acceptance test directly seeds source repository rows for the normal path.
-- [ ] Add import/index failure, retry, restart, and resume regressions.
+- [x] Add import/index failure, retry, restart, and resume regressions.
 
 ## GW-180 — New Deep Dive: Research and Hosts
 
