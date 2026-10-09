@@ -11,8 +11,10 @@ from textual.pilot import Pilot
 from textual.widgets import Button, Input, Select, Static
 
 from deeper_dive import cli as cli_module
+from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.episode_config import EpisodeConfigurationService
+from deeper_dive.episode_library_screen import EpisodeLibraryController
 from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.guided_app import GuidedDeeperDiveApp
 from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
@@ -21,6 +23,7 @@ from deeper_dive.guided_ready import GuidedEpisodeReadyScreen
 from deeper_dive.llm import LLMResponse
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.storage.workspace import WorkspaceManager
+from deeper_dive.transcript_review_screen import TranscriptReviewController
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
@@ -525,3 +528,78 @@ async def _guided_hosts_reorder_edit_and_restart(tmp_path: Path) -> None:
         assert "Reordered Evidence Host" in str(
             wizard.query_one("#guided-host-order", Static).render()
         )
+
+
+def test_guided_and_quick_runs_produce_isolated_durable_artifacts(tmp_path: Path) -> None:
+    asyncio.run(_guided_and_quick_runs_produce_isolated_durable_artifacts(tmp_path))
+
+
+async def _guided_and_quick_runs_produce_isolated_durable_artifacts(tmp_path: Path) -> None:
+    service = _service_and_config(tmp_path)
+    app = GuidedDeeperDiveApp(service)
+    # Exercise real pipeline execution explicitly after the normal wizard creates
+    # a durable pending run, avoiding a racing background monitor in this fixture.
+    app.generation_monitor_controller.runner = None
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        project_id, guided_episode_id = await _prepare_to_plan(wizard, pilot)
+        wizard.action_build_plan()
+        wizard.action_continue()
+        with patch("deeper_dive.ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"):
+            wizard.action_check_preflight()
+            assert wizard._preflight is not None and wizard._preflight.ready
+            wizard.action_generate_deep_dive()
+        await pilot.pause()
+        guided_run_id = wizard.context.run_id
+        assert guided_run_id is not None
+        assert service.runs(project_id).get(guided_run_id).state == "pending"
+
+        app.composition.run_generation(project_id, guided_run_id)
+        completed_guided = service.runs(project_id).get(guided_run_id)
+        assert completed_guided is not None and completed_guided.state == "completed"
+
+        quick_episode = service.quick_deep_dive(project_id)
+        assert quick_episode.id != guided_episode_id
+        planner = app.composition.configured_planning_service(
+            project_id, "fake", "fake-v1"
+        )
+        planner.build_plan(quick_episode.id)
+        with patch("deeper_dive.ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"):
+            quick_run = GenerationStartService(app.composition).start(
+                project_id, quick_episode.id
+            ).run
+        app.composition.run_generation(project_id, quick_run.id)
+        completed_quick = service.runs(project_id).get(quick_run.id)
+        assert completed_quick is not None and completed_quick.state == "completed"
+
+        database = app.composition.database_for_project(project_id)
+        artifacts: dict[str, tuple[str, Path]] = {}
+        for episode_id, run_id in (
+            (guided_episode_id, guided_run_id),
+            (quick_episode.id, quick_run.id),
+        ):
+            app.current_project_id = project_id
+            app.current_episode_id = episode_id
+            app.current_run_id = run_id
+            turns = TranscriptReviewController().turns(app)
+            assert len(turns) > 0
+            assert AudioTimelineRepository(database).get(episode_id) is not None
+            audio = service.workspaces.project_root(project_id) / "output" / f"{episode_id}.wav"
+            assert audio.is_file()
+            item = next(
+                item for item in EpisodeLibraryController.items(app)
+                if item.episode.id == episode_id
+            )
+            assert item.run is not None and item.run.id == run_id
+            exported = EpisodeLibraryController.export(app, item)
+            assert all(path.is_file() for path in exported.paths)
+            assert exported.audio is not None
+            artifacts[episode_id] = (str(exported.transcript), exported.audio)
+
+        first_export = artifacts[guided_episode_id]
+        second_export = artifacts[quick_episode.id]
+        assert first_export != second_export
+        assert all(first != second for first, second in zip(first_export, second_export))
