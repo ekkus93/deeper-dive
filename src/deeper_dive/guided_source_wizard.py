@@ -256,6 +256,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
             self.set_error("Research policy save failed.", exc)
             return
         self._sync_text()
+        self._remember_current_form()
         self.set_status(f"Saved research choice: {mode.value}.")
 
     def action_open_advanced_research(self) -> None:

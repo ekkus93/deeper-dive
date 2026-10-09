@@ -167,6 +167,7 @@ class GuidedHostWizard(GuidedSourceWizard):
             self.set_error("Host creation failed.", exc)
             return
         self._refresh_hosts(host.id)
+        self._remember_current_form()
         self.set_status(f"Created host {host.display_name}.")
 
     def action_save_host(self) -> None:
@@ -183,6 +184,7 @@ class GuidedHostWizard(GuidedSourceWizard):
             self.set_error("Host save failed.", exc)
             return
         self._refresh_hosts(record.id)
+        self._remember_current_form()
         self.set_status(f"Saved host {host.display_name}.")
 
     def action_select_host(self) -> None:

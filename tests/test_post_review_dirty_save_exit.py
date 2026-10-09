@@ -112,6 +112,32 @@ async def _new_project_valid(tmp_path: Path) -> None:
         assert any(project.name == "Dirty project" for project in projects)
 
 
+
+def test_explicit_new_project_save_resets_dirty_baseline(tmp_path: Path) -> None:
+    asyncio.run(_explicit_new_project_save_resets_dirty_baseline(tmp_path))
+
+
+async def _explicit_new_project_save_resets_dirty_baseline(tmp_path: Path) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        screen = app.screen
+        screen.query_one("#guided-project-name", Input).value = "Clean saved project"
+        screen.query_one("#guided-project-topic", Input).value = "Persist before exit"
+        await pilot.pause()
+        assert screen._current_form_dirty()
+        screen.action_create_project()
+        assert not screen._current_form_dirty()
+        screen.action_save_exit()
+        await pilot.pause()
+        assert app.screen.id == "screen-home"
+        assert any(
+            project.name == "Clean saved project" for project in service.list_project_summaries()
+        )
+
+
 def test_new_deep_dive_pasted_source_discard_retains_only_durable_project(
     tmp_path: Path,
 ) -> None:

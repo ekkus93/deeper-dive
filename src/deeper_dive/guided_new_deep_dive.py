@@ -89,6 +89,7 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
             self.query_one(f"#guided-project-{field}-error", Static).update("")
         self.context.project_id = project.id
         self._sync_text()
+        self._remember_current_form()
         self.set_status(f"Created project {project.name}. Continue to Sources.")
 
     def on_save_exit(self) -> None:

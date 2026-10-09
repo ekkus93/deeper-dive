@@ -276,6 +276,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             return
         self.query_one("#guided-episode-validation", Static).update("")
         self._sync_text()
+        self._remember_current_form()
         self.set_status("Saved episode settings through EpisodeConfigurationService.")
 
     def action_build_plan(self) -> None:
@@ -311,6 +312,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             return
         self._render_plan()
         self._sync_text()
+        self._remember_current_form()
         self.set_status("Saved the selected segment through EpisodePlannerService.")
 
     def action_regenerate_plan_segment(self) -> None:
