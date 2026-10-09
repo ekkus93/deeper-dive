@@ -274,7 +274,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
                 network_scope=self._optional_input("#setup-provider-network"),
             )
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Provider save failed: {sanitize_exception_message(exc)}")
+            self.set_error("Provider save failed.", exc)
             return
         self._llm_provider_name = name
         self._model_test_identity = None
@@ -289,7 +289,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         try:
             health = self.context.composition.provider_controller.health(name)
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Connection failed: {sanitize_exception_message(exc)}")
+            self.set_error("Connection failed.", exc)
             return
         message = str(redact(getattr(health, "message", "")))
         if not getattr(health, "healthy", False):
@@ -306,7 +306,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         try:
             models = self.context.composition.provider_controller.llm(name).models()
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Model discovery failed: {sanitize_exception_message(exc)}")
+            self.set_error("Model discovery failed.", exc)
             return
         self._model_options = tuple((model.model, model.model) for model in models)
         picker = self.query_one("#setup-model-picker", Select)
@@ -344,10 +344,10 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             )
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
             self._model_test_identity = None
-            self._model_test_summary = "Model test failed: " + sanitize_exception_message(exc)
+            self._model_test_summary = "Model test failed. Press F1 for details."
             self.set_busy(False)
             self._sync_text()
-            self.set_status(self._model_test_summary)
+            self.set_error("Model test failed.", exc)
             return
         elapsed = monotonic() - started
         preview = str(redact(response.text.replace("\n", " ")[:120]))
@@ -387,7 +387,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             for role, identity in assignments.items():
                 self.settings.save_model_default(role.value, identity)
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Role assignment failed: {sanitize_exception_message(exc)}")
+            self.set_error("Role assignment failed.", exc)
             return
         for role, identity in assignments.items():
             selector = {
@@ -440,7 +440,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             self.settings.set_default("tts_provider", name)
             self.settings.set_default("tts_voice", "")
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Speech configuration failed: {sanitize_exception_message(exc)}")
+            self.set_error("Speech configuration failed.", exc)
             return
         self._tts_provider_name = name
         self._sync_text()
@@ -454,7 +454,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         try:
             voices = self.context.composition.provider_controller.tts(name).voices()
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Voice discovery failed: {sanitize_exception_message(exc)}")
+            self.set_error("Voice discovery failed.", exc)
             return
         self._voice_options = tuple((voice.name, voice.id) for voice in voices)
         for selector in ("#setup-host1-voice", "#setup-host2-voice"):
@@ -479,7 +479,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
                 self.context.composition.service.workspaces.data_dir / "voice-previews"
             ).preview(provider, voice=voice)
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Voice preview failed: {sanitize_exception_message(exc)}")
+            self.set_error("Voice preview failed.", exc)
             return
         self.set_status(f"Voice preview synthesized through {name}: {path.name}")
 
@@ -507,7 +507,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
                 self.settings.set_default("tts_voice_host_1", voice1 or "")
                 self.settings.set_default("tts_voice_host_2", voice2 or "")
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Default save failed: {sanitize_exception_message(exc)}")
+            self.set_error("Default save failed.", exc)
             return
         self._sync_text()
         self.set_status("Saved voice, duration, and research defaults.")
