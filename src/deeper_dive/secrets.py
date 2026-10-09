@@ -9,6 +9,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol, cast
 
+from deeper_dive.diagnostics import redact
+
 REDACTED = "[REDACTED]"
 
 
@@ -103,22 +105,15 @@ def redact_text(text: str, secrets: list[str] | tuple[str, ...] = ()) -> str:
     result = text
     for secret in sorted((value for value in secrets if value), key=len, reverse=True):
         result = result.replace(secret, REDACTED)
-    patterns = (
-        r"(?i)(authorization\s*[:=]\s*(?:bearer\s+)?)[^\s,;]+",
-        r"(?i)((?:api[_-]?key|token|secret|password)\s*[:=]\s*)[^\s,;]+",
-    )
-    for pattern in patterns:
-        result = re.sub(pattern, rf"\1{REDACTED}", result)
-    return result
+    return str(redact(result))
 
 
 def redact_data(value: object, secrets: list[str] | tuple[str, ...] = ()) -> object:
     """Recursively sanitize diagnostic/config structures without mutating inputs."""
 
-    sensitive = {"authorization", "api_key", "apikey", "token", "secret", "password"}
     if isinstance(value, dict):
         return {
-            key: REDACTED if str(key).lower() in sensitive else redact_data(item, secrets)
+            key: REDACTED if _is_sensitive_key(str(key)) else redact_data(item, secrets)
             for key, item in value.items()
         }
     if isinstance(value, list):
@@ -128,3 +123,8 @@ def redact_data(value: object, secrets: list[str] | tuple[str, ...] = ()) -> obj
     if isinstance(value, str):
         return redact_text(value, secrets)
     return value
+
+
+def _is_sensitive_key(key: str) -> bool:
+    # Reuse the same recursive canonical policy as structured diagnostics.
+    return redact({key: "canary"})[key] == REDACTED  # type: ignore[index]

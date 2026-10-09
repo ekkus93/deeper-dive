@@ -19,6 +19,19 @@ _SECRET_PAIRS = frozenset(
         ("bearer", "token"),
     }
 )
+# Sanitize complete authorization values before generic assignment redaction.
+# The delimiter preserves adjacent diagnostic fields (e.g. status=401).
+# Digest can contain a comma-separated collection of credential components.
+_AUTH_DIGEST = re.compile(
+    r"(?i)(\bauthorization\s*[:=]\s*)digest\b[^;\r\n}\]]*"
+)
+_AUTH_QUOTED = re.compile(
+    r"(?i)((['\"])authorization\2\s*:\s*)(['\"])(?:\\.|(?!\3).)*?\3"
+)
+_AUTH_FIELD = re.compile(
+    r"(?i)(\bauthorization\s*[:=]\s*)"
+    r"(?:(?!\s+[A-Za-z_][\w.-]*\s*[:=]|\s+https?://|[,;}\]\r\n]).)+"
+)
 _BEARER = re.compile(r"(?i)bearer\s+[A-Za-z0-9._~+/=-]+")
 _ASSIGNMENT = re.compile(
     r"(?i)\b([A-Za-z0-9_-]*(?:authorization|api[-_]?key|token|secret|password|cookie)"
@@ -65,6 +78,12 @@ def _redact_quoted_mapping_assignment(match: re.Match[str]) -> str:
 
 
 def _redact_text(value: str) -> str:
+    value = _AUTH_QUOTED.sub(
+        lambda match: f"{match.group(1)}{match.group(3)}[REDACTED]{match.group(3)}",
+        value,
+    )
+    value = _AUTH_DIGEST.sub(r"\1[REDACTED]", value)
+    value = _AUTH_FIELD.sub(r"\1[REDACTED]", value)
     value = _BEARER.sub("Bearer [REDACTED]", value)
     value = _QUOTED_MAPPING_ASSIGNMENT.sub(_redact_quoted_mapping_assignment, value)
     value = _ASSIGNMENT.sub(_redact_assignment, value)
