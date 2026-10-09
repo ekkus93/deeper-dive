@@ -130,9 +130,7 @@ class UserConfigStore:
                 ".".join(map(str, err["loc"])) or "configuration"
                 for err in exc.errors(include_input=False, include_url=False)
             )
-            raise UserConfigError(
-                f"invalid user configuration: check {location}"
-            ) from None
+            raise UserConfigError(f"invalid user configuration: check {location}") from None
         self.path.parent.mkdir(parents=True, exist_ok=True)
         payload = json.dumps(validated.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
         temporary = self.path.with_suffix(self.path.suffix + ".tmp")

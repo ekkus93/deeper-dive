@@ -148,3 +148,21 @@ def test_mutated_invalid_provider_is_rejected_before_initial_write(tmp_path) -> 
         UserConfigStore(path).save(config)
 
     assert not path.exists()
+
+
+def test_nested_exception_chain_redacts_every_level_and_terminates_on_cycle() -> None:
+    inner = ValueError("Authorization: Basic deep-inner-secret")
+    middle = RuntimeError("authorization=Token middle-level-secret")
+    outer = OSError("request failed at provider")
+    middle.__cause__ = inner
+    outer.__cause__ = middle
+    result = sanitize_exception_message(outer)
+    assert "deep-inner-secret" not in result
+    assert "middle-level-secret" not in result
+    assert result.count("caused by:") == 2
+
+    # Even malformed exception chains must not cause an infinite traversal.
+    inner.__cause__ = outer
+    cycle_result = sanitize_exception_message(outer)
+    assert "deep-inner-secret" not in cycle_result
+    assert "middle-level-secret" not in cycle_result

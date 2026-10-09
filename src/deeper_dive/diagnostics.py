@@ -110,11 +110,20 @@ def redact(value: object, *, drop_secret_keys: bool = False) -> object:
 def sanitize_exception_message(exc: BaseException) -> str:
     """Return a redacted exception message including sanitized chained context."""
 
-    parts = [str(exc)]
-    if exc.__cause__ is not None:
-        parts.append(f"caused by: {exc.__cause__}")
-    elif exc.__context__ is not None and not exc.__suppress_context__:
-        parts.append(f"context: {exc.__context__}")
+    parts: list[str] = []
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        parts.append(str(current))
+        if current.__cause__ is not None:
+            parts.append("caused by:")
+            current = current.__cause__
+        elif current.__context__ is not None and not current.__suppress_context__:
+            parts.append("context:")
+            current = current.__context__
+        else:
+            current = None
     return str(redact(" | ".join(part for part in parts if part)))
 
 
