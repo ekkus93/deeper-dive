@@ -59,7 +59,7 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
             self.query_one(f"#guided-project-{field}-error", Static).update(error)
         if any(field_errors.values()):
             self.query_one("#guided-project-validation", Static).update(
-                "Correct the field errors above before continuing."
+                " ".join(error for error in field_errors.values() if error)
             )
             self.set_status("Project setup needs attention; no project was created.")
             for field in ("name", "topic", "audience"):
