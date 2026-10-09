@@ -201,7 +201,10 @@ class WizardShell(Screen[None]):
     def action_help(self) -> None:
         self.help_requested = True
         details = self._error_details
-        self.set_status(self.help_text(self.navigator.current_step.key) + (f"\nDetails: {details}" if details else ""))
+        message = self.help_text(self.navigator.current_step.key)
+        if details:
+            message += f"\nDetails: {details}"
+        self.set_status(message)
         self._error_details = details
 
     def on_save_exit(self) -> None:
