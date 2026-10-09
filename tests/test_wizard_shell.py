@@ -305,9 +305,9 @@ async def _shared_wizard_action_geometry(
         composition, WizardState(kind, "welcome" if kind is WizardKind.FIRST_RUN else "project")
     )
     screen = (
-        FirstRunWizardShell(context, lambda _key: True)
+        FirstRunWizardShell(context, lambda key: key in {"welcome", "project"})
         if kind is WizardKind.FIRST_RUN
-        else NewDeepDiveWizardShell(context, lambda _key: True)
+        else NewDeepDiveWizardShell(context, lambda key: key in {"welcome", "project"})
     )
     async with _WizardHarness(screen).run_test(size=size) as pilot:
         await pilot.pause()
