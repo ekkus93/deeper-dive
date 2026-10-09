@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from unittest.mock import patch
 
 from textual.widgets import Button, Input
 
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.guided_app import GuidedDeeperDiveApp
+from deeper_dive.hosts import HostProfile
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
@@ -277,3 +279,55 @@ async def _goal_first_quick_requires_sources_then_uses_production_plan(tmp_path:
             episode.id == app.current_episode_id
             for episode in service.hosts(project.id).list_episodes(project.id)
         )
+
+
+def test_guided_home_quick_starts_shared_generation_when_ready(tmp_path: Path) -> None:
+    asyncio.run(_guided_home_quick_starts_shared_generation_when_ready(tmp_path))
+
+
+async def _guided_home_quick_starts_shared_generation_when_ready(tmp_path: Path) -> None:
+    _save_ready_config(tmp_path)
+    service = _service(tmp_path)
+    store = UserConfigStore(service.workspaces.data_dir / "config.json")
+    config = store.load()
+    config.providers["speech"] = ProviderConfig(
+        provider_type="fake-tts", network_scope="local", voices=("voice-a", "voice-b")
+    )
+    config.defaults.update(
+        {
+            "speech_setup": "configured",
+            "tts_provider": "speech",
+            "tts_voice": "voice-a",
+            "tts_voice_host_1": "voice-a",
+            "tts_voice_host_2": "voice-b",
+        }
+    )
+    store.save(config)
+    project = service.create_project("Ready quick generation")
+    service.add_pasted_source(project.id, "Evidence", "Indexed evidence for quick generation.")
+    for number in (1, 2):
+        service.hosts(project.id).create_host(
+            HostProfile(
+                f"host-{number}",
+                project.id,
+                f"Host {number}",
+                tts_provider="speech",
+                tts_voice=f"voice-{'a' if number == 1 else 'b'}",
+            ).to_record()
+        )
+
+    app = GuidedDeeperDiveApp(service)
+    app.generation_monitor_controller.runner = None
+    async with app.run_test(size=(100, 30)) as pilot:
+        await pilot.pause()
+        with patch("deeper_dive.ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"):
+            app.action_navigate("quick")
+            await pilot.pause()
+        assert app.screen.id == "screen-monitor"
+        assert app.current_episode_id is not None
+        assert app.current_run_id is not None
+        run = service.runs(project.id).get(app.current_run_id)
+        assert run is not None
+        assert run.episode_id == app.current_episode_id
+        assert run.state == "pending"
+        assert len(service.hosts(project.id).list_episodes(project.id)) == 1

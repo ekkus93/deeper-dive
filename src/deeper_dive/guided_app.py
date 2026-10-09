@@ -13,6 +13,7 @@ from deeper_dive.guided_home import add_new_deep_dive_action, refresh_goal_home
 from deeper_dive.guided_readiness import ProductionWizardCompletion, first_run_readiness
 from deeper_dive.guided_ready import GuidedEpisodeReadyScreen
 from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardState
+from deeper_dive.preflight_screen import PreflightScreen
 from deeper_dive.tui import DeeperDiveApp
 
 
@@ -123,6 +124,15 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
         screen = self.screen
         if isinstance(screen, EpisodeSetupScreen):
             screen.action_quick_deep_dive()
+            self.call_after_refresh(self._start_ready_quick_deep_dive)
+
+    def _start_ready_quick_deep_dive(self) -> None:
+        # The normal Generate action owns shared preflight, duplicate-safe run
+        # creation, and the production monitor/pipeline handoff. A blocked
+        # preflight stays visible for configuration repair.
+        screen = self.screen
+        if isinstance(screen, PreflightScreen):
+            screen.action_generate()
 
 
 def main() -> None:
