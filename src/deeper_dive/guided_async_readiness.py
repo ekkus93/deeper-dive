@@ -100,9 +100,7 @@ class FirstRunReadinessCoordinator:
         if step_key == "speech":
             return readiness.speech_choice_made
         if step_key == "voice-defaults":
-            return readiness.defaults_ready and (
-                readiness.speech_deferred or readiness.audio_ready
-            )
+            return readiness.defaults_ready and (readiness.speech_deferred or readiness.audio_ready)
         if step_key == "ready":
             return readiness.setup_ready
         raise KeyError(step_key)
