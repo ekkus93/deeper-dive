@@ -1,10 +1,10 @@
 # Guided Textual workflow user guide
 
-> **Implementation status (2026-10-08):** The guided interface is under active
-> remediation. Use the authoritative
+> **Implementation status (2026-10-09):** The guided Textual workflow is
+> implemented and qualified. See the authoritative
 > [guided-workflow TODO](DEEP_DIVE_TUI_GUIDED_WORKFLOW_TODO_2026-10-08.md)
-> for the exact acceptance status. A visible action is not, by itself,
-> evidence that the entire end-to-end workflow is qualified.
+> for named acceptance tests, exact-head CI evidence, and ongoing qualification
+> requirements for subsequent changes.
 
 ## Starting the application
 

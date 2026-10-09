@@ -1,7 +1,7 @@
 # Deeper Dive TUI Guided Workflow Spec
 
 **Created:** 2026-10-08
-**Status:** Ready for implementation
+**Status:** Implemented and qualified (see companion TODO for exact-head CI evidence)
 **Applies to:** current Textual TUI on master at 37f7cd453fc333974934703e4f1a3b8ae7d48006
 **Companion checklist:** docs/DEEP_DIVE_TUI_GUIDED_WORKFLOW_TODO_2026-10-08.md
 **Predecessor:** docs/DEEP_DIVE_PRODUCTION_GENERATION_SECOND_POST_REVIEW_REMEDIATION_TODO_2026-10-02.md
