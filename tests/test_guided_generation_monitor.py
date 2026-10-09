@@ -149,3 +149,96 @@ async def _guided_completed_run_recovers_ready_handoff(tmp_path) -> None:
         await pilot.pause()
         assert isinstance(app.screen, GuidedEpisodeReadyScreen)
         assert "Completed episode" in str(app.screen.query_one("#ready-summary", Static).render())
+
+
+def test_guided_monitor_retries_only_supported_failed_stages(tmp_path) -> None:
+    asyncio.run(_guided_monitor_retries_only_supported_failed_stages(tmp_path))
+
+
+async def _guided_monitor_retries_only_supported_failed_stages(tmp_path) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    project = service.create_project("Retry controls")
+    now = format_timestamp(service.clock.now())
+    episode_id = str(new_episode_id())
+    service.hosts(project.id).create_episode(
+        EpisodeRecord(episode_id, project.id, "Retry episode", now, now), []
+    )
+    for failure_code in ("sources_missing", "stage_failed"):
+        run_id = str(new_run_id())
+        service.runs(project.id).create(
+            GenerationRunRecord(
+                run_id, episode_id, "conversation", "failed", now, now,
+                failure_code=failure_code, failure_message="Recoverable diagnostic",
+            )
+        )
+        app = GuidedDeeperDiveApp(service)
+        app.generation_monitor_controller.runner = None
+        async with app.run_test(size=(100, 30)) as pilot:
+            app.current_project_id = project.id
+            app.current_episode_id = episode_id
+            app.current_run_id = run_id
+            app.action_navigate("monitor")
+            await pilot.pause()
+            screen = app.screen
+            assert isinstance(screen, GuidedGenerationMonitorScreen)
+            retry = screen._button("resume-generation")
+            assert retry.disabled is (failure_code != "stage_failed")
+            screen.action_resume()
+            persisted = service.runs(project.id).get(run_id)
+            assert persisted is not None
+            if failure_code == "stage_failed":
+                assert persisted.state == "pending"
+                assert persisted.failure_code is None
+                # A duplicate retry cannot start the same run twice.
+                screen.action_resume()
+                assert service.runs(project.id).get(run_id).state == "pending"
+                assert screen._button("resume-generation").disabled
+            else:
+                assert persisted.state == "failed"
+                assert persisted.failure_code == "sources_missing"
+
+
+def test_guided_monitor_pause_resume_cancel_controls_are_durable(tmp_path) -> None:
+    asyncio.run(_guided_monitor_pause_resume_cancel_controls_are_durable(tmp_path))
+
+
+async def _guided_monitor_pause_resume_cancel_controls_are_durable(tmp_path) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    project = service.create_project("Run controls")
+    now = format_timestamp(service.clock.now())
+    episode_id = str(new_episode_id())
+    service.hosts(project.id).create_episode(
+        EpisodeRecord(episode_id, project.id, "Controlled episode", now, now), []
+    )
+    run_id = str(new_run_id())
+    service.runs(project.id).create(
+        GenerationRunRecord(run_id, episode_id, "sources", "pending", now, now)
+    )
+    app = GuidedDeeperDiveApp(service)
+    app.generation_monitor_controller.runner = None
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.current_project_id = project.id
+        app.current_episode_id = episode_id
+        app.current_run_id = run_id
+        app.action_navigate("monitor")
+        await pilot.pause()
+        screen = app.screen
+        assert isinstance(screen, GuidedGenerationMonitorScreen)
+        screen.action_pause()
+        assert service.runs(project.id).get(run_id).pause_requested
+        # The pipeline consumes control requests at a durable safe boundary.
+        app.composition.generation_pipeline(project.id).run(run_id)
+        assert service.runs(project.id).get(run_id).state == "paused"
+        screen.refresh_monitor()
+        assert not screen._button("resume-generation").disabled
+        screen.action_resume()
+        assert service.runs(project.id).get(run_id).state == "pending"
+        screen.action_cancel()
+        assert not service.runs(project.id).get(run_id).cancel_requested
+        screen.action_cancel()
+        assert service.runs(project.id).get(run_id).cancel_requested
+        app.composition.generation_pipeline(project.id).run(run_id)
+        assert service.runs(project.id).get(run_id).state == "cancelled"
+        screen.refresh_monitor()
+        assert screen._button("cancel-generation").disabled
+        assert screen._button("resume-generation").disabled

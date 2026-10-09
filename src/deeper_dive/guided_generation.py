@@ -119,7 +119,10 @@ class GuidedGenerationMonitorScreen(GenerationMonitorScreen):
                     )
                 )
             )
-        self._button("resume-generation").disabled = run.state != "paused"
+        retryable = run.state == "failed" and run.failure_code == "stage_failed"
+        resume_button = self._button("resume-generation")
+        resume_button.disabled = run.state != "paused" and not retryable
+        resume_button.label = "Retry Failed Stage" if retryable else "Resume"
         self._button("pause-generation").disabled = run.state not in {
             "running",
             "pending",

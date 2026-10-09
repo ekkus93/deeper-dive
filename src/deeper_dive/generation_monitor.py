@@ -97,8 +97,10 @@ class GenerationMonitorController:
     def resume(self, app: MonitorApp, run: GenerationRunRecord) -> GenerationRunRecord:
         if run.cancel_requested or run.state == "cancelled":
             raise ValueError("cancelled runs cannot resume")
-        if run.state != "paused":
-            raise ValueError("only durably paused runs can resume")
+        if run.state not in {"paused", "failed"} or (
+            run.state == "failed" and run.failure_code != "stage_failed"
+        ):
+            raise ValueError("only paused runs or retryable failed stages can resume")
         return cast(GenerationRunRecord, self._pipeline(app).resume(run.id))
 
     @staticmethod
