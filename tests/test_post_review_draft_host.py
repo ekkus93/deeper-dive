@@ -83,3 +83,33 @@ def test_create_host_form_keeps_preset_text_when_controls_blank() -> None:
     GuidedHostWizard._apply_host_form(cast(GuidedHostWizard, FakeWizard()), host)
     assert host.role == "Preset role"
     assert host.instructions == "Preset instructions"
+
+
+def test_completed_first_run_draft_is_cleared_but_incomplete_setup_is_retained(
+    tmp_path: Path,
+) -> None:
+    from deeper_dive.guided_first_run import GuidedFirstRunWizard
+
+    store = GuidedDraftStore(tmp_path)
+    checkpoint = store._path(WizardKind.FIRST_RUN)
+    checkpoint.write_text("safe checkpoint", encoding="utf-8")
+    fake_context = SimpleNamespace(
+        composition=SimpleNamespace(
+            service=SimpleNamespace(workspaces=SimpleNamespace(data_dir=tmp_path))
+        )
+    )
+    incomplete = SimpleNamespace(
+        context=fake_context,
+        completion_probe=lambda step: False,
+    )
+    GuidedFirstRunWizard._clear_completed_setup_draft(
+        cast(GuidedFirstRunWizard, incomplete)
+    )
+    assert checkpoint.read_text(encoding="utf-8") == "safe checkpoint"
+
+    finished = SimpleNamespace(
+        context=fake_context,
+        completion_probe=lambda step: step == "ready",
+    )
+    GuidedFirstRunWizard._clear_completed_setup_draft(cast(GuidedFirstRunWizard, finished))
+    assert not checkpoint.exists()

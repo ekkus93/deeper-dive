@@ -11,7 +11,8 @@ from textual.widgets import Button, Input, Select
 
 from deeper_dive.diagnostics import redact
 from deeper_dive.first_run import FirstRunController
-from deeper_dive.guided_workflow import CompletionProbe, WizardContext
+from deeper_dive.guided_draft import GuidedDraftStore
+from deeper_dive.guided_workflow import CompletionProbe, WizardContext, WizardKind
 from deeper_dive.llm import LLMMessage, LLMRequest
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.settings_screen import SettingsController
@@ -522,10 +523,19 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         self.set_status("Saved voice, duration, and research defaults.")
 
     def action_ready_new(self) -> None:
+        self._clear_completed_setup_draft()
         cast(_NavigationApp, self.app).action_navigate("new")
 
     def action_ready_home(self) -> None:
+        self._clear_completed_setup_draft()
         cast(_NavigationApp, self.app).action_navigate("home")
+
+    def _clear_completed_setup_draft(self) -> None:
+        """A terminal first-run setup must not leave a stale resume checkpoint."""
+        if self.completion_probe("ready"):
+            GuidedDraftStore(
+                self.context.composition.service.workspaces.data_dir
+            ).clear(WizardKind.FIRST_RUN)
 
     def _load_existing_setup(self) -> None:
         controller = self.context.composition.provider_controller
