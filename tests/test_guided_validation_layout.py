@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import patch
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from textual.widgets import Input, Static
