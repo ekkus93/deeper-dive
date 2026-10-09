@@ -291,7 +291,19 @@ class WizardShell(Screen[None]):
         return tuple(values)
 
     def _schedule_form_baseline(self) -> None:
-        self.call_after_refresh(self._remember_current_form)
+        # Do not turn edits made before Textual's next refresh into the baseline.
+        # Rehydration may also happen between scheduling and that refresh.
+        step = self.context.state.current_step
+        snapshot = self._editable_snapshot()
+
+        def remember_if_unchanged() -> None:
+            if (
+                self.context.state.current_step == step
+                and self._editable_snapshot() == snapshot
+            ):
+                self._form_baselines[step] = snapshot
+
+        self.call_after_refresh(remember_if_unchanged)
 
     def _remember_current_form(self) -> None:
         self._form_baselines[self.context.state.current_step] = self._editable_snapshot()

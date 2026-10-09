@@ -150,3 +150,29 @@ async def _new_source_discard(tmp_path: Path) -> None:
         draft = tmp_path / "data" / "guided-new-deep-dive-draft.json"
         assert draft.exists()
         assert "Unsaved source body canary" not in draft.read_text(encoding="utf-8")
+
+
+def test_delayed_baseline_cannot_swallow_form_edits() -> None:
+    from types import SimpleNamespace
+    from typing import cast
+
+    from deeper_dive.wizard_shell import WizardShell
+
+    callbacks = []
+    entered = ["initial"]
+    fake = SimpleNamespace(
+        context=SimpleNamespace(state=SimpleNamespace(current_step="sources")),
+        _form_baselines={},
+        _editable_snapshot=lambda: (("guided-source-text", entered[0]),),
+        call_after_refresh=lambda callback: callbacks.append(callback),
+    )
+    WizardShell._schedule_form_baseline(cast(WizardShell, fake))
+    entered[0] = "new unsaved user input"
+    callbacks.pop()()
+    assert "sources" not in fake._form_baselines
+
+    WizardShell._schedule_form_baseline(cast(WizardShell, fake))
+    callbacks.pop()()
+    assert fake._form_baselines["sources"] == (
+        ("guided-source-text", "new unsaved user input"),
+    )
