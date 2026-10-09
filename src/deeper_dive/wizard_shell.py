@@ -277,6 +277,10 @@ class WizardShell(Screen[None]):
         summary = f"✓ {complete} done"
         if needs_attention:
             summary += f", ! {needs_attention} need attention"
+        if index == 0 and len(progress) > 1:
+            # The compact rail still distinguishes upcoming navigation from
+            # already-ready steps even when the next prerequisite is complete.
+            summary += f" | ○ {len(progress) - 1} steps ahead"
         result = f"{prefix} | {current_label} | {summary}"
         budget = max(30, self._viewport_width - 4)
         if index:
