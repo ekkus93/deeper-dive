@@ -224,8 +224,8 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 - [x] Apply documented recommended research, host, and episode defaults.
 - [x] Build plan through EpisodePlannerService.
 - [x] Run shared preflight.
-- [ ] Start through GenerationStartService and PipelineOrchestrator.
-- [ ] Produce normal durable turns, TTS, timeline/audio, review state, and exports.
+- [x] Start through GenerationStartService and PipelineOrchestrator.
+- [x] Produce normal durable turns, TTS, timeline/audio, review state, and exports.
 - [x] Keep QuickDeepDiveService as a convenience boundary rather than a second engine.
 - [ ] Add Quick-versus-guided production-equivalence acceptance for shared artifacts/state.
 
@@ -346,6 +346,8 @@ Populate only as work is completed. Do not pre-check or use placeholders as comp
 
 - Implementation SHAs:
 
+  - a5dfdd6cfdc8f00bd151bd612c5556c74e329adf, 58a662116a4a32f9a70ee781e47f7191ef5852b3 — Guided Episode Ready reuses Library playback; two-episode action-selection regression; exact-head CI 37869998015 passed.
+  - 7f750cb35d7522022882bbdea4f2c8f4b0e96999 — Home Quick Deep Dive now invokes shared preflight and GenerationStartService via the normal Generate action, then uses the production monitor/pipeline; existing Quick pipeline acceptance covers persisted turns, TTS, timeline, audio, review and export; exact-head CI 37870163029 passed.
   - e9f7ef916d720ec2b42c2e8fdfde8fa61e0774b6 — prevent first-run provider-config compose crash on resume; exact-head CI 37868452882 passed.
   - f5e065672ea2ff37c2803e552b73297a7a8e024b, 77ff90903ce1ab13c7fc03897356c30a460381e2 — invalidated provider returns prior setup steps to Needs attention; exact-head CI 37868870026 passed.
   - 004198882412bccb0789a89b91e7b2514539194a, 1666f072a9434917d0fc077113401bb496319b98, d9010ee5f471563680c46b7200c4f40b22f0364a — shared source readiness for wizard and generation preflight, status-aware rows, negative/positive indexing gates; exact-head CI 37859564426 passed.
@@ -391,6 +393,8 @@ Populate only as work is completed. Do not pre-check or use placeholders as comp
 - Security/redaction tests:
   - tests/test_generation_monitor.py::test_monitor_diagnostics_and_status_redact_persisted_credential_canaries
 - Quick Deep Dive parity tests:
+  - tests/test_guided_app.py::test_guided_home_quick_starts_shared_generation_when_ready
+  - tests/test_quick_deep_dive.py::test_quick_deep_dive_preflight_executes_pipeline_and_exports_artifacts
 - Multi-episode isolation tests:
   - tests/test_episode_library_playback.py::test_episode_library_play_uses_selected_episode_audio_only
 - Compatibility tests:
