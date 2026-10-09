@@ -173,6 +173,4 @@ def test_delayed_baseline_cannot_swallow_form_edits() -> None:
 
     WizardShell._schedule_form_baseline(cast(WizardShell, fake))
     callbacks.pop()()
-    assert fake._form_baselines["sources"] == (
-        ("guided-source-text", "new unsaved user input"),
-    )
+    assert fake._form_baselines["sources"] == (("guided-source-text", "new unsaved user input"),)

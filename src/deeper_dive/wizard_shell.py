@@ -297,10 +297,7 @@ class WizardShell(Screen[None]):
         snapshot = self._editable_snapshot()
 
         def remember_if_unchanged() -> None:
-            if (
-                self.context.state.current_step == step
-                and self._editable_snapshot() == snapshot
-            ):
+            if self.context.state.current_step == step and self._editable_snapshot() == snapshot:
                 self._form_baselines[step] = snapshot
 
         self.call_after_refresh(remember_if_unchanged)
