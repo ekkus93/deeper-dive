@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
+from pathlib import Path
 from threading import Event
 from types import SimpleNamespace
 from typing import cast
 
+import pytest
+from textual.widgets import Static
+
+from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.first_run import FirstRunSystemCheck
+from deeper_dive.guided_app import GuidedDeeperDiveApp
 from deeper_dive.guided_async_readiness import (
     FirstRunReadinessCoordinator,
     FirstRunRuntimeSnapshot,
@@ -19,6 +26,7 @@ from deeper_dive.guided_readiness import (
 )
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.guided_workflow import WizardContext
+from deeper_dive.storage.workspace import WorkspaceManager
 
 
 class _ImmediateApp:
@@ -203,3 +211,74 @@ def test_elevenlabs_readiness_reuses_one_voice_discovery_call() -> None:
     assert _tts_runtime_ready(controller, "speech", "voice-a", "elevenlabs")
     assert runtime.health_calls == 0
     assert runtime.voice_calls == 1
+
+
+def test_background_probe_failure_is_sanitized() -> None:
+    secret = "readiness-secret-canary"
+
+    def probe() -> FirstRunRuntimeSnapshot:
+        raise RuntimeError(f"Authorization: Token {secret}")
+
+    coordinator = FirstRunReadinessCoordinator(
+        _context(),
+        probe=probe,
+        fingerprint=lambda: "error",
+        timeout_seconds=1,
+    )
+    assert coordinator.request(_ImmediateApp())
+    _wait(lambda: coordinator.view.state == "failed")
+    assert secret not in (coordinator.view.message or "")
+    assert "[REDACTED]" in (coordinator.view.message or "")
+
+
+def test_pending_completion_preserves_saved_location_without_allowing_advance() -> None:
+    coordinator = FirstRunReadinessCoordinator(
+        _context("model-test"),
+        probe=lambda: _snapshot(setup_ready=True),
+        fingerprint=lambda: "pending",
+    )
+    assert coordinator.completion("provider-config")
+    assert not coordinator.completion("model-test")
+
+
+def test_slow_runtime_probe_does_not_block_textual_navigation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    asyncio.run(_slow_runtime_probe_keeps_ui_responsive(tmp_path, monkeypatch))
+
+
+async def _slow_runtime_probe_keeps_ui_responsive(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    started = Event()
+    release = Event()
+
+    def slow_probe(self: FirstRunReadinessCoordinator) -> FirstRunRuntimeSnapshot:
+        started.set()
+        assert release.wait(2)
+        return _snapshot(setup_ready=False)
+
+    monkeypatch.setattr(FirstRunReadinessCoordinator, "_probe_runtime", slow_probe)
+    app = GuidedDeeperDiveApp(DeeperDiveService(WorkspaceManager(tmp_path / "data")))
+    async with app.run_test(size=(100, 30)) as pilot:
+        assert await asyncio.to_thread(started.wait, 1)
+        app.action_navigate("home")
+        await pilot.pause()
+        assert app.screen.id == "screen-home"
+        visible = str(app.screen.query_one("#home-readiness", Static).render())
+        assert "Checking setup readiness" in visible
+        await pilot.press("tab")
+        assert app.screen.focused is not None
+
+        release.set()
+        for _ in range(100):
+            if app._first_run_readiness.view.state == "ready":
+                break
+            await asyncio.sleep(0.01)
+            await pilot.pause()
+        assert app._first_run_readiness.view.state == "ready"
+        assert "Setup needs attention" in str(
+            app.screen.query_one("#home-readiness", Static).render()
+        )

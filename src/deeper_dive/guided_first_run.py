@@ -10,7 +10,10 @@ from textual.widget import Widget
 from textual.widgets import Button, Input, Select
 
 from deeper_dive.diagnostics import redact
-from deeper_dive.first_run import FirstRunController
+from deeper_dive.guided_async_readiness import (
+    FirstRunReadinessCoordinator,
+    FirstRunRuntimeSnapshot,
+)
 from deeper_dive.guided_draft import GuidedDraftStore
 from deeper_dive.guided_workflow import CompletionProbe, WizardContext, WizardKind
 from deeper_dive.llm import LLMMessage, LLMRequest
@@ -65,6 +68,38 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
     @property
     def settings(self) -> SettingsController:
         return SettingsController(self.context.composition.provider_controller)
+
+    @property
+    def _runtime_readiness(self) -> FirstRunReadinessCoordinator | None:
+        return cast(
+            FirstRunReadinessCoordinator | None,
+            getattr(self.app, "_first_run_readiness", None),
+        )
+
+    def _runtime_snapshot(self) -> FirstRunRuntimeSnapshot | None:
+        coordinator = self._runtime_readiness
+        return coordinator.snapshot if coordinator is not None else None
+
+    def _request_runtime_readiness(self) -> None:
+        coordinator = self._runtime_readiness
+        if coordinator is not None:
+            coordinator.request(self.app, self._runtime_readiness_updated)
+
+    def _runtime_readiness_updated(self) -> None:
+        recovered = self.navigator.recovered_state()
+        if recovered != self.context.state:
+            self.context.state = recovered
+        self._sync_text()
+        self._sync_setup_controls()
+
+    def _checking_text(self) -> str:
+        coordinator = self._runtime_readiness
+        if coordinator is not None and coordinator.view.state == "failed":
+            return (
+                "Readiness check needs attention: "
+                + (coordinator.view.message or "provider check failed")
+            )
+        return "Checking provider and local runtime readiness…"
 
     def step_controls(self) -> tuple[Widget, ...]:
         return (
@@ -157,10 +192,26 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         )
 
     def step_content(self, step_key: str) -> str:
-        if step_key in {"welcome", "system-check"}:
+        if step_key == "welcome":
             return super().step_content(step_key)
+        if step_key == "system-check":
+            snapshot = self._runtime_snapshot()
+            if snapshot is None:
+                return self._checking_text()
+            check = snapshot.system_check
+            rows = list(check.summary())
+            if getattr(self, "_system_details_visible", False):
+                rows.extend(("", "Details:", *check.diagnostics))
+                rows.append(
+                    "Remediation: choose any healthy supported provider. "
+                    "Install FFmpeg before audio generation."
+                )
+            return "\n".join(rows)
         if step_key == "ai-provider":
-            check = FirstRunController(self.context.composition.provider_controller).system_check()
+            snapshot = self._runtime_snapshot()
+            if snapshot is None:
+                return self._checking_text()
+            check = snapshot.system_check
             detected = []
             if check.ollama_reachable:
                 detected.append("Ollama")
@@ -199,9 +250,10 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
                 "primary user label."
             )
         if step_key == "ready":
-            from deeper_dive.guided_readiness import first_run_readiness
-
-            ready = first_run_readiness(self.context)
+            snapshot = self._runtime_snapshot()
+            if snapshot is None:
+                return self._checking_text()
+            ready = snapshot.readiness
             return "\n".join(
                 (
                     f"Language model: {'Ready' if ready.llm_provider_ready else 'Needs attention'}",
@@ -221,6 +273,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         super().on_mount()
         self._load_existing_setup()
         self._sync_setup_controls()
+        self._request_runtime_readiness()
 
     def action_continue(self) -> None:
         step = self.context.state.current_step
@@ -301,6 +354,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         self._sync_text()
         self._remember_current_form()
         self.set_status(f"Saved provider {name}. Test the production connection to continue.")
+        self._request_runtime_readiness()
 
     def action_test_provider(self) -> None:
         name = self._selected_llm_name()
@@ -422,6 +476,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         self._sync_text()
         self._remember_current_form()
         self.set_status("Saved recommended production model-role assignments.")
+        self._request_runtime_readiness()
 
     def action_save_speech(self) -> None:
         choice = self._select_value("#setup-speech-choice") or "kitten"
@@ -433,6 +488,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             self._sync_text()
             self._remember_current_form()
             self.set_status("Speech intentionally deferred. Audio generation will remain blocked.")
+            self._request_runtime_readiness()
             return
 
         adapter = (
@@ -472,6 +528,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         self._sync_text()
         self._remember_current_form()
         self.set_status(f"Saved speech provider {name}. Discover and choose voices next.")
+        self._request_runtime_readiness()
 
     def action_discover_voices(self) -> None:
         name = self._selected_tts_name()
@@ -547,6 +604,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         self._sync_text()
         self._remember_current_form()
         self.set_status("Saved voice, duration, and research defaults.")
+        self._request_runtime_readiness()
 
     def action_ready_new(self) -> None:
         self._clear_completed_setup_draft()

@@ -5,12 +5,13 @@ from __future__ import annotations
 from textual.binding import Binding
 
 from deeper_dive.episode_setup_screen import EpisodeSetupScreen
+from deeper_dive.guided_async_readiness import FirstRunReadinessCoordinator
 from deeper_dive.guided_draft import GuidedDraftStore
 from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
 from deeper_dive.guided_first_run import GuidedFirstRunWizard
 from deeper_dive.guided_generation import GuidedGenerationMonitorScreen
 from deeper_dive.guided_home import add_new_deep_dive_action, refresh_goal_home
-from deeper_dive.guided_readiness import ProductionWizardCompletion, first_run_readiness
+from deeper_dive.guided_readiness import ProductionWizardCompletion
 from deeper_dive.guided_ready import GuidedEpisodeReadyScreen
 from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardState
 from deeper_dive.preflight_screen import PreflightScreen
@@ -31,19 +32,21 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
     }
 
     def on_ready(self) -> None:
-        add_new_deep_dive_action(self)
-
         self._draft_store = GuidedDraftStore(self.service.workspaces.data_dir)
         setup_context = self._draft_store.load(
-            self.composition, WizardKind.FIRST_RUN
+            self.composition,
+            WizardKind.FIRST_RUN,
+            recover=False,
         ) or WizardContext(
             self.composition,
             WizardState(WizardKind.FIRST_RUN, "welcome"),
         )
+        self._first_run_readiness = FirstRunReadinessCoordinator(setup_context)
+        add_new_deep_dive_action(self)
         self.install_screen(
             GuidedFirstRunWizard(
                 setup_context,
-                ProductionWizardCompletion(setup_context),
+                self._first_run_readiness.completion,
             ),
             name="setup",
         )
@@ -70,7 +73,7 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
         returning_user = bool(
             config.providers or config.defaults or self.service.list_project_summaries()
         )
-        if not first_run_readiness(setup_context).setup_ready and not returning_user:
+        if not returning_user:
             self.push_screen("setup")
 
     def action_navigate(self, destination: str) -> None:

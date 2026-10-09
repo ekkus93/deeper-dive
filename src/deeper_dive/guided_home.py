@@ -5,17 +5,19 @@ from __future__ import annotations
 from rich.text import Text
 from textual.widgets import Button, Static
 
-from deeper_dive.guided_readiness import first_run_readiness
-from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardState
 from deeper_dive.tui import DeeperDiveApp
 
 
 def _readiness_label(app: DeeperDiveApp) -> str:
-    context = WizardContext(
-        app.composition,
-        WizardState(WizardKind.FIRST_RUN, "welcome"),
-    )
-    readiness = first_run_readiness(context)
+    coordinator = getattr(app, "_first_run_readiness", None)
+    if coordinator is None:
+        return "Checking setup readiness…"
+    view = coordinator.view
+    if view.state == "failed":
+        return f"Setup readiness needs attention — {view.message or 'provider check failed'}"
+    if view.snapshot is None:
+        return "Checking setup readiness…"
+    readiness = view.snapshot.readiness
     if not readiness.setup_ready:
         return "Setup needs attention — open Setup to review providers and defaults."
     if not readiness.audio_ready:
@@ -42,14 +44,15 @@ def _recent_episode_lines(app: DeeperDiveApp) -> str:
     return "Recent episodes:\n" + "\n".join(f"  • {line}" for _, line in entries[:5])
 
 
-def refresh_goal_home(app: DeeperDiveApp) -> None:
-    """Refresh derived Home information whenever the user returns."""
+def refresh_goal_home(app: DeeperDiveApp, *, request_readiness: bool = True) -> None:
+    """Refresh Home without synchronously probing provider runtimes."""
     home = app.get_screen("home")
     home.query_one("#home-readiness", Static).update(Text(_readiness_label(app)))
-    setup_context = WizardContext(app.composition, WizardState(WizardKind.FIRST_RUN, "welcome"))
-    home.query_one("#action-resume-setup", Button).display = not first_run_readiness(
-        setup_context
-    ).setup_ready
+    coordinator = getattr(app, "_first_run_readiness", None)
+    snapshot = coordinator.snapshot if coordinator is not None else None
+    home.query_one("#action-resume-setup", Button).display = (
+        snapshot is None or not snapshot.readiness.setup_ready
+    )
     home.query_one("#home-recent-episodes", Static).update(Text(_recent_episode_lines(app)))
     resume = home.query_one("#action-resume-deep-dive", Button)
     store = getattr(app, "_draft_store", None)
@@ -63,6 +66,11 @@ def refresh_goal_home(app: DeeperDiveApp) -> None:
     home.query_one("#home-recent-projects", Static).update(Text(f"Recent projects: {recent}"))
     # Retain existing project lifecycle operations, with up-to-date selection.
     home.refresh_projects()  # type: ignore[attr-defined]
+    if request_readiness and coordinator is not None:
+        coordinator.request(
+            app,
+            lambda: refresh_goal_home(app, request_readiness=False),
+        )
 
 
 def add_new_deep_dive_action(app: DeeperDiveApp) -> None:
