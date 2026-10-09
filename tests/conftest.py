@@ -4,9 +4,22 @@ from __future__ import annotations
 
 import faulthandler
 import os
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
+
+from deeper_dive.application.service import DeeperDiveService
+from deeper_dive.composition import ProductionComposition
+from deeper_dive.episode_library_screen import EpisodeLibraryController
+from deeper_dive.generation_start import GenerationStartService
+from deeper_dive.hosts import HostProfile
+from deeper_dive.model_roles import ModelRole
+from deeper_dive.storage.workspace import WorkspaceManager
+from deeper_dive.transcript_review_screen import TranscriptReviewController
+from deeper_dive.tui import DeeperDiveApp
+from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 _SUPERSEDED_MONITOR_TESTS = {
     "test_production_monitor_runner_executes_pipeline_from_tui",
@@ -104,3 +117,103 @@ def pytest_collection_modifyitems(items: list[object]) -> None:
     items[:] = [
         item for item in items if getattr(item, "name", "") not in _SUPERSEDED_MONITOR_TESTS
     ]
+
+
+@dataclass(frozen=True, slots=True)
+class CompletedEpisodeAcceptance:
+    """Production-created identities/artifacts, suitable for CLI and TUI assertions."""
+
+    service: DeeperDiveService
+    project_id: str
+    episode_id: str
+    run_id: str
+    turn_ids: tuple[str, ...]
+    transcript_path: Path
+    audio_path: Path
+
+
+@pytest.fixture
+def completed_episode_acceptance(
+    tmp_path: Path,
+) -> Callable[[str | None], CompletedEpisodeAcceptance]:
+    """Reusable deterministic LLM/TTS -> plan -> run -> review/export fixture.
+
+    All project, source, host, episode, plan, run, turn and output records are
+    created through normal production services. No repository rows are seeded.
+    """
+    data_dir = tmp_path / "production-acceptance"
+    UserConfigStore(data_dir / "config.json").save(
+        UserConfig(
+            providers={
+                "fake": ProviderConfig(
+                    provider_type="fake", default_model="fake-v1", network_scope="local"
+                ),
+                "speech": ProviderConfig(
+                    provider_type="fake-tts",
+                    network_scope="local",
+                    voices=("voice-a", "voice-b"),
+                ),
+            },
+            defaults={
+                **{role.value: "fake:fake-v1" for role in ModelRole},
+                "speech_setup": "configured",
+                "tts_provider": "speech",
+                "tts_voice": "voice-a",
+                "tts_voice_host_1": "voice-a",
+                "tts_voice_host_2": "voice-b",
+                "quick_deep_dive_duration_minutes": "20",
+                "research_policy": "useful",
+            },
+        )
+    )
+    service = DeeperDiveService(WorkspaceManager(data_dir))
+    composition = ProductionComposition.build(service=service)
+
+    def create(project_id: str | None = None) -> CompletedEpisodeAcceptance:
+        if project_id is None:
+            project_id = service.create_project("Acceptance corpus").id
+            service.add_pasted_source(
+                project_id, "Acceptance source", "Synthetic evidence for a generated episode."
+            )
+            for number, voice in ((1, "voice-a"), (2, "voice-b")):
+                service.hosts(project_id).create_host(
+                    HostProfile(
+                        f"fixture-host-{number}",
+                        project_id,
+                        f"Fixture Host {number}",
+                        tts_provider="speech",
+                        tts_voice=voice,
+                    ).to_record()
+                )
+        episode = service.quick_deep_dive(project_id)
+        composition.configured_planning_service(project_id, "fake", "fake-v1").build_plan(
+            episode.id
+        )
+        started = GenerationStartService(composition).start(project_id, episode.id)
+        composition.run_generation(project_id, started.run.id)
+        finished = service.runs(project_id).get(started.run.id)
+        assert finished is not None and finished.state == "completed"
+
+        app = DeeperDiveApp(service)
+        app.current_project_id = project_id
+        app.current_episode_id = episode.id
+        app.current_run_id = started.run.id
+        turns = TranscriptReviewController().turns(app)
+        assert len(turns) >= 2
+        item = next(
+            row for row in EpisodeLibraryController.items(app) if row.episode.id == episode.id
+        )
+        export = EpisodeLibraryController.export(app, item)
+        assert export.audio is not None
+        assert all(path.is_file() for path in export.paths)
+        return CompletedEpisodeAcceptance(
+            service,
+            project_id,
+            episode.id,
+            started.run.id,
+            tuple(turn.id for turn in turns),
+            export.transcript,
+            export.audio,
+        )
+
+    return create

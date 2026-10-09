@@ -155,3 +155,24 @@ def test_review_and_real_exports_stay_isolated_across_two_episodes(tmp_path: Pat
         assert exported.audio.read_bytes() == audio
         assert all(path.is_file() for path in exported.paths)
     assert len(set(exported_paths)) == len(exported_paths)
+
+
+def test_shared_production_fixture_two_episode_export_identity(
+    completed_episode_acceptance,
+) -> None:
+    first = completed_episode_acceptance(None)
+    second = completed_episode_acceptance(first.project_id)
+    assert first.episode_id != second.episode_id
+    assert first.run_id != second.run_id
+    assert set(first.turn_ids).isdisjoint(second.turn_ids)
+    assert first.transcript_path != second.transcript_path
+    assert first.audio_path != second.audio_path
+    assert all(
+        path.is_file()
+        for path in (
+            first.transcript_path,
+            first.audio_path,
+            second.transcript_path,
+            second.audio_path,
+        )
+    )

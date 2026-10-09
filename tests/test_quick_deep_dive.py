@@ -271,3 +271,16 @@ def _unused_generator():
             raise AssertionError("persisted Quick Deep Dive plan should be loaded")
 
     return UnusedGenerator()
+
+
+def test_shared_completed_episode_fixture_uses_real_quick_services(
+    completed_episode_acceptance,
+) -> None:
+    completed = completed_episode_acceptance(None)
+    assert completed.project_id
+    assert completed.episode_id
+    assert completed.run_id
+    assert len(completed.turn_ids) >= 2
+    assert completed.transcript_path.is_file()
+    assert completed.audio_path.is_file()
+    assert completed.episode_id in completed.transcript_path.name
