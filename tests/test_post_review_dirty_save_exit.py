@@ -112,7 +112,6 @@ async def _new_project_valid(tmp_path: Path) -> None:
         assert any(project.name == "Dirty project" for project in projects)
 
 
-
 def test_explicit_new_project_save_resets_dirty_baseline(tmp_path: Path) -> None:
     asyncio.run(_explicit_new_project_save_resets_dirty_baseline(tmp_path))
 
