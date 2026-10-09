@@ -74,6 +74,7 @@ class WizardShell(Screen[None]):
         self.busy = False
         self.save_exit_requested = False
         self.help_requested = False
+        self._viewport_width = RECOMMENDED_TERMINAL_WIDTH
 
     @property
     def navigator(self) -> WizardNavigator:
@@ -238,6 +239,8 @@ class WizardShell(Screen[None]):
         self.query_one("#wizard-save-exit", Button).disabled = self.busy
 
     def _apply_viewport_policy(self, width: int, height: int) -> None:
+        self._viewport_width = width
+        self.query_one("#wizard-progress", Static).update(self._progress_text(self.navigator))
         too_small = width < MINIMUM_TERMINAL_WIDTH or height < MINIMUM_TERMINAL_HEIGHT
         warning = self.query_one("#wizard-resize-message", Static)
         content = self.query_one("#wizard-content", VerticalScroll)
@@ -259,10 +262,44 @@ class WizardShell(Screen[None]):
         )
 
     def _progress_text(self, navigator: WizardNavigator) -> str:
-        return "  ".join(
-            f"{item.text_marker} {item.label} ({item.visual_state.value})"
-            for item in navigator.progress()
+        """Keep the progress rail on one line, including at 80 columns.
+
+        Prior/current/next context is included only when it fits the viewport.
+        Full step completion remains available from the derived navigator.
+        """
+        progress = navigator.progress()
+        index = navigator.current_index
+        current = progress[index]
+        prefix = f"{index + 1}/{len(progress)}"
+        current_label = (
+            f"{current.text_marker} {current.label} ({current.visual_state.value})"
         )
+        complete = sum(item.visual_state.value == "complete" for item in progress)
+        needs_attention = sum(
+            item.visual_state.value == "needs-attention" for item in progress
+        )
+        summary = f"✓ {complete} done"
+        if needs_attention:
+            summary += f", ! {needs_attention} need attention"
+        result = f"{prefix} | {current_label} | {summary}"
+        budget = max(30, self._viewport_width - 4)
+        if index:
+            previous = progress[index - 1]
+            candidate = (
+                f"{prefix} | {previous.text_marker} {previous.label} "
+                f"({previous.visual_state.value}) | {current_label} | {summary}"
+            )
+            if len(candidate) <= budget:
+                result = candidate
+        if index + 1 < len(progress):
+            following = progress[index + 1]
+            suffix = (
+                f" | {following.text_marker} {following.label} "
+                f"({following.visual_state.value})"
+            )
+            if len(result) + len(suffix) <= budget:
+                result += suffix
+        return result
 
     def _status_text(self, step_key: str) -> str:
         if self.status_provider is not None:
