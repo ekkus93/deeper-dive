@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
 from deeper_dive.llm import LLMProvider, LLMProviderRegistry
@@ -104,6 +104,7 @@ class ProviderController:
         network_scope: str | None = None,
         response_format: str = "wav",
         voices: tuple[str, ...] = (),
+        default_updates: Mapping[str, str] | None = None,
     ) -> None:
         kind = provider_type.strip().lower().replace("_", "-")
         if self.capability(kind) == "unknown":
@@ -122,6 +123,15 @@ class ProviderController:
             response_format=response_format,
             voices=voices,
         )
+        for key, value in (default_updates or {}).items():
+            name_key = key.strip()
+            if not name_key:
+                raise ValueError("settings key is required")
+            normalized = value.strip()
+            if normalized:
+                candidate.defaults[name_key] = normalized
+            else:
+                candidate.defaults.pop(name_key, None)
         self._commit_candidate(candidate)
 
     def remove_provider(self, name: str) -> None:

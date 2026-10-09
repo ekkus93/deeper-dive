@@ -459,9 +459,11 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
                 credential_env=self._optional_input("#setup-speech-credential-env"),
                 network_scope=self._optional_input("#setup-speech-network"),
                 voices=voices,
-            )
-            self.settings.set_defaults(
-                {"speech_setup": "configured", "tts_provider": name, "tts_voice": ""}
+                default_updates={
+                    "speech_setup": "configured",
+                    "tts_provider": name,
+                    "tts_voice": "",
+                },
             )
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
             self.set_error("Speech configuration failed.", exc)
