@@ -299,6 +299,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         self._llm_provider_name = name
         self._model_test_identity = None
         self._sync_text()
+        self._remember_current_form()
         self.set_status(f"Saved provider {name}. Test the production connection to continue.")
 
     def action_test_provider(self) -> None:
@@ -419,6 +420,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             }[role]
             self.query_one(selector, Input).value = identity
         self._sync_text()
+        self._remember_current_form()
         self.set_status("Saved recommended production model-role assignments.")
 
     def action_save_speech(self) -> None:
@@ -429,6 +431,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             )
             self._tts_provider_name = None
             self._sync_text()
+            self._remember_current_form()
             self.set_status("Speech intentionally deferred. Audio generation will remain blocked.")
             return
 
@@ -465,6 +468,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             return
         self._tts_provider_name = name
         self._sync_text()
+        self._remember_current_form()
         self.set_status(f"Saved speech provider {name}. Discover and choose voices next.")
 
     def action_discover_voices(self) -> None:
@@ -539,6 +543,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             self.set_error("Default save failed.", exc)
             return
         self._sync_text()
+        self._remember_current_form()
         self.set_status("Saved voice, duration, and research defaults.")
 
     def action_ready_new(self) -> None:

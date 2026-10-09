@@ -271,7 +271,11 @@ async def _first_run_save_exit_resumes_durable_partial_provider_setup(tmp_path: 
         screen.query_one("#setup-provider-model", Input).value = "fake-v1"
         screen.query_one("#setup-provider-network", Input).value = "local"
         await pilot.pause()
+        assert screen._current_form_dirty()
         screen.action_save_provider()
+        # A successful durable save makes the current form clean, whereas
+        # subsequent unsaved edits must still require an explicit decision.
+        assert not screen._current_form_dirty()
         screen.action_save_exit()
         await pilot.pause()
         assert app.screen.id == "screen-home"
