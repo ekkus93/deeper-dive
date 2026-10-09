@@ -11,8 +11,8 @@ from textual.pilot import Pilot
 from textual.widgets import Button, Input, Select, Static
 
 from deeper_dive import cli as cli_module
-from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.application.service import DeeperDiveService
+from deeper_dive.audio_timeline import AudioTimelineRepository
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.episode_library_screen import EpisodeLibraryController
 from deeper_dive.generation_start import GenerationStartService
