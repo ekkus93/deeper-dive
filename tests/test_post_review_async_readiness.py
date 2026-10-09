@@ -99,6 +99,32 @@ def test_duplicate_refreshes_coalesce_while_slow_probe_is_pending() -> None:
     assert calls == 1
 
 
+
+def test_coalesced_refresh_delivers_every_waiting_callback() -> None:
+    started = Event()
+    release = Event()
+    callbacks: list[str] = []
+
+    def probe() -> FirstRunRuntimeSnapshot:
+        started.set()
+        assert release.wait(1)
+        return _snapshot(setup_ready=True)
+
+    coordinator = FirstRunReadinessCoordinator(
+        _context(),
+        probe=probe,
+        fingerprint=lambda: "same",
+        timeout_seconds=1,
+    )
+    app = _ImmediateApp()
+    assert coordinator.request(app, lambda: callbacks.append("setup"))
+    assert started.wait(1)
+    assert not coordinator.request(app, lambda: callbacks.append("home"))
+    release.set()
+    _wait(lambda: coordinator.view.state == "ready")
+    assert callbacks == ["setup", "home"]
+
+
 def test_newer_configuration_wins_over_stale_slow_result() -> None:
     first_started = Event()
     first_release = Event()

@@ -79,6 +79,7 @@ class FirstRunReadinessCoordinator:
         self.timeout_seconds = timeout_seconds
         self._lock = Lock()
         self._view = FirstRunReadinessView("idle", 0, None)
+        self._callbacks: list[Callable[[], object]] = []
 
     @property
     def view(self) -> FirstRunReadinessView:
@@ -127,21 +128,24 @@ class FirstRunReadinessCoordinator:
         fingerprint = self._fingerprint_provider()
         with self._lock:
             if self._view.state == "checking" and self._view.fingerprint == fingerprint:
+                if callback is not None:
+                    self._callbacks.append(callback)
                 return False
             generation = self._view.generation + 1
             self._view = FirstRunReadinessView("checking", generation, fingerprint)
+            self._callbacks = [callback] if callback is not None else []
 
         timer = Timer(
             self.timeout_seconds,
             self._dispatch_timeout,
-            args=(app, generation, fingerprint, callback),
+            args=(app, generation, fingerprint),
         )
         timer.daemon = True
         timer.start()
 
         worker = Thread(
             target=self._run_probe,
-            args=(app, generation, fingerprint, callback),
+            args=(app, generation, fingerprint),
             name=f"deeper-dive-readiness-{generation}",
             daemon=True,
         )
@@ -153,7 +157,6 @@ class FirstRunReadinessCoordinator:
         app: ThreadDispatchApp,
         generation: int,
         fingerprint: str,
-        callback: Callable[[], object] | None,
     ) -> None:
         try:
             snapshot = self._probe()
@@ -168,7 +171,6 @@ class FirstRunReadinessCoordinator:
             fingerprint,
             snapshot,
             message,
-            callback,
         )
 
     def _dispatch_timeout(
@@ -176,9 +178,8 @@ class FirstRunReadinessCoordinator:
         app: ThreadDispatchApp,
         generation: int,
         fingerprint: str,
-        callback: Callable[[], object] | None,
     ) -> None:
-        self._dispatch(app, self._timeout, generation, fingerprint, callback)
+        self._dispatch(app, self._timeout, generation, fingerprint)
 
     @staticmethod
     def _dispatch(
@@ -196,7 +197,6 @@ class FirstRunReadinessCoordinator:
         fingerprint: str,
         snapshot: FirstRunRuntimeSnapshot | None,
         message: str | None,
-        callback: Callable[[], object] | None,
     ) -> None:
         with self._lock:
             if (
@@ -219,14 +219,15 @@ class FirstRunReadinessCoordinator:
                     fingerprint,
                     snapshot=snapshot,
                 )
-        if callback is not None:
+            callbacks = tuple(self._callbacks)
+            self._callbacks.clear()
+        for callback in callbacks:
             callback()
 
     def _timeout(
         self,
         generation: int,
         fingerprint: str,
-        callback: Callable[[], object] | None,
     ) -> None:
         message = "Provider readiness check timed out."
         message += " Review provider connectivity and retry."
@@ -239,7 +240,9 @@ class FirstRunReadinessCoordinator:
                 fingerprint,
                 message=message,
             )
-        if callback is not None:
+            callbacks = tuple(self._callbacks)
+            self._callbacks.clear()
+        for callback in callbacks:
             callback()
 
     def _probe_runtime(self) -> FirstRunRuntimeSnapshot:
