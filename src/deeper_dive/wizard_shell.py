@@ -11,7 +11,7 @@ from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widget import Widget
-from textual.widgets import Button, Footer, Header, Label, Select, Static
+from textual.widgets import Button, Footer, Header, Input, Label, Select, Static
 
 from deeper_dive.diagnostics import redact, sanitize_exception_message
 from deeper_dive.guided_draft import GuidedDraftStore
@@ -19,6 +19,7 @@ from deeper_dive.guided_workflow import (
     CompletionProbe,
     SetupMode,
     WizardContext,
+    WizardKind,
     WizardNavigator,
     WizardStep,
     WizardTransitionBlocked,
@@ -29,6 +30,50 @@ MINIMUM_TERMINAL_WIDTH = 80
 MINIMUM_TERMINAL_HEIGHT = 24
 RECOMMENDED_TERMINAL_WIDTH = 100
 RECOMMENDED_TERMINAL_HEIGHT = 30
+
+# Only editable business-form controls participate in dirty detection. Navigation
+# pickers, action buttons, and generated status text are intentionally excluded.
+_FORM_FIELDS: dict[tuple[WizardKind, str], tuple[str, ...]] = {
+    (WizardKind.FIRST_RUN, "provider-config"): (
+        "setup-provider-name", "setup-provider-adapter", "setup-provider-base-url",
+        "setup-provider-model", "setup-provider-credential-env", "setup-provider-network",
+    ),
+    (WizardKind.FIRST_RUN, "model-test"): (
+        "setup-role-episode-planning", "setup-role-host-generation",
+        "setup-role-directing", "setup-role-verification",
+    ),
+    (WizardKind.FIRST_RUN, "speech"): (
+        "setup-speech-choice", "setup-speech-name", "setup-speech-adapter",
+        "setup-speech-base-url", "setup-speech-model",
+        "setup-speech-credential-env", "setup-speech-network", "setup-speech-voices",
+    ),
+    (WizardKind.FIRST_RUN, "voice-defaults"): (
+        "setup-host1-voice", "setup-host2-voice",
+        "setup-duration", "setup-research-default",
+    ),
+    (WizardKind.NEW_DEEP_DIVE, "project"): (
+        "guided-project-name", "guided-project-topic", "guided-project-audience",
+        "guided-project-description",
+    ),
+    (WizardKind.NEW_DEEP_DIVE, "sources"): (
+        "guided-source-title", "guided-source-text",
+        "guided-source-paths", "guided-source-urls",
+    ),
+    (WizardKind.NEW_DEEP_DIVE, "research"): ("guided-research-policy",),
+    (WizardKind.NEW_DEEP_DIVE, "hosts"): (
+        "guided-host-name", "guided-host-role", "guided-host-expertise",
+        "guided-host-instructions",
+    ),
+    (WizardKind.NEW_DEEP_DIVE, "episode"): (
+        "guided-episode-title", "guided-episode-focus",
+        "guided-episode-duration", "guided-episode-custom-duration",
+        "guided-episode-audience", "guided-episode-depth",
+        "guided-episode-must-cover", "guided-episode-avoid",
+    ),
+    (WizardKind.NEW_DEEP_DIVE, "plan"): (
+        "guided-plan-title", "guided-plan-purpose", "guided-plan-duration",
+    ),
+}
 
 
 class WizardShell(Screen[None]):
@@ -53,6 +98,7 @@ class WizardShell(Screen[None]):
     #wizard-status { padding: 0 1; margin-top: 1; }
     #wizard-actions { height: auto; padding: 0 1; }
     #wizard-actions Button { min-width: 12; margin-right: 1; }
+    #wizard-exit-confirmation { display: none; height: auto; padding: 0 1; }
     #wizard-resize-message { display: none; padding: 1; text-style: bold; }
     """
 
@@ -75,6 +121,9 @@ class WizardShell(Screen[None]):
         self.save_exit_requested = False
         self.help_requested = False
         self._error_details: str | None = None
+        self._exit_confirmation_pending = False
+        self._last_form_status = ""
+        self._form_baselines: dict[str, tuple[tuple[str, str], ...]] = {}
         self._viewport_width = RECOMMENDED_TERMINAL_WIDTH
 
     @property
@@ -106,6 +155,17 @@ class WizardShell(Screen[None]):
             yield Button("Continue", id="wizard-continue", name="continue", variant="primary")
             yield Button("Save and Exit", id="wizard-save-exit", name="save-exit")
             yield Button("Help", id="wizard-help", name="help")
+        with Horizontal(id="wizard-exit-confirmation"):
+            yield Button(
+                "Save changes and exit", id="wizard-confirm-save", name="confirm-save"
+            )
+            yield Button(
+                "Exit without changes", id="wizard-confirm-discard", name="confirm-discard"
+            )
+            yield Button(
+                "Continue editing", id="wizard-confirm-cancel",
+                name="confirm-cancel", variant="primary"
+            )
         yield Footer()
 
     def on_mount(self) -> None:
@@ -118,6 +178,7 @@ class WizardShell(Screen[None]):
         else:
             self._sync_actions()
         self._apply_viewport_policy(self.app.size.width, self.app.size.height)
+        self._schedule_form_baseline()
 
     def on_resize(self, event: events.Resize) -> None:
         self._apply_viewport_policy(event.size.width, event.size.height)
@@ -148,6 +209,12 @@ class WizardShell(Screen[None]):
             self.action_save_exit()
         elif action == "help":
             self.action_help()
+        elif action == "confirm-save":
+            self.action_confirm_save_exit()
+        elif action == "confirm-discard":
+            self.action_confirm_discard_exit()
+        elif action == "confirm-cancel":
+            self.action_cancel_exit_confirmation()
 
     def step_content(self, step_key: str) -> str:
         """Return concrete workflow content; subclasses replace this per step."""
@@ -169,6 +236,7 @@ class WizardShell(Screen[None]):
             return
         self.context.state = self.navigator.back()
         self._sync_text()
+        self._schedule_form_baseline()
 
     def action_continue(self) -> None:
         if self.busy:
@@ -184,19 +252,100 @@ class WizardShell(Screen[None]):
             self.set_status(self.blocker_message(exc.step_key))
             return
         self._sync_text()
+        self._schedule_form_baseline()
+
+    def _editable_snapshot(self) -> tuple[tuple[str, str], ...]:
+        keys = _FORM_FIELDS.get((self.context.state.kind, self.context.state.current_step), ())
+        values: list[tuple[str, str]] = []
+        for key in keys:
+            widget = self.query_one(f"#{key}")
+            if isinstance(widget, (Input, Select)):
+                values.append((key, str(widget.value)))
+        return tuple(values)
+
+    def _schedule_form_baseline(self) -> None:
+        self.call_after_refresh(self._remember_current_form)
+
+    def _remember_current_form(self) -> None:
+        self._form_baselines[self.context.state.current_step] = self._editable_snapshot()
+
+    def _current_form_dirty(self) -> bool:
+        snapshot = self._editable_snapshot()
+        baseline = self._form_baselines.get(self.context.state.current_step)
+        if baseline is None:
+            # Fail closed before the first post-mount snapshot can be captured.
+            return bool(snapshot)
+        return snapshot != baseline
 
     def action_save_exit(self) -> None:
         if self.busy:
             return
+        if self._exit_confirmation_pending:
+            self.action_cancel_exit_confirmation()
+            return
+        if self._current_form_dirty():
+            self._exit_confirmation_pending = True
+            self._sync_exit_confirmation()
+            self.set_status(
+                "Unsaved changes. Save changes and exit, explicitly discard, "
+                "or continue editing."
+            )
+            self.query_one("#wizard-confirm-cancel", Button).focus()
+            return
+        self._checkpoint_and_exit()
+
+    def _checkpoint_and_exit(self) -> None:
         store = GuidedDraftStore(self.context.composition.service.workspaces.data_dir)
         try:
             store.save(self.context)
         except (OSError, ValueError) as exc:
             self.set_status("Could not save wizard progress: " + sanitize_exception_message(exc))
             return
+        self._exit_confirmation_pending = False
+        self._sync_exit_confirmation()
         self.save_exit_requested = True
         self.set_status("Progress checkpoint saved; safe to resume from this checkpoint.")
         self.on_save_exit()
+
+    def _save_dirty_step(self) -> bool:
+        """Subclasses delegate to their existing production-backed save action."""
+        self.set_status("Save this step using its production Save action before exiting.")
+        return False
+
+    def action_confirm_save_exit(self) -> None:
+        if not self._exit_confirmation_pending or self.busy:
+            return
+        self._exit_confirmation_pending = False
+        self._sync_exit_confirmation()
+        try:
+            saved = self._save_dirty_step()
+        except (OSError, KeyError, RuntimeError, ValueError) as exc:
+            self.set_error("Could not save changes.", exc)
+            return
+        if not saved:
+            return
+        self._remember_current_form()
+        self._checkpoint_and_exit()
+
+    def action_confirm_discard_exit(self) -> None:
+        if not self._exit_confirmation_pending or self.busy:
+            return
+        self._exit_confirmation_pending = False
+        self._sync_exit_confirmation()
+        self._checkpoint_and_exit()
+
+    def action_cancel_exit_confirmation(self) -> None:
+        if not self._exit_confirmation_pending:
+            return
+        self._exit_confirmation_pending = False
+        self._sync_exit_confirmation()
+        self.set_status("Continuing to edit; unsaved changes are still present.")
+
+    def _sync_exit_confirmation(self) -> None:
+        self.query_one("#wizard-exit-confirmation", Horizontal).display = (
+            self._exit_confirmation_pending
+        )
+        self.query_one("#wizard-save-exit", Button).disabled = self._exit_confirmation_pending
 
     def action_help(self) -> None:
         self.help_requested = True
@@ -226,6 +375,7 @@ class WizardShell(Screen[None]):
         self._error_details = sanitize_exception_message(exc)
 
     def set_status(self, message: str) -> None:
+        self._last_form_status = message
         self._error_details = None
         self.query_one("#wizard-status", Static).update(str(redact(message)))
 
@@ -247,7 +397,12 @@ class WizardShell(Screen[None]):
         self.query_one("#wizard-continue", Button).disabled = (
             self.busy or not navigator.can_continue
         )
-        self.query_one("#wizard-save-exit", Button).disabled = self.busy
+        self.query_one("#wizard-save-exit", Button).disabled = (
+            self.busy or self._exit_confirmation_pending
+        )
+        self.query_one("#wizard-exit-confirmation", Horizontal).display = (
+            self._exit_confirmation_pending
+        )
 
     def _apply_viewport_policy(self, width: int, height: int) -> None:
         self._viewport_width = width

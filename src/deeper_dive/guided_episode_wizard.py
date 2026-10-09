@@ -35,6 +35,46 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         self._preflight: PreflightReport | None = None
         self._episode_advanced = False
 
+    def _save_dirty_step(self) -> bool:
+        step = self.context.state.current_step
+        self._last_form_status = ""
+        if step == "project":
+            self.action_create_project()
+            return self._last_form_status.startswith("Created project ")
+        if step == "sources":
+            actions: tuple[tuple[str, str], ...] = (
+                ("#guided-source-text", "action_add_pasted_source"),
+                ("#guided-source-paths", "action_add_file_sources"),
+                ("#guided-source-urls", "action_add_url_sources"),
+            )
+            invoked = False
+            for selector, name in actions:
+                if self.query_one(selector, Input).value.strip():
+                    invoked = True
+                    getattr(self, name)()
+                    if not self._last_form_status.startswith("Imported "):
+                        return False
+            if not invoked and self.query_one("#guided-source-title", Input).value.strip():
+                self.action_add_pasted_source()
+                return False
+            return invoked
+        if step == "research":
+            self.action_save_research()
+            return self._last_form_status.startswith("Saved research choice:")
+        if step == "hosts":
+            if self._selected_host_record() is None:
+                self.action_create_host()
+                return self._last_form_status.startswith("Created host ")
+            self.action_save_host()
+            return self._last_form_status.startswith("Saved host ")
+        if step == "episode":
+            self.action_save_episode()
+            return self._last_form_status.startswith("Saved episode settings ")
+        if step == "plan":
+            self.action_save_plan_segment()
+            return self._last_form_status.startswith("Saved the selected segment ")
+        return super()._save_dirty_step()
+
     def step_controls(self) -> tuple[Widget, ...]:
         return (
             *super().step_controls(),

@@ -43,6 +43,25 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         self._model_options: tuple[tuple[str, str], ...] = ()
         self._voice_options: tuple[tuple[str, str], ...] = ()
 
+    def _save_dirty_step(self) -> bool:
+        step = self.context.state.current_step
+        self._last_form_status = ""
+        if step == "provider-config":
+            self.action_save_provider()
+            return self._last_form_status.startswith("Saved provider ")
+        if step == "model-test":
+            self.action_save_roles()
+            return self._last_form_status.startswith("Saved recommended production")
+        if step == "speech":
+            self.action_save_speech()
+            return self._last_form_status.startswith(
+                ("Saved speech provider ", "Speech intentionally deferred.")
+            )
+        if step == "voice-defaults":
+            self.action_save_defaults()
+            return self._last_form_status.startswith("Saved voice, duration, and research")
+        return super()._save_dirty_step()
+
     @property
     def settings(self) -> SettingsController:
         return SettingsController(self.context.composition.provider_controller)
