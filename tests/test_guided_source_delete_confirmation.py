@@ -21,9 +21,7 @@ def test_guided_source_delete_confirmation_resets_on_navigation_and_selection(
     asyncio.run(_verify_delete_confirmation(tmp_path, size))
 
 
-async def _verify_delete_confirmation(
-    tmp_path: Path, size: tuple[int, int]
-) -> None:
+async def _verify_delete_confirmation(tmp_path: Path, size: tuple[int, int]) -> None:
     service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
     app = GuidedDeeperDiveApp(service)
     async with app.run_test(size=size) as pilot:
