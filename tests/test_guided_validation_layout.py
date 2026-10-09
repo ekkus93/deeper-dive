@@ -100,7 +100,9 @@ async def _project_creation_runtime_failure_is_sanitized_and_retryable(
             screen.action_create_project()
         status = str(screen.query_one("#wizard-status", Static).render())
         assert "Project creation failed" in status
-        assert "[REDACTED]" in status
+        assert "Press F1 for details" in status
+        screen.action_help()
+        assert "[REDACTED]" in str(screen.query_one("#wizard-status", Static).render())
         assert "project-secret-canary" not in status
         assert "project-bearer-canary" not in status
         assert screen.context.project_id is None

@@ -3,7 +3,6 @@
 from textual.widget import Widget
 from textual.widgets import Button, Input, Select, Static
 
-from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.wizard_shell import NewDeepDiveWizardShell
 
 
@@ -83,7 +82,7 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
                 instructions=instructions,
             )
         except (OSError, KeyError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Project creation failed: {sanitize_exception_message(exc)}")
+            self.set_error("Project creation failed.", exc)
             return
         self.query_one("#guided-project-validation", Static).update("")
         for field in ("name", "topic", "audience"):
