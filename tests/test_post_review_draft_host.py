@@ -36,8 +36,11 @@ def test_checkpoint_clear_does_not_follow_symlink(tmp_path: Path) -> None:
 
 def test_edit_host_form_can_clear_optional_role_and_instructions() -> None:
     host = HostProfile(
-        id="h", project_id="p", display_name="Existing",
-        role="Host role", instructions="Old instructions",
+        id="h",
+        project_id="p",
+        display_name="Existing",
+        role="Host role",
+        instructions="Old instructions",
     )
     values = {
         "#guided-host-name": "Existing",
@@ -60,8 +63,11 @@ def test_edit_host_form_can_clear_optional_role_and_instructions() -> None:
 
 def test_create_host_form_keeps_preset_text_when_controls_blank() -> None:
     host = HostProfile(
-        id="h", project_id="p", display_name="Existing",
-        role="Preset role", instructions="Preset instructions",
+        id="h",
+        project_id="p",
+        display_name="Existing",
+        role="Preset role",
+        instructions="Preset instructions",
     )
     values = {
         "#guided-host-name": "",
