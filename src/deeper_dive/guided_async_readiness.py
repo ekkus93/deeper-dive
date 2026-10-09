@@ -79,7 +79,6 @@ class FirstRunReadinessCoordinator:
         self.timeout_seconds = timeout_seconds
         self._lock = Lock()
         self._view = FirstRunReadinessView("idle", 0, None)
-        self._callbacks: dict[int, list[Callable[[], object]]] = {}
         self._callbacks: list[Callable[[], object]] = []
 
     @property
