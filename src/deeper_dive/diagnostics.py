@@ -28,7 +28,7 @@ _AUTH_FIELD = re.compile(
     r"(?i)(\bauthorization\s*[:=]\s*)"
     # Opaque non-Digest credentials may include commas. Stop only at an
     # explicitly separated next diagnostic field, not every comma.
-    r"(?:(?!\s+[A-Za-z_][\w.-]*\s*[:=]|\s+https?://"
+    r"(?:(?:\[REDACTED\])|(?!\s+[A-Za-z_][\w.-]*\s*[:=]|\s+https?://"
     r"|,\s+['\"]?[A-Za-z_][\w.-]*['\"]?\s*[:=]|[;}\]\r\n]).)+"
 )
 _BEARER = re.compile(r"(?i)bearer\s+[A-Za-z0-9._~+/=-]+")
