@@ -9,6 +9,7 @@ from textual import events
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
+from textual.css.query import NoMatches
 from textual.screen import Screen
 from textual.widget import Widget
 from textual.widgets import Button, Footer, Header, Input, Label, Select, Static
@@ -285,7 +286,11 @@ class WizardShell(Screen[None]):
         keys = _FORM_FIELDS.get((self.context.state.kind, self.context.state.current_step), ())
         values: list[tuple[str, str]] = []
         for key in keys:
-            widget = self.query_one(f"#{key}")
+            try:
+                widget = self.query_one(f"#{key}")
+            except NoMatches:
+                # The abstract shared shell does not mount concrete wizard fields.
+                continue
             if isinstance(widget, (Input, Select)):
                 values.append((key, str(widget.value)))
         return tuple(values)
