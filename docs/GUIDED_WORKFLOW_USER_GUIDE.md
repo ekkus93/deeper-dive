@@ -52,12 +52,14 @@ For the seven-step **New Deep Dive** workflow:
 1. **Project Setup** — enter a project name, main curiosity/question, and
    audience. Creating the project writes to the normal project service.
 2. **Sources** — import pasted text, local files/folders, or explicitly selected
-   URLs. Included, indexed sources are required to satisfy the source step.
+   URLs. URL import contacts the external host; pasted text and local files
+   do not require network access. Included, indexed sources are required.
 3. **Research** — select *Use only my sources*, *Fill important gaps*, or
    *Research extensively*. The last two can involve external network access
    subject to configured policy.
 4. **Hosts** — create/reuse host profiles, choose one or more, and save their
-   ordering for the episode. Preview a voice only when speech is configured.
+   ordering for the episode. Preview a voice only when speech is configured;
+   cloud TTS previews can contact an external provider.
 5. **Episode Settings** — title, focus, audience, and duration presets;
    advanced fields include technical depth and must-cover/avoid constraints.
 6. **Review & Plan** — build a persisted plan with the normal planning
@@ -105,12 +107,12 @@ outside the scrolling content region at 100×30 and 80×24.
 
 ```text
 New Deep Dive — Step 6 of 7: Review & Plan
-[complete] Project  [complete] Sources  ...  [current] Review & Plan
+6/7 | ▶ Review & Plan (current) | ✓ 5 done
 
-  Episode plan
+  Episode plan (scrollable)
   1. Opening — purpose and duration
   2. Evidence — purpose and duration
-  [scrollable plan/editor content]
+  [scrollable segment editor; inline validation appears by its field]
 
 Status: Review the plan, then Continue.
 [ Back ]  [ Continue ]  [ Save and Exit ]  [ Help ]

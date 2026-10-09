@@ -246,21 +246,21 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 - [x] Preserve typed input after validation failure.
 - [x] Use inline validation for local field errors.
 - [x] Use screen-level blockers for workflow errors.
-- [ ] Put technical detail behind an explicit details/help action.
-- [ ] Never show raw tracebacks in the normal wizard path.
-- [ ] Apply canonical recursive sanitization to all provider/runtime/user-visible errors.
-- [ ] Preserve credential-reference and non-persistence rules.
-- [ ] Disclose cloud/network behavior before networked actions.
+- [x] Put technical detail behind an explicit details/help action.
+- [x] Never show raw tracebacks in the normal wizard path.
+- [x] Apply canonical recursive sanitization to all provider/runtime/user-visible errors.
+- [x] Preserve credential-reference and non-persistence rules.
+- [x] Disclose cloud/network behavior before networked actions.
 - [x] Use synthetic minimal prompts for setup tests rather than private user source material.
 - [x] Visible focus meets keyboard-only requirements.
 - [x] Completion/current/error state is not color-only.
 - [x] Primary action placement and Back semantics remain consistent.
-- [ ] No normal screen requires a raw internal ID as the primary user input.
-- [ ] Destructive actions require confirmation.
+- [x] No normal screen requires a raw internal ID as the primary user input.
+- [x] Destructive actions require confirmation.
 - [x] 100x30 recommended layout passes.
 - [x] 80x24 compact layout passes without primary horizontal scrolling.
 - [x] Below-minimum viewport shows a clear resize message while preserving state.
-- [ ] Add accessibility/focus/layout regression matrix.
+- [x] Add accessibility/focus/layout regression matrix.
 
 ## GW-260 — Shared acceptance fixture and end-to-end guided workflow
 
@@ -286,15 +286,15 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 
 - [x] Existing provider configuration still loads.
 - [x] Existing projects and sources still open.
-- [ ] Existing hosts still open.
-- [ ] Existing episode configs/plans/runs/turns/provider identities still open.
+- [x] Existing hosts still open.
+- [x] Existing episode configs/plans/runs/turns/provider identities still open.
 - [x] Existing timelines/audio/exports still open.
-- [ ] Existing Transcript Review and targeted repair remain usable.
+- [x] Existing Transcript Review and targeted repair remain usable.
 - [x] Existing advanced Sources/Research/Hosts/Providers/Settings screens remain usable.
-- [ ] Existing CLI acceptance remains green.
-- [ ] Existing production-generation remediation suites remain green.
-- [ ] No migration is introduced unless required by a documented compatibility case.
-- [ ] If a migration is required, prove idempotence, failure safety, and rollback/read compatibility.
+- [x] Existing CLI acceptance remains green.
+- [x] Existing production-generation remediation suites remain green.
+- [x] No migration is introduced unless required by a documented compatibility case.
+- [x] If a migration is required, prove idempotence, failure safety, and rollback/read compatibility.
 
 ## GW-280 — Documentation
 
@@ -309,7 +309,7 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 - [x] Document Save/Exit/resume behavior.
 - [x] Document common setup/preflight blockers and recovery.
 - [x] Document that wizard flows reuse the same production services as CLI and advanced TUI.
-- [ ] Update screenshots/ASCII examples only after final Textual layout stabilizes.
+- [x] Update screenshots/ASCII examples only after final Textual layout stabilizes.
 
 ## GW-290 — Qualification and closeout
 
@@ -345,6 +345,11 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 Populate only as work is completed. Do not pre-check or use placeholders as completion evidence.
 
 - Implementation SHAs:
+  - f58b024b39bfc531ef1d5a3fd9f954b54559ead8 — real generated-turn targeted repair through restarted guided Library/Review and production repair + regenerated audio; exact-head CI 37913595718 passed.
+  - e956b8c2e62abc5e152b2cc205f5355c94459dc0, c2171aef3b6dfd30e818718dd8365c5814140e19 — shared Help/redaction/focus/80x24 + 100x30 test matrix and host failure F1-only handlers; exact-head CI 37914520588 passed.
+  - 321f2afcd944b8597521335685e30b06379a72c5 — URL and cloud TTS preview network disclosures and matrix assertions; exact-head CI 37914699940 passed.
+  - 68d72962a401d4f75a69d6351f1a037d6a63ca8e — two restarted episodes preserve host/plan/provider IDs and durable turn/artifact isolation in tests/test_guided_persisted_identity.py; exact-head CI 37909541640 passed.
+  - Migration compatibility audit: compare 37f7cd453fc333974934703e4f1a3b8ae7d48006 (spec baseline) through 321f2afcd944b8597521335685e30b06379a72c5 enumerated 63 changed files, zero schema/storage/migration files; migration-specific rollback is not applicable because no migration was introduced.
   - 3169e296eb5d91276d4445a0902fa1a7d0b70fb6, de02c3ca5ca89b2c8ab1579998f23bb7c2481ddf, 211fcf57fe77180cc25cfa1d5c247342fa076a4a, 72b886638a22963366c8fff7211daeaa37a3bc38 — reused `completed_episode_acceptance` production fixture in `tests/test_guided_persisted_compatibility.py::test_guided_tui_reopens_completed_legacy_artifacts_and_advanced_routes`; fresh-service persisted provider/source/project, timeline/audio/export, selected episode review/export and advanced-screen compatibility; exact-head master CI 37907649199 passed at 324f08c72612f8641145b8d909a4bb00bd5150c8 (quality and fresh-machine).
   - c1b48250404349b2f6dc461cdfec345cda43f039 — GW-250 focus, inline validation, screen blockers, sanitized runtime failure and terminal layout tests; exact-head CI 37904031350 passed (quality and fresh-machine).
 
@@ -413,6 +418,11 @@ Populate only as work is completed. Do not pre-check or use placeholders as comp
   - tests/test_episode_library_export.py::test_review_and_real_exports_stay_isolated_across_two_episodes
   - tests/test_guided_episode_wizard.py::test_guided_and_quick_runs_produce_isolated_durable_artifacts
 - Compatibility tests:
+  - tests/test_guided_persisted_compatibility.py::test_guided_tui_reopens_completed_legacy_artifacts_and_advanced_routes
+  - tests/test_guided_persisted_identity.py::test_restarted_guided_runtime_preserves_host_plan_and_provider_identity
+  - tests/test_guided_targeted_repair_compatibility.py::test_restarted_guided_library_repairs_generated_turn_through_production
+  - tests/test_guided_help_security_matrix.py::test_guided_error_details_are_keyboard_accessible_and_redacted (2 wizards x 2 terminal sizes)
+  - tests/test_guided_help_security_matrix.py::test_guided_host_failure_details_are_help_only
 - Final master SHA:
 - Final exact-head CI run:
 - Quality job:
@@ -422,3 +432,4 @@ Populate only as work is completed. Do not pre-check or use placeholders as comp
 - Mandatory KittenTTS result:
   - 37844246239 fresh-machine: real KittenTTS Micro CPU smoke passed.
 - Compatibility/migration decision:
+  - No guided-workflow schema/storage migration introduced relative to the 2026-10-08 specification baseline; idempotence/rollback migration gates are not applicable. Existing durable project/provider/episode/turn/TTS/timeline/export identities are protected by restarted production acceptance.
