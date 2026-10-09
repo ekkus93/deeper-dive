@@ -188,9 +188,7 @@ def test_ready_setup_invalidated_provider_marks_prerequisite_needs_attention(
         "ready",
     ),
 )
-def test_ready_first_run_restores_each_wizard_checkpoint(
-    tmp_path: Path, step: str
-) -> None:
+def test_ready_first_run_restores_each_wizard_checkpoint(tmp_path: Path, step: str) -> None:
     """A saved position stays valid across a fresh process when production is ready."""
     composition, drafts = _setup(tmp_path)
     controller = composition.provider_controller
