@@ -216,6 +216,8 @@ class FirstRunReadinessCoordinator:
         fingerprint: str,
         callback: Callable[[], object] | None,
     ) -> None:
+        message = "Provider readiness check timed out."
+        message += " Review provider connectivity and retry."
         with self._lock:
             if self._view.generation != generation or self._view.state != "checking":
                 return
@@ -223,10 +225,7 @@ class FirstRunReadinessCoordinator:
                 "failed",
                 generation,
                 fingerprint,
-                message=(
-                    "Provider readiness check timed out. "
-                    "Review provider connectivity and retry."
-                ),
+                message=message,
             )
         if callback is not None:
             callback()
