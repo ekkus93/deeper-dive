@@ -214,3 +214,24 @@ def test_ready_first_run_restores_each_wizard_checkpoint(tmp_path: Path, step: s
     resumed = drafts.load(fresh, WizardKind.FIRST_RUN)
     assert resumed is not None
     assert resumed.state.current_step == step
+
+def test_resume_requires_recoverable_incomplete_work_after_restart(tmp_path: Path) -> None:
+    composition, drafts = _setup(tmp_path)
+    drafts.data_dir.mkdir(parents=True, exist_ok=True)
+    path = drafts.data_dir / "guided-new-deep-dive-draft.json"
+    path.write_text("{}", encoding="utf-8")
+    assert not drafts.has_resume(composition)
+
+    project = composition.service.create_project("Incomplete")
+    drafts.save(
+        WizardContext(
+            composition,
+            WizardState(WizardKind.NEW_DEEP_DIVE, "sources"),
+            project_id=project.id,
+        )
+    )
+    reloaded, store = _setup(tmp_path)
+    assert store.has_resume(reloaded)
+    store.clear(WizardKind.NEW_DEEP_DIVE)
+    assert not store.has_resume(reloaded)
+
