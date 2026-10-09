@@ -97,7 +97,9 @@ class GuidedDraftStore:
             except (OSError, ValueError, KeyError):
                 project = None
             if project is None:
-                return WizardContext(composition, state.moved_to("project"))
+                # A deleted project is not recoverable; a fresh project is a new flow.
+                self.clear(kind)
+                return None
             if episode_id is not None:
                 episode = composition.service.hosts(project_id).get_episode(episode_id)
                 if episode is None or episode.project_id != project_id:

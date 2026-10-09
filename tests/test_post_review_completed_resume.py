@@ -41,3 +41,23 @@ def test_completed_run_invalidates_saved_new_deep_dive_checkpoint(tmp_path: Path
     assert store.load(composition, WizardKind.NEW_DEEP_DIVE) is None
     assert not checkpoint.exists()
     assert not store.has_resume(composition)
+
+
+def test_deleted_project_invalidates_stale_resume_checkpoint(tmp_path: Path) -> None:
+    composition = cast(
+        ProductionComposition,
+        SimpleNamespace(service=SimpleNamespace(open_project=lambda identity: None)),
+    )
+    store = GuidedDraftStore(tmp_path)
+    store.save(
+        WizardContext(
+            composition,
+            WizardState(WizardKind.NEW_DEEP_DIVE, "sources"),
+            project_id="deleted-project",
+        )
+    )
+    checkpoint = store._path(WizardKind.NEW_DEEP_DIVE)
+    assert checkpoint.exists()
+    assert store.load(composition, WizardKind.NEW_DEEP_DIVE) is None
+    assert not checkpoint.exists()
+    assert not store.has_resume(composition)
