@@ -236,7 +236,9 @@ async def _model_test_failure_and_retry(tmp_path: Path) -> None:
         with patch.object(provider, "generate", side_effect=RuntimeError("provider unavailable")):
             screen.action_run_model_test()
             assert "Model test failed" in str(screen.query_one("#wizard-status", Static).render())
-            assert "provider unavailable" not in str(screen.query_one("#wizard-status", Static).render())
+            assert "provider unavailable" not in str(
+                screen.query_one("#wizard-status", Static).render()
+            )
             screen.action_help()
             assert "Details: provider unavailable" in str(
                 screen.query_one("#wizard-status", Static).render()
