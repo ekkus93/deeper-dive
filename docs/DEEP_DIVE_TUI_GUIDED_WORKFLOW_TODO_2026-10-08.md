@@ -233,12 +233,12 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 
 - [x] Define and implement the minimal versioned wizard draft record only if production state cannot represent a needed UI draft.
 - [x] Do not duplicate provider config, source data, host definitions, episode config, plan, run, or export data into wizard draft state.
-- [ ] Save and Exit preserves partial first-run progress.
+- [x] Save and Exit preserves partial first-run progress.
 - [x] Save and Exit preserves partial New Deep Dive progress.
 - [x] Resume computes the earliest incomplete prerequisite from production state.
 - [x] Resume preserves a later valid location when prerequisites remain valid.
 - [x] Invalid/corrupt/old draft state fails safe to the earliest derivable valid step.
-- [ ] Previously completed steps move back to Needs attention when their production prerequisite becomes invalid.
+- [x] Previously completed steps move back to Needs attention when their production prerequisite becomes invalid.
 - [ ] Add restart tests at every major wizard boundary.
 
 ## GW-250 — Validation, security, accessibility, and compact-terminal UX
@@ -346,6 +346,8 @@ Populate only as work is completed. Do not pre-check or use placeholders as comp
 
 - Implementation SHAs:
 
+  - e9f7ef916d720ec2b42c2e8fdfde8fa61e0774b6 — prevent first-run provider-config compose crash on resume; exact-head CI 37868452882 passed.
+  - f5e065672ea2ff37c2803e552b73297a7a8e024b, 77ff90903ce1ab13c7fc03897356c30a460381e2 — invalidated provider returns prior setup steps to Needs attention; exact-head CI 37868870026 passed.
   - 004198882412bccb0789a89b91e7b2514539194a, 1666f072a9434917d0fc077113401bb496319b98, d9010ee5f471563680c46b7200c4f40b22f0364a — shared source readiness for wizard and generation preflight, status-aware rows, negative/positive indexing gates; exact-head CI 37859564426 passed.
 
   - 179adb1ee0e7616fa0da5afd7c8eea93e1bcc679, 8873119ca22d5b4f7100f265874e558b69f6f4c5 — guided host order/edit/restart regression; exact-head CI 37857593854 passed.
@@ -378,6 +380,8 @@ Populate only as work is completed. Do not pre-check or use placeholders as comp
 - Keyboard/focus/layout tests:
   - tests/test_guided_app.py::test_goal_first_home_keyboard_primary_and_advanced_actions
 - Recovery/resume tests:
+  - tests/test_guided_first_run.py::test_first_run_save_exit_resumes_durable_partial_provider_setup
+  - tests/test_guided_draft.py::test_ready_setup_invalidated_provider_marks_prerequisite_needs_attention
   - tests/test_guided_draft.py::test_draft_recovers_to_earliest_missing_production_prerequisite
   - tests/test_guided_draft.py::test_draft_preserves_valid_later_location_when_prerequisites_are_ready
   - tests/test_guided_app.py::test_saved_new_deep_dive_resumes_from_durable_project_after_restart
