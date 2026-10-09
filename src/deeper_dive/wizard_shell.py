@@ -293,9 +293,7 @@ class WizardShell(Screen[None]):
             (item for item in progress[index + 1 :] if item.visual_state.value == "upcoming"),
             None,
         )
-        following = upcoming or (
-            progress[index + 1] if index + 1 < len(progress) else None
-        )
+        following = upcoming or (progress[index + 1] if index + 1 < len(progress) else None)
         if following is not None:
             suffix = (
                 f" | {following.text_marker} {following.label} ({following.visual_state.value})"
