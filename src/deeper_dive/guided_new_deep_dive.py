@@ -82,8 +82,8 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
                 name,
                 instructions=instructions,
             )
-        except (OSError, KeyError, ValueError) as exc:
-            self.set_status(sanitize_exception_message(exc))
+        except (OSError, KeyError, RuntimeError, ValueError) as exc:
+            self.set_status(f"Project creation failed: {sanitize_exception_message(exc)}")
             return
         self.query_one("#guided-project-validation", Static).update("")
         for field in ("name", "topic", "audience"):
