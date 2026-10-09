@@ -184,6 +184,7 @@ def test_diagnostic_url_userinfo_and_sensitive_queries_are_redacted(
     assert "[REDACTED]" in result
     assert "example.test" in result
 
+
 @pytest.mark.parametrize(
     ("message", "canaries", "retained"),
     [
@@ -218,4 +219,3 @@ def test_authorization_with_commas_repeated_and_idempotent(
         assert retained in sanitized
         assert all(canary not in sanitized for canary in canaries)
         assert sanitizer(sanitized) == sanitized
-
