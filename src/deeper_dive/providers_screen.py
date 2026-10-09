@@ -100,12 +100,17 @@ class ProvidersScreen(Screen[None]):
             yield Button("Add / Edit", id="action-save-provider", name="save")
             yield Button("Remove", id="action-remove-provider", name="remove")
             yield Button(
-                "Confirm Remove", id="action-confirm-provider-remove",
-                name="confirm-remove", disabled=True,
+                "Confirm Remove",
+                id="action-confirm-provider-remove",
+                name="confirm-remove",
+                disabled=True,
             )
             yield Button(
-                "Cancel Remove", id="action-cancel-provider-remove",
-                name="cancel-remove", variant="primary", disabled=True,
+                "Cancel Remove",
+                id="action-cancel-provider-remove",
+                name="cancel-remove",
+                variant="primary",
+                disabled=True,
             )
             yield Button("Test Health", id="action-health-provider", name="health")
             yield Button("Discover Models", id="action-models-provider", name="models")

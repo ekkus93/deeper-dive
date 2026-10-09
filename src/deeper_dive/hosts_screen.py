@@ -85,8 +85,10 @@ class HostsScreen(Screen[None]):
                         label,
                         name=name,
                         id=(
-                            "host-confirm-remove" if name == "confirm-remove-host"
-                            else "host-cancel-remove" if name == "cancel-remove-host"
+                            "host-confirm-remove"
+                            if name == "confirm-remove-host"
+                            else "host-cancel-remove"
+                            if name == "cancel-remove-host"
                             else None
                         ),
                         disabled=name in {"confirm-remove-host", "cancel-remove-host"},
@@ -255,9 +257,7 @@ class HostsScreen(Screen[None]):
             return
         self._pending_removal.request(f"{project_id}:{record.id}")
         self._sync_removal_controls()
-        self._status(
-            f"Remove host {record.display_name}? Confirm Remove or Cancel Remove."
-        )
+        self._status(f"Remove host {record.display_name}? Confirm Remove or Cancel Remove.")
         self.query_one("#host-cancel-remove", Button).focus()
 
     def action_confirm_remove_host(self) -> None:

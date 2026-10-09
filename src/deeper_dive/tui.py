@@ -246,12 +246,17 @@ class SourcesScreen(NavigationMixin, Screen[None]):
             yield Button("Include/Exclude", id="action-toggle-source", name="toggle-source")
             yield Button("Delete Source", id="action-delete-source", name="delete-source")
             yield Button(
-                "Confirm Delete", id="action-confirm-source-delete",
-                name="confirm-source-delete", disabled=True,
+                "Confirm Delete",
+                id="action-confirm-source-delete",
+                name="confirm-source-delete",
+                disabled=True,
             )
             yield Button(
-                "Cancel Delete", id="action-cancel-source-delete",
-                name="cancel-source-delete", variant="primary", disabled=True,
+                "Cancel Delete",
+                id="action-cancel-source-delete",
+                name="cancel-source-delete",
+                variant="primary",
+                disabled=True,
             )
             yield Static("", id="source-list")
             yield Static("", id="source-details")
@@ -348,9 +353,7 @@ class SourcesScreen(NavigationMixin, Screen[None]):
         assert project_id is not None
         self._pending_source_delete.request(f"{project_id}:{source.id}")
         self._sync_source_delete_controls()
-        self._set_status(
-            f"Delete source {source.title}? Confirm Delete or Cancel Delete."
-        )
+        self._set_status(f"Delete source {source.title}? Confirm Delete or Cancel Delete.")
         self.query_one("#action-cancel-source-delete", Button).focus()
 
     def action_confirm_delete(self) -> None:
