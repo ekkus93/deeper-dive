@@ -3,6 +3,7 @@
 import asyncio
 
 import pytest
+from textual.widgets import Button
 
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.guided_app import GuidedDeeperDiveApp
@@ -24,6 +25,15 @@ def test_guided_viewport_matrix(tmp_path, size, target):
             assert screen.query_one("#wizard-resize-message").display == too_small
             assert screen.query_one("#wizard-content").display != too_small
             assert screen.query_one("#wizard-actions").display != too_small
+            if too_small:
+                assert "Resize to at least 80x24" in str(
+                    screen.query_one("#wizard-resize-message").render()
+                )
+            else:
+                for name in ("back", "continue", "save-exit", "help"):
+                    button = screen.query_one(f"#wizard-{name}", Button)
+                    assert button.region.width > 0
+                    assert button.region.right <= size[0]
             assert screen.context.state.current_step == step
 
     asyncio.run(run())
