@@ -70,12 +70,17 @@ def test_guided_tui_reopens_completed_legacy_artifacts_and_advanced_routes(
                 ("research", "screen-research"),
                 ("hosts", "screen-hosts"),
                 ("episode", "screen-episode"),
+                ("plan", "screen-plan"),
                 ("providers", "screen-providers"),
                 ("settings", "screen-settings"),
             ):
                 app.action_navigate(destination)
                 await pilot.pause()
                 assert app.screen.id == screen_id, destination
+                if destination == "hosts":
+                    listing = str(app.screen.query_one("#host-list").render())
+                    assert "Fixture Host 1" in listing
+                    assert "Fixture Host 2" in listing
 
             app.action_navigate("library")
             await pilot.pause()
