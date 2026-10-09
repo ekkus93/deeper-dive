@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.guided_draft import GuidedDraftStore
@@ -171,3 +173,47 @@ def test_ready_setup_invalidated_provider_marks_prerequisite_needs_attention(
     restored = drafts.load(composition, WizardKind.FIRST_RUN)
     assert restored is not None
     assert restored.state.current_step == "provider-config"
+
+
+@pytest.mark.parametrize(
+    "step",
+    (
+        "welcome",
+        "system-check",
+        "ai-provider",
+        "provider-config",
+        "model-test",
+        "speech",
+        "voice-defaults",
+        "ready",
+    ),
+)
+def test_ready_first_run_restores_each_wizard_checkpoint(
+    tmp_path: Path, step: str
+) -> None:
+    """A saved position stays valid across a fresh process when production is ready."""
+    composition, drafts = _setup(tmp_path)
+    controller = composition.provider_controller
+    controller.save_provider("local", "fake", default_model="fake-v1", network_scope="local")
+    config = controller.config()
+    config.defaults.update(
+        {
+            "episode_planning": "local:fake-v1",
+            "host_generation": "local:fake-v1",
+            "directing": "local:fake-v1",
+            "verification": "local:fake-v1",
+            "speech_setup": "deferred",
+            "quick_deep_dive_duration_minutes": "20",
+            "research_policy": "useful",
+        }
+    )
+    controller.config_store.save(config)
+    drafts.save(WizardContext(composition, WizardState(WizardKind.FIRST_RUN, step)))
+
+    # A new composition reloads configuration through normal production boundaries.
+    fresh = ProductionComposition.build(
+        service=DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    )
+    resumed = drafts.load(fresh, WizardKind.FIRST_RUN)
+    assert resumed is not None
+    assert resumed.state.current_step == step
