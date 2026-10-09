@@ -777,3 +777,49 @@ async def _two_guided_episodes_within_one_project_keep_artifacts_isolated(
             first[0],
             second[0],
         }
+
+
+def test_guided_project_and_episode_local_errors_render_inline_without_losing_input(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_guided_field_errors_render_inline(tmp_path))
+
+
+async def _guided_field_errors_render_inline(tmp_path: Path) -> None:
+    service = _service_and_config(tmp_path)
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.query_one("#guided-project-topic", Input).value = "Preserved curiosity"
+        wizard.action_create_project()
+        assert "Project name is required" in str(
+            wizard.query_one("#guided-project-validation", Static).render()
+        )
+        assert wizard.query_one("#guided-project-topic", Input).value == "Preserved curiosity"
+        assert wizard.context.project_id is None
+
+        project_id, episode_id = await _prepare_to_plan(wizard, pilot)
+        wizard.context.state = wizard.context.state.moved_to("episode")
+        wizard._toggle()
+        wizard.query_one("#guided-episode-title", Input).value = "Preserved episode title"
+        wizard.query_one("#guided-episode-focus", Input).value = "Preserved episode focus"
+        wizard.query_one("#guided-episode-duration", Select).value = "custom"
+        wizard.query_one("#guided-episode-custom-duration", Input).value = "invalid"
+        wizard.action_save_episode()
+        error = str(wizard.query_one("#guided-episode-validation", Static).render())
+        assert error.startswith("Fix episode settings:")
+        assert wizard.query_one("#guided-episode-title", Input).value == "Preserved episode title"
+        assert wizard.query_one("#guided-episode-focus", Input).value == "Preserved episode focus"
+        assert wizard.query_one("#guided-episode-custom-duration", Input).value == "invalid"
+        assert wizard.context.project_id == project_id
+        assert wizard.context.episode_id == episode_id
+
+        wizard.query_one("#guided-episode-custom-duration", Input).value = "12"
+        wizard.action_save_episode()
+        assert str(wizard.query_one("#guided-episode-validation", Static).render()) == ""
+        assert EpisodeConfigurationService(
+            app.composition.database_for_project(project_id)
+        ).load_configuration(episode_id).target_duration_seconds == 720

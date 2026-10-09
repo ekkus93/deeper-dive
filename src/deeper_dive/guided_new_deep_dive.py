@@ -1,7 +1,7 @@
 """Guided project creation."""
 
 from textual.widget import Widget
-from textual.widgets import Button, Input, Select
+from textual.widgets import Button, Input, Select, Static
 
 from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.wizard_shell import NewDeepDiveWizardShell
@@ -26,6 +26,7 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
                 placeholder="Optional project description",
                 id="guided-project-description",
             ),
+            Static("", id="guided-project-validation", markup=False),
             Button("Create Project", id="guided-project-create", name="create-project"),
         )
 
@@ -43,7 +44,15 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
         audience = str(audience_value).strip()
         description = self.query_one("#guided-project-description", Input).value.strip()
         if not name or not topic or audience not in {"general", "technical", "expert"}:
-            self.set_status("Project name, curiosity prompt, and audience are required.")
+            errors = []
+            if not name:
+                errors.append("Project name is required.")
+            if not topic:
+                errors.append("Main curiosity is required.")
+            if audience not in {"general", "technical", "expert"}:
+                errors.append("Choose a supported audience.")
+            self.query_one("#guided-project-validation", Static).update(" ".join(errors))
+            self.set_status("Check the project fields above before continuing.")
             return
         if self.context.project_id is not None:
             self.set_status("Project already created.")
@@ -63,6 +72,7 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
         except (OSError, KeyError, ValueError) as exc:
             self.set_status(sanitize_exception_message(exc))
             return
+        self.query_one("#guided-project-validation", Static).update("")
         self.context.project_id = project.id
         self._sync_text()
         self.set_status(f"Created project {project.name}. Continue to Sources.")

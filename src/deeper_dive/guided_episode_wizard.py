@@ -79,6 +79,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             ),
             Input(placeholder="Must-cover topics, comma separated", id="guided-episode-must-cover"),
             Input(placeholder="Avoid topics, comma separated", id="guided-episode-avoid"),
+            Static("", id="guided-episode-validation", markup=False),
             Button("Save Episode Settings", id="guided-episode-save", name="save-episode"),
             Static("No plan loaded.", id="guided-plan-summary"),
             Select([], allow_blank=True, id="guided-plan-segment-picker"),
@@ -227,8 +228,13 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             config.validate()
             service.edit(episode_id, config)
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Episode settings not saved: {sanitize_exception_message(exc)}")
+            safe = sanitize_exception_message(exc)
+            self.query_one("#guided-episode-validation", Static).update(
+                f"Fix episode settings: {safe}"
+            )
+            self.set_status("Episode settings need attention before continuing.")
             return
+        self.query_one("#guided-episode-validation", Static).update("")
         self._sync_text()
         self.set_status("Saved episode settings through EpisodeConfigurationService.")
 
