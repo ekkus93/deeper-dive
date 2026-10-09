@@ -1,10 +1,13 @@
 # Guided Textual workflow user guide
 
-> **Implementation status (2026-10-09):** The guided Textual workflow is
-> implemented and qualified. See the authoritative
-> [guided-workflow TODO](DEEP_DIVE_TUI_GUIDED_WORKFLOW_TODO_2026-10-08.md)
-> for named acceptance tests, exact-head CI evidence, and ongoing qualification
-> requirements for subsequent changes.
+> **Qualification status (2026-10-09):** The original guided workflow was
+> implemented and qualified against its [2026-10-08 acceptance checklist](
+> DEEP_DIVE_TUI_GUIDED_WORKFLOW_TODO_2026-10-08.md). An independent follow-up
+> review found additional defects. The [post-review remediation checklist](
+> DEEP_DIVE_TUI_GUIDED_WORKFLOW_POST_REVIEW_REMEDIATION_TODO_2026-10-09.md)
+> and its companion specification are now authoritative for remaining defects
+> and final qualification. Prior acceptance does **not** imply remediation
+> is complete.
 
 ## Starting the application
 
@@ -178,11 +181,3 @@ state permits it; cancelled runs cannot simply be resumed.
 ## Shared services, provenance, and privacy
 
 Guided TUI and CLI workflows use shared production project/source services,
-`EpisodePlannerService`, preflight, run creation, `PipelineOrchestrator`,
-and episode export. The wizard is a navigation layer, not another persistence
-or generation engine. Sources retain their inclusion/provenance identity.
-Remote provider/research choices can transmit source-derived material to a
-network service. Check explicit routing and research settings before enabling
-remote behavior. See [provider configuration](PROVIDERS.md),
-[production generation](PRODUCTION_GENERATION.md), and
-[privacy/security](PRIVACY_SECURITY.md).
