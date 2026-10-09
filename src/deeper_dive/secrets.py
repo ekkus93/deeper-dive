@@ -127,4 +127,4 @@ def redact_data(value: object, secrets: list[str] | tuple[str, ...] = ()) -> obj
 
 def _is_sensitive_key(key: str) -> bool:
     # Reuse the same recursive canonical policy as structured diagnostics.
-    return redact({key: "canary"})[key] == REDACTED  # type: ignore[index]
+    return redact({key: "canary"}) == {key: REDACTED}
