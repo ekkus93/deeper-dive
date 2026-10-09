@@ -91,10 +91,7 @@ def test_guided_tui_reopens_completed_legacy_artifacts_and_advanced_routes(
             await pilot.pause()
             assert app.screen.id == "screen-review"
             assert {turn.id for turn in app.screen.turns} == set(completed.turn_ids)
-            assert any(
-                button.name == "regenerate-turn"
-                for button in app.screen.query("Button")
-            )
+            assert any(button.name == "regenerate-turn" for button in app.screen.query("Button"))
             app.screen.action_export()
             review_export = (
                 restored.workspaces.project_root(project.id)
