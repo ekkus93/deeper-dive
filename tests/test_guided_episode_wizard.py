@@ -669,6 +669,7 @@ async def _new_deep_dive_restarts_at_each_guided_wizard_boundary(tmp_path: Path)
             assert restored.episode_id == episode_id
             assert restored.state.current_step == step
 
+
 def test_two_guided_episodes_within_one_project_keep_artifacts_isolated(
     tmp_path: Path,
 ) -> None:
@@ -709,7 +710,9 @@ async def _two_guided_episodes_within_one_project_keep_artifacts_isolated(
                 wizard.action_continue()
                 assert wizard.context.state.current_step == "episode"
                 wizard.query_one("#guided-episode-title", Input).value = "Second Guided Episode"
-                wizard.query_one("#guided-episode-focus", Input).value = "Independent second discussion"
+                wizard.query_one(
+                    "#guided-episode-focus", Input
+                ).value = "Independent second discussion"
                 wizard.action_save_episode()
                 wizard.action_continue()
                 assert wizard.context.state.current_step == "plan"
@@ -750,9 +753,12 @@ async def _two_guided_episodes_within_one_project_keep_artifacts_isolated(
             root = service.workspaces.project_root(project_id)
             audio_path = root / "output" / f"{episode_id}.wav"
             assert audio_path.is_file()
-            assert AudioTimelineRepository(
-                app.composition.database_for_project(project_id)
-            ).get(episode_id) is not None
+            assert (
+                AudioTimelineRepository(app.composition.database_for_project(project_id)).get(
+                    episode_id
+                )
+                is not None
+            )
             selected = next(
                 item
                 for item in EpisodeLibraryController.items(app)
