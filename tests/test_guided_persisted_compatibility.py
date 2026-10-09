@@ -39,9 +39,7 @@ def test_guided_tui_reopens_completed_legacy_artifacts_and_advanced_routes(
 
     app = GuidedDeeperDiveApp(restored)
     database = app.composition.database_for_project(project.id)
-    persisted = EpisodeConfigurationService(database).load_configuration(
-        completed.episode_id
-    )
+    persisted = EpisodeConfigurationService(database).load_configuration(completed.episode_id)
     assert persisted.title
     assert AudioTimelineRepository(database).get(completed.episode_id) is not None
     run = restored.runs(project.id).get(completed.run_id)
