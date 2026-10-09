@@ -95,9 +95,8 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
     def _checking_text(self) -> str:
         coordinator = self._runtime_readiness
         if coordinator is not None and coordinator.view.state == "failed":
-            return (
-                "Readiness check needs attention: "
-                + (coordinator.view.message or "provider check failed")
+            return "Readiness check needs attention: " + (
+                coordinator.view.message or "provider check failed"
             )
         return "Checking provider and local runtime readiness…"
 
