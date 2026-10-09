@@ -98,8 +98,8 @@ class QuickDeepDiveService:
     ) -> QuickDeepDiveDefaults:
         duration = values.get("quick_deep_dive_duration_minutes", "").strip()
         presets = values.get("quick_deep_dive_host_presets", "").strip()
-        research = values.get(
-            "quick_deep_dive_research_policy", values.get("research_policy", "")
+        research = values.get("quick_deep_dive_research_policy", "").strip() or values.get(
+            "research_policy", ""
         ).strip()
         target_duration_seconds = defaults.target_duration_seconds
         fallback_presets = defaults.fallback_presets
