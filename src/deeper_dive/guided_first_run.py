@@ -89,7 +89,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         recovered = self.navigator.recovered_state()
         if recovered != self.context.state:
             self.context.state = recovered
-        self._sync_text()
+        self._sync_text(preserve_status=True)
         self._sync_setup_controls()
 
     def _checking_text(self) -> str:

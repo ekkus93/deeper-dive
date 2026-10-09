@@ -5,7 +5,10 @@ from __future__ import annotations
 from textual.binding import Binding
 
 from deeper_dive.episode_setup_screen import EpisodeSetupScreen
-from deeper_dive.guided_async_readiness import FirstRunReadinessCoordinator
+from deeper_dive.guided_async_readiness import (
+    FirstRunReadinessCoordinator,
+    FirstRunReadinessDispatch,
+)
 from deeper_dive.guided_draft import GuidedDraftStore
 from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
 from deeper_dive.guided_first_run import GuidedFirstRunWizard
@@ -80,6 +83,11 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
         )
         if not returning_user:
             self.push_screen("setup")
+
+    def on_first_run_readiness_dispatch(
+        self, event: FirstRunReadinessDispatch
+    ) -> None:
+        event.run()
 
     def action_navigate(self, destination: str) -> None:
         if destination == "setup":

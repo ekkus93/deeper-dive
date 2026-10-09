@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from threading import Lock, Thread, Timer
 from typing import Literal, Protocol
 
+from textual.message import Message
+
 from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.first_run import FirstRunController, FirstRunSystemCheck
 from deeper_dive.guided_readiness import FirstRunDerivedReadiness, first_run_readiness
@@ -25,8 +27,20 @@ _FIRST_RUN_STEPS = (
 )
 
 
+class FirstRunReadinessDispatch(Message):
+    """Thread-safe request for one coordinator callback on Textual's UI loop."""
+
+    def __init__(self, callback: Callable[..., object], args: tuple[object, ...]) -> None:
+        super().__init__()
+        self.callback = callback
+        self.args = args
+
+    def run(self) -> None:
+        self.callback(*self.args)
+
+
 class ThreadDispatchApp(Protocol):
-    def call_from_thread(self, callback: Callable[..., object], *args: object) -> object: ...
+    def post_message(self, message: Message) -> bool: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -172,11 +186,9 @@ class FirstRunReadinessCoordinator:
         callback: Callable[..., object],
         *args: object,
     ) -> None:
-        try:
-            app.call_from_thread(callback, *args)
-        except RuntimeError:
-            # The Textual app may have closed while a daemon probe was pending.
-            return
+        # post_message is Textual's thread-safe boundary and safely returns False
+        # if the app/message pump is no longer accepting work.
+        app.post_message(FirstRunReadinessDispatch(callback, args))
 
     def _complete(
         self,

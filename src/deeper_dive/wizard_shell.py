@@ -419,16 +419,17 @@ class WizardShell(Screen[None]):
         self._error_details = None
         self.query_one("#wizard-status", Static).update(str(redact(message)))
 
-    def _sync_text(self) -> None:
+    def _sync_text(self, *, preserve_status: bool = False) -> None:
         navigator = self.navigator
         self.query_one("#wizard-heading", Label).update(self._heading_text(navigator))
         self.query_one("#wizard-progress", Static).update(self._progress_text(navigator))
         self.query_one("#wizard-step-content", Static).update(
             str(redact(self.step_content(navigator.current_step.key)))
         )
-        self.query_one("#wizard-status", Static).update(
-            str(redact(self._status_text(navigator.current_step.key)))
-        )
+        if not preserve_status:
+            self.query_one("#wizard-status", Static).update(
+                str(redact(self._status_text(navigator.current_step.key)))
+            )
         self._sync_actions()
 
     def _sync_actions(self) -> None:

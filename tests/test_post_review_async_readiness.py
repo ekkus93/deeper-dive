@@ -30,8 +30,9 @@ from deeper_dive.storage.workspace import WorkspaceManager
 
 
 class _ImmediateApp:
-    def call_from_thread(self, callback, *args):
-        return callback(*args)
+    def post_message(self, message):
+        message.run()
+        return True
 
 
 def _snapshot(*, setup_ready: bool) -> FirstRunRuntimeSnapshot:
@@ -274,10 +275,14 @@ async def _slow_runtime_probe_keeps_ui_responsive(
 
         release.set()
         for _ in range(100):
-            if app._first_run_readiness.view.state == "ready":
-                break
             await asyncio.sleep(0.01)
             await pilot.pause()
+            visible = str(app.screen.query_one("#home-readiness", Static).render())
+            if (
+                app._first_run_readiness.view.state == "ready"
+                and "Setup needs attention" in visible
+            ):
+                break
         assert app._first_run_readiness.view.state == "ready"
         assert "Setup needs attention" in str(
             app.screen.query_one("#home-readiness", Static).render()
