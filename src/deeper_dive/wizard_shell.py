@@ -261,6 +261,7 @@ class WizardShell(Screen[None]):
             return
         self.context.state = self.navigator.back()
         self._sync_text()
+        self._remember_current_form()
         self._schedule_form_baseline()
 
     def action_continue(self) -> None:
@@ -277,6 +278,7 @@ class WizardShell(Screen[None]):
             self.set_status(self.blocker_message(exc.step_key))
             return
         self._sync_text()
+        self._remember_current_form()
         self._schedule_form_baseline()
 
     def _editable_snapshot(self) -> tuple[tuple[str, str], ...]:
