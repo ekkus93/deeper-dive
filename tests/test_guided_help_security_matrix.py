@@ -48,6 +48,12 @@ async def _verify_help_and_focus(
         assert len(progress) <= size[0] - 4
         assert "current" in progress
         assert "Step 1 of" in str(screen.query_one("#wizard-heading", Static).render())
+        if destination == "new":
+            assert "URL imports contact external hosts" in screen.step_content("sources")
+            assert "contact external" in screen.step_content("research")
+            assert "Voice Preview may contact" in screen.step_content("hosts")
+        else:
+            assert "remote services" in screen.step_content("speech")
 
         # No secret or raw exception is ever rendered on the normal status line.
         canaries = ("guided-bearer-canary", "guided-api-secret-canary")

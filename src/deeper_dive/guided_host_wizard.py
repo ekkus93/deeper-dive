@@ -74,7 +74,8 @@ class GuidedHostWizard(GuidedSourceWizard):
             return (
                 "Choose one or more conversation hosts. The normal path shows friendly "
                 "names, roles, and voice names; internal host IDs stay hidden. "
-                "Order is explicit and is persisted into the production episode configuration."
+                "Voice Preview may contact a remote TTS provider if cloud speech is "
+                "configured. Order is persisted into the production episode configuration."
             )
         return super().step_content(step_key)
 

@@ -81,6 +81,8 @@ class GuidedSourceWizard(GuidedProjectWizard):
             return (
                 "Add source material through the normal production import paths. "
                 "Paste text, choose files or folders, or enter explicit URLs. "
+                "URL imports contact external hosts; local files and pasted text "
+                "do not require network access. "
                 "Only included sources with parsed/indexed chunks satisfy this step."
             )
         if step_key == "research":
