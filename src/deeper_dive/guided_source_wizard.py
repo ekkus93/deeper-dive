@@ -350,6 +350,9 @@ class GuidedSourceWizard(GuidedProjectWizard):
 
     def _toggle(self) -> None:
         step = self.context.state.current_step
+        if step != "sources":
+            # A confirmation must not remain armed after leaving this step.
+            self._pending_delete_source_id = None
         for suffix in ("name", "topic", "audience", "description", "create"):
             self.query_one(f"#guided-project-{suffix}").display = step == "project"
         for selector in (
