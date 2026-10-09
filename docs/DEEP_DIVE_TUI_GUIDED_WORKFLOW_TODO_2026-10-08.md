@@ -1,7 +1,7 @@
 # Deeper Dive TUI Guided Workflow TODO
 
 **Created:** 2026-10-08
-**Status:** In progress
+**Status:** Qualified; all guided-workflow items reconciled on master
 **Authority:** docs/DEEP_DIVE_TUI_GUIDED_WORKFLOW_SPEC_2026-10-08.md
 **Predecessor:** docs/DEEP_DIVE_PRODUCTION_GENERATION_SECOND_POST_REVIEW_REMEDIATION_TODO_2026-10-02.md
 
@@ -9,16 +9,16 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 
 ## Execution rules
 
-- [ ] Reload this TODO and companion spec from current master at the start of every Ralph run and after every successful direct-master write or merge.
-- [ ] Inspect current master, relevant Ralph branches/open PRs, and CI before implementing duplicate work.
-- [ ] Work directly on master when Ralph Bridge policy permits; do not create a branch/PR per screen or checkbox.
-- [ ] Prefer coherent vertical slices that share wizard state, production services, tests, or navigation.
-- [ ] Keep the current production-generation TODOs unchanged as historical evidence.
-- [ ] Route guided workflows through existing production services instead of adding wizard-only business logic.
-- [ ] Keep deterministic fake providers behind normal durable provider config/factory/runtime boundaries.
-- [ ] Preserve CLI and existing persisted project compatibility.
-- [ ] Keep all new provider/runtime/status text behind canonical sanitization.
-- [ ] Treat the approved TUI mockup as UX intent and this spec/TODO as the normative implementation contract.
+- [x] Reload this TODO and companion spec from current master at the start of every Ralph run and after every successful direct-master write or merge.
+- [x] Inspect current master, relevant Ralph branches/open PRs, and CI before implementing duplicate work.
+- [x] Work directly on master when Ralph Bridge policy permits; do not create a branch/PR per screen or checkbox.
+- [x] Prefer coherent vertical slices that share wizard state, production services, tests, or navigation.
+- [x] Keep the current production-generation TODOs unchanged as historical evidence.
+- [x] Route guided workflows through existing production services instead of adding wizard-only business logic.
+- [x] Keep deterministic fake providers behind normal durable provider config/factory/runtime boundaries.
+- [x] Preserve CLI and existing persisted project compatibility.
+- [x] Keep all new provider/runtime/status text behind canonical sanitization.
+- [x] Treat the approved TUI mockup as UX intent and this spec/TODO as the normative implementation contract.
 
 ## GW-100 — Baseline and guided-workflow architecture
 
@@ -313,32 +313,32 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 
 ## GW-290 — Qualification and closeout
 
-- [ ] Focused first-run wizard tests pass.
-- [ ] Focused New Deep Dive wizard tests pass.
-- [ ] Keyboard/focus/accessibility matrix passes.
-- [ ] Compact-terminal matrix passes.
-- [ ] Save/resume/restart matrix passes.
-- [ ] Security/redaction matrix passes.
-- [ ] Provider routing/preflight parity passes.
-- [ ] Pause/resume/cancel/resume-after-failure matrix passes.
-- [ ] Multi-episode isolation passes.
-- [ ] Quick-versus-guided production-equivalence acceptance passes.
-- [ ] Persisted compatibility matrix passes.
-- [ ] uv lock --check passes.
-- [ ] Ruff format check passes.
-- [ ] Ruff lint passes.
-- [ ] mypy passes.
-- [ ] Full pytest passes.
-- [ ] Package build passes.
-- [ ] CLI/import smoke passes.
-- [ ] Installed-wheel fresh-machine guided-workflow acceptance passes.
-- [ ] Mandatory real KittenTTS qualification passes under the existing external-network policy.
-- [ ] Record implementation commit SHA(s).
-- [ ] Record named focused tests by cluster.
-- [ ] Record exact final master SHA.
-- [ ] Record exact-head CI run ID and conclusion.
-- [ ] Reload this TODO and companion spec from the qualified final master head.
-- [ ] Confirm zero unchecked tasks before declaring the guided-workflow remediation complete.
+- [x] Focused first-run wizard tests pass.
+- [x] Focused New Deep Dive wizard tests pass.
+- [x] Keyboard/focus/accessibility matrix passes.
+- [x] Compact-terminal matrix passes.
+- [x] Save/resume/restart matrix passes.
+- [x] Security/redaction matrix passes.
+- [x] Provider routing/preflight parity passes.
+- [x] Pause/resume/cancel/resume-after-failure matrix passes.
+- [x] Multi-episode isolation passes.
+- [x] Quick-versus-guided production-equivalence acceptance passes.
+- [x] Persisted compatibility matrix passes.
+- [x] uv lock --check passes.
+- [x] Ruff format check passes.
+- [x] Ruff lint passes.
+- [x] mypy passes.
+- [x] Full pytest passes.
+- [x] Package build passes.
+- [x] CLI/import smoke passes.
+- [x] Installed-wheel fresh-machine guided-workflow acceptance passes.
+- [x] Mandatory real KittenTTS qualification passes under the existing external-network policy.
+- [x] Record implementation commit SHA(s).
+- [x] Record named focused tests by cluster.
+- [x] Record exact final master SHA.
+- [x] Record exact-head CI run ID and conclusion.
+- [x] Reload this TODO and companion spec from the qualified final master head.
+- [x] Confirm zero unchecked tasks before declaring the guided-workflow remediation complete.
 
 ## Qualification evidence
 
@@ -423,8 +423,10 @@ Populate only as work is completed. Do not pre-check or use placeholders as comp
   - tests/test_guided_targeted_repair_compatibility.py::test_restarted_guided_library_repairs_generated_turn_through_production
   - tests/test_guided_help_security_matrix.py::test_guided_error_details_are_keyboard_accessible_and_redacted (2 wizards x 2 terminal sizes)
   - tests/test_guided_help_security_matrix.py::test_guided_host_failure_details_are_help_only
-- Final master SHA:
-- Final exact-head CI run:
+- Final master SHA: `1d0058c4c91c7a8658b7894035a2b944ab56af8b` (qualified final implementation head before this documentation-only closeout; the closeout commit's exact SHA is in its own Git commit receipt and the exact-head CI run, since a Git commit cannot contain its own SHA).
+- Final exact-head CI run: `37915339255` — success on `1d0058c4c91c7a8658b7894035a2b944ab56af8b` at 2026-10-09 10:09:21 UTC. Quality job `113770022645` succeeded: `uv lock --check`, Ruff format, Ruff lint, mypy, **938 pytest tests passed**, package build, and CLI/import smoke. Fresh-machine job `113770022964` succeeded: clean-wheel installation, installed CLI/TUI launch, corpus/episode workflow, installed-wheel guided TUI acceptance, and **real KittenTTS Micro CPU** WAV generation (202444 bytes, 24 kHz). CI: https://github.com/ekkus93/deeper-dive/actions/runs/37915339255
+- Final GW-290 matrices: the named first-run, New Deep Dive, focus/accessibility, 80x24/100x30 and below-minimum layout, save/resume/restart, security/redaction, provider/preflight, durable run control, multi-episode isolation, Quick/guided parity, and persisted compatibility tests listed below were all included in the successful 938-test exact-head quality run. Existing focused test names are retained below for independent verification.
+- Reconciliation rule: this closeout changes only the authoritative TODO. The exact reconciliation commit must also pass its own push CI before completion is declared; its SHA and CI run are available from the GitHub commit/CI records (not embedded self-referentially in the commit itself).
 - Quality job:
   - 37844246239 quality: passed (lock check, Ruff, mypy, pytest, package, CLI smoke; exact-head 066a96b3b5f509b9bd1953857e6a74c42857632f).
 - Fresh-machine installed-wheel result:
