@@ -32,9 +32,9 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
         *DeeperDiveApp.BINDINGS,
         Binding("ctrl+g", "navigate('new')", "New Deep Dive"),
     ]
+    HOME_SCREEN_CLASS = GuidedHomeProjectsScreen
     SCREENS = {
         **DeeperDiveApp.SCREENS,
-        "home": GuidedHomeProjectsScreen,
         "monitor": GuidedGenerationMonitorScreen,
         "ready": GuidedEpisodeReadyScreen,
     }

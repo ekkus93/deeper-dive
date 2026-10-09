@@ -84,12 +84,8 @@ class GuidedHomeProjectsScreen(HomeProjectsScreen):
         self.query_one("#action-abandon-deep-dive", Button).display = (
             has_resume and not self._pending_abandon
         )
-        self.query_one("#action-confirm-abandon-deep-dive", Button).display = (
-            self._pending_abandon
-        )
-        self.query_one("#action-cancel-abandon-deep-dive", Button).display = (
-            self._pending_abandon
-        )
+        self.query_one("#action-confirm-abandon-deep-dive", Button).display = self._pending_abandon
+        self.query_one("#action-cancel-abandon-deep-dive", Button).display = self._pending_abandon
 
 
 def _readiness_label(app: DeeperDiveApp) -> str:

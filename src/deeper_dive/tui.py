@@ -540,6 +540,7 @@ class DeeperDiveApp(App[None]):
         Binding("ctrl+p", "command_palette", "Commands", show=True),
         Binding("q", "quit", "Quit"),
     ]
+    HOME_SCREEN_CLASS: type[HomeProjectsScreen] = HomeProjectsScreen
     SCREENS = {
         "providers": lambda: ProvidersScreen(),
         "settings": lambda: SettingsScreen(),
@@ -586,7 +587,7 @@ class DeeperDiveApp(App[None]):
         self.auto_generate_after_approval = False
 
     def on_mount(self) -> None:
-        self.install_screen(HomeProjectsScreen(), name="home")
+        self.install_screen(self.HOME_SCREEN_CLASS(), name="home")
         self.push_screen("home")
 
     def action_navigate(self, destination: str) -> None:
