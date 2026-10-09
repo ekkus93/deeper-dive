@@ -36,7 +36,11 @@ async def _verify_help_and_focus(
             await pilot.pause()
         screen = app.screen
         assert isinstance(screen, WizardShell)
-        assert screen.id == f"screen-wizard-{'first-run' if destination == 'setup' else 'new-deep-dive'}"
+        expected_ids = {
+            "setup": "screen-wizard-first-run",
+            "new": "screen-wizard-new-deep-dive",
+        }
+        assert screen.id == expected_ids[destination]
         assert screen.query_one("#wizard-actions").display
         assert not screen.query_one("#wizard-resize-message").display
         progress = str(screen.query_one("#wizard-progress", Static).render())
