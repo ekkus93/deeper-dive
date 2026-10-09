@@ -7,7 +7,6 @@ from dataclasses import replace
 from textual.widget import Widget
 from textual.widgets import Button, Input, Select, Static
 
-from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.guided_source_wizard import GuidedSourceWizard
 from deeper_dive.guided_workflow import CompletionProbe, WizardContext
@@ -164,7 +163,7 @@ class GuidedHostWizard(GuidedSourceWizard):
                 host.tts_voice = voice
             self.context.composition.service.hosts(project_id).create_host(host.to_record())
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Host creation failed: {sanitize_exception_message(exc)}")
+            self.set_error("Host creation failed.", exc)
             return
         self._refresh_hosts(host.id)
         self.set_status(f"Created host {host.display_name}.")
@@ -180,7 +179,7 @@ class GuidedHostWizard(GuidedSourceWizard):
             self._apply_host_form(host)
             self.context.composition.service.hosts(project_id).update_host(host.to_record())
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Host save failed: {sanitize_exception_message(exc)}")
+            self.set_error("Host save failed.", exc)
             return
         self._refresh_hosts(record.id)
         self.set_status(f"Saved host {host.display_name}.")
@@ -224,7 +223,7 @@ class GuidedHostWizard(GuidedSourceWizard):
                 self.context.composition.service.workspaces.data_dir / "voice-previews"
             ).preview(provider, voice=voice.id)
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Voice preview failed: {sanitize_exception_message(exc)}")
+            self.set_error("Voice preview failed.", exc)
             return
         self.set_status(f"Previewed {voice.name}: {path.name}")
 
@@ -257,7 +256,7 @@ class GuidedHostWizard(GuidedSourceWizard):
                     replace(current, host_ids=tuple(self._selected_host_ids)),
                 )
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Host order save failed: {sanitize_exception_message(exc)}")
+            self.set_error("Host order save failed.", exc)
             return
         self._sync_text()
         self.set_status("Saved ordered episode hosts through EpisodeConfigurationService.")
