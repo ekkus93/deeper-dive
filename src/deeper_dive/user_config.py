@@ -68,8 +68,7 @@ class ProviderConfig(BaseModel):
             "secret",
         }
         if any(
-            key.lower() in sensitive
-            for key, _ in parse_qsl(parsed.query, keep_blank_values=True)
+            key.lower() in sensitive for key, _ in parse_qsl(parsed.query, keep_blank_values=True)
         ):
             raise ValueError("base_url must not contain credential query parameters")
         return value.rstrip("/")
