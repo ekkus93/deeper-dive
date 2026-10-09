@@ -90,6 +90,5 @@ def test_restarted_guided_library_repairs_generated_turn_through_production(
     assert AudioTimelineRepository(database).get(completed.episode_id) is not None
     audio = service.workspaces.project_root(completed.project_id) / "output"
     assert (audio / f"{completed.episode_id}.wav").is_file()
-    assert UserConfigStore(service.workspaces.data_dir / "config.json").load().defaults[
-        "host_generation"
-    ] == "fake:fake-v1"
+    saved_config = UserConfigStore(service.workspaces.data_dir / "config.json").load()
+    assert saved_config.defaults["host_generation"] == "fake:fake-v1"
