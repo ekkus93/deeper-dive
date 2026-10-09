@@ -177,7 +177,7 @@ class GuidedHostWizard(GuidedSourceWizard):
             return
         try:
             host = HostProfile.from_record(record)
-            self._apply_host_form(host)
+            self._apply_host_form(host, clear_optional=True)
             self.context.composition.service.hosts(project_id).update_host(host.to_record())
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
             self.set_error("Host save failed.", exc)
@@ -372,16 +372,16 @@ class GuidedHostWizard(GuidedSourceWizard):
             return None
         return self.context.composition.service.hosts(project_id).get_host(value)
 
-    def _apply_host_form(self, host: HostProfile) -> None:
+    def _apply_host_form(self, host: HostProfile, *, clear_optional: bool = False) -> None:
         name = self.query_one("#guided-host-name", Input).value.strip()
         if name:
             host.display_name = name
         role = self.query_one("#guided-host-role", Input).value.strip()
-        if role:
+        if role or clear_optional:
             host.role = role
         host.expertise = self.query_one("#guided-host-expertise", Input).value.strip()
         instructions = self.query_one("#guided-host-instructions", Input).value.strip()
-        if instructions:
+        if instructions or clear_optional:
             host.instructions = instructions
         host.validate()
 

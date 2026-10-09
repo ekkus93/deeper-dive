@@ -124,5 +124,16 @@ class GuidedDraftStore:
         except (OSError, ValueError, TypeError, KeyError, UnicodeError):
             return None
 
+    def clear(self, kind: WizardKind) -> None:
+        """Remove only the fixed checkpoint path, never a symlink's target."""
+        self._path(kind).unlink(missing_ok=True)
+
     def has_resume(self, composition: ProductionComposition) -> bool:
-        return self.load(composition, WizardKind.NEW_DEEP_DIVE) is not None
+        context = self.load(composition, WizardKind.NEW_DEEP_DIVE)
+        if context is None:
+            return False
+        if context.project_id and context.run_id:
+            run = composition.service.runs(context.project_id).get(context.run_id)
+            if run is not None and run.state == "completed":
+                return False
+        return True

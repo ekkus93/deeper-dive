@@ -10,6 +10,8 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Label, Static
 
 from deeper_dive.diagnostics import redact
+from deeper_dive.guided_draft import GuidedDraftStore
+from deeper_dive.guided_workflow import WizardContext, WizardKind
 from deeper_dive.episode_library_screen import (
     EpisodeLibraryController,
     EpisodeLibraryItem,
@@ -75,6 +77,17 @@ class GuidedEpisodeReadyScreen(Screen[None]):
         if item is None:
             summary.update("No completed episode/run is selected.")
         else:
+            # Clear only the draft for the exact episode that this guided flow
+            # just completed. Opening an unrelated Library item must not erase it.
+            context = getattr(self._app, "_new_context", None)
+            store = getattr(self._app, "_draft_store", None)
+            if (
+                isinstance(context, WizardContext)
+                and isinstance(store, GuidedDraftStore)
+                and context.project_id == item.episode.project_id
+                and context.episode_id == item.episode.id
+            ):
+                store.clear(WizardKind.NEW_DEEP_DIVE)
             project_id = item.episode.project_id
             repository = self._app.service.hosts(project_id)
             hosts = [
