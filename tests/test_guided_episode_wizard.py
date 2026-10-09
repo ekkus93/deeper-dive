@@ -820,6 +820,9 @@ async def _guided_field_errors_render_inline(tmp_path: Path) -> None:
         wizard.query_one("#guided-episode-custom-duration", Input).value = "12"
         wizard.action_save_episode()
         assert str(wizard.query_one("#guided-episode-validation", Static).render()) == ""
-        assert EpisodeConfigurationService(
-            app.composition.database_for_project(project_id)
-        ).load_configuration(episode_id).target_duration_seconds == 720
+        assert (
+            EpisodeConfigurationService(app.composition.database_for_project(project_id))
+            .load_configuration(episode_id)
+            .target_duration_seconds
+            == 720
+        )
