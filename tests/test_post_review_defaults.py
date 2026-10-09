@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from deeper_dive.guided_readiness import _assignment_targets_ready_llm
+from types import SimpleNamespace
+from typing import cast
+
+from deeper_dive.guided_readiness import _assignment_targets_ready_llm, _llm_runtime_ready
 from deeper_dive.model_roles import ModelAssignment
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.quick_deep_dive import QuickDeepDiveDefaults, QuickDeepDiveService
@@ -55,4 +58,24 @@ def test_blank_quick_override_does_not_hide_global_research_policy() -> None:
     assert (
         QuickDeepDiveService._apply_overrides(defaults, values).research_mode
         is ResearchMode.AGGRESSIVE
+    )
+
+
+def test_discovered_role_model_is_eligible_even_if_provider_default_is_unavailable() -> None:
+    runtime = SimpleNamespace(
+        health=lambda: SimpleNamespace(healthy=True),
+        models=lambda: [SimpleNamespace(model="model-b")],
+    )
+    controller = cast(
+        ProviderController,
+        SimpleNamespace(llm=lambda provider_name: runtime),
+    )
+    discovered = _llm_runtime_ready(controller, "planner")
+    assert discovered == frozenset({"model-b"})
+    provider = ProviderConfig(provider_type="fake", default_model="model-a")
+    assert _assignment_targets_ready_llm(
+        controller,
+        {"planner": provider},
+        {"planner": discovered},
+        ModelAssignment("planner", "model-b"),
     )

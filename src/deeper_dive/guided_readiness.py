@@ -67,7 +67,7 @@ def first_run_readiness(context: WizardContext) -> FirstRunDerivedReadiness:
     for name, provider in config.providers.items():
         if controller.capability(provider.provider_type) != "llm":
             continue
-        llm_runtime[name] = _llm_runtime_ready(controller, name, provider)
+        llm_runtime[name] = _llm_runtime_ready(controller, name)
 
     llm_provider_ready = any(llm_runtime.values())
 
@@ -121,18 +121,18 @@ def first_run_readiness(context: WizardContext) -> FirstRunDerivedReadiness:
 def _llm_runtime_ready(
     controller: ProviderController,
     name: str,
-    provider: ProviderConfig,
 ) -> frozenset[str]:
-    model = (provider.default_model or "").strip()
-    if not model:
-        return frozenset()
+    """Return healthy discovered models without requiring the default model.
+
+    Explicit role assignments may target any discovered model, including when
+    the provider's suggested default is unavailable or unset.
+    """
     try:
         runtime = controller.llm(name)
         health = runtime.health()
         if not health.healthy:
             return frozenset()
-        discovered = frozenset(item.model for item in runtime.models())
-        return discovered if model in discovered else frozenset()
+        return frozenset(item.model for item in runtime.models())
     except (KeyError, OSError, RuntimeError, ValueError):
         return frozenset()
 
