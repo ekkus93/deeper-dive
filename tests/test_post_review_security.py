@@ -108,3 +108,43 @@ def test_valid_provider_config_persists_only_reference(tmp_path) -> None:
     text = path.read_text()
     assert "OPENAI_API_KEY" in text
     assert "supersecret" not in text
+
+
+@pytest.mark.parametrize(
+    ("field", "secret"),
+    [
+        ("credential_env", "sk-unsafe-mutated-secret.123"),
+        ("base_url", "https://name:mutated-password@example.test/v1"),
+        ("base_url", "https://example.test/v1?access_token=mutated-query-secret"),
+    ],
+)
+def test_mutated_provider_cannot_bypass_validation_at_save(
+    tmp_path, field: str, secret: str
+) -> None:
+    path = tmp_path / "config.json"
+    store = UserConfigStore(path)
+    config = UserConfig(
+        providers={"remote": ProviderConfig(provider_type="openai", credential_env="SAFE_ENV")}
+    )
+    store.save(config)
+    original_bytes = path.read_bytes()
+
+    setattr(config.providers["remote"], field, secret)
+    with pytest.raises(UserConfigError) as info:
+        store.save(config)
+
+    assert str(secret) not in str(info.value)
+    assert field in str(info.value)
+    assert path.read_bytes() == original_bytes
+    assert str(secret).encode() not in path.read_bytes()
+
+
+def test_mutated_invalid_provider_is_rejected_before_initial_write(tmp_path) -> None:
+    path = tmp_path / "no-config" / "config.json"
+    config = UserConfig(providers={"remote": ProviderConfig(provider_type="openai")})
+    config.providers["remote"].credential_env = "raw-secret.with-punctuation"
+
+    with pytest.raises(UserConfigError):
+        UserConfigStore(path).save(config)
+
+    assert not path.exists()

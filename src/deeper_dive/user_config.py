@@ -121,8 +121,20 @@ class UserConfigStore:
             raise UserConfigError(f"invalid user configuration at {self.path}") from None
 
     def save(self, config: UserConfig) -> None:
+        # Pydantic models are mutable by default. A field changed after construction
+        # must not bypass provider credential-reference or URL validation at write time.
+        try:
+            validated = UserConfig.model_validate(config.model_dump(mode="python"))
+        except ValidationError as exc:
+            location = ", ".join(
+                ".".join(map(str, err["loc"])) or "configuration"
+                for err in exc.errors(include_input=False, include_url=False)
+            )
+            raise UserConfigError(
+                f"invalid user configuration: check {location}"
+            ) from None
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        payload = json.dumps(config.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
+        payload = json.dumps(validated.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
         temporary = self.path.with_suffix(self.path.suffix + ".tmp")
         temporary.write_text(payload, encoding="utf-8")
         self._restrict_permissions(temporary)
