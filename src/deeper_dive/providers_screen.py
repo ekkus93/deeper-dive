@@ -421,3 +421,6 @@ class ProvidersScreen(Screen[None]):
             return ()
         raw_value = self.query_one("#provider-voices", Input).value
         return tuple(value.strip() for value in raw_value.split(",") if value.strip())
+
+    def _status(self, message: str) -> None:
+        self.query_one("#screen-status", Static).update(str(redact(f"Status: {message}")))
