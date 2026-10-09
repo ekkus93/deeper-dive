@@ -9,7 +9,6 @@ from textual.widget import Widget
 from textual.widgets import Button, Input, Select, Static
 
 from deeper_dive.application.service import SourceImportSummary
-from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.guided_new_deep_dive import GuidedProjectWizard
 from deeper_dive.guided_workflow import CompletionProbe, WizardContext
 from deeper_dive.research_policy import ResearchMode, ResearchPolicy
@@ -148,7 +147,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
                 body,
             )
         except (OSError, KeyError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Source import failed: {sanitize_exception_message(exc)}")
+            self.set_error("Source import failed.", exc)
             return
         title_input.value = ""
         text_input.value = ""
@@ -166,7 +165,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
         try:
             summary = self.context.composition.service.add_file_sources(project_id, paths)
         except (OSError, KeyError, RuntimeError, ValueError) as exc:
-            self.set_status(f"File/folder import failed: {sanitize_exception_message(exc)}")
+            self.set_error("File/folder import failed.", exc)
             return
         paths_input.value = ""
         preferred = summary.imported[0].id if summary.imported else None
@@ -184,7 +183,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
         try:
             summary = self.context.composition.service.add_url_sources(project_id, urls)
         except (OSError, KeyError, RuntimeError, ValueError) as exc:
-            self.set_status(f"URL import failed: {sanitize_exception_message(exc)}")
+            self.set_error("URL import failed.", exc)
             return
         urls_input.value = ""
         preferred = summary.imported[0].id if summary.imported else None
@@ -205,7 +204,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
                 not source.included,
             )
         except (OSError, KeyError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Source update failed: {sanitize_exception_message(exc)}")
+            self.set_error("Source update failed.", exc)
             return
         self._pending_delete_source_id = None
         self._refresh_sources(source.id)
@@ -225,7 +224,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
         try:
             self.context.composition.service.delete_source(project_id, source.id)
         except (OSError, KeyError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Source delete failed: {sanitize_exception_message(exc)}")
+            self.set_error("Source delete failed.", exc)
             return
         self._pending_delete_source_id = None
         self._refresh_sources()
@@ -249,7 +248,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
                 project.instructions or "",
             )
         except (OSError, KeyError, RuntimeError, ValueError) as exc:
-            self.set_status(f"Research policy save failed: {sanitize_exception_message(exc)}")
+            self.set_error("Research policy save failed.", exc)
             return
         self._sync_text()
         self.set_status(f"Saved research choice: {mode.value}.")
