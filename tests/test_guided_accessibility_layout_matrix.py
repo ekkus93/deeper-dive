@@ -43,7 +43,15 @@ async def _check_supported_viewports(tmp_path: Path, size: tuple[int, int]) -> N
             assert screen.query_one("#wizard-back", Button).disabled
             for action in ("continue", "save-exit", "help"):
                 assert screen.query_one(f"#wizard-{action}", Button).display
-            screen.query_one("#wizard-help", Button).press()
+            save = screen.query_one("#wizard-save-exit", Button)
+            help_button = screen.query_one("#wizard-help", Button)
+            save.focus()
+            await pilot.press("tab")
+            assert screen.focused is help_button
+            await pilot.press("shift+tab")
+            assert screen.focused is save
+            help_button.focus()
+            await pilot.press("enter")
             await pilot.pause()
             assert "Help:" in str(screen.query_one("#wizard-status", Static).render())
 
