@@ -123,20 +123,8 @@ class GuidedEpisodeReadyScreen(Screen[None]):
             item = self._selected()
             if item is None:
                 return
-            root = self._app.service.workspaces.project_root(item.episode.project_id)
-            audio = next(
-                (
-                    root / "output" / f"{item.episode.id}{suffix}"
-                    for suffix in (".mp3", ".wav")
-                    if (root / "output" / f"{item.episode.id}{suffix}").is_file()
-                ),
-                None,
-            )
-            if audio is None:
-                self._status("No completed episode audio is available for playback.")
-                return
             try:
-                state = self._app.composition.playback_controller.play(audio)
+                state = EpisodeLibraryController.play(self._app, item)
                 self._status(state.message)
             except (OSError, RuntimeError, ValueError) as exc:
                 self._status(user_status("playback", exc))
