@@ -124,19 +124,16 @@ async def _guided_ready_actions_keep_two_episodes_isolated(tmp_path: Path) -> No
             ready.refresh_ready()
             summary = str(ready.query_one("#ready-summary", Static).render())
             assert ("First" if episode_id == first_episode else "Second") in summary
-            played: list[Path] = []
-
-            def fake_play(audio_path: Path, *, start_seconds: float = 0.0) -> PlaybackState:
-                played.append(audio_path)
-                return PlaybackState(True, True, "Playing selected episode", audio_path)
-
+            playback_state = PlaybackState(True, True, "Playing selected episode", audio)
             export_result = EpisodeExportResult(
                 Path("selected-transcript.md"),
                 Path("selected-sources.json"),
                 Path("selected-metadata.json"),
             )
             with (
-                patch.object(app.composition.playback_controller, "play", side_effect=fake_play),
+                patch.object(
+                    app.composition.playback_controller, "play", return_value=playback_state
+                ) as player,
                 patch.object(
                     EpisodeLibraryController, "export", return_value=export_result
                 ) as exporter,
@@ -145,7 +142,7 @@ async def _guided_ready_actions_keep_two_episodes_isolated(tmp_path: Path) -> No
                 await pilot.pause()
                 ready.query_one("#ready-export", Button).press()
                 await pilot.pause()
-                assert played == [audio]
+                player.assert_called_once_with(audio)
                 exporter.assert_called_once()
                 exported = exporter.call_args.args[1]
                 assert exported.episode.id == episode_id
