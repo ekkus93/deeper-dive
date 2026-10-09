@@ -8,7 +8,15 @@ from pathlib import Path
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.guided_draft import GuidedDraftStore
-from deeper_dive.guided_workflow import SetupMode, WizardContext, WizardKind, WizardState
+from deeper_dive.guided_readiness import ProductionWizardCompletion
+from deeper_dive.guided_workflow import (
+    SetupMode,
+    WizardContext,
+    WizardKind,
+    WizardNavigator,
+    WizardState,
+    WizardStepVisualState,
+)
 from deeper_dive.storage.workspace import WorkspaceManager
 
 
@@ -124,3 +132,44 @@ def test_first_run_draft_recovers_when_provider_readiness_is_invalid(
     assert resumed is not None
     assert resumed.state.current_step == "provider-config"
     assert resumed.state.setup_mode is SetupMode.ADVANCED
+
+
+def test_ready_setup_invalidated_provider_marks_prerequisite_needs_attention(
+    tmp_path: Path,
+) -> None:
+    """Saved wizard completion must be reevaluated from current production config."""
+    composition, drafts = _setup(tmp_path)
+    provider = composition.provider_controller
+    provider.save_provider(
+        "local", "fake", default_model="fake-v1", network_scope="local"
+    )
+    config = provider.config()
+    config.defaults.update(
+        {
+            "episode_planning": "local:fake-v1",
+            "host_generation": "local:fake-v1",
+            "directing": "local:fake-v1",
+            "verification": "local:fake-v1",
+            "speech_setup": "deferred",
+            "quick_deep_dive_duration_minutes": "20",
+            "research_policy": "useful",
+        }
+    )
+    provider.config_store.save(config)
+    state = WizardState(WizardKind.FIRST_RUN, "ready")
+    context = WizardContext(composition, state)
+    probe = ProductionWizardCompletion(context)
+    assert WizardNavigator(state, probe).first_incomplete_prerequisite is None
+    drafts.save(context)
+
+    # Remove the configured provider through the same transactional production API.
+    provider.remove_provider("local")
+    navigator = WizardNavigator(state, probe)
+    assert navigator.first_incomplete_prerequisite is not None
+    assert navigator.first_incomplete_prerequisite.key == "provider-config"
+    states = {entry.key: entry.visual_state for entry in navigator.progress()}
+    assert states["provider-config"] is WizardStepVisualState.NEEDS_ATTENTION
+    assert states["model-test"] is WizardStepVisualState.NEEDS_ATTENTION
+    restored = drafts.load(composition, WizardKind.FIRST_RUN)
+    assert restored is not None
+    assert restored.state.current_step == "provider-config"
