@@ -601,4 +601,6 @@ async def _guided_and_quick_runs_produce_isolated_durable_artifacts(tmp_path: Pa
         first_export = artifacts[guided_episode_id]
         second_export = artifacts[quick_episode.id]
         assert first_export != second_export
-        assert all(first != second for first, second in zip(first_export, second_export, strict=True))
+        assert all(
+            first != second for first, second in zip(first_export, second_export, strict=True)
+        )
