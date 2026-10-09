@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from textual.widgets import Button, Static
@@ -50,12 +51,11 @@ async def _verify_help_and_focus(
 
         # No secret or raw exception is ever rendered on the normal status line.
         canaries = ("guided-bearer-canary", "guided-api-secret-canary")
+        sensitive = "Bearer guided-bearer-canary"
+        sensitive += " api_key=guided-api-secret-canary"
         screen.set_error(
             "Synthetic provider failure.",
-            RuntimeError(
-                "Authorization: Bearer guided-bearer-canary "
-                "api_key=guided-api-secret-canary"
-            ),
+            RuntimeError(f"Authorization: {sensitive}"),
         )
         status = str(screen.query_one("#wizard-status", Static).render())
         assert "Press F1 for details" in status
@@ -80,3 +80,33 @@ async def _verify_help_and_focus(
 
         screen.set_status("Ready")
         assert "Details:" not in str(screen.query_one("#wizard-status", Static).render())
+
+
+def test_guided_host_failure_details_are_help_only(tmp_path: Path) -> None:
+    asyncio.run(_verify_host_error_help(tmp_path))
+
+
+async def _verify_host_error_help(tmp_path: Path) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    project = service.create_project("Synthetic host repair")
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(80, 24)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        screen = app.screen
+        screen.context.project_id = project.id
+        with patch.object(
+            service,
+            "hosts",
+            side_effect=RuntimeError("api_key=host-private-canary"),
+        ):
+            screen.action_create_host()
+        status = str(screen.query_one("#wizard-status", Static).render())
+        assert "Host creation failed. Press F1 for details." in status
+        assert "host-private-canary" not in status
+        screen.action_help()
+        details = str(screen.query_one("#wizard-status", Static).render())
+        assert "Details:" in details
+        assert "[REDACTED]" in details
+        assert "host-private-canary" not in details
+        assert not service.hosts(project.id).list_hosts(project.id)
