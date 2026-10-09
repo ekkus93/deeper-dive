@@ -74,6 +74,7 @@ class WizardShell(Screen[None]):
         self.busy = False
         self.save_exit_requested = False
         self.help_requested = False
+        self._error_details: str | None = None
         self._viewport_width = RECOMMENDED_TERMINAL_WIDTH
 
     @property
@@ -199,7 +200,9 @@ class WizardShell(Screen[None]):
 
     def action_help(self) -> None:
         self.help_requested = True
-        self.set_status(self.help_text(self.navigator.current_step.key))
+        details = self._error_details
+        self.set_status(self.help_text(self.navigator.current_step.key) + (f"\nDetails: {details}" if details else ""))
+        self._error_details = details
 
     def on_save_exit(self) -> None:
         """Hook for concrete workflows to persist minimal draft state and navigate away."""
@@ -215,7 +218,12 @@ class WizardShell(Screen[None]):
         if message is not None:
             self.set_status(message)
 
+    def set_error(self, summary: str, exc: BaseException) -> None:
+        self.set_status(f"{summary} Press F1 for details.")
+        self._error_details = sanitize_exception_message(exc)
+
     def set_status(self, message: str) -> None:
+        self._error_details = None
         self.query_one("#wizard-status", Static).update(str(redact(message)))
 
     def _sync_text(self) -> None:
