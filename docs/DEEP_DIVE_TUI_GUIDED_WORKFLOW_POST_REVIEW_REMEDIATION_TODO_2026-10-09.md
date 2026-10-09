@@ -28,7 +28,7 @@ A checkbox is complete only when the production behavior is correct, focused reg
 
 - [ ] Reload the post-review spec/TODO and confirm the current `master` SHA before implementation.
 - [ ] Confirm the predecessor TODO remains unchanged as historical evidence.
-- [ ] Add or retain a review-baseline note tying this remediation to reviewed SHA `87208a607def3e78e3466382b5aa33ea49c685b3` without treating that SHA as the final implementation head.
+- [x] Add or retain a review-baseline note tying this remediation to reviewed SHA `87208a607def3e78e3466382b5aa33ea49c685b3` without treating that SHA as the final implementation head.
 - [ ] Reproduce the Basic Authorization leak with a deterministic test before changing the sanitizer.
 - [ ] Reproduce the Token Authorization leak with a deterministic test before changing the sanitizer.
 - [ ] Reproduce the Digest Authorization leak with a deterministic test before changing the sanitizer.
@@ -46,44 +46,44 @@ A checkbox is complete only when the production behavior is correct, focused reg
 
 ## PRR-100 — Canonical authorization and recursive sanitization
 
-- [ ] Define one canonical public sanitization API for user-visible/loggable diagnostic text and recursive structures.
-- [ ] Redact the entire value of `Authorization:` headers regardless of authentication scheme.
-- [ ] Redact the entire value of `authorization=` assignment forms regardless of authentication scheme.
-- [ ] Preserve Bearer-token redaction while fixing Basic/Token/Digest behavior.
-- [ ] Handle mixed/lower/upper-case Authorization field names.
-- [ ] Handle quoted Authorization values.
-- [ ] Handle JSON-like Authorization values.
-- [ ] Handle multiline strings containing Authorization values.
-- [ ] Handle multiple sensitive values in one message.
-- [ ] Preserve existing API-key/token/password secret-key redaction behavior.
-- [ ] Apply the canonical sanitizer recursively to dict values.
-- [ ] Apply the canonical sanitizer recursively to list/tuple values.
-- [ ] Apply the canonical sanitizer to chained/nested exception messages before presentation.
-- [ ] Ensure sanitizer output never includes the Basic credential payload canary.
-- [ ] Ensure sanitizer output never includes the Token credential payload canary.
-- [ ] Ensure sanitizer output never includes the Digest credential payload canary.
-- [ ] Add benign-text regressions proving ordinary words such as `tokenization`, model names, URLs without secrets, and status prose are not unnecessarily destroyed.
+- [x] Define one canonical public sanitization API for user-visible/loggable diagnostic text and recursive structures.
+- [x] Redact the entire value of `Authorization:` headers regardless of authentication scheme.
+- [x] Redact the entire value of `authorization=` assignment forms regardless of authentication scheme.
+- [x] Preserve Bearer-token redaction while fixing Basic/Token/Digest behavior.
+- [x] Handle mixed/lower/upper-case Authorization field names.
+- [x] Handle quoted Authorization values.
+- [x] Handle JSON-like Authorization values.
+- [x] Handle multiline strings containing Authorization values.
+- [x] Handle multiple sensitive values in one message.
+- [x] Preserve existing API-key/token/password secret-key redaction behavior.
+- [x] Apply the canonical sanitizer recursively to dict values.
+- [x] Apply the canonical sanitizer recursively to list/tuple values.
+- [x] Apply the canonical sanitizer to chained/nested exception messages before presentation.
+- [x] Ensure sanitizer output never includes the Basic credential payload canary.
+- [x] Ensure sanitizer output never includes the Token credential payload canary.
+- [x] Ensure sanitizer output never includes the Digest credential payload canary.
+- [x] Add benign-text regressions proving ordinary words such as `tokenization`, model names, URLs without secrets, and status prose are not unnecessarily destroyed.
 
 ## PRR-110 — Provider configuration non-secret validation
 
-- [ ] Validate non-empty `credential_env` as `[A-Za-z_][A-Za-z0-9_]*` after trimming.
-- [ ] Reject raw API-key/token-like strings supplied as `credential_env`.
-- [ ] Reject whitespace-bearing credential references.
-- [ ] Reject punctuation-bearing values that cannot be environment-variable identifiers.
-- [ ] Preserve valid existing environment-variable references.
-- [ ] Parse provider `base_url` structurally rather than validating scheme by prefix alone.
-- [ ] Continue to require HTTP/HTTPS URLs.
-- [ ] Reject URL username/userinfo.
-- [ ] Reject URL password/userinfo.
-- [ ] Reject known sensitive query parameters case-insensitively (`api_key`, `apikey`, `key`, `token`, `access_token`, `auth`, `authorization`, `password`, `secret`).
+- [x] Validate non-empty `credential_env` as `[A-Za-z_][A-Za-z0-9_]*` after trimming.
+- [x] Reject raw API-key/token-like strings supplied as `credential_env`.
+- [x] Reject whitespace-bearing credential references.
+- [x] Reject punctuation-bearing values that cannot be environment-variable identifiers.
+- [x] Preserve valid existing environment-variable references.
+- [x] Parse provider `base_url` structurally rather than validating scheme by prefix alone.
+- [x] Continue to require HTTP/HTTPS URLs.
+- [x] Reject URL username/userinfo.
+- [x] Reject URL password/userinfo.
+- [x] Reject known sensitive query parameters case-insensitively (`api_key`, `apikey`, `key`, `token`, `access_token`, `auth`, `authorization`, `password`, `secret`).
 - [ ] Keep valid Ollama, llama-server, OpenAI, OpenAI-compatible LLM, OpenAI TTS, OpenAI-compatible TTS, and ElevenLabs endpoints working.
-- [ ] Ensure provider validation errors do not echo rejected credential material.
+- [x] Ensure provider validation errors do not echo rejected credential material.
 - [ ] Ensure invalid secret-bearing provider config cannot be written by first-run.
 - [ ] Ensure invalid secret-bearing provider config cannot be written by the advanced Providers screen.
 - [ ] Ensure invalid secret-bearing provider config cannot be written through any CLI/config mutation path.
-- [ ] Inspect serialized `config.json` bytes in tests and prove raw credential canaries are absent.
-- [ ] Keep runtime credential lookup environment-reference based in provider factories.
-- [ ] Define and test safe failure behavior for a pre-existing invalid secret-bearing config.
+- [x] Inspect serialized `config.json` bytes in tests and prove raw credential canaries are absent.
+- [x] Keep runtime credential lookup environment-reference based in provider factories.
+- [x] Define and test safe failure behavior for a pre-existing invalid secret-bearing config.
 
 ## PRR-120 — Cross-surface sanitization enforcement
 
@@ -261,26 +261,26 @@ A checkbox is complete only when the production behavior is correct, focused reg
 
 ## PRR-500 — Expanded security/redaction acceptance matrix
 
-- [ ] Add Basic Authorization canary coverage to direct sanitizer tests.
-- [ ] Add Token Authorization canary coverage to direct sanitizer tests.
-- [ ] Add Digest Authorization canary coverage to direct sanitizer tests.
+- [x] Add Basic Authorization canary coverage to direct sanitizer tests.
+- [x] Add Token Authorization canary coverage to direct sanitizer tests.
+- [x] Add Digest Authorization canary coverage to direct sanitizer tests.
 - [ ] Add mixed-case Authorization canary coverage.
-- [ ] Add quoted and JSON-like Authorization canary coverage.
-- [ ] Add multiline/multiple-secret sanitizer coverage.
-- [ ] Add nested mapping/list/tuple sanitizer coverage.
-- [ ] Add chained-exception sanitizer coverage.
+- [x] Add quoted and JSON-like Authorization canary coverage.
+- [x] Add multiline/multiple-secret sanitizer coverage.
+- [x] Add nested mapping/list/tuple sanitizer coverage.
+- [x] Add chained-exception sanitizer coverage.
 - [ ] Add CLI error-output canary coverage.
 - [ ] Add advanced TUI host/provider/settings/research canary coverage.
 - [ ] Add guided first-run canary coverage.
 - [ ] Add guided New Deep Dive canary coverage.
 - [ ] Add plan/transcript/repair/generation/library canary coverage where runtime text can surface.
 - [ ] Add persisted failure canary coverage.
-- [ ] Add export/diagnostic metadata canary coverage.
-- [ ] Add raw provider URL userinfo rejection coverage.
-- [ ] Add sensitive provider URL query rejection coverage.
-- [ ] Add raw credential_env rejection coverage.
-- [ ] Add config serialization no-secret-canary assertion.
-- [ ] Add benign-text non-over-redaction coverage.
+- [x] Add export/diagnostic metadata canary coverage.
+- [x] Add raw provider URL userinfo rejection coverage.
+- [x] Add sensitive provider URL query rejection coverage.
+- [x] Add raw credential_env rejection coverage.
+- [x] Add config serialization no-secret-canary assertion.
+- [x] Add benign-text non-over-redaction coverage.
 
 ## PRR-510 — Save/Exit and resume acceptance matrix
 
@@ -330,13 +330,13 @@ A checkbox is complete only when the production behavior is correct, focused reg
 
 ## PRR-600 — Static quality and focused regression gates
 
-- [ ] `uv lock --check` passes.
-- [ ] Ruff format check passes.
-- [ ] Ruff lint passes.
-- [ ] Strict mypy passes.
-- [ ] Full pytest suite passes.
-- [ ] Package build passes.
-- [ ] CLI/import smoke passes.
+- [x] `uv lock --check` passes.
+- [x] Ruff format check passes.
+- [x] Ruff lint passes.
+- [x] Strict mypy passes.
+- [x] Full pytest suite passes.
+- [x] Package build passes.
+- [x] CLI/import smoke passes.
 - [ ] No new broad exception swallowing is introduced in remediation paths.
 - [ ] No new duplicated provider/research/generation business logic is introduced in TUI screens.
 - [ ] No new secret-bearing field is added to persisted user config or wizard drafts.
