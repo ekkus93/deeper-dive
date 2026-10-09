@@ -38,12 +38,15 @@ async def _generated_guided_episode_reopens(tmp_path: Path) -> None:
                 ),
             },
             defaults={
-                **{role.value: "fake:fake-v1" for role in (
-                    ModelRole.EPISODE_PLANNING,
-                    ModelRole.HOST_GENERATION,
-                    ModelRole.DIRECTING,
-                    ModelRole.VERIFICATION,
-                )},
+                **{
+                    role.value: "fake:fake-v1"
+                    for role in (
+                        ModelRole.EPISODE_PLANNING,
+                        ModelRole.HOST_GENERATION,
+                        ModelRole.DIRECTING,
+                        ModelRole.VERIFICATION,
+                    )
+                },
                 "speech_setup": "configured",
                 "tts_provider": "speech",
                 "tts_voice": "voice-a",
@@ -112,15 +115,19 @@ async def _generated_guided_episode_reopens(tmp_path: Path) -> None:
         assert fresh_service.hosts(project_id).get_episode(episode_id) is not None
         restored_run = fresh_service.runs(project_id).get(run_id)
         assert restored_run is not None and restored_run.state == "completed"
-        assert AudioTimelineRepository(
-            fresh_app.composition.database_for_project(project_id)
-        ).get(episode_id) is not None
+        assert (
+            AudioTimelineRepository(fresh_app.composition.database_for_project(project_id)).get(
+                episode_id
+            )
+            is not None
+        )
         fresh_app.current_project_id = project_id
         fresh_app.current_episode_id = episode_id
         fresh_app.current_run_id = run_id
         assert len(TranscriptReviewController().turns(fresh_app)) >= 2
         item = next(
-            entry for entry in EpisodeLibraryController.items(fresh_app)
+            entry
+            for entry in EpisodeLibraryController.items(fresh_app)
             if entry.episode.id == episode_id
         )
         export = EpisodeLibraryController.export(fresh_app, item)
