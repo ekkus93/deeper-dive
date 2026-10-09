@@ -163,7 +163,7 @@ class ResearchScreen(Screen[None]):
         gaps = controller.gaps(project_id)
         if self.selected_gap_id is None and gaps:
             self.selected_gap_id = gaps[0].id
-        self.query_one("#research-gaps", Static).update(self._gap_text(gaps))
+        self.query_one("#research-gaps", Static).update(str(redact(self._gap_text(gaps))))
         self.query_one("#research-candidates", Static).update(
             self._candidate_text(controller.outcomes(project_id))
         )
