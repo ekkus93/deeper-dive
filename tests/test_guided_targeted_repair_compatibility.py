@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from pathlib import Path
 from typing import Any
 
 from textual.widgets import Static
@@ -58,9 +57,7 @@ def test_restarted_guided_library_repairs_generated_turn_through_production(
         selected,
     )
     assert len(claims) == 1
-    result = ClaimVerificationService(database, _NeedsRepairVerifier()).verify(
-        claims[0], []
-    )
+    result = ClaimVerificationService(database, _NeedsRepairVerifier()).verify(claims[0], [])
     assert result.state == "insufficient_evidence"
 
     async def verify_repair() -> None:
