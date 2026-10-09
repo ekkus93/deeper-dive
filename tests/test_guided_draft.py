@@ -140,9 +140,7 @@ def test_ready_setup_invalidated_provider_marks_prerequisite_needs_attention(
     """Saved wizard completion must be reevaluated from current production config."""
     composition, drafts = _setup(tmp_path)
     provider = composition.provider_controller
-    provider.save_provider(
-        "local", "fake", default_model="fake-v1", network_scope="local"
-    )
+    provider.save_provider("local", "fake", default_model="fake-v1", network_scope="local")
     config = provider.config()
     config.defaults.update(
         {
