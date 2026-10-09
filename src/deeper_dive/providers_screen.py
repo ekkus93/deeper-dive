@@ -126,9 +126,12 @@ class ProvidersScreen(Screen[None]):
         self._sync_removal_controls()
 
     def on_input_changed(self, event: Input.Changed) -> None:
-        if event.input.id == "provider-name" and self._pending_removal.target is not None:
-            if event.input.value.strip() != self._pending_removal.target:
-                self.action_cancel_remove()
+        if (
+            event.input.id == "provider-name"
+            and self._pending_removal.target is not None
+            and event.input.value.strip() != self._pending_removal.target
+        ):
+            self.action_cancel_remove()
         if event.input.id == "provider-type":
             self.query_one("#provider-details", Static).update(
                 self._provider_type_details(event.input.value.strip())
@@ -418,6 +421,3 @@ class ProvidersScreen(Screen[None]):
             return ()
         raw_value = self.query_one("#provider-voices", Input).value
         return tuple(value.strip() for value in raw_value.split(",") if value.strip())
-
-    def _status(self, message: str) -> None:
-        self.query_one("#screen-status", Static).update(str(redact(f"Status: {message}")))
