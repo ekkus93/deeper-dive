@@ -27,7 +27,9 @@ def test_quick_research_inherits_first_run_global_default() -> None:
 def test_quick_research_explicit_override_beats_global_default() -> None:
     defaults = QuickDeepDiveDefaults()
     values = {"research_policy": "off", "quick_deep_dive_research_policy": "useful"}
-    assert QuickDeepDiveService._apply_overrides(defaults, values).research_mode is ResearchMode.USEFUL
+    assert (
+        QuickDeepDiveService._apply_overrides(defaults, values).research_mode is ResearchMode.USEFUL
+    )
 
 
 def test_valid_non_default_discovered_model_is_ready() -> None:
