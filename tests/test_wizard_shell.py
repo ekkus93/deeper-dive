@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+import pytest
+
 from textual.app import App
 from textual.widgets import Button, Select, Static
 
@@ -286,3 +288,65 @@ async def _wizard_shell_native_select_arrow_and_space_activation(tmp_path: Path)
         await pilot.press("space")
         await pilot.pause()
         assert screen.context.state.current_step == "system-check"
+
+
+@pytest.mark.parametrize("kind", [WizardKind.FIRST_RUN, WizardKind.NEW_DEEP_DIVE])
+@pytest.mark.parametrize("size", [(100, 30), (80, 24)])
+def test_shared_wizard_action_geometry_and_text_progress_at_supported_sizes(
+    tmp_path: Path, kind: WizardKind, size: tuple[int, int]
+) -> None:
+    asyncio.run(_shared_wizard_action_geometry(tmp_path, kind, size))
+
+
+async def _shared_wizard_action_geometry(
+    tmp_path: Path, kind: WizardKind, size: tuple[int, int]
+) -> None:
+    composition = _composition(tmp_path)
+    context = WizardContext(composition, WizardState(kind, "welcome" if kind is WizardKind.FIRST_RUN else "project"))
+    screen = (
+        FirstRunWizardShell(context, lambda _key: True)
+        if kind is WizardKind.FIRST_RUN
+        else NewDeepDiveWizardShell(context, lambda _key: True)
+    )
+    async with _WizardHarness(screen).run_test(size=size) as pilot:
+        await pilot.pause()
+        assert screen.query_one("#wizard-actions").display
+        assert not screen.query_one("#wizard-resize-message").display
+        assert screen.query_one("#wizard-content").display
+        progress = str(screen.query_one("#wizard-progress", Static).render())
+        assert "(current)" in progress
+        assert "(upcoming)" in progress
+        for action in ("back", "continue", "save-exit", "help"):
+            button = screen.query_one(f"#wizard-{action}", Button)
+            assert button.region.width > 0
+            assert button.region.right <= size[0]
+            assert button.region.bottom <= size[1]
+
+
+@pytest.mark.parametrize("kind", [WizardKind.FIRST_RUN, WizardKind.NEW_DEEP_DIVE])
+def test_wizard_below_minimum_policy_restores_actions_without_losing_step(
+    tmp_path: Path, kind: WizardKind
+) -> None:
+    asyncio.run(_wizard_resize_preserves_step(tmp_path, kind))
+
+
+async def _wizard_resize_preserves_step(tmp_path: Path, kind: WizardKind) -> None:
+    composition = _composition(tmp_path)
+    step = "welcome" if kind is WizardKind.FIRST_RUN else "project"
+    context = WizardContext(composition, WizardState(kind, step))
+    screen = (
+        FirstRunWizardShell(context, lambda _key: True)
+        if kind is WizardKind.FIRST_RUN
+        else NewDeepDiveWizardShell(context, lambda _key: True)
+    )
+    async with _WizardHarness(screen).run_test(size=(80, 24)):
+        screen._apply_viewport_policy(79, 23)
+        assert screen.query_one("#wizard-resize-message").display
+        assert not screen.query_one("#wizard-actions").display
+        assert not screen.query_one("#wizard-content").display
+        assert screen.context.state.current_step == step
+        screen._apply_viewport_policy(80, 24)
+        assert not screen.query_one("#wizard-resize-message").display
+        assert screen.query_one("#wizard-actions").display
+        assert screen.query_one("#wizard-content").display
+        assert screen.context.state.current_step == step
