@@ -52,6 +52,7 @@ def test_valid_non_default_discovered_model_is_ready() -> None:
 def test_blank_quick_override_does_not_hide_global_research_policy() -> None:
     defaults = QuickDeepDiveDefaults()
     values = {"research_policy": "aggressive", "quick_deep_dive_research_policy": " "}
-    assert QuickDeepDiveService._apply_overrides(
-        defaults, values
-    ).research_mode is ResearchMode.AGGRESSIVE
+    assert (
+        QuickDeepDiveService._apply_overrides(defaults, values).research_mode
+        is ResearchMode.AGGRESSIVE
+    )
