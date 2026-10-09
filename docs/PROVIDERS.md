@@ -151,6 +151,18 @@ Operational notes:
 
 ## Credential storage behavior
 
+The `credential_env` field accepts an **environment-variable name**, not a
+secret value. After surrounding whitespace is trimmed, a non-empty value must
+match `[A-Za-z_][A-Za-z0-9_]*` (for example `OPENAI_API_KEY` or
+`LOCAL_TTS_TOKEN`). Do not enter an API key or a string containing spaces,
+punctuation, or `env:` in that field. Provider URLs must use HTTP/HTTPS and
+must not contain a username/password or secret-bearing query parameters such
+as `api_key`, `token`, `access_token`, `authorization`, or `password`.
+Use `credential_env` and the process environment instead. Invalid old
+configuration fails without rewriting its contents or echoing the rejected
+credential. Both initial validation and final `UserConfigStore.save()`
+validation enforce this rule, including after a config model was mutated.
+
 Credential handling follows these rules:
 
 - Non-secret provider settings belong in user configuration, outside per-project databases.

@@ -112,6 +112,33 @@ When adding a schema change:
 3. Add tests for both new persisted data and upgrade/compatibility behavior where applicable.
 4. Ensure stale cache/generated artifacts are invalidated if the persisted semantics change.
 
+## Guided workflow and configuration invariants
+
+`WizardShell` owns the shared Save-and-Exit confirmation and computes dirty
+state from the current editable step's controls. Screens dispatch Save changes
+through existing production controllers, not a second wizard database.
+`GuidedDraftStore` stores versioned navigation hints and stable durable
+IDs only; credential values and pasted source bodies are excluded. Completed
+first-run setup and completed generation runs must not leave stale Resume
+actions. An unavailable/deleted project invalidates an unrecoverable draft;
+active or paused work remains resumable.
+
+`ProviderConfig` validates environment-variable credential references and
+structurally rejects URLs with userinfo or sensitive query parameters.
+`UserConfigStore.save()` revalidates the complete mutable model immediately
+before serialization to prevent post-construction mutation from bypassing
+those checks. Multi-default updates should use one validated
+`SettingsController.set_defaults()` transaction and one durable write.
+`deeper_dive.diagnostics.redact` is the canonical sanitization boundary for
+recursive diagnostics and displayed error text; exception chains are sanitized
+one message at a time. Any new TUI/CLI error presentation path must use it.
+
+Quick Deep Dive resolves research mode from a project Quick override, an
+explicit user Quick override, the user's global `research_policy`, and
+finally the built-in Useful default. The guided Research selector must load
+the durable project policy on revisit and must not overwrite that policy
+merely by navigating to the screen.
+
 ## Checkpointing and resume
 
 Long-running generation uses durable run records and completed work-unit checkpoints. The pipeline has ordered stages such as sources, research, planning, conversation, verification, TTS, composition, and export.

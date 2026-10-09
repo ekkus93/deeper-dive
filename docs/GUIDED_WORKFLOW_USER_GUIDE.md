@@ -89,6 +89,23 @@ placeholder run. Newly created recommended hosts inherit configured
 first-run speech/voice defaults; existing host assignments are preserved.
 The shortcut is not a separate generation engine.
 
+For a new project's Research step, the selector uses its previously saved
+project policy first, then the global user `research_policy`, then Useful.
+For Quick Deep Dive, the precedence is **project Quick override > explicit
+user Quick override > global user research policy > Useful**. An empty Quick
+override counts as unset, not as a silent Useful override. Off disables
+automatic supplemental research; Useful and Aggressive may contact configured
+external services subject to network policy.
+
+## Destructive actions
+
+Advanced Providers, Hosts, and Sources require a separate, explicit
+confirmation before removal. The first Remove/Delete action does not mutate
+durable state; a subsequent Confirm applies only to the originally selected
+target. Cancel is the default-safe action. Changing the target or repeating
+confirmation after successful deletion does not delete another record.
+Guided source deletion and project deletion likewise require confirmation.
+
 ## Keyboard and terminal controls
 
 Use **Tab** / **Shift+Tab** for focus, **Enter** on a focused action,
@@ -128,18 +145,28 @@ retains the user's typed values, and clears when the inputs are saved.
 ## Save and Exit, restart, and repair
 
 **Save and Exit** writes a small versioned checkpoint with only the wizard
-location, setup mode, and durable production IDs; it does not copy providers,
-source text, host records, plans, credentials, or audio into a separate wizard
+location, setup mode, and durable production IDs; it never copies provider
+credentials, source text, host records, plans, or audio into a separate wizard
 database. Project creation, source imports, host choices, and other operations
-persist at their normal production save boundaries. **Unsaved text typed
-into form controls is not part of a durable draft**: save the production
-operation before exiting.
+still use their normal production save boundaries.
+
+When the current form has **unsaved edits**, Save and Exit (including Escape
+outside a confirmation) presents **Save changes and exit**, **Exit without
+changes**, and **Continue editing**. Continue editing is the non-destructive
+default. Save changes validates and saves through the same production action as
+the step's normal Save button. A validation or storage error keeps the entered
+fields on the screen; no draft secretly captures credentials or pasted source
+bodies. Explicit discard retains previously saved production data and only
+loses the current unsaved input. When the current form is clean, Save and Exit
+checkpoints and exits without extra confirmation.
 
 **Resume Deep Dive** uses the checkpoint's location as a *hint* and reloads
-current production prerequisites. If a source/project/episode prerequisite has
-disappeared or become invalid, the wizard returns to the earliest incomplete
-step instead of blindly jumping past it. Invalid or obsolete checkpoints fail
-safely. If a run is already in progress or paused, use the run/monitor and
+current production prerequisites. If a recoverable source/episode prerequisite
+becomes invalid, the wizard returns to the earliest incomplete step rather
+than blindly jumping past it. A deleted project or a completed generation run
+is not an incomplete workflow and does not remain resumable. Completing
+first-run setup also clears its completed setup checkpoint. Invalid or
+obsolete checkpoints fail safely. If a run is already in progress or paused, use the run/monitor and
 Library controls appropriate to its durable state rather than creating a
 duplicate run.
 
