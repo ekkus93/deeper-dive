@@ -75,11 +75,17 @@ Play, Export, and Library actions. Export is an **explicit** action: completing
 the pipeline's informational `export` stage does not itself guarantee that
 downloadable output files were exported.
 
-**Quick Deep Dive:** the production `QuickDeepDiveService` applies a user/project
-default duration, research policy, and hosts to a **normal draft episode**.
-The guided one-click Quick shortcut and complete Quick-versus-guided
-qualification are still TODO work. Do not interpret the existence of this
-service as a finished end-to-end shortcut or an alternative generation engine.
+**Quick Deep Dive:** the Home shortcut requires an existing project with
+indexed sources. It uses `QuickDeepDiveService` to apply the user/project
+duration, research policy, and host defaults to a normal durable draft,
+then builds the plan and runs **shared preflight**. When ready, Quick
+automatically starts normal generation through `GenerationStartService`
+and `PipelineOrchestrator`, with the same review, audio, and export behavior
+as guided generation. If prerequisites are missing, the workflow shows
+the normal source or preflight repair screen instead of starting a
+placeholder run. Newly created recommended hosts inherit configured
+first-run speech/voice defaults; existing host assignments are preserved.
+The shortcut is not a separate generation engine.
 
 ## Keyboard and terminal controls
 
@@ -89,6 +95,33 @@ select/radio choices, and **F1** or **?** for context help. **Escape** is
 the wizard's Save and Exit action outside any cancellable modal. A visible
 step/progress marker includes text and symbols rather than relying only on
 color. **Ctrl+G** opens New Deep Dive in the guided app.
+
+## Terminal layout example
+
+This is a **schematic ASCII example**, not a screenshot or a promise of
+fixed widget widths. The same shared shell serves the eight-step First-run
+wizard and the seven-step New Deep Dive wizard. Primary actions remain
+outside the scrolling content region at 100×30 and 80×24.
+
+```text
+New Deep Dive — Step 6 of 7: Review & Plan
+[complete] Project  [complete] Sources  ...  [current] Review & Plan
+
+  Episode plan
+  1. Opening — purpose and duration
+  2. Evidence — purpose and duration
+  [scrollable plan/editor content]
+
+Status: Review the plan, then Continue.
+[ Back ]  [ Continue ]  [ Save and Exit ]  [ Help ]
+```
+
+The real progress rail uses **text plus symbols** (complete, current,
+upcoming, Needs attention); colors alone never convey prerequisite state.
+At under 80×24, the wizard replaces the main content/actions with a
+resize message without discarding its draft or durable production state.
+Project and episode field validation appears beside the relevant form,
+retains the user's typed values, and clears when the inputs are saved.
 
 ## Save and Exit, restart, and repair
 
