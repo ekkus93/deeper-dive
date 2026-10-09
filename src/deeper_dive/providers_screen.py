@@ -134,7 +134,7 @@ class ProvidersScreen(Screen[None]):
             self.action_cancel_remove()
         if event.input.id == "provider-type":
             self.query_one("#provider-details", Static).update(
-                self._provider_type_details(event.input.value.strip())
+                str(redact(self._provider_type_details(event.input.value.strip())))
             )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -320,9 +320,13 @@ class ProvidersScreen(Screen[None]):
             for name, cfg in sorted(providers.items())
             if self.provider_app.provider_controller.capability(cfg.provider_type) == "tts"
         ]
-        self.query_one("#llm-provider-list", Static).update(self._list_text("LLM providers", llm))
-        self.query_one("#tts-provider-list", Static).update(self._list_text("TTS providers", tts))
-        self.query_one("#provider-details", Static).update(self._details_text())
+        self.query_one("#llm-provider-list", Static).update(
+            str(redact(self._list_text("LLM providers", llm)))
+        )
+        self.query_one("#tts-provider-list", Static).update(
+            str(redact(self._list_text("TTS providers", tts)))
+        )
+        self.query_one("#provider-details", Static).update(str(redact(self._details_text())))
         self._sync_removal_controls()
         self._status(status)
 

@@ -165,7 +165,7 @@ class ResearchScreen(Screen[None]):
             self.selected_gap_id = gaps[0].id
         self.query_one("#research-gaps", Static).update(str(redact(self._gap_text(gaps))))
         self.query_one("#research-candidates", Static).update(
-            self._candidate_text(controller.outcomes(project_id))
+            str(redact(self._candidate_text(controller.outcomes(project_id))))
         )
         self.query_one("#research-progress", Static).update("Progress: idle")
         self._status(status)

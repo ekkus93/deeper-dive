@@ -280,14 +280,14 @@ class SettingsScreen(Screen[None]):
 
     def refresh_settings(self, status: str = "Ready") -> None:
         self.query_one("#settings-summary", Static).update(
-            "Current settings:\n" + "\n".join(self.controller.summary())
+            str(redact("Current settings:\n" + "\n".join(self.controller.summary())))
         )
         self.refresh_readiness(update_status=False)
         self._status(status)
 
     def refresh_readiness(self, *, update_status: bool = True) -> None:
         self.query_one("#readiness-status", Static).update(
-            "Runtime readiness:\n" + "\n".join(self.controller.readiness_summary())
+            str(redact("Runtime readiness:\n" + "\n".join(self.controller.readiness_summary())))
         )
         if update_status:
             self._status("Refreshed runtime readiness")
