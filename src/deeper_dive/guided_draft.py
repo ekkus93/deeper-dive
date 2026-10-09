@@ -57,7 +57,13 @@ class GuidedDraftStore:
             if temporary is not None:
                 temporary.unlink(missing_ok=True)
 
-    def load(self, composition: ProductionComposition, kind: WizardKind) -> WizardContext | None:
+    def load(
+        self,
+        composition: ProductionComposition,
+        kind: WizardKind,
+        *,
+        recover: bool = True,
+    ) -> WizardContext | None:
         path = self._path(kind)
         try:
             if path.is_symlink() or path.stat().st_size > _MAX_DRAFT_BYTES:
@@ -86,9 +92,10 @@ class GuidedDraftStore:
                 if any(ref is not None for ref in refs):
                     return None
                 context = WizardContext(composition, state)
-                context.state = WizardNavigator(
-                    state, ProductionWizardCompletion(context)
-                ).recovered_state()
+                if recover:
+                    context.state = WizardNavigator(
+                        state, ProductionWizardCompletion(context)
+                    ).recovered_state()
                 return context
             if project_id is None:
                 return WizardContext(composition, state.moved_to("project"))

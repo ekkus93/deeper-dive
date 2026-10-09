@@ -67,7 +67,7 @@ def first_run_readiness(context: WizardContext) -> FirstRunDerivedReadiness:
     for name, provider in config.providers.items():
         if controller.capability(provider.provider_type) != "llm":
             continue
-        llm_runtime[name] = _llm_runtime_ready(controller, name)
+        llm_runtime[name] = _llm_runtime_ready(controller, name, provider.provider_type)
 
     llm_provider_ready = any(llm_runtime.values())
 
@@ -99,7 +99,12 @@ def first_run_readiness(context: WizardContext) -> FirstRunDerivedReadiness:
     tts_runtime_ready = (
         tts_provider_configured
         and bool(tts_voice)
-        and _tts_runtime_ready(controller, tts_provider_id, tts_voice)
+        and _tts_runtime_ready(
+            controller,
+            tts_provider_id,
+            tts_voice,
+            tts_config.provider_type if tts_config is not None else None,
+        )
         and (not kitten_required or status.kitten_available)
     )
     audio_ready = tts_runtime_ready and status.ffmpeg_available
@@ -121,14 +126,20 @@ def first_run_readiness(context: WizardContext) -> FirstRunDerivedReadiness:
 def _llm_runtime_ready(
     controller: ProviderController,
     name: str,
+    provider_type: str | None = None,
 ) -> frozenset[str]:
-    """Return healthy discovered models without requiring the default model.
+    """Return healthy discovered models without redundant remote discovery.
 
-    Explicit role assignments may target any discovered model, including when
-    the provider's suggested default is unavailable or unset.
+    OpenAI health is implemented by model discovery itself, so invoking health()
+    followed by models() performs the same remote request twice. For that adapter,
+    one successful models() call is both the health evidence and the discovery
+    snapshot used by all role checks in this refresh.
     """
     try:
         runtime = controller.llm(name)
+        kind = (provider_type or "").strip().lower().replace("_", "-")
+        if kind == "openai":
+            return frozenset(item.model for item in runtime.models())
         health = runtime.health()
         if not health.healthy:
             return frozenset()
@@ -141,9 +152,14 @@ def _tts_runtime_ready(
     controller: ProviderController,
     provider_id: str,
     voice_id: str,
+    provider_type: str | None = None,
 ) -> bool:
     try:
         provider = controller.tts(provider_id)
+        kind = (provider_type or "").strip().lower().replace("_", "-")
+        if kind == "elevenlabs":
+            # ElevenLabs health() delegates to voices(); use one discovery call.
+            return any(voice.id == voice_id for voice in provider.voices())
         health = provider.health()
         if not health.healthy:
             return False
