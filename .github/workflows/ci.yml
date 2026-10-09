@@ -207,6 +207,58 @@ jobs:
           assert private_value not in redacted
           assert "[REDACTED]" in redacted
           PY
+      - name: Installed-wheel guided TUI acceptance
+        run: |
+          /tmp/deeper-dive-fresh/bin/python - <<'PY'
+          import asyncio
+          import json
+          from pathlib import Path
+
+          from textual.widgets import Button, Static
+
+          from deeper_dive.application.service import DeeperDiveService
+          from deeper_dive.guided_app import GuidedDeeperDiveApp
+          from deeper_dive.storage.workspace import WorkspaceManager
+
+          data_dir = Path("/tmp/deeper-dive-smoke")
+          project_id = json.loads(Path("/tmp/project.json").read_text())["id"]
+          episode = json.loads(Path("/tmp/episode.json").read_text())
+          episode_id = episode["episode"]["id"] if "episode" in episode else episode["id"]
+          run_id = json.loads(Path("/tmp/run.json").read_text())["id"]
+          service = DeeperDiveService(WorkspaceManager(data_dir))
+
+          async def check():
+              app = GuidedDeeperDiveApp(service)
+              async with app.run_test(size=(80, 24)) as pilot:
+                  await pilot.pause()
+                  app.current_project_id = project_id
+                  app.current_episode_id = episode_id
+                  app.current_run_id = run_id
+                  app.action_navigate("ready")
+                  await pilot.pause()
+                  ready = app.screen
+                  assert ready.id == "screen-episode-ready"
+                  summary = str(ready.query_one("#ready-summary", Static).render())
+                  assert "Fresh smoke episode" in summary
+                  assert "completed" in summary
+                  ready.query_one("#ready-export", Button).press()
+                  await pilot.pause()
+                  assert "Exported" in str(ready.query_one("#ready-status", Static).render())
+                  ready.query_one("#ready-library", Button).press()
+                  await pilot.pause()
+                  assert app.screen.id == "screen-library"
+                  assert app.screen.selected_episode_id == episode_id
+                  app.action_navigate("new")
+                  await pilot.pause()
+                  assert app.screen.id == "screen-wizard-new-deep-dive"
+                  assert app.screen.query_one("#wizard-continue", Button).display
+                  assert "Step 1 of 7" in str(
+                      app.screen.query_one("#wizard-heading").render()
+                  )
+
+          asyncio.run(check())
+          print("Installed-wheel guided TUI acceptance passed.")
+          PY
       - name: Install real KittenTTS runtime
         run: |
           uv pip install --python /tmp/deeper-dive-fresh/bin/python \
