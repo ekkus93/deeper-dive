@@ -533,9 +533,8 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
     def _clear_completed_setup_draft(self) -> None:
         """A terminal first-run setup must not leave a stale resume checkpoint."""
         if self.completion_probe("ready"):
-            GuidedDraftStore(
-                self.context.composition.service.workspaces.data_dir
-            ).clear(WizardKind.FIRST_RUN)
+            data_dir = self.context.composition.service.workspaces.data_dir
+            GuidedDraftStore(data_dir).clear(WizardKind.FIRST_RUN)
 
     def _load_existing_setup(self) -> None:
         controller = self.context.composition.provider_controller

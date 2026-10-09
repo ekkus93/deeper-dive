@@ -102,9 +102,7 @@ def test_completed_first_run_draft_is_cleared_but_incomplete_setup_is_retained(
         context=fake_context,
         completion_probe=lambda step: False,
     )
-    GuidedFirstRunWizard._clear_completed_setup_draft(
-        cast(GuidedFirstRunWizard, incomplete)
-    )
+    GuidedFirstRunWizard._clear_completed_setup_draft(cast(GuidedFirstRunWizard, incomplete))
     assert checkpoint.read_text(encoding="utf-8") == "safe checkpoint"
 
     finished = SimpleNamespace(
