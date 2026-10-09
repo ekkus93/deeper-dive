@@ -214,7 +214,7 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 - [x] Simplified Library prioritizes episodes with project/time/status context.
 - [x] Library supports Play, Open, and Export.
 - [x] Preserve multi-episode isolation for playback/review/export.
-- [ ] Add two-episode guided-workflow isolation acceptance.
+- [x] Add two-episode guided-workflow isolation acceptance.
 
 ## GW-230 — Quick Deep Dive integration
 
