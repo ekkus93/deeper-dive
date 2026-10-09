@@ -63,7 +63,7 @@ def first_run_readiness(context: WizardContext) -> FirstRunDerivedReadiness:
     config = controller.config()
     status = FirstRunController(controller).status()
 
-    llm_runtime: dict[str, bool] = {}
+    llm_runtime: dict[str, frozenset[str]] = {}
     for name, provider in config.providers.items():
         if controller.capability(provider.provider_type) != "llm":
             continue
@@ -122,18 +122,19 @@ def _llm_runtime_ready(
     controller: ProviderController,
     name: str,
     provider: ProviderConfig,
-) -> bool:
+) -> frozenset[str]:
     model = (provider.default_model or "").strip()
     if not model:
-        return False
+        return frozenset()
     try:
         runtime = controller.llm(name)
         health = runtime.health()
         if not health.healthy:
-            return False
-        return any(item.model == model for item in runtime.models())
+            return frozenset()
+        discovered = frozenset(item.model for item in runtime.models())
+        return discovered if model in discovered else frozenset()
     except (KeyError, OSError, RuntimeError, ValueError):
-        return False
+        return frozenset()
 
 
 def _tts_runtime_ready(
@@ -154,7 +155,7 @@ def _tts_runtime_ready(
 def _assignment_targets_ready_llm(
     controller: ProviderController,
     providers: Mapping[str, ProviderConfig],
-    runtime_ready: Mapping[str, bool],
+    runtime_ready: Mapping[str, frozenset[str]],
     assignment: ModelAssignment | None,
 ) -> bool:
     if assignment is None:
@@ -163,9 +164,7 @@ def _assignment_targets_ready_llm(
     return (
         provider is not None
         and controller.capability(provider.provider_type) == "llm"
-        and runtime_ready.get(assignment.provider, False)
-        and bool(assignment.model.strip())
-        and assignment.model == (provider.default_model or "").strip()
+        and assignment.model in runtime_ready.get(assignment.provider, frozenset())
     )
 
 

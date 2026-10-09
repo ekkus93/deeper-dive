@@ -11,7 +11,7 @@ from textual.widgets import Button, Input, Select, Static
 from deeper_dive.application.service import SourceImportSummary
 from deeper_dive.guided_new_deep_dive import GuidedProjectWizard
 from deeper_dive.guided_workflow import CompletionProbe, WizardContext
-from deeper_dive.research_policy import ResearchMode, ResearchPolicy
+from deeper_dive.research_policy import ResearchMode, ResearchPolicy, ResearchPolicyStore
 from deeper_dive.source_readiness import source_readiness_label
 from deeper_dive.storage.repositories import SourceRecord
 from deeper_dive.tui import DeeperDiveApp
@@ -98,16 +98,19 @@ class GuidedSourceWizard(GuidedProjectWizard):
     def on_mount(self) -> None:
         super().on_mount()
         self._refresh_sources()
+        self._refresh_research_choice()
         self._toggle()
 
     def action_continue(self) -> None:
         super().action_continue()
         self._refresh_sources()
+        self._refresh_research_choice()
         self._toggle()
 
     def action_back(self) -> None:
         super().action_back()
         self._refresh_sources()
+        self._refresh_research_choice()
         self._toggle()
 
     def on_select_changed(self, event: Select.Changed) -> None:
@@ -269,6 +272,25 @@ class GuidedSourceWizard(GuidedProjectWizard):
         app.current_project_id = project_id
         app.current_project_name = project.name
         app.action_navigate("research")
+
+    def _refresh_research_choice(self) -> None:
+        """Hydrate from durable project policy or the first-run user default."""
+        project_id = self.context.project_id
+        if project_id is None:
+            return
+        composition = self.context.composition
+        policies = ResearchPolicyStore(composition.database_for_project(project_id))
+        if policies.has_project_policy(project_id):
+            mode = policies.project(project_id).mode
+        else:
+            configured = composition.provider_controller.config().defaults.get(
+                "research_policy", ResearchMode.USEFUL.value
+            )
+            try:
+                mode = ResearchMode(configured)
+            except ValueError:
+                mode = ResearchMode.USEFUL
+        self.query_one("#guided-research-policy", Select).value = mode.value
 
     def _refresh_sources(self, preferred_source_id: str | None = None) -> None:
         project_id = self.context.project_id
