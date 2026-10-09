@@ -24,8 +24,8 @@ from deeper_dive.guided_readiness import (
     _llm_runtime_ready,
     _tts_runtime_ready,
 )
-from deeper_dive.provider_tui import ProviderController
 from deeper_dive.guided_workflow import WizardContext
+from deeper_dive.provider_tui import ProviderController
 from deeper_dive.storage.workspace import WorkspaceManager
 
 

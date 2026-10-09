@@ -223,7 +223,10 @@ class FirstRunReadinessCoordinator:
                 "failed",
                 generation,
                 fingerprint,
-                message="Provider readiness check timed out. Review provider connectivity and retry.",
+                message=(
+                    "Provider readiness check timed out. "
+                    "Review provider connectivity and retry."
+                ),
             )
         if callback is not None:
             callback()
