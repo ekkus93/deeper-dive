@@ -219,3 +219,25 @@ def test_authorization_with_commas_repeated_and_idempotent(
         assert retained in sanitized
         assert all(canary not in sanitized for canary in canaries)
         assert sanitizer(sanitized) == sanitized
+
+def test_multiline_authorization_canaries_are_redacted_across_schemes() -> None:
+    message = (
+        "request_id=qualified\\n"
+        "Authorization: Token multi-left,multi-right; status=401\\n"
+        "AUTHORIZATION=Basic basic-left,basic-right\\n"
+        "provider_error: authorization=Digest username=alice, nonce=xyz, "
+        "response=digest-secret; status=403\\n"
+        "tokenization completed"
+    )
+    for sanitizer in (redact, redact_text):
+        safe = str(sanitizer(message))
+        assert "multi-left" not in safe
+        assert "multi-right" not in safe
+        assert "basic-left" not in safe
+        assert "basic-right" not in safe
+        assert "digest-secret" not in safe
+        assert "status=401" in safe
+        assert "status=403" in safe
+        assert "tokenization completed" in safe
+        assert safe.count("[REDACTED]") >= 3
+        assert sanitizer(safe) == safe
