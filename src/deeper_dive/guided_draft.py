@@ -108,6 +108,13 @@ class GuidedDraftStore:
                 or run.episode_id != episode_id
             ):
                 run_id = None
+            if run_id is not None:
+                active_run = composition.service.runs(project_id).get(run_id)
+                if active_run is not None and active_run.state == "completed":
+                    # A crash before the Ready screen cleared its checkpoint must
+                    # not offer a finished workflow as recoverable incomplete work.
+                    self.clear(kind)
+                    return None
             context = WizardContext(
                 composition,
                 state,
