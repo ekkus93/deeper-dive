@@ -22,9 +22,7 @@ def test_both_wizards_keep_actions_and_non_color_progress_visible(
 
 
 async def _check_supported_viewports(tmp_path: Path, size: tuple[int, int]) -> None:
-    app = GuidedDeeperDiveApp(
-        DeeperDiveService(WorkspaceManager(tmp_path / "data"))
-    )
+    app = GuidedDeeperDiveApp(DeeperDiveService(WorkspaceManager(tmp_path / "data")))
     async with app.run_test(size=size) as pilot:
         await pilot.pause()
         for destination, label in ((None, "Welcome"), ("new", "Project Setup")):
@@ -57,12 +55,8 @@ def test_below_minimum_viewport_preserves_both_wizard_steps(
     asyncio.run(_check_below_minimum_viewports(tmp_path, size))
 
 
-async def _check_below_minimum_viewports(
-    tmp_path: Path, size: tuple[int, int]
-) -> None:
-    app = GuidedDeeperDiveApp(
-        DeeperDiveService(WorkspaceManager(tmp_path / "data"))
-    )
+async def _check_below_minimum_viewports(tmp_path: Path, size: tuple[int, int]) -> None:
+    app = GuidedDeeperDiveApp(DeeperDiveService(WorkspaceManager(tmp_path / "data")))
     async with app.run_test(size=size) as pilot:
         await pilot.pause()
         for destination in (None, "new"):
