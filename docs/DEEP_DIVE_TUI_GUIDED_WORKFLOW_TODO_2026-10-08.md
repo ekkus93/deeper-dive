@@ -264,7 +264,7 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 
 ## GW-260 — Shared acceptance fixture and end-to-end guided workflow
 
-- [ ] Extend/reuse the deterministic production acceptance fixture rather than create one-off repository seeding.
+- [x] Extend/reuse the deterministic production acceptance fixture rather than create one-off repository seeding.
 - [x] First-run acceptance configures a deterministic LLM through normal provider boundaries.
 - [x] First-run acceptance configures deterministic TTS/voices through normal provider boundaries.
 - [x] First-run acceptance persists recommended roles and reaches derived Ready.
@@ -284,13 +284,13 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 
 ## GW-270 — Compatibility and regression protection
 
-- [ ] Existing provider configuration still loads.
-- [ ] Existing projects and sources still open.
+- [x] Existing provider configuration still loads.
+- [x] Existing projects and sources still open.
 - [ ] Existing hosts still open.
 - [ ] Existing episode configs/plans/runs/turns/provider identities still open.
-- [ ] Existing timelines/audio/exports still open.
+- [x] Existing timelines/audio/exports still open.
 - [ ] Existing Transcript Review and targeted repair remain usable.
-- [ ] Existing advanced Sources/Research/Hosts/Providers/Settings screens remain usable.
+- [x] Existing advanced Sources/Research/Hosts/Providers/Settings screens remain usable.
 - [ ] Existing CLI acceptance remains green.
 - [ ] Existing production-generation remediation suites remain green.
 - [ ] No migration is introduced unless required by a documented compatibility case.
@@ -345,6 +345,7 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 Populate only as work is completed. Do not pre-check or use placeholders as completion evidence.
 
 - Implementation SHAs:
+  - 3169e296eb5d91276d4445a0902fa1a7d0b70fb6, de02c3ca5ca89b2c8ab1579998f23bb7c2481ddf, 211fcf57fe77180cc25cfa1d5c247342fa076a4a, 72b886638a22963366c8fff7211daeaa37a3bc38 — reused `completed_episode_acceptance` production fixture in `tests/test_guided_persisted_compatibility.py::test_guided_tui_reopens_completed_legacy_artifacts_and_advanced_routes`; fresh-service persisted provider/source/project, timeline/audio/export, selected episode review/export and advanced-screen compatibility; exact-head master CI 37907649199 passed at 324f08c72612f8641145b8d909a4bb00bd5150c8 (quality and fresh-machine).
   - c1b48250404349b2f6dc461cdfec345cda43f039 — GW-250 focus, inline validation, screen blockers, sanitized runtime failure and terminal layout tests; exact-head CI 37904031350 passed (quality and fresh-machine).
 
   - a5dfdd6cfdc8f00bd151bd612c5556c74e329adf, 58a662116a4a32f9a70ee781e47f7191ef5852b3 — Guided Episode Ready reuses Library playback; two-episode action-selection regression; exact-head CI 37869998015 passed.
