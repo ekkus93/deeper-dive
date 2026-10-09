@@ -205,7 +205,7 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 
 ## GW-220 — Episode Ready and Library handoff
 
-- [ ] Successful generation transitions to Episode Ready.
+- [x] Successful generation transitions to Episode Ready.
 - [x] Episode Ready shows title, duration when available, and selected hosts.
 - [x] Episode Ready resolves playback for the selected episode/run only.
 - [x] Open in Review routes to existing transcript review.
@@ -239,7 +239,7 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 - [x] Resume preserves a later valid location when prerequisites remain valid.
 - [x] Invalid/corrupt/old draft state fails safe to the earliest derivable valid step.
 - [x] Previously completed steps move back to Needs attention when their production prerequisite becomes invalid.
-- [ ] Add restart tests at every major wizard boundary.
+- [x] Add restart tests at every major wizard boundary.
 
 ## GW-250 — Validation, security, accessibility, and compact-terminal UX
 
@@ -265,22 +265,22 @@ This is the authoritative checklist for the guided Textual workflow remediation.
 ## GW-260 — Shared acceptance fixture and end-to-end guided workflow
 
 - [ ] Extend/reuse the deterministic production acceptance fixture rather than create one-off repository seeding.
-- [ ] First-run acceptance configures a deterministic LLM through normal provider boundaries.
-- [ ] First-run acceptance configures deterministic TTS/voices through normal provider boundaries.
-- [ ] First-run acceptance persists recommended roles and reaches derived Ready.
-- [ ] New Deep Dive acceptance creates project through DeeperDiveService.
-- [ ] Acceptance adds/indexes source through production source APIs.
-- [ ] Acceptance selects research policy through production mapping.
-- [ ] Acceptance selects hosts through host services.
-- [ ] Acceptance persists episode through EpisodeConfigurationService.
-- [ ] Acceptance builds a plan through EpisodePlannerService.
-- [ ] Acceptance passes shared preflight.
-- [ ] Acceptance starts through GenerationStartService.
+- [x] First-run acceptance configures a deterministic LLM through normal provider boundaries.
+- [x] First-run acceptance configures deterministic TTS/voices through normal provider boundaries.
+- [x] First-run acceptance persists recommended roles and reaches derived Ready.
+- [x] New Deep Dive acceptance creates project through DeeperDiveService.
+- [x] Acceptance adds/indexes source through production source APIs.
+- [x] Acceptance selects research policy through production mapping.
+- [x] Acceptance selects hosts through host services.
+- [x] Acceptance persists episode through EpisodeConfigurationService.
+- [x] Acceptance builds a plan through EpisodePlannerService.
+- [x] Acceptance passes shared preflight.
+- [x] Acceptance starts through GenerationStartService.
 - [ ] Acceptance generates multiple durable turns through PipelineOrchestrator.
-- [ ] Acceptance synthesizes TTS/timeline/audio through production services.
-- [ ] Acceptance reaches Episode Ready and exports through shared export services.
-- [ ] Acceptance reopens the episode from Library.
-- [ ] Prove no direct normal-path seeding of plan, run, turn, TTS, timeline, or export repository rows.
+- [x] Acceptance synthesizes TTS/timeline/audio through production services.
+- [x] Acceptance reaches Episode Ready and exports through shared export services.
+- [x] Acceptance reopens the episode from Library.
+- [x] Prove no direct normal-path seeding of plan, run, turn, TTS, timeline, or export repository rows.
 
 ## GW-270 — Compatibility and regression protection
 
@@ -350,6 +350,8 @@ Populate only as work is completed. Do not pre-check or use placeholders as comp
   - 7f750cb35d7522022882bbdea4f2c8f4b0e96999 — Home Quick Deep Dive now invokes shared preflight and GenerationStartService via the normal Generate action, then uses the production monitor/pipeline; existing Quick pipeline acceptance covers persisted turns, TTS, timeline, audio, review and export; exact-head CI 37870163029 passed.
   - 8c5dc5339cddb94ccf28befcf629eefc984c4b38 — two-episode transcript review and real export isolation; exact-head CI 37870457593 passed.
   - 206cc0d47a641b0084bc32662a27c7ebaffb5ae7 — one guided wizard and one Quick episode through the shared planning/start/pipeline/export production services with separately durable turns, audio, timelines, and exported identities; exact-head CI 37870945858 passed.
+  - 1315cef6a5ff2f065633aa3da8de5ccea7280516 — guided production completion handoff to Episode Ready, UI export, and reopen selected episode from Library; exact-head CI 37871316770 passed.
+  - d03450b8498fa9615c778bc37d8f082880bf8a68 — all seven New Deep Dive step bookmarks recovered with fresh production composition; existing eight-step first-run checkpoint matrix also qualified; exact-head CI 37871439509 passed.
   - e9f7ef916d720ec2b42c2e8fdfde8fa61e0774b6 — prevent first-run provider-config compose crash on resume; exact-head CI 37868452882 passed.
   - f5e065672ea2ff37c2803e552b73297a7a8e024b, 77ff90903ce1ab13c7fc03897356c30a460381e2 — invalidated provider returns prior setup steps to Needs attention; exact-head CI 37868870026 passed.
   - 004198882412bccb0789a89b91e7b2514539194a, 1666f072a9434917d0fc077113401bb496319b98, d9010ee5f471563680c46b7200c4f40b22f0364a — shared source readiness for wizard and generation preflight, status-aware rows, negative/positive indexing gates; exact-head CI 37859564426 passed.
@@ -367,7 +369,11 @@ Populate only as work is completed. Do not pre-check or use placeholders as comp
   - 160bbdc607dfb68163731210e956207a3c186aeb — selected episode Library playback; exact-head CI 37836853268 passed.
   - 8fa7bf02998525137d222ebd55405a3044cce58e, 19189a36cff518d8aeef53b2dd37f64e949fac81, ced678e2b20da528153d082da18011d4a620ef19, 0b43631f9ab79a231aaf522b0f51b0e292fecde6 — supported failed-stage retry gating and durable pause/resume/cancel/duplicate-action regressions; exact-head CI 37864545949 passed.
 - Focused first-run tests:
+  - tests/test_guided_first_run.py::test_first_run_fake_llm_model_roles_and_deferred_speech_survive_restart
+  - tests/test_guided_first_run.py::test_first_run_fake_tts_voice_preview_and_ready_restart
+  - tests/test_guided_draft.py::test_ready_first_run_restores_each_wizard_checkpoint
 - Focused New Deep Dive tests:
+  - tests/test_guided_episode_wizard.py::test_guided_and_quick_runs_produce_isolated_durable_artifacts
   - tests/test_guided_source_wizard.py::test_source_readiness_uses_status_and_durable_chunks
   - tests/test_guided_source_wizard.py::test_guided_source_continue_reflects_index_readiness
   - tests/test_guided_episode_wizard.py::test_guided_hosts_reorder_edit_and_restart_from_production_state
@@ -384,6 +390,7 @@ Populate only as work is completed. Do not pre-check or use placeholders as comp
 - Keyboard/focus/layout tests:
   - tests/test_guided_app.py::test_goal_first_home_keyboard_primary_and_advanced_actions
 - Recovery/resume tests:
+  - tests/test_guided_episode_wizard.py::test_new_deep_dive_restarts_at_each_guided_wizard_boundary
   - tests/test_guided_first_run.py::test_first_run_save_exit_resumes_durable_partial_provider_setup
   - tests/test_guided_draft.py::test_ready_setup_invalidated_provider_marks_prerequisite_needs_attention
   - tests/test_guided_draft.py::test_draft_recovers_to_earliest_missing_production_prerequisite
