@@ -6,11 +6,12 @@ import json
 import os
 import re
 import tempfile
+from collections.abc import Iterator
 from contextlib import contextmanager
 from hashlib import sha256
 from pathlib import Path
 from threading import Lock, RLock
-from typing import IO, Iterator, Literal
+from typing import IO, Literal
 from urllib.parse import parse_qsl, urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError, field_validator
