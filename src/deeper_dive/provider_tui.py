@@ -170,12 +170,17 @@ class ProviderController:
     def remove_provider(self, name: str) -> None:
         candidate = self.config().model_copy(deep=True)
         candidate.providers.pop(name, None)
-        self._commit_candidate(candidate)
+        # Deleting a provider intentionally leaves old assignments unresolved;
+        # the shared preflight must block until they are reconfigured.
+        self._commit_candidate(candidate, allow_unresolved_references=True)
 
-    def _commit_candidate(self, candidate: UserConfig) -> ProviderBuildResult | None:
+    def _commit_candidate(
+        self, candidate: UserConfig, *, allow_unresolved_references: bool = False
+    ) -> ProviderBuildResult | None:
         """Build first, persist second, and publish only a fully durable runtime."""
 
-        self.validate_default_references(candidate)
+        if not allow_unresolved_references:
+            self.validate_default_references(candidate)
         if self.provider_factory is None:
             self.config_store.save(candidate)
             return None
