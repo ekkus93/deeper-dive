@@ -131,7 +131,7 @@ class GuidedHostWizard(GuidedSourceWizard):
         ):
             destination = value
             self._ignore_host_picker_value = self._loaded_host_id
-            event.select.value = self._loaded_host_id
+            event.select.value = self._loaded_host_id  # type: ignore[assignment]
             self._request_dirty_transition(f"host-select:{destination}")
             return
         self._load_selected_host()

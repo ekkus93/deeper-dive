@@ -427,7 +427,10 @@ class WizardShell(Screen[None]):
         elif transition == "continue":
             self.action_continue()
         elif transition.startswith("navigate:"):
-            self.app.action_navigate(transition.split(":", 1)[1])
+            navigate = getattr(self.app, "action_navigate", None)
+            if not callable(navigate):
+                raise RuntimeError("wizard app does not support navigation")
+            navigate(transition.split(":", 1)[1])
         else:
             self._execute_custom_transition(transition)
 
