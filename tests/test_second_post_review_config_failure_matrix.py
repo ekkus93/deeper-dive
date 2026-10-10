@@ -11,6 +11,9 @@ from threading import Barrier
 
 import pytest
 
+from deeper_dive.llm import LLMProviderRegistry
+from deeper_dive.provider_tui import ProviderController
+from deeper_dive.settings_screen import SettingsController
 from deeper_dive.user_config import (
     UserConfig,
     UserConfigConflictError,
@@ -194,4 +197,55 @@ def test_disjoint_independent_writers_racing_at_commit_do_not_lose_updates(
         "local_only": "yes",
         "network_policy": "allow-remote",
     }
+    assert list(tmp_path.glob(".config.json.*.tmp")) == []
+
+
+def test_settings_and_provider_transactions_race_without_clobber(
+    tmp_path: Path,
+) -> None:
+    """The two UI controllers share config revision/CAS, not last-writer-wins."""
+    path = tmp_path / "config.json"
+    UserConfigStore(path).save(UserConfig())
+    barrier = Barrier(2)
+
+    class RacingStore(UserConfigStore):
+        def save(self, config: UserConfig) -> None:
+            barrier.wait(timeout=10)
+            super().save(config)
+
+    settings = SettingsController(
+        ProviderController(RacingStore(path), LLMProviderRegistry(), {})
+    )
+    providers = ProviderController(RacingStore(path), LLMProviderRegistry(), {})
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        tasks = [
+            executor.submit(settings.set_default, "local_only", "yes"),
+            executor.submit(
+                providers.save_provider, "planner", "fake", default_model="fake-model"
+            ),
+        ]
+        outcomes = []
+        for task in tasks:
+            try:
+                task.result()
+            except UserConfigConflictError:
+                outcomes.append("conflict")
+            else:
+                outcomes.append("saved")
+    assert sorted(outcomes) == ["conflict", "saved"]
+
+    current = UserConfigStore(path).load()
+    if "planner" not in current.providers:
+        ProviderController(UserConfigStore(path), LLMProviderRegistry(), {}).save_provider(
+            "planner", "fake", default_model="fake-model"
+        )
+    else:
+        SettingsController(
+            ProviderController(UserConfigStore(path), LLMProviderRegistry(), {})
+        ).set_default("local_only", "yes")
+
+    persisted = UserConfigStore(path).load()
+    assert persisted.defaults["local_only"] == "yes"
+    assert persisted.providers["planner"].default_model == "fake-model"
     assert list(tmp_path.glob(".config.json.*.tmp")) == []
