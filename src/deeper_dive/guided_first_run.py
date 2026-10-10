@@ -86,7 +86,16 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
     def _runtime_readiness_updated(self) -> None:
         recovered = self.navigator.recovered_state()
         if recovered != self.context.state:
-            self.context.state = recovered
+            if self._current_form_dirty():
+                # A late probe can invalidate an earlier prerequisite. Do not
+                # relocate the wizard while its current form contains unsaved
+                # edits; the user must explicitly save or discard first.
+                self.set_status(
+                    "Readiness changed; unsaved setup edits remain. "
+                    "Save or discard them before changing steps."
+                )
+            else:
+                self.context.state = recovered
         self._sync_text(preserve_status=True)
         self._sync_setup_controls()
 

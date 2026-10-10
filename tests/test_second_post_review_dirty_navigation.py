@@ -729,3 +729,58 @@ async def _host_order_survives_refresh_and_restart(tmp_path: Path) -> None:
 
         assert wizard._selected_host_ids == expected
         assert not wizard._host_order_dirty()
+
+@pytest.mark.parametrize(
+    ("step", "selector", "changed"),
+    (
+        ("provider-config", "#setup-provider-name", "unsaved-provider"),
+        ("model-test", "#setup-role-episode-planning", "unsaved:model"),
+        ("speech", "#setup-speech-name", "unsaved-speech"),
+    ),
+)
+def test_async_readiness_recovery_preserves_unsaved_setup_edits(
+    tmp_path: Path, step: str, selector: str, changed: str
+) -> None:
+    asyncio.run(
+        _async_readiness_recovery_preserves_unsaved_setup_edits(
+            tmp_path, step, selector, changed
+        )
+    )
+
+
+async def _async_readiness_recovery_preserves_unsaved_setup_edits(
+    tmp_path: Path, step: str, selector: str, changed: str
+) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedFirstRunWizard)
+        wizard.context.state = WizardState(WizardKind.FIRST_RUN, step)
+        wizard._sync_text()
+        wizard._sync_setup_controls()
+        wizard._remember_current_form()
+
+        field = wizard.query_one(selector, Input)
+        original = field.value
+        field.value = changed
+        assert wizard._current_form_dirty()
+
+        # Simulate a late readiness result invalidating the earliest prerequisite.
+        wizard.completion_probe = lambda key: key != "welcome"
+        assert wizard.navigator.recovered_state().current_step == "welcome"
+        wizard._runtime_readiness_updated()
+
+        assert wizard.context.state.current_step == step
+        assert field.value == changed
+        assert wizard._current_form_dirty()
+        assert "unsaved setup edits remain" in str(
+            wizard.query_one("#wizard-status", Static).render()
+        )
+
+        # Clean forms may still recover to the now-invalid prerequisite.
+        field.value = original
+        assert not wizard._current_form_dirty()
+        wizard._runtime_readiness_updated()
+        assert wizard.context.state.current_step == "welcome"
