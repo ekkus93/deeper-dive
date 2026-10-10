@@ -729,4 +729,3 @@ async def _host_order_survives_refresh_and_restart(tmp_path: Path) -> None:
 
         assert wizard._selected_host_ids == expected
         assert not wizard._host_order_dirty()
-
