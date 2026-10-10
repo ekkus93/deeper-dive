@@ -19,6 +19,7 @@ from deeper_dive.model_roles import ModelRole
 from deeper_dive.plan_validity import evaluate_episode_plan
 from deeper_dive.preflight import PreflightReport
 from deeper_dive.research_policy import ResearchPolicyStore
+from deeper_dive.wizard_shell import WizardSaveOutcome, WizardSaveResult
 
 
 class _NavigationApp(Protocol):
@@ -37,11 +38,11 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         self._preflight: PreflightReport | None = None
         self._episode_advanced = False
 
-    def _save_dirty_step(self) -> bool:
+    def _save_dirty_step(self) -> WizardSaveResult:
         step = self.context.state.current_step
         self._last_form_status = ""
         if step == "project":
-            return self.action_create_project()
+            return WizardSaveResult.from_bool(self.action_create_project())
         if step == "sources":
             # Importing a file/URL must not implicitly discard an unrelated,
             # incomplete pasted-source form when Save changes and exit is chosen.
@@ -49,36 +50,63 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             body = self.query_one("#guided-source-text", Input).value.strip()
             if bool(title) != bool(body):
                 self.set_status("Provide both pasted-source title and text, or discard edits.")
-                return False
+                return WizardSaveResult(WizardSaveOutcome.FAILED)
             actions = (
                 ("#guided-source-text", self.action_add_pasted_source),
                 ("#guided-source-paths", self.action_add_file_sources),
                 ("#guided-source-urls", self.action_add_url_sources),
             )
             invoked = False
+            saved_any = False
             for selector, action in actions:
                 if self.query_one(selector, Input).value.strip():
                     invoked = True
-                    if not action():
-                        return False
-            if not invoked and self.query_one("#guided-source-title", Input).value.strip():
-                return self.action_add_pasted_source()
-            return invoked
+                    if action():
+                        saved_any = True
+                        continue
+                    return WizardSaveResult(
+                        WizardSaveOutcome.PARTIAL if saved_any else WizardSaveOutcome.FAILED,
+                        "Some source input was saved, but unresolved edits remain. "
+                        "Review the retained fields and retry or discard them explicitly."
+                        if saved_any
+                        else "",
+                    )
+            if not invoked and title:
+                return WizardSaveResult.from_bool(self.action_add_pasted_source())
+            return WizardSaveResult(
+                WizardSaveOutcome.SAVED if invoked else WizardSaveOutcome.NOOP
+            )
         if step == "research":
-            return self.action_save_research()
+            return WizardSaveResult.from_bool(self.action_save_research())
         if step == "hosts":
-            if self._selected_host_record() is None:
-                if not self.action_create_host():
-                    return False
-            elif not self.action_save_host():
-                return False
-            if self._selected_host_ids:
-                return self.action_save_host_order()
-            return True
+            profile_dirty = self._host_profile_dirty()
+            order_dirty = self._host_order_dirty()
+            profile_saved = False
+            if profile_dirty:
+                if self._selected_host_record() is None:
+                    if not self.action_create_host():
+                        return WizardSaveResult(WizardSaveOutcome.FAILED)
+                elif not self.action_save_host():
+                    return WizardSaveResult(WizardSaveOutcome.FAILED)
+                profile_saved = True
+            if order_dirty:
+                if not self.action_save_host_order():
+                    return WizardSaveResult(
+                        WizardSaveOutcome.PARTIAL
+                        if profile_saved
+                        else WizardSaveOutcome.FAILED,
+                        "Host profile changes were saved, but episode host membership/order "
+                        "was not. The remaining order edit is still pending; retry or discard it."
+                        if profile_saved
+                        else "",
+                    )
+            if profile_saved or order_dirty:
+                return WizardSaveResult(WizardSaveOutcome.SAVED)
+            return WizardSaveResult(WizardSaveOutcome.NOOP)
         if step == "episode":
-            return self.action_save_episode()
+            return WizardSaveResult.from_bool(self.action_save_episode())
         if step == "plan":
-            return self.action_save_plan_segment()
+            return WizardSaveResult.from_bool(self.action_save_plan_segment())
         return super()._save_dirty_step()
 
     def step_controls(self) -> tuple[Widget, ...]:

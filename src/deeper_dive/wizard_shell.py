@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from dataclasses import replace
+from dataclasses import dataclass, replace
+from enum import StrEnum
 
 from textual import events
 from textual.app import ComposeResult
@@ -31,6 +32,29 @@ MINIMUM_TERMINAL_WIDTH = 80
 MINIMUM_TERMINAL_HEIGHT = 24
 RECOMMENDED_TERMINAL_WIDTH = 100
 RECOMMENDED_TERMINAL_HEIGHT = 30
+
+
+class WizardSaveOutcome(StrEnum):
+    SAVED = "saved"
+    NOOP = "noop"
+    FAILED = "failed"
+    PARTIAL = "partial"
+
+
+@dataclass(frozen=True, slots=True)
+class WizardSaveResult:
+    outcome: WizardSaveOutcome
+    message: str = ""
+
+    @property
+    def can_continue(self) -> bool:
+        return self.outcome in {WizardSaveOutcome.SAVED, WizardSaveOutcome.NOOP}
+
+    @classmethod
+    def from_bool(cls, saved: bool) -> "WizardSaveResult":
+        outcome = WizardSaveOutcome.SAVED if saved else WizardSaveOutcome.FAILED
+        return cls(outcome)
+
 
 # Only editable business-form controls participate in dirty detection. Navigation
 # pickers, action buttons, and generated status text are intentionally excluded.
@@ -385,10 +409,10 @@ class WizardShell(Screen[None]):
         self.set_status("Progress checkpoint saved; safe to resume from this checkpoint.")
         self.on_save_exit()
 
-    def _save_dirty_step(self) -> bool:
+    def _save_dirty_step(self) -> WizardSaveResult:
         """Subclasses delegate to their existing production-backed save action."""
         self.set_status("Save this step using its production Save action before continuing.")
-        return False
+        return WizardSaveResult(WizardSaveOutcome.FAILED)
 
     def action_confirm_save_exit(self) -> None:
         if not self._exit_confirmation_pending or self.busy:
@@ -396,11 +420,13 @@ class WizardShell(Screen[None]):
         transition = self._pending_transition or "exit"
         self._clear_transition_confirmation()
         try:
-            saved = self._save_dirty_step()
+            result = self._save_dirty_step()
         except (OSError, KeyError, RuntimeError, ValueError) as exc:
             self.set_error("Could not save changes.", exc)
             return
-        if not saved:
+        if not result.can_continue:
+            if result.message:
+                self.set_status(result.message)
             return
         self._remember_current_form()
         self._execute_pending_transition(transition)

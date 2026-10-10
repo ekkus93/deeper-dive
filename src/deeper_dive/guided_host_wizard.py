@@ -223,6 +223,19 @@ class GuidedHostWizard(GuidedSourceWizard):
         self._form_baselines["hosts"] = (*current_profile, *order)
         self._pending_host_form_values = self._host_form_values()
 
+    def _host_order_dirty(self) -> bool:
+        if self.context.state.current_step != "hosts":
+            return False
+        baseline = self._form_baselines.get("hosts")
+        if baseline is None:
+            return bool(self._selected_host_ids)
+        durable_order = next(
+            (value for key, value in baseline if key == "__episode_host_order__"),
+            None,
+        )
+        current_order = f"{self.context.episode_id or ''}:{','.join(self._selected_host_ids)}"
+        return durable_order != current_order
+
     def _remember_host_order_baseline(self) -> None:
         if self.context.state.current_step != "hosts":
             return

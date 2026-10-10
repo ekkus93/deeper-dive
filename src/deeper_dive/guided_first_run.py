@@ -20,7 +20,7 @@ from deeper_dive.llm import LLMMessage, LLMRequest
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.settings_screen import SettingsController
 from deeper_dive.voice_preview import VoicePreviewService
-from deeper_dive.wizard_shell import FirstRunWizardShell
+from deeper_dive.wizard_shell import FirstRunWizardShell, WizardSaveResult
 
 _REQUIRED_SETUP_ROLES = (
     ModelRole.EPISODE_PLANNING,
@@ -46,17 +46,17 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         self._model_options: tuple[tuple[str, str], ...] = ()
         self._voice_options: tuple[tuple[str, str], ...] = ()
 
-    def _save_dirty_step(self) -> bool:
+    def _save_dirty_step(self) -> WizardSaveResult:
         step = self.context.state.current_step
         self._last_form_status = ""
         if step == "provider-config":
-            return self.action_save_provider()
+            return WizardSaveResult.from_bool(self.action_save_provider())
         if step == "model-test":
-            return self.action_save_roles()
+            return WizardSaveResult.from_bool(self.action_save_roles())
         if step == "speech":
-            return self.action_save_speech()
+            return WizardSaveResult.from_bool(self.action_save_speech())
         if step == "voice-defaults":
-            return self.action_save_defaults()
+            return WizardSaveResult.from_bool(self.action_save_defaults())
         return super()._save_dirty_step()
 
     @property
