@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from queue import Queue
 from threading import Event
+from time import monotonic, sleep
 from typing import cast
 
 from textual.message import Message
@@ -91,4 +92,51 @@ def test_superseded_probe_result_cannot_overwrite_newer_snapshot() -> None:
         assert callbacks == ["new"]
     finally:
         release_old.set()
+        coordinator.close()
+
+
+def test_worker_capacity_recovers_after_timeout_and_explicit_retry() -> None:
+    app = _App()
+    started = Event()
+    release = Event()
+    calls: list[int] = []
+    callbacks: list[str] = []
+
+    def probe() -> FirstRunRuntimeSnapshot:
+        calls.append(1)
+        if len(calls) == 1:
+            started.set()
+            assert release.wait(3)
+        return _snapshot()
+
+    coordinator = FirstRunReadinessCoordinator(
+        _context(),
+        probe=probe,
+        fingerprint=lambda: "stable",
+        timeout_seconds=0.2,
+        max_workers=1,
+    )
+    try:
+        assert coordinator.request(app, lambda: callbacks.append("timeout"))
+        assert started.wait(3)
+        app.deliver()
+        assert coordinator.view.state == "failed"
+        assert coordinator.active_worker_count == 1
+        assert not coordinator.request(app)
+        assert calls == [1]
+
+        release.set()
+        app.deliver()  # Old success is stale after timeout.
+        deadline = monotonic() + 3
+        while coordinator.active_worker_count and monotonic() < deadline:
+            sleep(0.001)
+        assert coordinator.active_worker_count == 0
+
+        assert coordinator.request(app, lambda: callbacks.append("retry"))
+        app.deliver()
+        assert coordinator.view.state == "ready"
+        assert calls == [1, 1]
+        assert callbacks == ["timeout", "retry"]
+    finally:
+        release.set()
         coordinator.close()
