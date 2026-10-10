@@ -1,89 +1,23 @@
-"""Crash-durability fault injection through the real user configuration store.
+"""Restart recovery and non-POSIX-lock fallback regression tests.
 
-These cases distinguish pre-publication failures (old bytes must survive)
-from post-replace directory sync failures (new bytes are already visible).
+Atomic-write failure injection lives in test_second_post_review_config_durability
+and test_second_post_review_config_failure_matrix; avoid duplicating it here.
 """
 
 from __future__ import annotations
 
-import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Barrier
 
 import pytest
 
-from deeper_dive.user_config import UserConfig, UserConfigError, UserConfigStore
-
-
-def _pending_update(tmp_path: Path) -> tuple[UserConfigStore, UserConfig, bytes]:
-    store = UserConfigStore(tmp_path / "config.json")
-    store.save(UserConfig(defaults={"research_policy": "off"}))
-    candidate = store.load()
-    candidate.defaults["research_policy"] = "useful"
-    return store, candidate, store.path.read_bytes()
-
-
-def _assert_old_bytes_and_no_owned_temps(
-    store: UserConfigStore, original: bytes, tmp_path: Path
-) -> None:
-    assert store.path.read_bytes() == original
-    assert UserConfigStore(store.path).load().defaults["research_policy"] == "off"
-    assert not list(tmp_path.glob(".config.json.*.tmp"))
-
-
-def test_data_fsync_failure_preserves_original_and_cleans_temporary(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    store, candidate, original = _pending_update(tmp_path)
-
-    def fail_data_sync(_descriptor: int) -> None:
-        raise OSError("injected data fsync failure")
-
-    monkeypatch.setattr("deeper_dive.user_config.os.fsync", fail_data_sync)
-    with pytest.raises(OSError, match="injected data fsync failure"):
-        store.save(candidate)
-
-    _assert_old_bytes_and_no_owned_temps(store, original, tmp_path)
-
-
-def test_atomic_replace_failure_preserves_original_and_cleans_temporary(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    store, candidate, original = _pending_update(tmp_path)
-
-    def fail_replace(_source: object, _destination: object) -> None:
-        raise OSError("injected atomic replace failure")
-
-    monkeypatch.setattr("deeper_dive.user_config.os.replace", fail_replace)
-    with pytest.raises(OSError, match="injected atomic replace failure"):
-        store.save(candidate)
-
-    _assert_old_bytes_and_no_owned_temps(store, original, tmp_path)
-
-
-def test_post_replace_directory_sync_failure_reports_uncertain_durability(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    store, candidate, original = _pending_update(tmp_path)
-
-    def fail_directory_sync() -> None:
-        raise OSError("injected directory fsync failure")
-
-    with monkeypatch.context() as patch:
-        patch.setattr(store, "_sync_parent_directory", fail_directory_sync)
-        with pytest.raises(OSError, match="injected directory fsync failure"):
-            store.save(candidate)
-
-    # A successful replace cannot be described as rolled back merely because
-    # directory fsync failed; the caller must be able to retry explicitly.
-    published = store.path.read_bytes()
-    assert published != original
-    assert json.loads(published)["defaults"]["research_policy"] == "useful"
-    assert candidate._revision == UserConfigStore(store.path).load()._revision
-    assert not list(tmp_path.glob(".config.json.*.tmp"))
-
-    candidate.defaults["research_policy"] = "aggressive"
-    store.save(candidate)
-    assert UserConfigStore(store.path).load().defaults["research_policy"] == "aggressive"
+from deeper_dive.user_config import (
+    UserConfig,
+    UserConfigConflictError,
+    UserConfigError,
+    UserConfigStore,
+)
 
 
 @pytest.mark.parametrize(
@@ -91,7 +25,8 @@ def test_post_replace_directory_sync_failure_reports_uncertain_durability(
     [
         b'{"defaults": ',
         b'{"schema_version":1,"defaults":{"research_policy":"invalid-mode"}}',
-        b"\xff\xfe",
+        b"\\xff\\xfe",
+        b'{"schema_version":99,"defaults":{}}',
     ],
 )
 def test_restart_rejects_invalid_config_without_rewriting_bytes(
@@ -105,3 +40,57 @@ def test_restart_rejects_invalid_config_without_rewriting_bytes(
 
     assert path.read_bytes() == broken_bytes
     assert not list(tmp_path.glob(".config.json.*.tmp"))
+
+
+def test_stale_save_cannot_overwrite_corrupted_config_after_restart(
+    tmp_path: Path,
+) -> None:
+    store = UserConfigStore(tmp_path / "config.json")
+    store.save(UserConfig(defaults={"research_policy": "off"}))
+    stale = store.load()
+    stale.defaults["research_policy"] = "useful"
+    corrupted = b'{"defaults":'
+
+    store.path.write_bytes(corrupted)
+    with pytest.raises(UserConfigConflictError, match="reload and retry"):
+        store.save(stale)
+
+    assert store.path.read_bytes() == corrupted
+    with pytest.raises(UserConfigError, match="invalid user configuration"):
+        UserConfigStore(store.path).load()
+
+
+def test_without_fcntl_same_process_writers_still_conflict_and_retry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The fallback guarantees in-process locking, not cross-process locking."""
+    monkeypatch.setattr("deeper_dive.user_config.fcntl", None)
+    path = tmp_path / "config.json"
+    UserConfigStore(path).save(UserConfig())
+    barrier = Barrier(2)
+
+    def write(key: str, value: str) -> str:
+        store = UserConfigStore(path)
+        candidate = store.load()
+        candidate.defaults[key] = value
+        barrier.wait(timeout=10)
+        try:
+            store.save(candidate)
+        except UserConfigConflictError:
+            return "conflict"
+        return "saved"
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        a = pool.submit(write, "research_policy", "off")
+        b = pool.submit(write, "network_policy", "local-only")
+        assert sorted((a.result(), b.result())) == ["conflict", "saved"]
+
+    reloaded = UserConfigStore(path).load()
+    reloaded.defaults.update(
+        {"research_policy": "off", "network_policy": "local-only"}
+    )
+    UserConfigStore(path).save(reloaded)
+    assert UserConfigStore(path).load().defaults == {
+        "research_policy": "off",
+        "network_policy": "local-only",
+    }
