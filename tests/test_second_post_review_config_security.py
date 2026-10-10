@@ -277,3 +277,66 @@ def test_encoded_query_key_redacted_in_nested_diagnostic_bundle(tmp_path) -> Non
     assert secret not in payload
     assert "section=overview" not in payload  # Original encoded spelling retained.
     assert "%73ection=overview" in payload
+
+
+@pytest.mark.parametrize("mutation_path", ["store", "provider-controller"])
+def test_mutated_provider_fragment_revalidated_before_any_write(tmp_path, mutation_path: str) -> None:
+    """Mutable Pydantic submodels must not bypass the original URL validator."""
+    path = tmp_path / "config.json"
+    store = UserConfigStore(path)
+    store.save(
+        UserConfig(
+            providers={
+                "remote": ProviderConfig(
+                    provider_type="openai", base_url="https://example.test/v1"
+                )
+            }
+        )
+    )
+    original = path.read_bytes()
+    candidate = store.load()
+    canary = "mutated-fragment-canary"
+    candidate.providers["remote"].base_url = (
+        f"https://example.test/v1#access_token={canary}"
+    )
+    with pytest.raises(UserConfigError, match="providers"):
+        if mutation_path == "store":
+            store.save(candidate)
+        else:
+            ProviderController(store, LLMProviderRegistry(), {})._commit_candidate(candidate)
+    assert path.read_bytes() == original
+    assert canary.encode() not in path.read_bytes()
+
+
+def test_encoded_query_canaries_in_chained_errors_and_structured_log(tmp_path) -> None:
+    from deeper_dive.diagnostics import (
+        DiagnosticEvent,
+        StructuredDiagnosticLog,
+        sanitize_exception_message,
+    )
+
+    canary = "chained-query-canary"
+    endpoint = f"https://example.test/v1?%2561pi_key={canary}"
+    try:
+        try:
+            raise ValueError(f"provider request failed: {endpoint}")
+        except ValueError as cause:
+            raise RuntimeError("outer request failed") from cause
+    except RuntimeError as exc:
+        safe = sanitize_exception_message(exc)
+    assert canary not in safe
+    assert "outer request failed" in safe
+    assert "caused by:" in safe
+    assert "[REDACTED]" in safe
+
+    path = tmp_path / "diagnostics.jsonl"
+    StructuredDiagnosticLog(path).emit(
+        DiagnosticEvent(
+            level="error",
+            event="provider_error",
+            details={"nested": [{"endpoint": endpoint}]},
+        )
+    )
+    log = path.read_text(encoding="utf-8")
+    assert canary not in log
+    assert "[REDACTED]" in log
