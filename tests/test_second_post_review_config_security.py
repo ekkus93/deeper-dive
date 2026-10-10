@@ -55,8 +55,7 @@ def test_provider_endpoint_keeps_ipv6_and_nonsecret_query() -> None:
 )
 def test_diagnostics_hide_layered_credential_fragments(fragment: str) -> None:
     message = (
-        f"failed https://example.test/v1#{fragment} "
-        "and http://127.0.0.1:8080/#section on retry"
+        f"failed https://example.test/v1#{fragment} and http://127.0.0.1:8080/#section on retry"
     )
     sanitized = str(redact(message))
     assert "fragment-canary" not in sanitized
@@ -68,9 +67,7 @@ def test_diagnostics_hide_layered_credential_fragments(fragment: str) -> None:
 
 def test_mutated_provider_fragment_is_rejected_before_any_write(tmp_path: Path) -> None:
     store = UserConfigStore(tmp_path / "config.json")
-    config = UserConfig(
-        providers={"local": ProviderConfig(provider_type="ollama")}
-    )
+    config = UserConfig(providers={"local": ProviderConfig(provider_type="ollama")})
     store.save(config)
     before = store.path.read_bytes()
     config.providers["local"].base_url = "https://example.test/#token=fragment-canary"
