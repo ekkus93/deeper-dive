@@ -31,10 +31,12 @@ def mixed_project_episode(tmp_path):
     for project_id in ("project-a", "project-b"):
         corpus.create_project(ProjectRecord(project_id, project_id, "now", "now"))
     hosts = HostEpisodeRepository(db)
-    for host_id, owner in (("host-a", "project-a"), ("host-b", "project-a"), ("foreign", "project-b")):
-        hosts.create_host(
-            create_host_from_preset("skeptic", owner, host_id=host_id).to_record()
-        )
+    for host_id, owner in (
+        ("host-a", "project-a"),
+        ("host-b", "project-a"),
+        ("foreign", "project-b"),
+    ):
+        hosts.create_host(create_host_from_preset("skeptic", owner, host_id=host_id).to_record())
     service = EpisodeConfigurationService(db)
     first = service.create(
         "project-a", EpisodeConfiguration(title="Original", host_ids=("host-a", "host-b"))
@@ -43,9 +45,7 @@ def mixed_project_episode(tmp_path):
         "project-a", EpisodeConfiguration(title="Independent", host_ids=("host-b",))
     )
     hosts.save_plan(
-        EpisodePlanRecord(
-            id="plan-a", episode_id=first.id, created_at="now", modified_at="now"
-        ),
+        EpisodePlanRecord(id="plan-a", episode_id=first.id, created_at="now", modified_at="now"),
         [
             SegmentPlanRecord(
                 id="segment-a",
@@ -97,9 +97,7 @@ def test_rejected_host_order_edit_preserves_episode_plan_and_other_episode(
         ("host-a", "foreign"),
     ),
 )
-def test_rejected_host_order_create_does_not_insert_episode(
-    mixed_project_episode, bad_ids
-) -> None:
+def test_rejected_host_order_create_does_not_insert_episode(mixed_project_episode, bad_ids) -> None:
     service, hosts, first_id, second_id = mixed_project_episode
     baseline = [item.id for item in hosts.list_episodes("project-a")]
 
@@ -110,9 +108,7 @@ def test_rejected_host_order_create_does_not_insert_episode(
     assert set(baseline) == {first_id, second_id}
 
 
-def test_valid_host_order_rehydrates_from_new_service_instance(
-    mixed_project_episode
-) -> None:
+def test_valid_host_order_rehydrates_from_new_service_instance(mixed_project_episode) -> None:
     service, hosts, first_id, second_id = mixed_project_episode
     updated = replace(service.load_configuration(first_id), host_ids=("host-b", "host-a"))
     service.edit(first_id, updated)
