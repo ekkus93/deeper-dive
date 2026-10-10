@@ -30,9 +30,7 @@ def test_global_research_default_applies_to_quick_without_specific_override(
     data_dir = tmp_path / "data"
     service = DeeperDiveService(WorkspaceManager(data_dir))
     project = service.create_project("Global research default")
-    UserConfigStore(data_dir / "config.json").save(
-        UserConfig(defaults={"research_policy": mode})
-    )
+    UserConfigStore(data_dir / "config.json").save(UserConfig(defaults={"research_policy": mode}))
 
     assert _quick_policy(service, project.id) == (mode, ResearchMode(mode))
 
