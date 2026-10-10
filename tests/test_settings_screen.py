@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-
-import pytest
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from textual.widgets import Input, Static
 
