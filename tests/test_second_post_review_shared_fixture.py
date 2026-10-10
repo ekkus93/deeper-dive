@@ -40,3 +40,21 @@ def test_two_project_completed_acceptance_fixture_is_fully_isolated(
         assert completed.transcript_path.is_relative_to(project_root / "output")
         assert completed.audio_path.is_relative_to(project_root / "output")
         assert Path(completed.transcript_path).name.startswith(completed.episode_id)
+
+
+
+def test_second_post_review_acceptance_fixture_includes_pending_run_and_snapshots(
+    second_post_review_acceptance,
+) -> None:
+    matrix = second_post_review_acceptance()
+    pending = matrix.completed.first.service.runs(matrix.pending_project_id).get(
+        matrix.pending_run_id
+    )
+    assert pending is not None
+    assert pending.episode_id == matrix.pending_episode_id
+    assert pending.state == "pending"
+    assert matrix.config_bytes.startswith(b"{")
+    assert b'"quick_deep_dive_duration_minutes"' in matrix.config_bytes
+    assert matrix.pending_config_snapshot.startswith(b"{")
+    assert b'"host_ids"' in matrix.pending_config_snapshot
+    assert len(set(matrix.identity_snapshot)) == len(matrix.identity_snapshot)

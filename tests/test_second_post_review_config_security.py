@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from deeper_dive.application.service import DeeperDiveService
-from deeper_dive.diagnostics import redact
+from deeper_dive.diagnostics import export_diagnostic_bundle, redact
 from deeper_dive.llm import LLMProviderRegistry
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.settings_screen import SettingsController
@@ -178,3 +178,59 @@ def test_settings_accepted_quick_defaults_are_consumable_after_restart(tmp_path)
     assert persisted.defaults["quick_deep_dive_research_policy"] == "off"
     assert persisted.defaults["network_policy"] == "local-only"
     assert persisted.defaults["diagnostic_logging"] == "verbose"
+
+
+
+def test_multiple_and_encoded_fragment_canaries_redact_without_destroying_context() -> None:
+    message = (
+        "first=https://one.example/docs#install "
+        "second=https://two.example/v1#%61ccess_token%3Dfragment-two "
+        "third=https://three.example/v1#safe%3D1%26ToKeN%3Dfragment-three "
+        "status=401"
+    )
+    safe = str(redact(message))
+    assert "fragment-two" not in safe
+    assert "fragment-three" not in safe
+    assert "one.example/docs#install" in safe
+    assert "two.example/v1#[REDACTED]" in safe
+    assert "three.example/v1#[REDACTED]" in safe
+    assert "status=401" in safe
+
+
+def test_diagnostic_bundle_redacts_nested_fragment_credentials(tmp_path) -> None:
+    secret = "fragment-bundle-canary"
+    destination = export_diagnostic_bundle(
+        tmp_path / "diagnostics.json",
+        provider_diagnostics={
+            "endpoint": f"https://example.test/v1#access_token={secret}",
+            "nested": [
+                f"https://example.test/v1#%61uthorization%3D{secret}",
+                "https://example.test/docs#safe-anchor",
+            ],
+        },
+        configuration={"safe": "context"},
+    )
+    payload = destination.read_bytes()
+    assert secret.encode() not in payload
+    assert b"safe-anchor" in payload
+    assert b"[REDACTED]" in payload
+
+
+def test_rejected_fragment_provider_mutation_never_reaches_config_bytes(tmp_path) -> None:
+    path = tmp_path / "config.json"
+    store = UserConfigStore(path)
+    store.save(UserConfig(defaults={"research_policy": "useful"}))
+    original = path.read_bytes()
+    controller = ProviderController(store, LLMProviderRegistry(), {})
+    secret = "fragment-save-canary"
+
+    with pytest.raises(ValueError):
+        controller.save_provider(
+            "remote",
+            "openai",
+            base_url=f"https://example.test/v1#access_token={secret}",
+            default_model="model-a",
+        )
+
+    assert path.read_bytes() == original
+    assert secret.encode() not in path.read_bytes()

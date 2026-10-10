@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import faulthandler
+import json
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -12,6 +13,7 @@ import pytest
 
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.composition import ProductionComposition
+from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.episode_library_screen import EpisodeLibraryController
 from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.hosts import HostProfile
@@ -223,5 +225,74 @@ def two_project_completed_acceptance(
         assert first.episode_id != second.episode_id
         assert first.run_id != second.run_id
         return TwoProjectCompletedAcceptance(first, second)
+
+    return create
+
+
+
+@dataclass(frozen=True, slots=True)
+class SecondPostReviewAcceptance:
+    """Reusable two-project matrix with one pending generation and byte snapshots."""
+
+    completed: TwoProjectCompletedAcceptance
+    pending_project_id: str
+    pending_episode_id: str
+    pending_run_id: str
+    config_bytes: bytes
+    pending_config_snapshot: bytes
+    identity_snapshot: tuple[str, ...]
+
+
+@pytest.fixture
+def second_post_review_acceptance(
+    two_project_completed_acceptance: Callable[[], TwoProjectCompletedAcceptance],
+) -> Callable[[], SecondPostReviewAcceptance]:
+    """Build the authoritative second-review acceptance matrix through production services."""
+
+    def create() -> SecondPostReviewAcceptance:
+        completed = two_project_completed_acceptance()
+        service = completed.first.service
+        project_id = completed.first.project_id
+        composition = ProductionComposition.build(service=service)
+
+        pending_episode = service.quick_deep_dive(project_id)
+        composition.configured_planning_service(
+            project_id,
+            "fake",
+            "fake-v1",
+        ).build_plan(pending_episode.id)
+        pending = GenerationStartService(composition).start(project_id, pending_episode.id)
+        assert pending.run.state == "pending"
+
+        config_path = service.workspaces.data_dir / "config.json"
+        config_bytes = config_path.read_bytes()
+        config = EpisodeConfigurationService(
+            composition.database_for_project(project_id)
+        ).load_configuration(pending_episode.id)
+        snapshot_bytes = json.dumps(
+            config.snapshot(),
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        identities = (
+            completed.first.project_id,
+            completed.first.episode_id,
+            completed.first.run_id,
+            completed.second.project_id,
+            completed.second.episode_id,
+            completed.second.run_id,
+            pending_episode.id,
+            pending.run.id,
+        )
+        assert len(set(identities)) == len(identities)
+        return SecondPostReviewAcceptance(
+            completed,
+            project_id,
+            pending_episode.id,
+            pending.run.id,
+            config_bytes,
+            snapshot_bytes,
+            identities,
+        )
 
     return create

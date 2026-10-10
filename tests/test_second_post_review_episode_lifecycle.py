@@ -196,3 +196,41 @@ def test_stale_episode_configuration_writer_rejected_with_frozen_clock(tmp_path:
     persisted = repository.get_episode(episode.id)
     assert persisted is not None
     assert persisted.focus == "New durable focus"
+
+
+
+def test_rejected_completed_episode_edit_preserves_historical_artifacts(
+    completed_episode_acceptance,
+) -> None:
+    completed = completed_episode_acceptance(None)
+    database = Database(
+        completed.service.workspaces.project_root(completed.project_id) / "project.db"
+    )
+    configs = EpisodeConfigurationService(database)
+    current = configs.load_configuration(completed.episode_id)
+    repository = HostEpisodeRepository(database)
+    plan_before = repository.get_plan(completed.episode_id)
+    run_before = completed.service.runs(completed.project_id).get(completed.run_id)
+    transcript_before = completed.transcript_path.read_bytes()
+    audio_before = completed.audio_path.read_bytes()
+    assert plan_before is not None
+    assert run_before is not None and run_before.state == "completed"
+
+    with pytest.raises(ValueError, match="frozen after generation starts"):
+        configs.edit(
+            completed.episode_id,
+            replace(current, focus="Attempted historical rewrite"),
+        )
+
+    plan_after = repository.get_plan(completed.episode_id)
+    run_after = completed.service.runs(completed.project_id).get(completed.run_id)
+    assert plan_after is not None and plan_after.id == plan_before.id
+    assert run_after == run_before
+    assert completed.transcript_path.read_bytes() == transcript_before
+    assert completed.audio_path.read_bytes() == audio_before
+    with database.connection() as db:
+        rows = db.execute(
+            "SELECT id FROM conversation_turns WHERE episode_id=? ORDER BY turn_index,id",
+            (completed.episode_id,),
+        ).fetchall()
+    assert tuple(str(row["id"]) for row in rows) == completed.turn_ids
