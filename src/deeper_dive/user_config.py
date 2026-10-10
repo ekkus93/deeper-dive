@@ -316,11 +316,11 @@ class UserConfigStore:
         except (OSError, UnicodeError, ValueError):
             raise UserConfigError(f"invalid user configuration at {self.path}") from None
 
-    def save(self, config: UserConfig) -> None:
-        # Pydantic models are mutable by default. Revalidate the whole candidate
-        # before taking the filesystem mutation path.
+    @staticmethod
+    def validate_candidate(config: UserConfig) -> UserConfig:
+        """Revalidate mutable models before any provider build or filesystem effects."""
         try:
-            validated = UserConfig.model_validate(
+            return UserConfig.model_validate(
                 config.model_dump(mode="python"),
                 context={"legacy_model_role_defaults": dict(config._legacy_model_role_defaults)},
             )
@@ -331,6 +331,8 @@ class UserConfigStore:
             )
             raise UserConfigError(f"invalid user configuration: check {location}") from None
 
+    def save(self, config: UserConfig) -> None:
+        validated = self.validate_candidate(config)
         payload = (
             json.dumps(validated.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
         ).encode("utf-8")

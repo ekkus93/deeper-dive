@@ -179,12 +179,13 @@ class ProviderController:
     ) -> ProviderBuildResult | None:
         """Build first, persist second, and publish only a fully durable runtime."""
 
+        validated = self.config_store.validate_candidate(candidate)
         if not allow_unresolved_references:
-            self.validate_default_references(candidate)
+            self.validate_default_references(validated)
         if self.provider_factory is None:
             self.config_store.save(candidate)
             return None
-        providers = self.provider_factory.build(candidate)
+        providers = self.provider_factory.build(validated)
         self.config_store.save(candidate)
         self._publish(providers)
         return providers
