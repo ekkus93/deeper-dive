@@ -635,13 +635,19 @@ class FirstRunWizardShell(WizardShell):
         super().on_mount()
         self._show_welcome_controls()
 
-    def action_continue(self) -> None:
-        super().action_continue()
+    def action_continue(self) -> bool:
+        if not super().action_continue():
+            return False
         self._show_welcome_controls()
+        self._schedule_form_baseline()
+        return True
 
-    def action_back(self) -> None:
-        super().action_back()
+    def action_back(self) -> bool:
+        if not super().action_back():
+            return False
         self._show_welcome_controls()
+        self._schedule_form_baseline()
+        return True
 
     def on_select_changed(self, event: Select.Changed) -> None:
         if event.select.id == "setup-mode" and isinstance(event.value, str):
