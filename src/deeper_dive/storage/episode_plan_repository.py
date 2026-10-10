@@ -20,7 +20,9 @@ class EpisodePlanRepository:
             existing = db.execute(
                 "SELECT id FROM episode_plans WHERE episode_id=?", (episode_id,)
             ).fetchone()
-            if self._started(db, episode_id):
+            if (existing is not None and self._started(db, episode_id)) or self._started(
+                db, episode_id, include_runs=False
+            ):
                 raise ValueError("plan is frozen after generation starts; create a new episode")
 
     @staticmethod
