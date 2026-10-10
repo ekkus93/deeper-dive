@@ -123,6 +123,18 @@ class GuidedHostWizard(GuidedSourceWizard):
             return
         if event.select.id != "guided-host-picker":
             return
+        if (
+            self._exit_confirmation_pending
+            and self._pending_transition is not None
+            and self._pending_transition.startswith("host-select:")
+        ):
+            original = self._loaded_host_id
+            if original is not None and event.select.value != original:
+                self._ignore_host_picker_value = original
+                event.select.value = original
+            if self._pending_host_form_values is not None:
+                self._restore_host_form_values(self._pending_host_form_values)
+            return
         if event.value != event.select.value:
             # Textual can deliver a previously queued Select event after a newer
             # programmatic/user value is already current. Never rehydrate from it,
@@ -278,6 +290,7 @@ class GuidedHostWizard(GuidedSourceWizard):
     def _execute_custom_transition(self, transition: str) -> None:
         if transition.startswith("host-select:"):
             host_id = transition.split(":", 1)[1]
+            self._ignore_host_picker_value = None
             picker = self.query_one("#guided-host-picker", Select)
             picker.value = host_id
             self._load_selected_host()
