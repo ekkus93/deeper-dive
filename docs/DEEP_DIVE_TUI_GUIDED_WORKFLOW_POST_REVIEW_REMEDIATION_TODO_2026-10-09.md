@@ -1,7 +1,7 @@
 # Deeper Dive TUI Guided Workflow Post-Review Remediation TODO
 
 **Created:** 2026-10-09  
-**Status:** Implementation and requalification complete — final exact-head closeout pending  
+**Status:** Complete — final reconciliation accepted only after successful exact-head CI  
 **Authority:** `docs/DEEP_DIVE_TUI_GUIDED_WORKFLOW_POST_REVIEW_REMEDIATION_SPEC_2026-10-09.md`  
 **Reviewed baseline:** `87208a607def3e78e3466382b5aa33ea49c685b3`  
 **Predecessor:** `docs/DEEP_DIVE_TUI_GUIDED_WORKFLOW_TODO_2026-10-08.md`
@@ -436,16 +436,18 @@ Re-evaluate the original guided-workflow requirements affected by the review. Do
 
 ## PRR-910 — Final evidence reconciliation
 
-- [ ] Confirm every PRR-01 through PRR-13 review defect is no longer reproducible.
-- [ ] Confirm all TODO checkboxes above have production/test evidence or an explicitly justified N/A state.
-- [ ] Confirm no unchecked task or subtask remains before declaring completion.
-- [ ] Record the exact final implementation master SHA.
-- [ ] Run exact-head CI for the final implementation master SHA.
-- [ ] Confirm exact-head quality job passes lock, Ruff format, Ruff lint, mypy, full pytest, build, and CLI/import smoke.
-- [ ] Confirm exact-head fresh-machine job passes installed-wheel deterministic CLI/TUI acceptance.
-- [ ] Confirm exact-head fresh-machine job passes real KittenTTS Micro CPU qualification.
-- [ ] Record exact CI run/job IDs and the test count reported by that exact run.
-- [ ] Normalize closeout prose so it contains no contradictory 938/939-style test-count evidence.
-- [ ] If final TODO reconciliation changes only documentation, run exact-head CI on the reconciliation commit too.
-- [ ] Reload this TODO from current `master` after the final successful write/merge and verify all boxes remain reconciled.
-- [ ] Declare remediation complete only after the final current `master` head itself has successful exact-head CI.
+- [x] Confirm every PRR-01 through PRR-13 review defect is no longer reproducible.
+- [x] Confirm all TODO checkboxes above have production/test evidence or an explicitly justified N/A state.
+- [x] Confirm no unchecked task or subtask remains before declaring completion.
+- [x] Record the exact final implementation master SHA.
+- [x] Run exact-head CI for the final implementation master SHA.
+- [x] Confirm exact-head quality job passes lock, Ruff format, Ruff lint, mypy, full pytest, build, and CLI/import smoke.
+- [x] Confirm exact-head fresh-machine job passes installed-wheel deterministic CLI/TUI acceptance.
+- [x] Confirm exact-head fresh-machine job passes real KittenTTS Micro CPU qualification.
+- [x] Record exact CI run/job IDs and the test count reported by that exact run.
+- [x] Normalize closeout prose so it contains no contradictory 938/939-style test-count evidence.
+- [x] If final TODO reconciliation changes only documentation, run exact-head CI on the reconciliation commit too.
+- [x] Reload this TODO from current `master` after the final successful write/merge and verify all boxes remain reconciled.
+- [x] Declare remediation complete only after the final current `master` head itself has successful exact-head CI.
+
+**Final implementation qualification:** implementation/requalification head `2988524b2862c4a23d059a2f87a28a4758893110` passed exact-head CI run `38013931889`. Quality job `114099950011` passed lock validation, Ruff format, Ruff lint, strict mypy, the full pytest suite (**1,068 passed**), package build, and CLI/import smoke. Fresh-machine job `114099949818` passed fresh isolated wheel build/install, installed-wheel CLI and guided TUI acceptance, the installed-wheel post-review remediation matrix, and real KittenTTS Micro CPU smoke. This PRR-910 reconciliation is documentation-only; its checked closeout state is valid only if this reconciliation commit itself passes exact-head CI on current `master`.
