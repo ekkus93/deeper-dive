@@ -27,11 +27,6 @@ def test_run_generation_persists_assignment_failure_after_run_creation(tmp_path)
     configurations = EpisodeConfigurationService(composition.database_for_project(project.id))
     episode = configurations.create(
         project.id,
-        EpisodeConfiguration(title="Episode", target_duration_seconds=1200),
-    )
-    run = composition.create_generation_run(project.id, episode.id)
-    configurations.edit(
-        episode.id,
         EpisodeConfiguration(
             title="Episode",
             target_duration_seconds=1200,
@@ -43,6 +38,7 @@ def test_run_generation_persists_assignment_failure_after_run_creation(tmp_path)
             },
         ),
     )
+    run = composition.create_generation_run(project.id, episode.id)
 
     with pytest.raises(ValueError, match="invalid model-role configuration"):
         composition.run_generation(project.id, run.id)

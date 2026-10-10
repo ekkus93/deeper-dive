@@ -135,12 +135,34 @@ class GuidedHostWizard(GuidedSourceWizard):
             and self._host_profile_dirty()
         ):
             destination = value
+            preserved = self._host_form_values()
             self._ignore_host_picker_value = self._loaded_host_id
             event.select.value = self._loaded_host_id  # type: ignore[assignment]
+            self._restore_host_form_values(preserved)
             self._request_dirty_transition(f"host-select:{destination}")
             return
         self._load_selected_host()
         self._remember_host_profile_baseline()
+
+    def _host_form_values(self) -> tuple[str, str, str, str, object]:
+        return (
+            self.query_one("#guided-host-name", Input).value,
+            self.query_one("#guided-host-role", Input).value,
+            self.query_one("#guided-host-expertise", Input).value,
+            self.query_one("#guided-host-instructions", Input).value,
+            self.query_one("#guided-host-preset", Select).value,
+        )
+
+    def _restore_host_form_values(
+        self,
+        values: tuple[str, str, str, str, object],
+    ) -> None:
+        name, role, expertise, instructions, preset = values
+        self.query_one("#guided-host-name", Input).value = name
+        self.query_one("#guided-host-role", Input).value = role
+        self.query_one("#guided-host-expertise", Input).value = expertise
+        self.query_one("#guided-host-instructions", Input).value = instructions
+        self.query_one("#guided-host-preset", Select).value = preset  # type: ignore[assignment]
 
     def _host_profile_dirty(self) -> bool:
         if self.context.state.current_step != "hosts":
