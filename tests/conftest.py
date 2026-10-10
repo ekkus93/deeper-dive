@@ -200,3 +200,28 @@ def completed_episode_acceptance(
         )
 
     return create
+
+
+@dataclass(frozen=True, slots=True)
+class TwoProjectCompletedAcceptance:
+    """Two isolated production-complete episodes sharing the same configured runtime."""
+
+    first: CompletedEpisodeAcceptance
+    second: CompletedEpisodeAcceptance
+
+
+@pytest.fixture
+def two_project_completed_acceptance(
+    completed_episode_acceptance: Callable[[str | None], CompletedEpisodeAcceptance],
+) -> Callable[[], TwoProjectCompletedAcceptance]:
+    """Create two fully generated/exported projects through the shared acceptance path."""
+
+    def create() -> TwoProjectCompletedAcceptance:
+        first = completed_episode_acceptance(None)
+        second = completed_episode_acceptance(None)
+        assert first.project_id != second.project_id
+        assert first.episode_id != second.episode_id
+        assert first.run_id != second.run_id
+        return TwoProjectCompletedAcceptance(first, second)
+
+    return create
