@@ -31,9 +31,7 @@ def test_non_default_role_assignment_survives_config_reload_and_preflight(
     store = UserConfigStore(path)
     store.save(
         UserConfig(
-            providers={
-                "planner": ProviderConfig(provider_type="fake", default_model="model-a")
-            },
+            providers={"planner": ProviderConfig(provider_type="fake", default_model="model-a")},
             defaults={ModelRole.EPISODE_PLANNING.value: "planner:model-b"},
         )
     )
