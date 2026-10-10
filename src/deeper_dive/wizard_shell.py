@@ -148,6 +148,7 @@ class WizardShell(Screen[None]):
         self.help_requested = False
         self._error_details: str | None = None
         self._exit_confirmation_pending = False
+        self._pending_transition: str | None = None
         self._last_form_status = ""
         self._form_baselines: dict[str, tuple[tuple[str, str], ...]] = {}
         self._viewport_width = RECOMMENDED_TERMINAL_WIDTH
@@ -220,6 +221,9 @@ class WizardShell(Screen[None]):
             "continue": self.action_continue,
             "save-exit": self.action_save_exit,
             "help": self.action_help,
+            "confirm-save": self.action_confirm_save_exit,
+            "confirm-discard": self.action_confirm_discard_exit,
+            "confirm-cancel": self.action_cancel_exit_confirmation,
         }
         handler = handlers.get(action)
         if handler is not None:
@@ -257,17 +261,27 @@ class WizardShell(Screen[None]):
 
         return f"Complete {step_key.replace('-', ' ')} before continuing."
 
-    def action_back(self) -> None:
-        if self.busy:
-            return
+    def action_back(self) -> bool:
+        if self.busy or self._exit_confirmation_pending:
+            return False
+        if self._current_form_dirty():
+            self._request_dirty_transition("back")
+            return False
+        previous = self.context.state
         self.context.state = self.navigator.back()
+        if self.context.state == previous:
+            return False
         self._sync_text()
-        self._remember_current_form()
         self._schedule_form_baseline()
+        return True
 
-    def action_continue(self) -> None:
-        if self.busy:
-            return
+    def action_continue(self) -> bool:
+        if self.busy or self._exit_confirmation_pending:
+            return False
+        if self._current_form_dirty():
+            self._request_dirty_transition("continue")
+            return False
+        previous = self.context.state
         try:
             self.context.state = self.navigator.continue_forward()
         except WizardTransitionBlocked as exc:
@@ -277,10 +291,38 @@ class WizardShell(Screen[None]):
                 self.context.state = recovered
                 self._sync_text()
             self.set_status(self.blocker_message(exc.step_key))
-            return
+            return False
+        if self.context.state == previous:
+            return False
         self._sync_text()
-        self._remember_current_form()
         self._schedule_form_baseline()
+        return True
+
+    def request_external_navigation(self, destination: str) -> bool:
+        """Return True when a dirty wizard consumed a global navigation request."""
+
+        if self.busy or self._exit_confirmation_pending:
+            return True
+        if not self._current_form_dirty():
+            return False
+        self._request_dirty_transition(f"navigate:{destination}")
+        return True
+
+    def _request_dirty_transition(self, transition: str) -> None:
+        self._pending_transition = transition
+        self._exit_confirmation_pending = True
+        self._sync_exit_confirmation()
+        labels = {
+            "exit": "exit",
+            "back": "go back",
+            "continue": "continue",
+        }
+        destination = labels.get(transition, "leave this screen")
+        self.set_status(
+            "Unsaved changes. Save changes and "
+            f"{destination}, explicitly discard them, or continue editing."
+        )
+        self.query_one("#wizard-confirm-cancel", Button).focus()
 
     def _editable_snapshot(self) -> tuple[tuple[str, str], ...]:
         keys = _FORM_FIELDS.get((self.context.state.kind, self.context.state.current_step), ())
@@ -325,12 +367,7 @@ class WizardShell(Screen[None]):
             self.action_cancel_exit_confirmation()
             return
         if self._current_form_dirty():
-            self._exit_confirmation_pending = True
-            self._sync_exit_confirmation()
-            self.set_status(
-                "Unsaved changes. Save changes and exit, explicitly discard, or continue editing."
-            )
-            self.query_one("#wizard-confirm-cancel", Button).focus()
+            self._request_dirty_transition("exit")
             return
         self._checkpoint_and_exit()
 
@@ -341,22 +378,21 @@ class WizardShell(Screen[None]):
         except (OSError, ValueError) as exc:
             self.set_status("Could not save wizard progress: " + sanitize_exception_message(exc))
             return
-        self._exit_confirmation_pending = False
-        self._sync_exit_confirmation()
+        self._clear_transition_confirmation()
         self.save_exit_requested = True
         self.set_status("Progress checkpoint saved; safe to resume from this checkpoint.")
         self.on_save_exit()
 
     def _save_dirty_step(self) -> bool:
         """Subclasses delegate to their existing production-backed save action."""
-        self.set_status("Save this step using its production Save action before exiting.")
+        self.set_status("Save this step using its production Save action before continuing.")
         return False
 
     def action_confirm_save_exit(self) -> None:
         if not self._exit_confirmation_pending or self.busy:
             return
-        self._exit_confirmation_pending = False
-        self._sync_exit_confirmation()
+        transition = self._pending_transition or "exit"
+        self._clear_transition_confirmation()
         try:
             saved = self._save_dirty_step()
         except (OSError, KeyError, RuntimeError, ValueError) as exc:
@@ -365,27 +401,60 @@ class WizardShell(Screen[None]):
         if not saved:
             return
         self._remember_current_form()
-        self._checkpoint_and_exit()
+        self._execute_pending_transition(transition)
 
     def action_confirm_discard_exit(self) -> None:
         if not self._exit_confirmation_pending or self.busy:
             return
-        self._exit_confirmation_pending = False
-        self._sync_exit_confirmation()
-        self._checkpoint_and_exit()
+        transition = self._pending_transition or "exit"
+        self._clear_transition_confirmation()
+        # Mark only the UI snapshot clean so the requested transition can occur.
+        # No business data is persisted by an explicit discard.
+        self._remember_current_form()
+        self._execute_pending_transition(transition)
 
     def action_cancel_exit_confirmation(self) -> None:
         if not self._exit_confirmation_pending:
             return
-        self._exit_confirmation_pending = False
-        self._sync_exit_confirmation()
+        self._clear_transition_confirmation()
         self.set_status("Continuing to edit; unsaved changes are still present.")
 
+    def _execute_pending_transition(self, transition: str) -> None:
+        if transition == "exit":
+            self._checkpoint_and_exit()
+        elif transition == "back":
+            self.action_back()
+        elif transition == "continue":
+            self.action_continue()
+        elif transition.startswith("navigate:"):
+            self.app.action_navigate(transition.split(":", 1)[1])
+        else:
+            self._execute_custom_transition(transition)
+
+    def _execute_custom_transition(self, transition: str) -> None:
+        raise ValueError(f"unsupported wizard transition {transition!r}")
+
+    def _clear_transition_confirmation(self) -> None:
+        self._exit_confirmation_pending = False
+        self._pending_transition = None
+        self._sync_exit_confirmation()
+
     def _sync_exit_confirmation(self) -> None:
-        self.query_one(
-            "#wizard-exit-confirmation", Horizontal
-        ).display = self._exit_confirmation_pending
-        self.query_one("#wizard-save-exit", Button).disabled = self._exit_confirmation_pending
+        pending = self._exit_confirmation_pending
+        transition = self._pending_transition or "exit"
+        labels = {
+            "exit": ("Save changes and exit", "Exit without changes"),
+            "back": ("Save changes and go back", "Discard changes and go back"),
+            "continue": ("Save changes and continue", "Discard changes and continue"),
+        }
+        save_label, discard_label = labels.get(
+            transition,
+            ("Save changes and leave", "Discard changes and leave"),
+        )
+        self.query_one("#wizard-confirm-save", Button).label = save_label
+        self.query_one("#wizard-confirm-discard", Button).label = discard_label
+        self.query_one("#wizard-exit-confirmation", Horizontal).display = pending
+        self._sync_actions()
 
     def action_help(self) -> None:
         self.help_requested = True
@@ -434,16 +503,15 @@ class WizardShell(Screen[None]):
 
     def _sync_actions(self) -> None:
         navigator = self.navigator
-        self.query_one("#wizard-back", Button).disabled = self.busy or navigator.current_index == 0
+        pending = self._exit_confirmation_pending
+        self.query_one("#wizard-back", Button).disabled = (
+            self.busy or pending or navigator.current_index == 0
+        )
         self.query_one("#wizard-continue", Button).disabled = (
-            self.busy or not navigator.can_continue
+            self.busy or pending or not navigator.can_continue
         )
-        self.query_one("#wizard-save-exit", Button).disabled = (
-            self.busy or self._exit_confirmation_pending
-        )
-        self.query_one(
-            "#wizard-exit-confirmation", Horizontal
-        ).display = self._exit_confirmation_pending
+        self.query_one("#wizard-save-exit", Button).disabled = self.busy or pending
+        self.query_one("#wizard-exit-confirmation", Horizontal).display = pending
 
     def _apply_viewport_policy(self, width: int, height: int) -> None:
         self._viewport_width = width
