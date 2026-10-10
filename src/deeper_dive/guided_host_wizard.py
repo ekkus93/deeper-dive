@@ -131,7 +131,8 @@ class GuidedHostWizard(GuidedSourceWizard):
             original = self._loaded_host_id
             if original is not None and event.select.value != original:
                 self._ignore_host_picker_value = original
-                event.select.value = original
+                with event.select.prevent(Select.Changed):
+                    event.select.value = original
             if self._pending_host_form_values is not None:
                 self._restore_host_form_values(self._pending_host_form_values)
             return
@@ -159,7 +160,8 @@ class GuidedHostWizard(GuidedSourceWizard):
             )
             self._ignore_host_picker_value = self._loaded_host_id
             original_host_id = self._loaded_host_id
-            event.select.value = original_host_id  # type: ignore[assignment]
+            with event.select.prevent(Select.Changed):
+                event.select.value = original_host_id
             self._restore_host_form_values(preserved)
             self._pending_host_form_values = preserved
             self._request_dirty_transition(f"host-select:{destination}")
@@ -187,7 +189,8 @@ class GuidedHostWizard(GuidedSourceWizard):
         picker = self.query_one("#guided-host-picker", Select)
         if picker.value != original_host_id:
             self._ignore_host_picker_value = original_host_id
-            picker.value = original_host_id
+            with picker.prevent(Select.Changed):
+                picker.value = original_host_id
         self._loaded_host_id = original_host_id
         self._restore_host_form_values(preserved)
         self._pending_host_form_values = preserved
@@ -292,7 +295,8 @@ class GuidedHostWizard(GuidedSourceWizard):
             host_id = transition.split(":", 1)[1]
             self._ignore_host_picker_value = None
             picker = self.query_one("#guided-host-picker", Select)
-            picker.value = host_id
+            with picker.prevent(Select.Changed):
+                picker.value = host_id
             self._load_selected_host()
             self._remember_current_form()
             return
