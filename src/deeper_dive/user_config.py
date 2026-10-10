@@ -354,11 +354,14 @@ class UserConfigStore:
                 self._restrict_permissions(temporary)
                 os.replace(temporary, self.path)
                 replaced = True
+                # Publication has already happened even if the following directory
+                # fsync reports uncertain crash durability. Keep this in-memory
+                # revision aligned with the bytes now visible on disk.
+                config._revision = self._revision(payload)
                 self._sync_parent_directory()
             finally:
                 if not replaced:
-                    temporary.unlink(missing_ok=True)
-            config._revision = self._revision(payload)
+                    self._cleanup_temporary(temporary)
 
     def _write_temporary(self, payload: bytes) -> Path:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -380,8 +383,20 @@ class UserConfigStore:
             return temporary
         except Exception:
             if temporary is not None:
-                temporary.unlink(missing_ok=True)
+                self._cleanup_temporary(temporary)
             raise
+
+    @staticmethod
+    def _cleanup_temporary(temporary: Path) -> None:
+        """Best-effort removal of an owned temp without masking the write error.
+
+        A cleanup failure cannot undo a failed write; callers retain the original
+        failure so it can be diagnosed instead of reporting a misleading unlink.
+        """
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            pass
 
     def _current_revision(self) -> str | None:
         if not self.path.exists():

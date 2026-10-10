@@ -236,3 +236,95 @@ def test_fixed_temp_symlink_canary_remains_untouched(tmp_path: Path) -> None:
     assert legacy_temp.is_symlink()
     assert store.path.stat().st_mode & 0o777 == 0o600
     assert list(tmp_path.glob(".config.json.*.tmp")) == []
+
+
+def test_directory_sync_failure_keeps_revision_aligned_with_published_bytes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = UserConfigStore(tmp_path / "config.json")
+    store.save(UserConfig())
+    candidate = store.load()
+    candidate.defaults["research_policy"] = "useful"
+
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            store,
+            "_sync_parent_directory",
+            lambda: (_ for _ in ()).throw(OSError("injected directory fsync failure")),
+        )
+        with pytest.raises(OSError, match="injected directory fsync failure"):
+            store.save(candidate)
+
+    # Publication happened before directory sync failed. A follow-up save on the
+    # same object must not report a spurious stale-writer conflict.
+    assert candidate._revision == store.load()._revision
+    candidate.defaults["network_policy"] = "local-only"
+    store.save(candidate)
+    assert store.load().defaults == {
+        "research_policy": "useful",
+        "network_policy": "local-only",
+    }
+
+
+def test_failed_temp_cleanup_does_not_mask_original_replace_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = UserConfigStore(tmp_path / "config.json")
+    store.save(UserConfig())
+    before = store.path.read_bytes()
+    candidate = store.load()
+    candidate.defaults["research_policy"] = "off"
+    original_unlink = Path.unlink
+
+    def fail_unlink(path: Path, *, missing_ok: bool = False) -> None:
+        if path.name.startswith(".config.json.") and path.name.endswith(".tmp"):
+            raise OSError("injected cleanup failure")
+        original_unlink(path, missing_ok=missing_ok)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            "deeper_dive.user_config.os.replace",
+            lambda source, target: (_ for _ in ()).throw(OSError("injected replace failure")),
+        )
+        patch.setattr(Path, "unlink", fail_unlink)
+        with pytest.raises(OSError, match="injected replace failure"):
+            store.save(candidate)
+
+    assert store.path.read_bytes() == before
+    # The OS denied cleanup in this fixture; remove the orphan after restoring
+    # Path.unlink, rather than claiming cleanup succeeded.
+    leftovers = list(tmp_path.glob(".config.json.*.tmp"))
+    assert len(leftovers) == 1
+    for leftover in leftovers:
+        leftover.unlink()
+
+
+def test_failed_temp_cleanup_does_not_mask_original_write_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = UserConfigStore(tmp_path / "config.json")
+    store.save(UserConfig())
+    before = store.path.read_bytes()
+    candidate = store.load()
+    candidate.defaults["research_policy"] = "off"
+    original_unlink = Path.unlink
+
+    def fail_unlink(path: Path, *, missing_ok: bool = False) -> None:
+        if path.name.startswith(".config.json.") and path.name.endswith(".tmp"):
+            raise OSError("injected cleanup failure")
+        original_unlink(path, missing_ok=missing_ok)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            "deeper_dive.user_config.os.fsync",
+            lambda fd: (_ for _ in ()).throw(OSError("injected temp fsync failure")),
+        )
+        patch.setattr(Path, "unlink", fail_unlink)
+        with pytest.raises(OSError, match="injected temp fsync failure"):
+            store.save(candidate)
+
+    assert store.path.read_bytes() == before
+    leftovers = list(tmp_path.glob(".config.json.*.tmp"))
+    assert len(leftovers) == 1
+    for leftover in leftovers:
+        leftover.unlink()
