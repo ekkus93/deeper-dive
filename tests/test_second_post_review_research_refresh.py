@@ -11,8 +11,7 @@ from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.guided_app import GuidedDeeperDiveApp
 from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
 from deeper_dive.guided_workflow import WizardKind, WizardState
-from deeper_dive.research_policy import ResearchPolicy, ResearchPolicyStore
-from deeper_dive.research_types import ResearchMode
+from deeper_dive.research_policy import ResearchMode, ResearchPolicy, ResearchPolicyStore
 from deeper_dive.storage.workspace import WorkspaceManager
 
 
