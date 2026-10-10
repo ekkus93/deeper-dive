@@ -272,7 +272,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         super().on_mount()
         self._load_existing_setup()
         self._sync_setup_controls()
-        self._schedule_form_baseline()
+        self._remember_current_form()
         self._request_runtime_readiness()
 
     def action_continue(self) -> bool:
@@ -285,7 +285,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         if not super().action_continue():
             return False
         self._sync_setup_controls()
-        self._schedule_form_baseline()
+        self._remember_current_form()
         return True
 
     def action_back(self) -> bool:

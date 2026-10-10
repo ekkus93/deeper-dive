@@ -186,11 +186,14 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         self._refresh_plan()
         self._refresh_preflight()
         self._toggle()
-        self._schedule_form_baseline()
+        self._remember_current_form()
 
     def on_screen_resume(self) -> None:
         """A previously mounted wizard must reload production state when re-entered."""
         if not self.is_mounted:
+            return
+        if self._current_form_dirty():
+            self.set_status("Unsaved changes remain; save or discard them before reloading.")
             return
         self.context.state = self.navigator.recovered_state()
         self._selected_host_ids = []
@@ -202,6 +205,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         self._refresh_preflight()
         self._sync_text()
         self._toggle()
+        self._remember_current_form()
 
     def action_continue(self) -> bool:
         if not super().action_continue():
@@ -210,7 +214,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         self._refresh_plan()
         self._refresh_preflight()
         self._toggle()
-        self._schedule_form_baseline()
+        self._remember_current_form()
         return True
 
     def action_back(self) -> bool:
@@ -220,7 +224,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         self._refresh_plan()
         self._refresh_preflight()
         self._toggle()
-        self._schedule_form_baseline()
+        self._remember_current_form()
         return True
 
     def on_select_changed(self, event: Select.Changed) -> None:
