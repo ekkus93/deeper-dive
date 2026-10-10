@@ -114,7 +114,6 @@ def test_close_stops_new_readiness_requests_and_late_publication() -> None:
     assert coordinator.snapshot is None
 
 
-
 def test_one_hundred_identical_refreshes_coalesce_and_each_callback_runs_once() -> None:
     release = Event()
     started = Event()

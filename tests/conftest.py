@@ -229,7 +229,6 @@ def two_project_completed_acceptance(
     return create
 
 
-
 @dataclass(frozen=True, slots=True)
 class SecondPostReviewAcceptance:
     """Reusable two-project matrix with one pending generation and byte snapshots."""

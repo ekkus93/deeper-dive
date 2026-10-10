@@ -180,7 +180,6 @@ def test_settings_accepted_quick_defaults_are_consumable_after_restart(tmp_path)
     assert persisted.defaults["diagnostic_logging"] == "verbose"
 
 
-
 def test_multiple_and_encoded_fragment_canaries_redact_without_destroying_context() -> None:
     message = (
         "first=https://one.example/docs#install "

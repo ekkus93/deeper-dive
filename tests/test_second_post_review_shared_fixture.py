@@ -42,7 +42,6 @@ def test_two_project_completed_acceptance_fixture_is_fully_isolated(
         assert Path(completed.transcript_path).name.startswith(completed.episode_id)
 
 
-
 def test_second_post_review_acceptance_fixture_includes_pending_run_and_snapshots(
     second_post_review_acceptance,
 ) -> None:

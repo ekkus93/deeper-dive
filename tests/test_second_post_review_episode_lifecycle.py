@@ -198,7 +198,6 @@ def test_stale_episode_configuration_writer_rejected_with_frozen_clock(tmp_path:
     assert persisted.focus == "New durable focus"
 
 
-
 def test_rejected_completed_episode_edit_preserves_historical_artifacts(
     completed_episode_acceptance,
 ) -> None:
