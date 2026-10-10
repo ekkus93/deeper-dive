@@ -603,6 +603,7 @@ async def _discard_restores_host_membership(tmp_path: Path) -> None:
         configs = EpisodeConfigurationService(app.composition.database_for_project(project_id))
         assert configs.load_configuration(episode_id).host_ids == host_ids
 
+
 @pytest.mark.parametrize("decision", ("cancel", "discard", "save", "failed-save"))
 def test_recommended_hosts_guard_unsaved_profile(
     tmp_path: Path,
