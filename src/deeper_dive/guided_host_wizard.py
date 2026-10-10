@@ -578,18 +578,19 @@ class GuidedHostWizard(GuidedSourceWizard):
             return
         repository = self.context.composition.service.hosts(project_id)
         rows: list[str] = []
-        valid_ids: list[str] = []
-        for host_id in self._selected_host_ids:
+        for index, host_id in enumerate(self._selected_host_ids, start=1):
             record = repository.get_host(host_id)
-            if record is None:
+            if record is None or record.project_id != project_id:
+                # A display refresh is not a user-authorized membership edit.
+                # Keep the missing/foreign ID in the pending order so the
+                # production save can reject it instead of silently dropping it.
+                rows.append(f"{index}. Unavailable host — remove or restore before saving.")
                 continue
-            valid_ids.append(host_id)
             rows.append(
-                f"{len(rows) + 1}. {record.display_name} — {record.role or 'Host'} — "
+                f"{index}. {record.display_name} — {record.role or 'Host'} — "
                 f"{self._voice_label(record.tts_provider, record.tts_voice)}"
             )
-        self._selected_host_ids = valid_ids
-        output.update("Episode host order:\n" + "\n".join(rows) if rows else "Episode hosts: none.")
+        output.update("Episode host order:\n" + "\n".join(rows))
 
     def _selected_host_record(self) -> HostProfileRecord | None:
         project_id = self.context.project_id
