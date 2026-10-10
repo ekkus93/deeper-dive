@@ -223,12 +223,9 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             value = event.value
             if not isinstance(value, str) or not value.isdigit():
                 return
-            current = (
-                event.select.value if isinstance(event.select.value, str) else None
-            )
-            if current is not None and value != current:
-                # Ignore a stale queued event rather than rehydrating over newer
-                # plan-segment selection or edits.
+            if event.value != event.select.value:
+                # Ignore stale queued events, including option-rebuild blank events,
+                # rather than rehydrating over newer plan selection or edits.
                 return
             if value == self._ignore_plan_picker_value:
                 self._ignore_plan_picker_value = None
