@@ -157,3 +157,107 @@ async def _guided_rejected_missing_host_preserves_edits(tmp_path) -> None:
         assert wizard._selected_host_ids == ["present", "missing"]
         assert wizard._host_order_dirty()
         assert configs.load_configuration(episode.id).host_ids == ("present",)
+def test_guided_host_order_move_undo_returns_to_clean(tmp_path) -> None:
+    asyncio.run(_guided_host_order_move_undo_returns_to_clean(tmp_path))
+
+
+async def _guided_host_order_move_undo_returns_to_clean(tmp_path) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    project = service.create_project("Host order undo")
+    repository = service.hosts(project.id)
+    for host_id in ("first", "second"):
+        repository.create_host(HostProfile(host_id, project.id, host_id).to_record())
+    db = Database(service.workspaces.project_root(project.id) / "project.db")
+    episode = EpisodeConfigurationService(db).create(
+        project.id,
+        EpisodeConfiguration(title="Ordered", host_ids=("first", "second")),
+    )
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project.id
+        wizard.context.episode_id = episode.id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "hosts")
+        wizard._load_episode_host_order()
+        wizard._refresh_hosts("first")
+        wizard._toggle()
+        wizard._remember_current_form()
+
+        assert not wizard._current_form_dirty()
+        wizard._move_selected_host(-1)
+        assert not wizard._host_order_dirty()
+        wizard._move_selected_host(1)
+        assert wizard._host_order_dirty()
+        wizard._move_selected_host(-1)
+        assert wizard._selected_host_ids == ["first", "second"]
+        assert not wizard._current_form_dirty()
+        assert EpisodeConfigurationService(db).load_configuration(episode.id).host_ids == (
+            "first",
+            "second",
+        )
+
+
+def test_guided_partial_profile_save_preserves_unsaved_order_for_retry(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    asyncio.run(_guided_partial_profile_save_preserves_order(tmp_path, monkeypatch))
+
+
+async def _guided_partial_profile_save_preserves_order(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from textual.widgets import Input
+
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    project = service.create_project("Host partial save")
+    repository = service.hosts(project.id)
+    for host_id in ("first", "second"):
+        repository.create_host(HostProfile(host_id, project.id, host_id).to_record())
+    db = Database(service.workspaces.project_root(project.id) / "project.db")
+    configs = EpisodeConfigurationService(db)
+    episode = configs.create(
+        project.id,
+        EpisodeConfiguration(title="Original", host_ids=("first", "second")),
+    )
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project.id
+        wizard.context.episode_id = episode.id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "hosts")
+        wizard._load_episode_host_order()
+        wizard._refresh_hosts("first")
+        wizard._toggle()
+        wizard._remember_current_form()
+
+        wizard.query_one("#guided-host-instructions", Input).value = "Persisted edit"
+        wizard._move_selected_host(1)
+        assert wizard._host_profile_dirty()
+        assert wizard._host_order_dirty()
+
+        original_save_order = wizard.action_save_host_order
+        monkeypatch.setattr(wizard, "action_save_host_order", lambda: False)
+        wizard.action_save_exit()
+        assert wizard.query_one("#wizard-exit-confirmation").display
+        wizard.action_confirm_save_exit()
+        await pilot.pause()
+
+        saved_host = repository.get_host("first")
+        assert saved_host is not None
+        assert saved_host.instructions == "Persisted edit"
+        assert configs.load_configuration(episode.id).host_ids == ("first", "second")
+        assert wizard._selected_host_ids == ["second", "first"]
+        assert wizard._host_order_dirty()
+        assert not wizard.save_exit_requested
+
+        monkeypatch.setattr(wizard, "action_save_host_order", original_save_order)
+        assert wizard.action_save_host_order()
+        assert configs.load_configuration(episode.id).host_ids == ("second", "first")
+        assert not wizard._host_order_dirty()
+
