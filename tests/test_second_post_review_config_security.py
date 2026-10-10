@@ -338,3 +338,26 @@ def test_encoded_query_canaries_in_chained_errors_and_structured_log(tmp_path) -
     log = path.read_text(encoding="utf-8")
     assert canary not in log
     assert "[REDACTED]" in log
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "api.key=dotted-query-canary",
+        "api%2Ekey=dotted-query-canary",
+        "api%252Ekey=dotted-query-canary",
+        "client.secret=dotted-query-canary",
+        "session.Token=dotted-query-canary",
+    ],
+)
+def test_dotted_and_encoded_credential_query_keys_are_redacted(query: str) -> None:
+    message = f"GET https://example.test/v1?{query} status=401"
+    sanitized = str(redact(message))
+    assert "dotted-query-canary" not in sanitized
+    assert "[REDACTED]" in sanitized
+    assert "status=401" in sanitized
+
+
+def test_benign_dotted_query_key_is_preserved() -> None:
+    message = "GET https://example.test/docs?release.version=1.2.3 status=200"
+    assert redact(message) == message
