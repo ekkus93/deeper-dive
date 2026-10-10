@@ -280,25 +280,23 @@ def test_encoded_query_key_redacted_in_nested_diagnostic_bundle(tmp_path) -> Non
 
 
 @pytest.mark.parametrize("mutation_path", ["store", "provider-controller"])
-def test_mutated_provider_fragment_revalidated_before_any_write(tmp_path, mutation_path: str) -> None:
+def test_mutated_provider_fragment_revalidated_before_any_write(
+    tmp_path, mutation_path: str
+) -> None:
     """Mutable Pydantic submodels must not bypass the original URL validator."""
     path = tmp_path / "config.json"
     store = UserConfigStore(path)
     store.save(
         UserConfig(
             providers={
-                "remote": ProviderConfig(
-                    provider_type="openai", base_url="https://example.test/v1"
-                )
+                "remote": ProviderConfig(provider_type="openai", base_url="https://example.test/v1")
             }
         )
     )
     original = path.read_bytes()
     candidate = store.load()
     canary = "mutated-fragment-canary"
-    candidate.providers["remote"].base_url = (
-        f"https://example.test/v1#access_token={canary}"
-    )
+    candidate.providers["remote"].base_url = f"https://example.test/v1#access_token={canary}"
     with pytest.raises(UserConfigError, match="providers"):
         if mutation_path == "store":
             store.save(candidate)
