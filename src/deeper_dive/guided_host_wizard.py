@@ -222,16 +222,16 @@ class GuidedHostWizard(GuidedSourceWizard):
         self._refresh_hosts(created[0] if created else None)
         self.set_status("Created/selected the recommended Curious Explainer and Skeptic pair.")
 
-    def action_create_host(self) -> None:
+    def action_create_host(self) -> bool:
         project_id = self.context.project_id
         if project_id is None:
             self.set_status("Create the project before creating a host.")
-            return
+            return False
         preset_value = self.query_one("#guided-host-preset", Select).value
         preset = str(preset_value)
         if preset not in preset_names():
             self.set_status("Choose a valid host preset.")
-            return
+            return False
         try:
             host = create_host_from_preset(preset, project_id)
             self._apply_host_form(host)
@@ -243,27 +243,29 @@ class GuidedHostWizard(GuidedSourceWizard):
             self.context.composition.service.hosts(project_id).create_host(host.to_record())
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
             self.set_error("Host creation failed.", exc)
-            return
+            return False
         self._refresh_hosts(host.id)
         self._remember_host_profile_baseline()
         self.set_status(f"Created host {host.display_name}.")
+        return True
 
-    def action_save_host(self) -> None:
+    def action_save_host(self) -> bool:
         project_id = self.context.project_id
         record = self._selected_host_record()
         if project_id is None or record is None:
             self.set_status("Choose a host to edit.")
-            return
+            return False
         try:
             host = HostProfile.from_record(record)
             self._apply_host_form(host, clear_optional=True)
             self.context.composition.service.hosts(project_id).update_host(host.to_record())
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
             self.set_error("Host save failed.", exc)
-            return
+            return False
         self._refresh_hosts(record.id)
         self._remember_host_profile_baseline()
         self.set_status(f"Saved host {host.display_name}.")
+        return True
 
     def action_select_host(self) -> None:
         record = self._selected_host_record()
@@ -308,11 +310,11 @@ class GuidedHostWizard(GuidedSourceWizard):
             return
         self.set_status(f"Previewed {voice.name}: {path.name}")
 
-    def action_save_host_order(self) -> None:
+    def action_save_host_order(self) -> bool:
         project_id = self.context.project_id
         if project_id is None or not self._selected_host_ids:
             self.set_status("Select at least one host before continuing.")
-            return
+            return False
         service = EpisodeConfigurationService(
             self.context.composition.database_for_project(project_id)
         )
@@ -338,10 +340,11 @@ class GuidedHostWizard(GuidedSourceWizard):
                 )
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
             self.set_error("Host order save failed.", exc)
-            return
+            return False
         self._sync_text()
         self._remember_host_order_baseline()
         self.set_status("Saved ordered episode hosts through EpisodeConfigurationService.")
+        return True
 
     def _move_selected_host(self, delta: int) -> None:
         record = self._selected_host_record()

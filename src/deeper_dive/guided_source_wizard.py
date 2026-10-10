@@ -143,7 +143,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
             return
         super().on_button_pressed(event)
 
-    def action_add_pasted_source(self) -> None:
+    def action_add_pasted_source(self) -> bool:
         project_id = self.context.project_id
         title_input = self.query_one("#guided-source-title", Input)
         text_input = self.query_one("#guided-source-text", Input)
@@ -151,7 +151,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
         body = text_input.value.strip()
         if project_id is None or not title or not body:
             self.set_status("Project, source title and text required.")
-            return
+            return False
         try:
             source = self.context.composition.service.add_pasted_source(
                 project_id,
@@ -160,54 +160,57 @@ class GuidedSourceWizard(GuidedProjectWizard):
             )
         except (OSError, KeyError, RuntimeError, ValueError) as exc:
             self.set_error("Source import failed.", exc)
-            return
+            return False
         title_input.value = ""
         text_input.value = ""
         self._refresh_sources(source.id)
         self._sync_text()
         self.set_status(f"Imported {source.title}.")
+        return True
 
-    def action_add_file_sources(self) -> None:
+    def action_add_file_sources(self) -> bool:
         project_id = self.context.project_id
         paths_input = self.query_one("#guided-source-paths", Input)
         paths = [Path(value.strip()) for value in paths_input.value.split(",") if value.strip()]
         if project_id is None or not paths:
             self.set_status("Create a project and provide at least one file or folder path.")
-            return
+            return False
         try:
             summary = self.context.composition.service.add_file_sources(project_id, paths)
         except (OSError, KeyError, RuntimeError, ValueError) as exc:
             self.set_error("File/folder import failed.", exc)
-            return
+            return False
         if not summary.imported:
             self.set_status("No file/folder sources were imported; review the paths and try again.")
-            return
+            return False
         paths_input.value = ""
         preferred = summary.imported[0].id
         self._refresh_sources(preferred)
         self._sync_text()
         self.set_status(self._import_summary("file/folder", summary))
+        return True
 
-    def action_add_url_sources(self) -> None:
+    def action_add_url_sources(self) -> bool:
         project_id = self.context.project_id
         urls_input = self.query_one("#guided-source-urls", Input)
         urls = [value.strip() for value in urls_input.value.split(",") if value.strip()]
         if project_id is None or not urls:
             self.set_status("Create a project and provide at least one explicit URL.")
-            return
+            return False
         try:
             summary = self.context.composition.service.add_url_sources(project_id, urls)
         except (OSError, KeyError, RuntimeError, ValueError) as exc:
             self.set_error("URL import failed.", exc)
-            return
+            return False
         if not summary.imported:
             self.set_status("No URL sources were imported; review the URLs and try again.")
-            return
+            return False
         urls_input.value = ""
         preferred = summary.imported[0].id
         self._refresh_sources(preferred)
         self._sync_text()
         self.set_status(self._import_summary("URL", summary))
+        return True
 
     def action_toggle_source(self) -> None:
         project_id = self.context.project_id
@@ -249,7 +252,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
         self._sync_text()
         self.set_status(f"Deleted {source.title}.")
 
-    def action_save_research(self) -> None:
+    def action_save_research(self) -> bool:
         project_id = self.context.project_id
         if project_id is None:
             self.set_status("Create a project before choosing research settings.")
@@ -267,10 +270,11 @@ class GuidedSourceWizard(GuidedProjectWizard):
             )
         except (OSError, KeyError, RuntimeError, ValueError) as exc:
             self.set_error("Research policy save failed.", exc)
-            return
+            return False
         self._sync_text()
         self._remember_current_form()
         self.set_status(f"Saved research choice: {mode.value}.")
+        return True
 
     def action_open_advanced_research(self) -> None:
         """Open existing expert controls against this wizard's durable project."""

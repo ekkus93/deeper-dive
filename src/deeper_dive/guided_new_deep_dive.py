@@ -39,7 +39,7 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
         else:
             super().on_button_pressed(event)
 
-    def action_create_project(self) -> None:
+    def action_create_project(self) -> bool:
         name = self.query_one("#guided-project-name", Input).value.strip()
         topic = self.query_one("#guided-project-topic", Input).value.strip()
         audience_value = self.query_one("#guided-project-audience", Select).value
@@ -65,10 +65,10 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
                 if field_errors[field]:
                     self.query_one(f"#guided-project-{field}").focus()
                     break
-            return
+            return False
         if self.context.project_id is not None:
             self.set_status("Project already created.")
-            return
+            return False
         instructions = "\n".join(
             (
                 f"Main curiosity: {topic}",
@@ -83,7 +83,7 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
             )
         except (OSError, KeyError, RuntimeError, ValueError) as exc:
             self.set_error("Project creation failed.", exc)
-            return
+            return False
         self.query_one("#guided-project-validation", Static).update("")
         for field in ("name", "topic", "audience"):
             self.query_one(f"#guided-project-{field}-error", Static).update("")
@@ -91,6 +91,7 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
         self._sync_text()
         self._remember_current_form()
         self.set_status(f"Created project {project.name}. Continue to Sources.")
+        return True
 
     def on_save_exit(self) -> None:
         self.app.push_screen("home")
