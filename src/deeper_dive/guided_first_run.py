@@ -50,19 +50,13 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         step = self.context.state.current_step
         self._last_form_status = ""
         if step == "provider-config":
-            self.action_save_provider()
-            return self._last_form_status.startswith("Saved provider ")
+            return self.action_save_provider()
         if step == "model-test":
-            self.action_save_roles()
-            return self._last_form_status.startswith("Saved recommended production")
+            return self.action_save_roles()
         if step == "speech":
-            self.action_save_speech()
-            return self._last_form_status.startswith(
-                ("Saved speech provider ", "Speech intentionally deferred.")
-            )
+            return self.action_save_speech()
         if step == "voice-defaults":
-            self.action_save_defaults()
-            return self._last_form_status.startswith("Saved voice, duration, and research")
+            return self.action_save_defaults()
         return super()._save_dirty_step()
 
     @property
@@ -332,17 +326,17 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             return
         super().on_button_pressed(event)
 
-    def action_save_provider(self) -> None:
+    def action_save_provider(self) -> bool:
         adapter = self._selected_llm_adapter()
         name = self.query_one("#setup-provider-name", Input).value.strip()
         model = self.query_one("#setup-provider-model", Input).value.strip()
         if not name or not adapter or not model:
             self.set_status("Provider name, concrete adapter, and model are required.")
-            return
+            return False
         controller = self.context.composition.provider_controller
         if controller.capability(adapter) != "llm":
             self.set_status("The selected adapter is not a language-model provider.")
-            return
+            return False
         try:
             controller.save_provider(
                 name,
@@ -354,13 +348,14 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             )
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
             self.set_error("Provider save failed.", exc)
-            return
+            return False
         self._llm_provider_name = name
         self._model_test_identity = None
         self._sync_text()
         self._remember_current_form()
         self.set_status(f"Saved provider {name}. Test the production connection to continue.")
         self._request_runtime_readiness()
+        return True
 
     def action_test_provider(self) -> None:
         name = self._selected_llm_name()
@@ -447,7 +442,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             return
         self._persist_roles({role: identity for role in _REQUIRED_SETUP_ROLES})
 
-    def action_save_roles(self) -> None:
+    def action_save_roles(self) -> bool:
         values = {
             ModelRole.EPISODE_PLANNING: self.query_one(
                 "#setup-role-episode-planning", Input
@@ -460,17 +455,17 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         }
         if any(not value for value in values.values()):
             self.set_status("All required model roles need provider:model assignments.")
-            return
-        self._persist_roles(values)
+            return False
+        return self._persist_roles(values)
 
-    def _persist_roles(self, assignments: dict[ModelRole, str]) -> None:
+    def _persist_roles(self, assignments: dict[ModelRole, str]) -> bool:
         try:
             self.settings.set_defaults(
                 {role.value: identity for role, identity in assignments.items()}
             )
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
             self.set_error("Role assignment failed.", exc)
-            return
+            return False
         for role, identity in assignments.items():
             selector = {
                 ModelRole.EPISODE_PLANNING: "#setup-role-episode-planning",
@@ -483,8 +478,9 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         self._remember_current_form()
         self.set_status("Saved recommended production model-role assignments.")
         self._request_runtime_readiness()
+        return True
 
-    def action_save_speech(self) -> None:
+    def action_save_speech(self) -> bool:
         choice = self._select_value("#setup-speech-choice") or "kitten"
         if choice == "deferred":
             self.settings.set_defaults(
@@ -495,7 +491,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             self._remember_current_form()
             self.set_status("Speech intentionally deferred. Audio generation will remain blocked.")
             self._request_runtime_readiness()
-            return
+            return True
 
         adapter = (
             self.query_one("#setup-speech-adapter", Input).value.strip()
@@ -506,7 +502,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         controller = self.context.composition.provider_controller
         if controller.capability(adapter) != "tts":
             self.set_status("Choose a concrete speech/TTS adapter.")
-            return
+            return False
         voices = tuple(
             item.strip()
             for item in self.query_one("#setup-speech-voices", Input).value.split(",")
@@ -529,12 +525,13 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             )
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
             self.set_error("Speech configuration failed.", exc)
-            return
+            return False
         self._tts_provider_name = name
         self._sync_text()
         self._remember_current_form()
         self.set_status(f"Saved speech provider {name}. Discover and choose voices next.")
         self._request_runtime_readiness()
+        return True
 
     def action_discover_voices(self) -> None:
         name = self._selected_tts_name()
@@ -573,19 +570,19 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             return
         self.set_status(f"Voice preview synthesized through {name}: {path.name}")
 
-    def action_save_defaults(self) -> None:
+    def action_save_defaults(self) -> bool:
         config = self.context.composition.provider_controller.config()
         deferred = config.defaults.get("speech_setup") == "deferred"
         voice1 = self._select_value("#setup-host1-voice")
         voice2 = self._select_value("#setup-host2-voice")
         if not deferred and (not voice1 or not voice2):
             self.set_status("Choose Host 1 and Host 2 voices before continuing.")
-            return
+            return False
         duration = self._select_value("#setup-duration")
         research = self._select_value("#setup-research-default")
         if not duration or not research:
             self.set_status("Choose default duration and research level.")
-            return
+            return False
         try:
             candidate = {
                 "quick_deep_dive_duration_minutes": duration,
@@ -606,11 +603,12 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             self.settings.set_defaults(candidate)
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
             self.set_error("Default save failed.", exc)
-            return
+            return False
         self._sync_text()
         self._remember_current_form()
         self.set_status("Saved voice, duration, and research defaults.")
         self._request_runtime_readiness()
+        return True
 
     def action_ready_new(self) -> None:
         self._clear_completed_setup_draft()
