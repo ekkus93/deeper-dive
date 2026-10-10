@@ -57,9 +57,7 @@ def test_noop_episode_edit_preserves_plan_segment_and_episode_identity(tmp_path)
     plan = repository.get_plan(episode.id)
     assert plan is not None
     assert plan.id == "plan-original"
-    assert [segment.id for segment in repository.list_segments(plan.id)] == [
-        "segment-original"
-    ]
+    assert [segment.id for segment in repository.list_segments(plan.id)] == ["segment-original"]
 
 
 def test_meaningful_draft_edit_invalidates_only_edited_episode_plan(tmp_path) -> None:
@@ -101,7 +99,5 @@ def test_non_draft_episode_edit_cannot_demote_state_or_delete_plan(tmp_path, sta
     plan = repository.get_plan(episode.id)
     assert plan is not None
     assert plan.id == "plan-original"
-    assert [segment.id for segment in repository.list_segments(plan.id)] == [
-        "segment-original"
-    ]
+    assert [segment.id for segment in repository.list_segments(plan.id)] == ["segment-original"]
     assert service.edit(episode.id, config) == original
