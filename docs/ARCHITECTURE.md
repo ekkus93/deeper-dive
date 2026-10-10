@@ -144,6 +144,46 @@ finally the built-in Useful default. The guided Research selector must load
 the durable project policy on revisit and must not overwrite that policy
 merely by navigating to the screen.
 
+### Second post-review durability and concurrency contracts
+
+Guided edit state has two layers: a durable production baseline and the currently
+displayed semantic snapshot. `WizardShell` owns the destination-aware
+Save/Discard/Cancel transition contract, while concrete wizards contribute target
+identity and non-widget state such as ordered host IDs. Step-specific saves return a
+typed `WizardSaveResult` so partial success is explicit. A multi-operation save must
+either be transactional or leave the unsaved remainder dirty and retryable; UI status
+text is never parsed to infer success.
+
+`UserConfigStore` publishes JSON with a securely-created unique same-directory
+temporary file, owner-only mode on POSIX, flush + file `fsync`, atomic
+`os.replace`, and parent-directory `fsync` where supported. A per-path advisory
+lock serializes cooperating writers, and the loaded content hash is an optimistic
+revision token: a stale writer fails with `UserConfigConflictError` rather than
+silently losing another update. Pre-replace failures preserve prior bytes and clean up
+only the temporary file owned by that save. A failure after `os.replace` is reported
+as uncertain durability, not falsely described as rollback. The parent config
+directory is a same-user trust boundary; this does not defend against a fully
+compromised process running as the same account.
+
+`FirstRunReadinessCoordinator` is intentionally bounded. Identical fingerprints
+coalesce callbacks; different fingerprints may supersede the visible generation but
+cannot exceed the configured worker budget. Timeout timers are owned and cancelled,
+late results are generation/fingerprint checked, app shutdown closes the coordinator,
+and provider adapters themselves receive finite transport timeouts. Python cannot
+safely kill an arbitrary blocked third-party call, so the invariant is bounded
+outstanding workers plus adapter deadlines, not forced thread termination.
+
+Episode configuration and plan persistence use SQLite `BEGIN IMMEDIATE` transactions
+and optimistic episode-config revisions. A no-op configuration save returns without
+rewriting or deleting the current plan. Any semantic draft configuration change is
+plan-relevant today because the planner consumes the full
+`EpisodeConfiguration.snapshot()`; the change atomically updates the episode/host
+order and invalidates its old plan. Once any generation/conversation work exists,
+configuration is frozen. Planning records the episode config revision before provider
+generation and checks it again when persisting, so a concurrent episode edit cannot
+publish a plan for stale inputs. Existing historical run/plan/transcript/audio/export
+identities are not rewritten by later configuration operations.
+
 ## Checkpointing and resume
 
 Long-running generation uses durable run records and completed work-unit checkpoints. The pipeline has ordered stages such as sources, research, planning, conversation, verification, TTS, composition, and export.

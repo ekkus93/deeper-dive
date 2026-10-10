@@ -38,6 +38,23 @@ Secrets should be supplied through the supported secret or environment mechanism
 
 Logs and diagnostics must redact recognizable secret-like values. User-facing errors should be actionable and concise; low-level diagnostics should be sanitized and kept behind explicit diagnostic/reporting surfaces.
 
+## Provider URL and configuration-file hardening
+
+Provider endpoint URLs are configuration, not a secret-storage channel. They must use
+the supported HTTP/HTTPS shape, cannot contain URL userinfo, sensitive query
+credentials, or any URL fragment, and validation errors do not echo rejected credential
+material. Diagnostic sanitization also treats credential-like query/fragment data,
+authorization headers, nested structures, and chained exception messages as secret
+material and replaces the payload with a fixed redaction marker.
+
+The user config file is replaced atomically from a uniquely-created owner-only temporary
+file on supported POSIX systems. Cooperating writers use an advisory lock plus an
+optimistic content revision so a stale Settings/Providers screen or another process
+cannot silently overwrite a newer config. The config directory remains a same-user
+trust boundary: these protections address accidental races, crash safety, and
+symlink/temp-path attacks within the supported model, not a process that has already
+compromised the user's account.
+
 ## Supplemental web research behavior
 
 Supplemental research is optional and gap-driven. The application should first identify a concrete research gap, such as outdated material, missing corroboration, a missing cited work, or an audience-context need. Automated research should not issue arbitrary broad network requests without a recorded reason.

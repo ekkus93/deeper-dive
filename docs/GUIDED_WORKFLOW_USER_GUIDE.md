@@ -184,6 +184,40 @@ verify inclusion/index readiness of sources, host selection, model-role/voice
 routes, and FFmpeg. A pause or retry is allowed only where the durable run
 state permits it; cancelled runs cannot simply be resumed.
 
+## Unsaved navigation, host order, and episode revisions
+
+Back, Continue, Home/Projects navigation, Save and Exit, and record selectors all use
+the same loss-safety rule. If the current guided form differs from the last durable
+state, Deeper Dive does **not** silently replace it. The confirmation offers a safe
+three-way choice: save the edits through the normal production service and continue,
+explicitly discard the edits and continue, or cancel and keep editing. Cancel is the
+default-safe choice. Validation or storage failures keep the current fields visible.
+
+Host profile edits and episode host membership/order are tracked separately. Reordering,
+adding, or removing an episode host is unsaved work until **Save Host Order** (or the
+wizard's Save changes action) succeeds. If a profile save succeeds but the host-order
+save fails, the profile remains durable and only the still-unsaved host order remains
+dirty for retry or explicit discard; the wizard does not claim the whole form was saved.
+
+Provider/model/voice readiness checks have finite adapter I/O timeouts and a bounded
+background-worker budget. Repeated refreshes are coalesced or rejected when the budget
+is exhausted rather than creating an unbounded number of threads. A timed-out/stale
+probe cannot later overwrite readiness for a newer provider configuration.
+
+Settings are validated as one candidate before a durable replacement. Invalid research
+modes, Quick Deep Dive presets/durations, network/diagnostic policy values, malformed
+model-role references, and unsafe path/control-character values are rejected before the
+old config is replaced. If another process or screen changed the config after it was
+loaded, the stale writer receives a reload-and-retry conflict instead of overwriting the
+newer file.
+
+Episode configuration is editable only while it is a draft with no generation history.
+A semantic no-op save keeps the existing plan identity. A real draft configuration
+change invalidates the plan so it cannot be used with stale hosts/focus/duration/provider
+inputs. Once generation/conversation work exists—or the episode is no longer a draft—
+configuration is frozen; create a new episode rather than rewriting historical run,
+transcript, audio, export, or plan identity.
+
 ## Shared services, provenance, and privacy
 
 Guided TUI and CLI workflows use shared production project/source services,
