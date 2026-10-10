@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from textual.binding import Binding
+from textual.css.query import NoMatches
 
 from deeper_dive.episode_setup_screen import EpisodeSetupScreen
 from deeper_dive.guided_async_readiness import (
@@ -85,7 +86,18 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
             self.push_screen("setup")
 
     def on_first_run_readiness_dispatch(self, event: FirstRunReadinessDispatch) -> None:
-        event.run()
+        try:
+            event.run()
+        except NoMatches:
+            # A fast background probe may complete before Textual composes the
+            # installed setup screen. Ignore only that pre-composition race;
+            # missing widgets on a composed screen remain actionable errors.
+            setup = self.get_screen("setup")
+            try:
+                setup.query_one("#wizard-heading")
+            except NoMatches:
+                return
+            raise
 
     def action_navigate(self, destination: str) -> None:
         # Guard the navigation boundary, not just one Home button: global nav,
