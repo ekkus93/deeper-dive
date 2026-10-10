@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.domain.clock import FrozenClock, format_timestamp
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.hosts import HostProfile
@@ -16,16 +17,19 @@ from deeper_dive.storage.episode_repositories import (
     SegmentPlanRecord,
 )
 from deeper_dive.storage.run_repositories import GenerationRunRecord, GenerationRunRepository
+from deeper_dive.storage.workspace import WorkspaceManager
 
 
 def _fixture(tmp_path: Path):
     clock = FrozenClock(datetime(2026, 10, 9, 12, 0, tzinfo=UTC))
-    database = Database(tmp_path / "project.db")
+    app_service = DeeperDiveService(WorkspaceManager(tmp_path / "data"), clock=clock)
+    project = app_service.create_project("Lifecycle")
+    database = Database(app_service.workspaces.project_root(project.id) / "project.db")
     repository = HostEpisodeRepository(database)
-    repository.create_host(HostProfile("host-1", "project-1", "Host One").to_record())
+    repository.create_host(HostProfile("host-1", project.id, "Host One").to_record())
     service = EpisodeConfigurationService(database, clock=clock)
     episode = service.create(
-        "project-1",
+        project.id,
         EpisodeConfiguration(
             title="Episode",
             focus="Focus",
