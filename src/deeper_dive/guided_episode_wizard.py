@@ -262,7 +262,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
                 destination = ordinal
                 self._ignore_plan_picker_value = str(self._loaded_segment_ordinal)
                 with event.select.prevent(Select.Changed):
-                    event.select.value = str(self._loaded_segment_ordinal)
+                    event.select.value = str(self._loaded_segment_ordinal)  # type: ignore[assignment]
                 self._request_dirty_transition(f"plan-select:{destination}")
                 return
             self._selected_segment_ordinal = ordinal

@@ -123,6 +123,9 @@ class GuidedHostWizard(GuidedSourceWizard):
             return
         if event.select.id != "guided-host-picker":
             return
+        value = event.value if isinstance(event.value, str) else None
+        if value is None:
+            return
         if (
             self._exit_confirmation_pending
             and self._pending_transition is not None
@@ -132,25 +135,22 @@ class GuidedHostWizard(GuidedSourceWizard):
             if original is not None and event.select.value != original:
                 self._ignore_host_picker_value = original
                 with event.select.prevent(Select.Changed):
-                    event.select.value = original
+                    event.select.value = original  # type: ignore[assignment]
             if self._pending_host_form_values is not None:
                 self._restore_host_form_values(self._pending_host_form_values)
             return
-        if event.value != event.select.value:
-            # Textual can deliver a previously queued Select event after a newer
-            # programmatic/user value is already current. Never rehydrate from it,
-            # including stale blank events emitted while options are rebuilt.
-            return
-        value = event.value if isinstance(event.value, str) else None
-        if value is not None and value == self._ignore_host_picker_value:
+        if value == self._ignore_host_picker_value:
             self._ignore_host_picker_value = None
             return
-        if (
-            value is not None
-            and self._loaded_host_id is not None
-            and value != self._loaded_host_id
-            and self._host_profile_dirty()
-        ):
+        # A queued event for the already-loaded target must never rehydrate its
+        # durable record over current edits. The direct refresh/load path already
+        # established the baseline before this message was posted.
+        if value == self._loaded_host_id:
+            return
+        if event.value != event.select.value:
+            # Ignore an obsolete different-target event after a newer selection.
+            return
+        if self._loaded_host_id is not None and self._host_profile_dirty():
             destination = value
             live_values = self._host_form_values()
             preserved = (
@@ -190,7 +190,7 @@ class GuidedHostWizard(GuidedSourceWizard):
         if picker.value != original_host_id:
             self._ignore_host_picker_value = original_host_id
             with picker.prevent(Select.Changed):
-                picker.value = original_host_id
+                picker.value = original_host_id  # type: ignore[assignment]
         self._loaded_host_id = original_host_id
         self._restore_host_form_values(preserved)
         self._pending_host_form_values = preserved
