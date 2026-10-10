@@ -41,8 +41,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         step = self.context.state.current_step
         self._last_form_status = ""
         if step == "project":
-            self.action_create_project()
-            return self._last_form_status.startswith("Created project ")
+            return self.action_create_project()
         if step == "sources":
             # Importing a file/URL must not implicitly discard an unrelated,
             # incomplete pasted-source form when Save changes and exit is chosen.
@@ -51,44 +50,35 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             if bool(title) != bool(body):
                 self.set_status("Provide both pasted-source title and text, or discard edits.")
                 return False
-            actions: tuple[tuple[str, str], ...] = (
-                ("#guided-source-text", "action_add_pasted_source"),
-                ("#guided-source-paths", "action_add_file_sources"),
-                ("#guided-source-urls", "action_add_url_sources"),
+            actions = (
+                ("#guided-source-text", self.action_add_pasted_source),
+                ("#guided-source-paths", self.action_add_file_sources),
+                ("#guided-source-urls", self.action_add_url_sources),
             )
             invoked = False
-            for selector, name in actions:
+            for selector, action in actions:
                 if self.query_one(selector, Input).value.strip():
                     invoked = True
-                    getattr(self, name)()
-                    if not self._last_form_status.startswith("Imported "):
+                    if not action():
                         return False
             if not invoked and self.query_one("#guided-source-title", Input).value.strip():
-                self.action_add_pasted_source()
-                return False
+                return self.action_add_pasted_source()
             return invoked
         if step == "research":
-            self.action_save_research()
-            return self._last_form_status.startswith("Saved research choice:")
+            return self.action_save_research()
         if step == "hosts":
             if self._selected_host_record() is None:
-                self.action_create_host()
-                if not self._last_form_status.startswith("Created host "):
+                if not self.action_create_host():
                     return False
-            else:
-                self.action_save_host()
-                if not self._last_form_status.startswith("Saved host "):
-                    return False
+            elif not self.action_save_host():
+                return False
             if self._selected_host_ids:
-                self.action_save_host_order()
-                return self._last_form_status.startswith("Saved ordered episode hosts ")
+                return self.action_save_host_order()
             return True
         if step == "episode":
-            self.action_save_episode()
-            return self._last_form_status.startswith("Saved episode settings ")
+            return self.action_save_episode()
         if step == "plan":
-            self.action_save_plan_segment()
-            return self._last_form_status.startswith("Saved the selected segment ")
+            return self.action_save_plan_segment()
         return super()._save_dirty_step()
 
     def step_controls(self) -> tuple[Widget, ...]:
@@ -292,12 +282,12 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             else "Advanced episode options hidden."
         )
 
-    def action_save_episode(self) -> None:
+    def action_save_episode(self) -> bool:
         project_id = self.context.project_id
         episode_id = self.context.episode_id
         if project_id is None or episode_id is None:
             self.set_status("Choose and save episode hosts before configuring the episode.")
-            return
+            return False
         service = EpisodeConfigurationService(
             self.context.composition.database_for_project(project_id)
         )
@@ -327,11 +317,12 @@ class GuidedEpisodeWizard(GuidedHostWizard):
                 f"Fix episode settings: {safe}"
             )
             self.set_status("Episode settings need attention before continuing.")
-            return
+            return False
         self.query_one("#guided-episode-validation", Static).update("")
         self._sync_text()
         self._remember_current_form()
         self.set_status("Saved episode settings through EpisodeConfigurationService.")
+        return True
 
     def action_build_plan(self) -> None:
         self._run_plan_operation("build")
@@ -339,10 +330,10 @@ class GuidedEpisodeWizard(GuidedHostWizard):
     def action_regenerate_plan(self) -> None:
         self._run_plan_operation("regenerate")
 
-    def action_save_plan_segment(self) -> None:
+    def action_save_plan_segment(self) -> bool:
         if self._plan is None or self.context.episode_id is None:
             self.set_status("Build a plan before editing a segment.")
-            return
+            return False
         try:
             segment = self._plan.segments[self._selected_segment_ordinal]
             title = self.query_one("#guided-plan-title", Input).value.strip()
@@ -363,11 +354,12 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             )
         except (IndexError, KeyError, OSError, RuntimeError, ValueError) as exc:
             self.set_error("Plan edit failed.", exc)
-            return
+            return False
         self._render_plan()
         self._sync_text()
         self._remember_current_form()
         self.set_status("Saved the selected segment through EpisodePlannerService.")
+        return True
 
     def action_regenerate_plan_segment(self) -> None:
         if self.context.episode_id is None:
