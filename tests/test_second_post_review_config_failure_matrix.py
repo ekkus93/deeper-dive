@@ -159,3 +159,39 @@ def test_same_key_writers_conflict_without_silent_last_writer_wins(tmp_path: Pat
         "aggressive",
     }
     assert list(tmp_path.glob(".config.json.*.tmp")) == []
+
+
+def test_disjoint_independent_writers_racing_at_commit_do_not_lose_updates(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "config.json"
+    UserConfigStore(path).save(UserConfig())
+    barrier = Barrier(2)
+
+    def write(key: str, value: str) -> str:
+        store = UserConfigStore(path)
+        candidate = store.load()
+        candidate.defaults[key] = value
+        barrier.wait(timeout=10)
+        try:
+            store.save(candidate)
+        except UserConfigConflictError:
+            return "conflict"
+        return "saved"
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first = executor.submit(write, "local_only", "yes")
+        second = executor.submit(write, "network_policy", "allow-remote")
+        assert sorted([first.result(), second.result()]) == ["conflict", "saved"]
+
+    reloaded = UserConfigStore(path).load()
+    if "local_only" not in reloaded.defaults:
+        reloaded.defaults["local_only"] = "yes"
+    else:
+        reloaded.defaults["network_policy"] = "allow-remote"
+    UserConfigStore(path).save(reloaded)
+    assert UserConfigStore(path).load().defaults == {
+        "local_only": "yes",
+        "network_policy": "allow-remote",
+    }
+    assert list(tmp_path.glob(".config.json.*.tmp")) == []
