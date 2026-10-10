@@ -32,6 +32,8 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         super().__init__(context, completion_probe)
         self._plan: EpisodePlan | None = None
         self._selected_segment_ordinal = 0
+        self._loaded_segment_ordinal: int | None = None
+        self._ignore_plan_picker_value: str | None = None
         self._preflight: PreflightReport | None = None
         self._episode_advanced = False
 
@@ -225,11 +227,38 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         super().on_select_changed(event)
         if event.select.id == "guided-plan-segment-picker":
             value = event.value
-            if isinstance(value, str) and value.isdigit():
-                self._selected_segment_ordinal = int(value)
-                self._load_selected_segment()
+            if not isinstance(value, str) or not value.isdigit():
+                return
+            if value == self._ignore_plan_picker_value:
+                self._ignore_plan_picker_value = None
+                return
+            ordinal = int(value)
+            if (
+                self._loaded_segment_ordinal is not None
+                and ordinal != self._loaded_segment_ordinal
+                and self._current_form_dirty()
+            ):
+                destination = ordinal
+                self._ignore_plan_picker_value = str(self._loaded_segment_ordinal)
+                event.select.value = str(self._loaded_segment_ordinal)
+                self._request_dirty_transition(f"plan-select:{destination}")
+                return
+            self._selected_segment_ordinal = ordinal
+            self._load_selected_segment()
+            self._remember_current_form()
         elif event.select.id == "guided-episode-duration":
             self._toggle_custom_duration()
+
+    def _execute_custom_transition(self, transition: str) -> None:
+        if transition.startswith("plan-select:"):
+            ordinal = int(transition.split(":", 1)[1])
+            self._selected_segment_ordinal = ordinal
+            picker = self.query_one("#guided-plan-segment-picker", Select)
+            picker.value = str(ordinal)
+            self._load_selected_segment()
+            self._remember_current_form()
+            return
+        super()._execute_custom_transition(transition)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         handlers = {
@@ -541,6 +570,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         if self._plan is None or not self._plan.segments:
             return
         segment = self._plan.segments[self._selected_segment_ordinal]
+        self._loaded_segment_ordinal = self._selected_segment_ordinal
         self.query_one("#guided-plan-title", Input).value = segment.title
         self.query_one("#guided-plan-purpose", Input).value = segment.purpose
         self.query_one("#guided-plan-duration", Input).value = str(segment.target_duration_seconds)
