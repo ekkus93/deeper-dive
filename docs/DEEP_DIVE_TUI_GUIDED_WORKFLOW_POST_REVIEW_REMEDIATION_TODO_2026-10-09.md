@@ -162,20 +162,23 @@ A checkbox is complete only when the production behavior is correct, focused reg
 - [ ] Hydrate the Research selector from durable project policy after restart/resume.
 - [ ] Do not overwrite an existing project policy merely by opening/revisiting the screen.
 - [ ] Keep Save Research Choice routed through the production research controller/store.
-- [ ] Define Quick Deep Dive precedence as project Quick override > explicit user Quick override > user `research_policy` > built-in Useful.
-- [ ] Update `QuickDeepDiveService` to fall back to `research_policy` when no explicit Quick research override exists.
-- [ ] Preserve explicit `quick_deep_dive_research_policy` behavior.
-- [ ] Preserve project Quick Deep Dive research override behavior.
+- [x] Define Quick Deep Dive precedence as project Quick override > explicit user Quick override > user `research_policy` > built-in Useful.
+- [x] Update `QuickDeepDiveService` to fall back to `research_policy` when no explicit Quick research override exists.
+- [x] Preserve explicit `quick_deep_dive_research_policy` behavior.
+- [x] Preserve project Quick Deep Dive research override behavior.
 - [ ] Make first-run `research_policy` affect subsequent New Deep Dive by default.
 - [ ] Make first-run `research_policy` affect Quick Deep Dive when no more-specific Quick override exists.
 - [ ] Test Off across first-run -> New Deep Dive.
 - [ ] Test Useful across first-run -> New Deep Dive.
 - [ ] Test Aggressive across first-run -> New Deep Dive.
-- [ ] Test Off across first-run/global -> Quick Deep Dive fallback.
-- [ ] Test Aggressive across first-run/global -> Quick Deep Dive fallback.
-- [ ] Test explicit user Quick override beats global research default.
-- [ ] Test project Quick override beats user Quick/global defaults.
-- [ ] Test research policy behavior after process restart.
+- [x] Test Off across first-run/global -> Quick Deep Dive fallback.
+- [x] Test Aggressive across first-run/global -> Quick Deep Dive fallback.
+- [x] Test explicit user Quick override beats global research default.
+- [x] Test project Quick override beats user Quick/global defaults.
+- [x] Test research policy behavior after process restart.
+
+
+**Quick research precedence evidence (2026-10-10):** `tests/test_post_review_quick_research.py` covers global Off/Useful/Aggressive, explicit user Quick override, project Quick override, and restart persistence using production episode/policy services. The existing `tests/test_quick_deep_dive.py` covers built-in Useful and normal durable Quick artifacts. Exact-head CI passed on `204d1df97dd49db17f4c4b17fdf07848d944c0c4` (run `38012285504`). First-run-to-New-Deep-Dive hydration and first-run-to-Quick integration remain unchecked pending their own end-to-end evidence.
 
 ## PRR-310 — Model-role readiness parity
 
@@ -312,9 +315,9 @@ A checkbox is complete only when the production behavior is correct, focused reg
 - [ ] First-run research Aggressive hydrates New Deep Dive correctly.
 - [ ] Persisted project policy hydrates correctly on revisit.
 - [ ] Persisted project policy hydrates correctly after restart.
-- [ ] Quick fallback to global research default passes.
-- [ ] Explicit user Quick override precedence passes.
-- [ ] Project Quick override precedence passes.
+- [x] Quick fallback to global research default passes.
+- [x] Explicit user Quick override precedence passes.
+- [x] Project Quick override precedence passes.
 - [ ] Valid non-default role model passes first-run readiness.
 - [ ] Valid non-default role model passes shared production preflight.
 - [ ] Invalid/undiscovered role model fails both consistently.
