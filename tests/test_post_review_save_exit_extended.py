@@ -109,7 +109,8 @@ async def _invalid_episode_save_retains_input(tmp_path: Path) -> None:
     repository = service.hosts(project.id)
     host = HostProfile("episode-host", project.id, "Episode Host")
     repository.create_host(host.to_record())
-    configs = EpisodeConfigurationService(service.database_for_project(project.id))
+    app = GuidedDeeperDiveApp(service)
+    configs = EpisodeConfigurationService(app.composition.database_for_project(project.id))
     episode = configs.create(
         project.id,
         EpisodeConfiguration(
@@ -121,7 +122,6 @@ async def _invalid_episode_save_retains_input(tmp_path: Path) -> None:
         ),
     )
 
-    app = GuidedDeeperDiveApp(service)
     async with app.run_test(size=(100, 35)) as pilot:
         app.action_navigate("new")
         await pilot.pause()

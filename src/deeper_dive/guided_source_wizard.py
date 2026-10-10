@@ -173,9 +173,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
             self.set_error("File/folder import failed.", exc)
             return
         if not summary.imported:
-            self.set_status(
-                "No file/folder sources were imported; review the paths and try again."
-            )
+            self.set_status("No file/folder sources were imported; review the paths and try again.")
             return
         paths_input.value = ""
         preferred = summary.imported[0].id
