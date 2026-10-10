@@ -180,7 +180,11 @@ class FirstRunReadinessCoordinator:
                 if callback is not None and callback not in self._callbacks:
                     self._callbacks.append(callback)
                 return False
-            if self._view.state == "failed" and self._view.fingerprint == fingerprint and len(self._active_workers) >= self.max_workers:
+            if (
+                self._view.state == "failed"
+                and self._view.fingerprint == fingerprint
+                and len(self._active_workers) >= self.max_workers
+            ):
                 return False
             generation = self._view.generation + 1
             if len(self._active_workers) >= self.max_workers:
