@@ -297,11 +297,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
     def _refresh_research_choice(self) -> None:
         """Hydrate from durable policy without replacing an unsaved selection."""
         step_is_research = self.context.state.current_step == "research"
-        if (
-            step_is_research
-            and "research" in self._form_baselines
-            and self._current_form_dirty()
-        ):
+        if step_is_research and "research" in self._form_baselines and self._current_form_dirty():
             return
         project_id = self.context.project_id
         if project_id is None:
