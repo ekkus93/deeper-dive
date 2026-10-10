@@ -72,7 +72,7 @@ This is the **only completion checklist for the second post-review cycle**. The 
 
 ## SPR-300 — Bound readiness probes and preserve UI responsiveness (SPR-03)
 
-- [ ] Inventory every provider `health()`, `models()` and `voices()` path and actual adapter-level transport timeout/retry limits.
+- [x] Inventory every provider `health()`, `models()` and `voices()` path and actual adapter-level transport timeout/retry limits.
 - [x] Define per-application worker budget and coalescing/supersession semantics; avoid one detached thread+timer per refresh.
 - [ ] Implement bounded executor/in-flight worker ownership with safe app shutdown behavior.
 - [x] Ensure an observed timeout does not publish late success or leave an unlimited retry backlog.
@@ -114,9 +114,9 @@ This is the **only completion checklist for the second post-review cycle**. The 
 - [x] Ensure Settings/ProviderController concurrent transactions cannot silently overwrite independent updates.
 - [x] Preserve owner-only file permissions after new and replacement saves.
 - [x] Test two independent same-key and disjoint-key writers using deterministic synchronization.
-- [ ] Add failure-injection tests for create, chmod, write, fsync, replace, directory fsync, temp cleanup and restart JSON parse.
-- [ ] Add no-clobber symlink canary tests and cross-platform permitted fallback handling.
-- [ ] Run focused SPR-05 tests and exact-head CI; record evidence.
+- [x] Add failure-injection tests for create, chmod, write, fsync, replace, directory fsync, temp cleanup and restart JSON parse.
+- [x] Add no-clobber symlink canary tests and cross-platform permitted fallback handling.
+- [x] Run focused SPR-05 tests and exact-head CI; record evidence.
 
 ## SPR-600 — URL fragment credential rejection and cross-surface sanitization (SPR-06)
 
@@ -243,5 +243,11 @@ This is the **only completion checklist for the second post-review cycle**. The 
 - SPR-05 controller-level races are exercised through the real `SettingsController`, `ProviderController`, and `UserConfigStore` rather than simulated direct config-map edits. `tests/test_second_post_review_controller_writer_races.py::test_independent_settings_controllers_do_not_silently_clobber` uses a deterministic `Barrier` to force two independent controllers to load the same durable revision before competing to save. Both same-key and disjoint-key inputs must produce exactly one successful write and one explicit `UserConfigConflictError`, with no silent overwrite; an explicit reload/retry preserves the other writer's independent settings.
 - `tests/test_second_post_review_controller_writer_races.py::test_provider_and_settings_controller_race_is_detected_and_recoverable` races a fake-provider registration against a separate Settings default save using the same barrier and store contract. Exactly one change wins before retry; after an intentional reload/retry both changes are durably present.
 - Source/test commits direct to `master`: `4b9083196bfb20856d1454317fe46d37089ea188` (controller race tests) and `9e19e1254af456ff366eca7904c5af943e5b187a` (Ruff formatting). Exact-head requalification at `901fee672f7dd770bed1318e569317648178df8c`: [CI #2509](https://github.com/ekkus93/deeper-dive/actions/runs/38080468783), quality job `114296149570` (**1,231 passed**, Ruff format/lint, strict mypy, wheel/sdist build), fresh-machine job `114296149502` (passed). This supports only the two SPR-05 controller-writer items above; multiprocess concurrency, platform fallback, failure-injection breadth, and the final cycle gates remain unchecked. This reconciliation-only change itself requires another successful exact-head CI run.
+
+### 2026-10-10 SPR-03 transport inventory and SPR-05 failure/fallback matrix
+
+- SPR-03: `docs/DEEP_DIVE_READINESS_TRANSPORT_INVENTORY_2026-10-10.md` inventories first-run `health/models/voices` dispatch for fake, OpenAI, Ollama, llama-server, Kitten, OpenAI-compatible/OpenAI speech, and ElevenLabs adapters, plus the separate system-check probes. It distinguishes per-operation socket timeouts (configured up to 600 seconds) and OpenAI retry budgets from the eight-second UI timeout. Full readiness-specific network deadlines and worker retirement remain open.
+- SPR-05: `tests/test_second_post_review_config_failure_matrix.py` and `tests/test_second_post_review_config_durability.py` cover injected temporary creation/write/chmod/flush/fsync/replace failures, cleanups, uncertain durability after directory fsync, permissions, canaries for old predictable-temp paths and config/advisory-lock symlinks, and deterministic same-key/disjoint-key concurrent writers. `tests/test_second_post_review_config_fsync_matrix.py` adds invalid/partial JSON and actual invalid UTF-8 restart rejection, stale-writer refusal against corrupted durable bytes, and the non-POSIX `fcntl=None` in-process lock fallback. Cross-process locking is **not** guaranteed in the non-POSIX fallback and must not be claimed.
+- Qualified source/test heads: `51c90e1f8cdada6cb9a4831de5ff9a079320cf08` at [CI #2514](https://github.com/ekkus93/deeper-dive/actions/runs/38081858191), quality job `114300250855` (**1,238 passed**, Ruff/mypy/build), fresh-machine job `114300251070` passed; and actual-invalid-UTF8 fixture correction `adc123441d7ad646c16dc6396764fcf6a9a87e8e` at [CI #2515](https://github.com/ekkus93/deeper-dive/actions/runs/38082274462), quality job `114301465562` and fresh-machine job `114301465743`, both passed. Focused SPR-05 cases are included in the full exact-head pytest suite. This inventory/reconciliation documentation itself must pass new exact-head CI, and other SPR-05 baseline/closeout work remains open.
 
 **Documentation creation is not remediation completion.** Creation/commit of this TODO and spec may be reported separately with its exact GitHub commit and documentation-only CI outcome; no unchecked implementation task becomes complete from that action alone.
