@@ -29,9 +29,7 @@ def test_late_readiness_recovery_preserves_unsaved_form(
     asyncio.run(_verify_late_readiness(tmp_path, step, selector, changed))
 
 
-async def _verify_late_readiness(
-    tmp_path: Path, step: str, selector: str, changed: str
-) -> None:
+async def _verify_late_readiness(tmp_path: Path, step: str, selector: str, changed: str) -> None:
     service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
     app = GuidedDeeperDiveApp(service)
     async with app.run_test(size=(100, 35)) as pilot:
