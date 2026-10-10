@@ -21,6 +21,8 @@ class GuidedHostWizard(GuidedSourceWizard):
     def __init__(self, context: WizardContext, completion_probe: CompletionProbe) -> None:
         super().__init__(context, completion_probe)
         self._selected_host_ids: list[str] = []
+        self._loaded_host_id: str | None = None
+        self._ignore_host_picker_value: str | None = None
 
     def _editable_snapshot(self) -> tuple[tuple[str, str], ...]:
         values = list(super()._editable_snapshot())
@@ -115,8 +117,55 @@ class GuidedHostWizard(GuidedSourceWizard):
 
     def on_select_changed(self, event: Select.Changed) -> None:
         super().on_select_changed(event)
-        if event.select.id == "guided-host-picker":
+        if event.select.id != "guided-host-picker":
+            return
+        value = event.value if isinstance(event.value, str) else None
+        if value is not None and value == self._ignore_host_picker_value:
+            self._ignore_host_picker_value = None
+            return
+        if (
+            value is not None
+            and self._loaded_host_id is not None
+            and value != self._loaded_host_id
+            and self._host_profile_dirty()
+        ):
+            destination = value
+            self._ignore_host_picker_value = self._loaded_host_id
+            event.select.value = self._loaded_host_id
+            self._request_dirty_transition(f"host-select:{destination}")
+            return
+        self._load_selected_host()
+        self._remember_host_profile_baseline()
+
+    def _host_profile_dirty(self) -> bool:
+        if self.context.state.current_step != "hosts":
+            return False
+        current = tuple(super()._editable_snapshot())
+        baseline = self._form_baselines.get("hosts")
+        if baseline is None:
+            return bool(current)
+        durable_profile = tuple(
+            item for item in baseline if item[0] != "__episode_host_order__"
+        )
+        return current != durable_profile
+
+    def _remember_host_profile_baseline(self) -> None:
+        if self.context.state.current_step != "hosts":
+            return
+        current_profile = tuple(super()._editable_snapshot())
+        previous = self._form_baselines.get("hosts", ())
+        order = tuple(item for item in previous if item[0] == "__episode_host_order__")
+        self._form_baselines["hosts"] = (*current_profile, *order)
+
+    def _execute_custom_transition(self, transition: str) -> None:
+        if transition.startswith("host-select:"):
+            host_id = transition.split(":", 1)[1]
+            picker = self.query_one("#guided-host-picker", Select)
+            picker.value = host_id
             self._load_selected_host()
+            self._remember_current_form()
+            return
+        super()._execute_custom_transition(transition)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         handlers = {
@@ -343,6 +392,7 @@ class GuidedHostWizard(GuidedSourceWizard):
             details.update("No host selected.")
             return
         host = HostProfile.from_record(record)
+        self._loaded_host_id = record.id
         self.query_one("#guided-host-name", Input).value = host.display_name
         self.query_one("#guided-host-role", Input).value = host.role
         self.query_one("#guided-host-expertise", Input).value = host.expertise
