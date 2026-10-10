@@ -155,6 +155,19 @@ class GuidedHostWizard(GuidedSourceWizard):
         order = tuple(item for item in previous if item[0] == "__episode_host_order__")
         self._form_baselines["hosts"] = (*current_profile, *order)
 
+    def _remember_host_order_baseline(self) -> None:
+        if self.context.state.current_step != "hosts":
+            return
+        previous = self._form_baselines.get("hosts", ())
+        profile = tuple(item for item in previous if item[0] != "__episode_host_order__")
+        order = (
+            (
+                "__episode_host_order__",
+                f"{self.context.episode_id or ''}:{','.join(self._selected_host_ids)}",
+            ),
+        )
+        self._form_baselines["hosts"] = (*profile, *order)
+
     def _execute_custom_transition(self, transition: str) -> None:
         if transition.startswith("host-select:"):
             host_id = transition.split(":", 1)[1]
@@ -232,7 +245,7 @@ class GuidedHostWizard(GuidedSourceWizard):
             self.set_error("Host creation failed.", exc)
             return
         self._refresh_hosts(host.id)
-        self._remember_current_form()
+        self._remember_host_profile_baseline()
         self.set_status(f"Created host {host.display_name}.")
 
     def action_save_host(self) -> None:
@@ -249,7 +262,7 @@ class GuidedHostWizard(GuidedSourceWizard):
             self.set_error("Host save failed.", exc)
             return
         self._refresh_hosts(record.id)
-        self._remember_current_form()
+        self._remember_host_profile_baseline()
         self.set_status(f"Saved host {host.display_name}.")
 
     def action_select_host(self) -> None:
@@ -327,7 +340,7 @@ class GuidedHostWizard(GuidedSourceWizard):
             self.set_error("Host order save failed.", exc)
             return
         self._sync_text()
-        self._remember_current_form()
+        self._remember_host_order_baseline()
         self.set_status("Saved ordered episode hosts through EpisodeConfigurationService.")
 
     def _move_selected_host(self, delta: int) -> None:
