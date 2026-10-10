@@ -157,6 +157,8 @@ async def _guided_rejected_missing_host_preserves_edits(tmp_path) -> None:
         assert wizard._selected_host_ids == ["present", "missing"]
         assert wizard._host_order_dirty()
         assert configs.load_configuration(episode.id).host_ids == ("present",)
+
+
 def test_guided_host_order_move_undo_returns_to_clean(tmp_path) -> None:
     asyncio.run(_guided_host_order_move_undo_returns_to_clean(tmp_path))
 
@@ -260,4 +262,3 @@ async def _guided_partial_profile_save_preserves_order(
         assert wizard.action_save_host_order()
         assert configs.load_configuration(episode.id).host_ids == ("second", "first")
         assert not wizard._host_order_dirty()
-
