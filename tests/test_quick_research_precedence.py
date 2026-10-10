@@ -59,9 +59,7 @@ def test_research_precedence(
     defaults = {"research_policy": global_mode}
     if quick_mode is not None:
         defaults["quick_deep_dive_research_policy"] = quick_mode
-    UserConfigStore(service.workspaces.data_dir / "config.json").save(
-        UserConfig(defaults=defaults)
-    )
+    UserConfigStore(service.workspaces.data_dir / "config.json").save(UserConfig(defaults=defaults))
     episode = service.quick_deep_dive(project.id)
     database = Database(service.workspaces.project_root(project.id) / "project.db")
     config = EpisodeConfigurationService(database).load_configuration(episode.id)
