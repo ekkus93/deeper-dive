@@ -146,12 +146,39 @@ class GuidedHostWizard(GuidedSourceWizard):
                 else self._pending_host_form_values or live_values
             )
             self._ignore_host_picker_value = self._loaded_host_id
-            event.select.value = self._loaded_host_id  # type: ignore[assignment]
+            original_host_id = self._loaded_host_id
+            event.select.value = original_host_id  # type: ignore[assignment]
             self._restore_host_form_values(preserved)
+            self._pending_host_form_values = preserved
             self._request_dirty_transition(f"host-select:{destination}")
+            self.call_after_refresh(
+                self._enforce_dirty_host_selection,
+                original_host_id,
+                destination,
+                preserved,
+            )
             return
         self._load_selected_host()
         self._remember_host_profile_baseline()
+
+    def _enforce_dirty_host_selection(
+        self,
+        original_host_id: str,
+        destination: str,
+        preserved: tuple[str, str, str, str, object],
+    ) -> None:
+        if (
+            not self._exit_confirmation_pending
+            or self._pending_transition != f"host-select:{destination}"
+        ):
+            return
+        picker = self.query_one("#guided-host-picker", Select)
+        if picker.value != original_host_id:
+            self._ignore_host_picker_value = original_host_id
+            picker.value = original_host_id
+        self._loaded_host_id = original_host_id
+        self._restore_host_form_values(preserved)
+        self._pending_host_form_values = preserved
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if self.context.state.current_step == "hosts" and event.input.id in {
