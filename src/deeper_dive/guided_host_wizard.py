@@ -303,6 +303,9 @@ class GuidedHostWizard(GuidedSourceWizard):
         self._form_baselines["hosts"] = (*profile, *order)
 
     def _execute_custom_transition(self, transition: str) -> None:
+        if transition == "create-recommended-hosts":
+            self.action_create_recommended_hosts()
+            return
         if transition.startswith("host-select:"):
             host_id = transition.split(":", 1)[1]
             self._ignore_host_picker_value = None
@@ -334,6 +337,13 @@ class GuidedHostWizard(GuidedSourceWizard):
         super().on_button_pressed(event)
 
     def action_create_recommended_hosts(self) -> None:
+        if self.busy or self._exit_confirmation_pending:
+            return
+        # Creating the pair selects a new profile and rehydrates the form.
+        # Preserve unsaved edits through the shared Save / Discard / Cancel flow.
+        if self.context.state.current_step == "hosts" and self._host_profile_dirty():
+            self._request_dirty_transition("create-recommended-hosts")
+            return
         project_id = self.context.project_id
         if project_id is None:
             self.set_status("Create the project before choosing hosts.")

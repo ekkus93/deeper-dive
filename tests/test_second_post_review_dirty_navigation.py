@@ -602,3 +602,75 @@ async def _discard_restores_host_membership(tmp_path: Path) -> None:
         assert wizard._selected_host_ids == list(host_ids)
         configs = EpisodeConfigurationService(app.composition.database_for_project(project_id))
         assert configs.load_configuration(episode_id).host_ids == host_ids
+
+@pytest.mark.parametrize("decision", ("cancel", "discard", "save", "failed-save"))
+def test_recommended_hosts_guard_unsaved_profile(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    decision: str,
+) -> None:
+    asyncio.run(_recommended_hosts_guard_unsaved_profile(tmp_path, monkeypatch, decision))
+
+
+async def _recommended_hosts_guard_unsaved_profile(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    decision: str,
+) -> None:
+    service, project_id, episode_id, host_ids = _episode_fixture(tmp_path)
+    repository = service.hosts(project_id)
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project_id
+        wizard.context.episode_id = episode_id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "hosts")
+        wizard._load_episode_host_order()
+        wizard._refresh_hosts(host_ids[0])
+        wizard._toggle()
+        wizard._remember_current_form()
+
+        original = repository.get_host(host_ids[0])
+        assert original is not None
+        changed = "Instructions not yet saved"
+        field = wizard.query_one("#guided-host-instructions", Input)
+        field.value = changed
+        await pilot.pause()
+        wizard.action_create_recommended_hosts()
+        wizard.action_create_recommended_hosts()  # repeated click must not bypass modal
+        assert wizard.query_one("#wizard-exit-confirmation").display
+        assert field.value == changed
+        assert len(repository.list_hosts(project_id)) == 2
+        assert wizard._selected_host_ids == list(host_ids)
+
+        if decision == "cancel":
+            wizard.action_cancel_exit_confirmation()
+            await pilot.pause()
+            assert field.value == changed
+            assert wizard._host_profile_dirty()
+            assert len(repository.list_hosts(project_id)) == 2
+            return
+        if decision == "failed-save":
+            monkeypatch.setattr(wizard, "action_save_host", lambda: False)
+            wizard.action_confirm_save_exit()
+            await pilot.pause()
+            assert field.value == changed
+            assert wizard._host_profile_dirty()
+            assert len(repository.list_hosts(project_id)) == 2
+            assert repository.get_host(host_ids[0]).instructions == original.instructions
+            return
+        if decision == "discard":
+            wizard.action_confirm_discard_exit()
+        else:
+            wizard.action_confirm_save_exit()
+        await pilot.pause()
+        assert not wizard.query_one("#wizard-exit-confirmation").display
+        assert len(repository.list_hosts(project_id)) == 4
+        assert len(wizard._selected_host_ids) == 4
+        persisted = repository.get_host(host_ids[0])
+        assert persisted is not None
+        assert persisted.instructions == (changed if decision == "save" else original.instructions)
+        assert wizard.query_one("#guided-host-instructions", Input).value != changed
