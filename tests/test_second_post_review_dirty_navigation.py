@@ -600,7 +600,5 @@ async def _discard_restores_host_membership(tmp_path: Path) -> None:
         await pilot.pause()
 
         assert wizard._selected_host_ids == list(host_ids)
-        configs = EpisodeConfigurationService(
-            app.composition.database_for_project(project_id)
-        )
+        configs = EpisodeConfigurationService(app.composition.database_for_project(project_id))
         assert configs.load_configuration(episode_id).host_ids == host_ids
