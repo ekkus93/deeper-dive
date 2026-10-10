@@ -127,3 +127,36 @@ def test_non_draft_episode_is_never_demoted_by_configuration_edit(tmp_path: Path
     assert persisted is not None and persisted.state == "completed"
     assert persisted.title == "Episode"
     assert repository.get_plan(episode.id) is not None
+
+
+@pytest.mark.parametrize("run_state", ["running", "paused", "failed", "completed"])
+def test_configuration_change_is_frozen_after_run_even_without_existing_plan(
+    tmp_path: Path, run_state: str
+) -> None:
+    clock, database, repository, service, episode = _fixture(tmp_path)
+    current = service.load_configuration(episode.id)
+    with database.transaction() as db:
+        db.execute(
+            "DELETE FROM segment_plans WHERE episode_plan_id IN "
+            "(SELECT id FROM episode_plans WHERE episode_id=?)",
+            (episode.id,),
+        )
+        db.execute("DELETE FROM episode_plans WHERE episode_id=?", (episode.id,))
+    assert repository.get_plan(episode.id) is None
+
+    timestamp = format_timestamp(clock.now())
+    GenerationRunRepository(database).create(
+        GenerationRunRecord(
+            id=f"run-{run_state}",
+            episode_id=episode.id,
+            stage="research",
+            state=run_state,
+            created_at=timestamp,
+            modified_at=timestamp,
+        )
+    )
+
+    with pytest.raises(ValueError, match="configuration is frozen"):
+        service.edit(episode.id, replace(current, focus="Late configuration drift"))
+
+    assert service.load_configuration(episode.id) == current

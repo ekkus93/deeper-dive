@@ -70,7 +70,7 @@ class EpisodeConfigurationService:
             raise ValueError(
                 "episode configuration is frozen after generation starts; create a new episode"
             )
-        EpisodePlanRepository(self.database).require_editable(episode_id)
+        EpisodePlanRepository(self.database).require_configuration_editable(episode_id)
         record = self._record(
             existing.id,
             existing.project_id,

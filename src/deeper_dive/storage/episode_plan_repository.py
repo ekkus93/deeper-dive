@@ -25,6 +25,21 @@ class EpisodePlanRepository:
             ):
                 raise ValueError("plan is frozen after generation starts; create a new episode")
 
+    def require_configuration_editable(self, episode_id: str) -> None:
+        """Freeze semantic episode configuration once any generation work exists.
+
+        Planner resume has a narrower exception that permits creation of an initial
+        plan after a run record exists. Episode configuration does not: changing
+        hosts, focus, duration, research/model/source overrides, or other snapshot
+        fields after a run exists would mutate the inputs bound to historical work.
+        """
+        with self.database.connection() as db:
+            if self._started(db, episode_id):
+                raise ValueError(
+                    "episode configuration is frozen after generation starts; "
+                    "create a new episode"
+                )
+
     @staticmethod
     def _started(db: sqlite3.Connection, episode_id: str, *, include_runs: bool = True) -> bool:
         tables = ("generation_runs",) if include_runs else ()

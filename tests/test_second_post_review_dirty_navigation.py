@@ -291,6 +291,4 @@ async def _partial_file_import_retains_unresolved_input_on_save_exit(tmp_path: P
         imported = service.list_sources(project.id)
         assert len(imported) == 1
         assert imported[0].locator == str(good)
-        assert "unresolved input(s) retained" in str(
-            wizard.query_one("#wizard-status").render()
-        )
+        assert "unresolved input(s) retained" in str(wizard.query_one("#wizard-status").render())
