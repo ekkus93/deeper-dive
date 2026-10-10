@@ -104,7 +104,10 @@ def _redact_url_fragment(match: re.Match[str]) -> str:
             pairs = parse_qsl(fragment.replace(";", "&"), keep_blank_values=True)
         except ValueError:
             pairs = []
-        if any(key.lower() in _SENSITIVE_URL_KEYS for key, _ in pairs):
+        if any(
+            key.lower() in _SENSITIVE_URL_KEYS or _is_secret_key(key)
+            for key, _ in pairs
+        ):
             return f"{match.group(1)}#[REDACTED]"
         decoded = unquote_plus(fragment)
         if decoded == fragment:

@@ -92,6 +92,9 @@ def test_provider_base_url_rejects_fragments_without_echo(url: str) -> None:
         "GET https://example.test/v1#ACCESS_TOKEN=fragment-canary",
         "GET https://example.test/v1#%61ccess_token%3Dfragment-canary",
         "GET https://example.test/v1#safe=1&token=fragment-canary",
+        "GET https://example.test/v1#client_secret%3Dfragment-canary",
+        "GET https://example.test/v1#sessionToken%3Dfragment-canary",
+        "GET https://example.test/v1#access-token%3Dfragment-canary",
     ],
 )
 def test_diagnostic_url_fragment_credentials_are_redacted(message: str) -> None:
