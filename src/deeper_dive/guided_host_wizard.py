@@ -120,6 +120,11 @@ class GuidedHostWizard(GuidedSourceWizard):
         if event.select.id != "guided-host-picker":
             return
         value = event.value if isinstance(event.value, str) else None
+        current = event.select.value if isinstance(event.select.value, str) else None
+        if value is not None and current is not None and value != current:
+            # Textual can deliver a previously queued Select event after a newer
+            # programmatic/user value is already current. Never rehydrate from it.
+            return
         if value is not None and value == self._ignore_host_picker_value:
             self._ignore_host_picker_value = None
             return
