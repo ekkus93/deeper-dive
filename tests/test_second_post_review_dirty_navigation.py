@@ -221,9 +221,7 @@ async def _dirty_host_profile_blocks_picker_reselection_until_discard(tmp_path: 
     first = repository.get_host(host_ids[0])
     second = repository.get_host(host_ids[1])
     assert first is not None and second is not None
-    repository.update_host(
-        HostProfile.from_record(first).to_record()
-    )
+    repository.update_host(HostProfile.from_record(first).to_record())
     app = GuidedDeeperDiveApp(service)
     async with app.run_test(size=(100, 35)) as pilot:
         app.action_navigate("new")
