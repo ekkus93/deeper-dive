@@ -72,14 +72,21 @@ class FirstRunReadinessCoordinator:
         probe: Callable[[], FirstRunRuntimeSnapshot] | None = None,
         fingerprint: Callable[[], str] | None = None,
         timeout_seconds: float = 8.0,
+        max_workers: int = 2,
     ) -> None:
         self.context = context
         self._probe = probe or self._probe_runtime
         self._fingerprint_provider = fingerprint or self._configuration_fingerprint
+        if max_workers < 1:
+            raise ValueError("max_workers must be positive")
         self.timeout_seconds = timeout_seconds
+        self.max_workers = max_workers
         self._lock = Lock()
         self._view = FirstRunReadinessView("idle", 0, None)
         self._callbacks: list[Callable[[], object]] = []
+        self._active_workers: set[int] = set()
+        self._timers: dict[int, Timer] = {}
+        self._closed = False
 
     @property
     def view(self) -> FirstRunReadinessView:
@@ -89,6 +96,34 @@ class FirstRunReadinessCoordinator:
     @property
     def snapshot(self) -> FirstRunRuntimeSnapshot | None:
         return self.view.snapshot
+
+    @property
+    def active_worker_count(self) -> int:
+        with self._lock:
+            return len(self._active_workers)
+
+    def close(self) -> None:
+        """Stop accepting refreshes and cancel owned timeout timers.
+
+        Python cannot safely kill an arbitrary blocked provider thread, so workers
+        already inside provider code remain daemonized but are bounded by the
+        configured worker budget and cannot publish after close.
+        """
+
+        with self._lock:
+            self._closed = True
+            timers = tuple(self._timers.values())
+            self._timers.clear()
+            self._callbacks.clear()
+            generation = self._view.generation + 1
+            self._view = FirstRunReadinessView(
+                "failed",
+                generation,
+                self._view.fingerprint,
+                message="Provider readiness checking stopped.",
+            )
+        for timer in timers:
+            timer.cancel()
 
     def completion(self, step_key: str) -> bool:
         """Completion probe that never performs runtime I/O on the UI thread."""
@@ -126,14 +161,36 @@ class FirstRunReadinessCoordinator:
         callback: Callable[[], object] | None = None,
     ) -> bool:
         fingerprint = self._fingerprint_provider()
+        rejected_callback: Callable[[], object] | None = None
         with self._lock:
+            if self._closed:
+                return False
             if self._view.state == "checking" and self._view.fingerprint == fingerprint:
                 if callback is not None:
                     self._callbacks.append(callback)
                 return False
             generation = self._view.generation + 1
-            self._view = FirstRunReadinessView("checking", generation, fingerprint)
-            self._callbacks = [callback] if callback is not None else []
+            if len(self._active_workers) >= self.max_workers:
+                self._view = FirstRunReadinessView(
+                    "failed",
+                    generation,
+                    fingerprint,
+                    message=(
+                        "Provider readiness workers are still finishing timed-out checks. "
+                        "Retry after the provider timeout expires."
+                    ),
+                )
+                self._callbacks.clear()
+                rejected_callback = callback
+            else:
+                self._view = FirstRunReadinessView("checking", generation, fingerprint)
+                self._callbacks = [callback] if callback is not None else []
+                self._active_workers.add(generation)
+        if rejected_callback is not None:
+            rejected_callback()
+            return False
+        if self.view.state != "checking" or self.view.generation != generation:
+            return False
 
         timer = Timer(
             self.timeout_seconds,
@@ -141,6 +198,11 @@ class FirstRunReadinessCoordinator:
             args=(app, generation, fingerprint),
         )
         timer.daemon = True
+        with self._lock:
+            if self._closed or self._view.generation != generation:
+                self._active_workers.discard(generation)
+                return False
+            self._timers[generation] = timer
         timer.start()
 
         worker = Thread(
@@ -159,19 +221,23 @@ class FirstRunReadinessCoordinator:
         fingerprint: str,
     ) -> None:
         try:
-            snapshot = self._probe()
-            message = None
-        except Exception as exc:  # isolated background provider boundary
-            snapshot = None
-            message = sanitize_exception_message(exc)
-        self._dispatch(
-            app,
-            self._complete,
-            generation,
-            fingerprint,
-            snapshot,
-            message,
-        )
+            try:
+                snapshot = self._probe()
+                message = None
+            except Exception as exc:  # isolated background provider boundary
+                snapshot = None
+                message = sanitize_exception_message(exc)
+            self._dispatch(
+                app,
+                self._complete,
+                generation,
+                fingerprint,
+                snapshot,
+                message,
+            )
+        finally:
+            with self._lock:
+                self._active_workers.discard(generation)
 
     def _dispatch_timeout(
         self,
@@ -199,8 +265,12 @@ class FirstRunReadinessCoordinator:
         message: str | None,
     ) -> None:
         with self._lock:
+            timer = self._timers.pop(generation, None)
+            if timer is not None:
+                timer.cancel()
             if (
-                self._view.generation != generation
+                self._closed
+                or self._view.generation != generation
                 or self._view.state != "checking"
                 or self._fingerprint_provider() != fingerprint
             ):
@@ -232,7 +302,12 @@ class FirstRunReadinessCoordinator:
         message = "Provider readiness check timed out."
         message += " Review provider connectivity and retry."
         with self._lock:
-            if self._view.generation != generation or self._view.state != "checking":
+            self._timers.pop(generation, None)
+            if (
+                self._closed
+                or self._view.generation != generation
+                or self._view.state != "checking"
+            ):
                 return
             self._view = FirstRunReadinessView(
                 "failed",

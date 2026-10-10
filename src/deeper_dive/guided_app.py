@@ -99,6 +99,11 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
                 return
             raise
 
+    def on_unmount(self) -> None:
+        coordinator = getattr(self, "_first_run_readiness", None)
+        if coordinator is not None:
+            coordinator.close()
+
     def action_navigate(self, destination: str) -> None:
         # Guard the navigation boundary, not just one Home button: global nav,
         # shortcuts, and bubbled button events must not replace a saved flow.
