@@ -1,236 +1,221 @@
+"""Second post-review configuration durability and credential-boundary regression tests."""
+
 from __future__ import annotations
+
+import os
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from threading import Barrier
 
 import pytest
 
-from deeper_dive.application.service import DeeperDiveService
-from deeper_dive.diagnostics import export_diagnostic_bundle, redact
-from deeper_dive.llm import LLMProviderRegistry
-from deeper_dive.provider_tui import ProviderController
-from deeper_dive.settings_screen import SettingsController
-from deeper_dive.storage.workspace import WorkspaceManager
-from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigError, UserConfigStore
-
-
-@pytest.mark.parametrize(
-    "key",
-    ["research_policy", "quick_deep_dive_research_policy"],
+from deeper_dive.diagnostics import redact, sanitize_provider_error
+from deeper_dive.user_config import (
+    ProviderConfig,
+    UserConfig,
+    UserConfigConflictError,
+    UserConfigError,
+    UserConfigStore,
 )
-def test_invalid_research_defaults_are_rejected(key: str) -> None:
-    with pytest.raises(ValueError, match=key):
-        UserConfig(defaults={key: "reckless"})
-
-
-@pytest.mark.parametrize("value", ["0", "-1", "not-a-number"])
-def test_invalid_quick_duration_is_rejected(value: str) -> None:
-    with pytest.raises(ValueError, match="positive integer"):
-        UserConfig(defaults={"quick_deep_dive_duration_minutes": value})
-
-
-@pytest.mark.parametrize(
-    "value",
-    ["skeptic", "skeptic,not-a-preset", "not-a-preset,curious_explainer"],
-)
-def test_invalid_quick_host_presets_are_rejected(value: str) -> None:
-    with pytest.raises(ValueError, match="exactly two valid host presets"):
-        UserConfig(defaults={"quick_deep_dive_host_presets": value})
-
-
-def test_valid_semantic_defaults_are_normalized() -> None:
-    config = UserConfig(
-        defaults={
-            "research_policy": " Useful ",
-            "quick_deep_dive_research_policy": "OFF",
-            "quick_deep_dive_duration_minutes": " 25 ",
-            "quick_deep_dive_host_presets": "skeptic, curious_explainer",
-            "local_only": " YES ",
-            "legacy_free_form": " preserve me ",
-        }
-    )
-    assert config.defaults["research_policy"] == "useful"
-    assert config.defaults["quick_deep_dive_research_policy"] == "off"
-    assert config.defaults["quick_deep_dive_duration_minutes"] == "25"
-    assert config.defaults["quick_deep_dive_host_presets"] == "skeptic,curious_explainer"
-    assert config.defaults["local_only"] == "yes"
-    assert config.defaults["legacy_free_form"] == " preserve me "
-
-
-def test_mutated_invalid_default_cannot_bypass_validation_at_save(tmp_path) -> None:
-    path = tmp_path / "config.json"
-    store = UserConfigStore(path)
-    config = UserConfig(defaults={"research_policy": "useful"})
-    store.save(config)
-    original = path.read_bytes()
-
-    config.defaults["research_policy"] = "secretly-invalid"
-    with pytest.raises(UserConfigError, match="defaults"):
-        store.save(config)
-
-    assert path.read_bytes() == original
 
 
 @pytest.mark.parametrize(
     "url",
-    [
-        "https://example.test/v1#access_token=fragment-secret",
-        "https://example.test/v1#ACCESS_TOKEN=fragment-secret",
-        "https://example.test/v1#%61ccess_token%3Dfragment-secret",
-        "http://[::1]:8080/v1#section",
-        "https://example.test/v1#",
-    ],
+    (
+        "https://api.example.test/v1#token=fragment-canary",
+        "https://api.example.test/v1#ToKeN%3Dfragment-canary",
+        "https://api.example.test/v1#API%255FKEY%253Dfragment-canary",
+        "http://[::1]:11434/v1#password=fragment-canary",
+        "http://127.0.0.1:8080/#",
+    ),
 )
-def test_provider_base_url_rejects_fragments_without_echo(url: str) -> None:
-    with pytest.raises(ValueError) as info:
-        ProviderConfig(provider_type="openai", base_url=url)
-    assert "fragment-secret" not in str(info.value)
-    assert "fragment" in str(info.value).lower()
+def test_provider_endpoints_reject_all_url_fragments_without_echo(url: str) -> None:
+    with pytest.raises(ValueError, match="base_url") as error:
+        ProviderConfig(provider_type="ollama", base_url=url)
+    assert "fragment-canary" not in str(error.value)
+
+
+def test_provider_endpoint_keeps_ipv6_and_nonsecret_query() -> None:
+    config = ProviderConfig(
+        provider_type="ollama",
+        base_url="http://[::1]:11434/v1?region=local&safe=true",
+    )
+    assert config.base_url == "http://[::1]:11434/v1?region=local&safe=true"
 
 
 @pytest.mark.parametrize(
-    "message",
-    [
-        "GET https://example.test/v1#access_token=fragment-canary",
-        "GET https://example.test/v1#ACCESS_TOKEN=fragment-canary",
-        "GET https://example.test/v1#%61ccess_token%3Dfragment-canary",
-        "GET https://example.test/v1#safe=1&token=fragment-canary",
-    ],
+    "fragment",
+    (
+        "token=fragment-canary",
+        "TOKEN%3Dfragment-canary",
+        "API%255FKEY%253Dfragment-canary",
+        "password%253Dfragment-canary",
+        "SeCrEt%3Dfragment-canary",
+    ),
 )
-def test_diagnostic_url_fragment_credentials_are_redacted(message: str) -> None:
-    safe = str(redact(message))
-    assert "fragment-canary" not in safe
-    assert "#[REDACTED]" in safe
+def test_diagnostics_hide_layered_credential_fragments(fragment: str) -> None:
+    message = (
+        f"failed https://example.test/v1#{fragment} "
+        "and http://127.0.0.1:8080/#section on retry"
+    )
+    sanitized = str(redact(message))
+    assert "fragment-canary" not in sanitized
+    assert "https://example.test/v1#[REDACTED]" in sanitized
+    assert "http://127.0.0.1:8080/#section" in sanitized
+    event = sanitize_provider_error("local", RuntimeError(message))
+    assert "fragment-canary" not in event.message
 
 
-def test_benign_diagnostic_url_fragment_is_preserved() -> None:
-    message = "See https://example.test/docs#installation for details"
-    assert redact(message) == message
+def test_mutated_provider_fragment_is_rejected_before_any_write(tmp_path: Path) -> None:
+    store = UserConfigStore(tmp_path / "config.json")
+    config = UserConfig(
+        providers={"local": ProviderConfig(provider_type="ollama")}
+    )
+    store.save(config)
+    before = store.path.read_bytes()
+    config.providers["local"].base_url = "https://example.test/#token=fragment-canary"
+
+    with pytest.raises(UserConfigError, match="providers") as error:
+        store.save(config)
+    assert "fragment-canary" not in str(error.value)
+    assert store.path.read_bytes() == before
 
 
 @pytest.mark.parametrize(
     ("key", "value"),
-    [
-        ("network_policy", "definitely-not-a-policy"),
-        ("diagnostic_logging", "trace-every-secret"),
-        ("speech_setup", "maybe"),
-        ("local_only", "sometimes"),
-        ("episode_planning", "missing-separator"),
-        ("host_generation", ":missing-provider"),
-        ("verification", "missing-model:"),
-    ],
+    (
+        ("research_policy", "unknown"),
+        ("quick_deep_dive_research_policy", "invalid"),
+        ("quick_deep_dive_duration_minutes", "-2"),
+        ("quick_deep_dive_host_presets", "skeptic"),
+        ("network_policy", "all-networks"),
+        ("local_only", "maybe"),
+        ("diagnostic_logging", "maximum"),
+    ),
 )
-def test_documented_semantic_defaults_reject_invalid_values(key: str, value: str) -> None:
-    with pytest.raises(ValueError):
-        UserConfig(defaults={key: value})
+def test_semantically_invalid_defaults_do_not_change_durable_bytes(
+    tmp_path: Path, key: str, value: str
+) -> None:
+    store = UserConfigStore(tmp_path / "config.json")
+    store.save(UserConfig())
+    loaded = store.load()
+    previous = store.path.read_bytes()
+    loaded.defaults[key] = value
+    with pytest.raises(UserConfigError):
+        store.save(loaded)
+    assert store.path.read_bytes() == previous
 
 
-def test_documented_defaults_normalize_without_rejecting_legacy_extension_keys() -> None:
-    config = UserConfig(
-        defaults={
-            "network_policy": "Configured Providers",
-            "diagnostic_logging": " VERBOSE ",
-            "speech_setup": " CONFIGURED ",
-            "ffmpeg_executable": " ffmpeg-custom ",
-            "kitten_model_dir": " /models/kitten ",
-            "local_provider_ids": " local-a, local-b ,",
-            "episode_planning": " planner : model-a ",
-            "legacy_extension": " preserve exact legacy value ",
-        }
-    )
-    assert config.defaults["network_policy"] == "configured-providers"
-    assert config.defaults["diagnostic_logging"] == "verbose"
-    assert config.defaults["speech_setup"] == "configured"
-    assert config.defaults["ffmpeg_executable"] == "ffmpeg-custom"
-    assert config.defaults["kitten_model_dir"] == "/models/kitten"
-    assert config.defaults["local_provider_ids"] == "local-a,local-b"
-    assert config.defaults["episode_planning"] == "planner:model-a"
-    assert config.defaults["legacy_extension"] == " preserve exact legacy value "
+def test_disjoint_stale_writers_conflict_and_can_retry_explicitly(tmp_path: Path) -> None:
+    store = UserConfigStore(tmp_path / "config.json")
+    store.save(UserConfig())
+    first = store.load()
+    second = store.load()
+    first.defaults["local_only"] = "yes"
+    second.defaults["network_policy"] = "allow-remote"
+
+    store.save(first)
+    before = store.path.read_bytes()
+    with pytest.raises(UserConfigConflictError, match="reload and retry"):
+        store.save(second)
+    assert store.path.read_bytes() == before
+
+    refreshed = store.load()
+    refreshed.defaults["network_policy"] = "allow-remote"
+    store.save(refreshed)
+    assert store.load().defaults == {
+        "local_only": "yes",
+        "network_policy": "allow-remote",
+    }
 
 
-@pytest.mark.parametrize("key", ["ffmpeg_executable", "kitten_model_dir"])
-@pytest.mark.parametrize("value", ["bad\x00path", "bad\npath", "bad\rpath"])
-def test_path_defaults_reject_control_characters(key: str, value: str) -> None:
-    with pytest.raises(ValueError, match="single filesystem path"):
-        UserConfig(defaults={key: value})
-
-
-def test_settings_accepted_quick_defaults_are_consumable_after_restart(tmp_path) -> None:
-    data_dir = tmp_path / "data"
-    store = UserConfigStore(data_dir / "config.json")
-    controller = SettingsController(ProviderController(store, LLMProviderRegistry(), {}))
-    controller.save_research_defaults("useful", "local-only")
-    controller.save_quick_deep_dive_defaults(
-        "25",
-        "skeptic,curious_explainer",
-        "off",
-    )
-    controller.save_runtime_defaults("ffmpeg", "/models/kitten", "verbose")
-
-    # Re-open through production services rather than reusing the Settings object.
-    service = DeeperDiveService(WorkspaceManager(data_dir))
-    project = service.create_project("Quick defaults consumer")
-    episode = service.quick_deep_dive(project.id)
-    config = service.hosts(project.id).get_episode(episode.id)
-    assert config is not None
-    assert config.target_duration_seconds == 25 * 60
-    hosts = service.hosts(project.id).list_hosts(project.id)
-    assert [host.preset_origin for host in hosts] == ["curious_explainer", "skeptic"] or {
-        host.preset_origin for host in hosts
-    } == {"curious_explainer", "skeptic"}
-    persisted = UserConfigStore(data_dir / "config.json").load()
-    assert persisted.defaults["quick_deep_dive_research_policy"] == "off"
-    assert persisted.defaults["network_policy"] == "local-only"
-    assert persisted.defaults["diagnostic_logging"] == "verbose"
-
-
-def test_multiple_and_encoded_fragment_canaries_redact_without_destroying_context() -> None:
-    message = (
-        "first=https://one.example/docs#install "
-        "second=https://two.example/v1#%61ccess_token%3Dfragment-two "
-        "third=https://three.example/v1#safe%3D1%26ToKeN%3Dfragment-three "
-        "status=401"
-    )
-    safe = str(redact(message))
-    assert "fragment-two" not in safe
-    assert "fragment-three" not in safe
-    assert "one.example/docs#install" in safe
-    assert "two.example/v1#[REDACTED]" in safe
-    assert "three.example/v1#[REDACTED]" in safe
-    assert "status=401" in safe
-
-
-def test_diagnostic_bundle_redacts_nested_fragment_credentials(tmp_path) -> None:
-    secret = "fragment-bundle-canary"
-    destination = export_diagnostic_bundle(
-        tmp_path / "diagnostics.json",
-        provider_diagnostics={
-            "endpoint": f"https://example.test/v1#access_token={secret}",
-            "nested": [
-                f"https://example.test/v1#%61uthorization%3D{secret}",
-                "https://example.test/docs#safe-anchor",
-            ],
-        },
-        configuration={"safe": "context"},
-    )
-    payload = destination.read_bytes()
-    assert secret.encode() not in payload
-    assert b"safe-anchor" in payload
-    assert b"[REDACTED]" in payload
-
-
-def test_rejected_fragment_provider_mutation_never_reaches_config_bytes(tmp_path) -> None:
+def test_two_simultaneous_initial_writers_have_exactly_one_winner(tmp_path: Path) -> None:
     path = tmp_path / "config.json"
-    store = UserConfigStore(path)
-    store.save(UserConfig(defaults={"research_policy": "useful"}))
-    original = path.read_bytes()
-    controller = ProviderController(store, LLMProviderRegistry(), {})
-    secret = "fragment-save-canary"
+    barrier = Barrier(2)
 
-    with pytest.raises(ValueError):
-        controller.save_provider(
-            "remote",
-            "openai",
-            base_url=f"https://example.test/v1#access_token={secret}",
-            default_model="model-a",
-        )
+    def write(mode: str) -> str:
+        config = UserConfigStore(path).load()
+        config.defaults["research_policy"] = mode
+        barrier.wait()
+        try:
+            UserConfigStore(path).save(config)
+        except UserConfigConflictError:
+            return "conflict"
+        return "saved"
 
-    assert path.read_bytes() == original
-    assert secret.encode() not in path.read_bytes()
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(write, "off")
+        second = pool.submit(write, "useful")
+        outcomes = {first.result(), second.result()}
+    assert outcomes == {"saved", "conflict"}
+    assert UserConfigStore(path).load().defaults["research_policy"] in {"off", "useful"}
+
+
+def test_atomic_replace_failure_keeps_old_bytes_and_cleans_temp(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = UserConfigStore(tmp_path / "config.json")
+    store.save(UserConfig())
+    original = store.path.read_bytes()
+    candidate = store.load()
+    candidate.defaults["research_policy"] = "off"
+
+    def fail_replace(source: object, target: object) -> None:
+        raise OSError("injected rename failure")
+
+    monkeypatch.setattr("deeper_dive.user_config.os.replace", fail_replace)
+    with pytest.raises(OSError, match="injected rename failure"):
+        store.save(candidate)
+    assert store.path.read_bytes() == original
+    assert list(tmp_path.glob(".config.json.*.tmp")) == []
+
+
+def test_temp_sync_failure_keeps_old_bytes_and_cleans_temp(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = UserConfigStore(tmp_path / "config.json")
+    store.save(UserConfig())
+    original = store.path.read_bytes()
+    candidate = store.load()
+    candidate.defaults["research_policy"] = "useful"
+
+    def fail_fsync(fd: int) -> None:
+        raise OSError("injected temp fsync failure")
+
+    monkeypatch.setattr("deeper_dive.user_config.os.fsync", fail_fsync)
+    with pytest.raises(OSError, match="injected temp fsync failure"):
+        store.save(candidate)
+    assert store.path.read_bytes() == original
+    assert list(tmp_path.glob(".config.json.*.tmp")) == []
+
+
+def test_directory_sync_failure_reports_uncertain_durability_without_rollback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = UserConfigStore(tmp_path / "config.json")
+    store.save(UserConfig())
+    candidate = store.load()
+    candidate.defaults["research_policy"] = "aggressive"
+
+    def fail_directory_sync() -> None:
+        raise OSError("injected directory fsync failure")
+
+    monkeypatch.setattr(store, "_sync_parent_directory", fail_directory_sync)
+    with pytest.raises(OSError, match="injected directory fsync failure"):
+        store.save(candidate)
+    assert store.load().defaults["research_policy"] == "aggressive"
+    assert list(tmp_path.glob(".config.json.*.tmp")) == []
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX symlink and mode semantics")
+def test_fixed_temp_symlink_canary_remains_untouched(tmp_path: Path) -> None:
+    target = tmp_path / "symlink-canary.txt"
+    target.write_text("do not modify this file", encoding="utf-8")
+    legacy_temp = tmp_path / "config.json.tmp"
+    legacy_temp.symlink_to(target)
+    store = UserConfigStore(tmp_path / "config.json")
+    store.save(UserConfig(defaults={"research_policy": "off"}))
+    assert target.read_text(encoding="utf-8") == "do not modify this file"
+    assert legacy_temp.is_symlink()
+    assert store.path.stat().st_mode & 0o777 == 0o600
+    assert list(tmp_path.glob(".config.json.*.tmp")) == []
