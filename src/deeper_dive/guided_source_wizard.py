@@ -259,7 +259,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
         project_id = self.context.project_id
         if project_id is None:
             self.set_status("Create a project before choosing research settings.")
-            return
+            return False
         value = self.query_one("#guided-research-policy", Select).value
         try:
             mode = ResearchMode(str(value))
