@@ -99,7 +99,6 @@ def test_duplicate_refreshes_coalesce_while_slow_probe_is_pending() -> None:
     assert calls == 1
 
 
-
 def test_coalesced_refresh_delivers_every_waiting_callback() -> None:
     started = Event()
     release = Event()

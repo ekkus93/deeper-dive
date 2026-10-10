@@ -172,8 +172,13 @@ class GuidedSourceWizard(GuidedProjectWizard):
         except (OSError, KeyError, RuntimeError, ValueError) as exc:
             self.set_error("File/folder import failed.", exc)
             return
+        if not summary.imported:
+            self.set_status(
+                "No file/folder sources were imported; review the paths and try again."
+            )
+            return
         paths_input.value = ""
-        preferred = summary.imported[0].id if summary.imported else None
+        preferred = summary.imported[0].id
         self._refresh_sources(preferred)
         self._sync_text()
         self.set_status(self._import_summary("file/folder", summary))
@@ -190,8 +195,11 @@ class GuidedSourceWizard(GuidedProjectWizard):
         except (OSError, KeyError, RuntimeError, ValueError) as exc:
             self.set_error("URL import failed.", exc)
             return
+        if not summary.imported:
+            self.set_status("No URL sources were imported; review the URLs and try again.")
+            return
         urls_input.value = ""
-        preferred = summary.imported[0].id if summary.imported else None
+        preferred = summary.imported[0].id
         self._refresh_sources(preferred)
         self._sync_text()
         self.set_status(self._import_summary("URL", summary))
