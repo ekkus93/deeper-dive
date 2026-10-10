@@ -213,9 +213,7 @@ def test_settings_and_provider_transactions_race_without_clobber(
             barrier.wait(timeout=10)
             super().save(config)
 
-    settings = SettingsController(
-        ProviderController(RacingStore(path), LLMProviderRegistry(), {})
-    )
+    settings = SettingsController(ProviderController(RacingStore(path), LLMProviderRegistry(), {}))
     providers = ProviderController(RacingStore(path), LLMProviderRegistry(), {})
 
     with ThreadPoolExecutor(max_workers=2) as executor:
