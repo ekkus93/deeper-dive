@@ -119,7 +119,7 @@ class EpisodePlannerService:
         segments[ordinal] = replacement[0]
         segments = self._bound_duration(segments, config.target_duration_seconds)
         plan = EpisodePlan(str(uuid4()), episode_id, tuple(segments))
-        self._persist(plan, expected_episode_modified_at=episode_revision)
+        self._persist(plan, expected_episode_config_json=episode_revision)
         return plan
 
     def edit_segment(self, episode_id: str, ordinal: int, segment: PlannedSegment) -> EpisodePlan:
@@ -140,7 +140,7 @@ class EpisodePlannerService:
         segments[ordinal] = validated
         segments = self._bound_duration(segments, config.target_duration_seconds)
         plan = EpisodePlan(str(uuid4()), episode_id, tuple(segments))
-        self._persist(plan, expected_episode_modified_at=episode_revision)
+        self._persist(plan, expected_episode_config_json=episode_revision)
         return plan
 
     def approve_plan(self, episode_id: str) -> EpisodePlan:
