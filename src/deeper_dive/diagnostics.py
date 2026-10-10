@@ -96,13 +96,20 @@ def _redact_quoted_mapping_assignment(match: re.Match[str]) -> str:
 
 
 def _redact_url_fragment(match: re.Match[str]) -> str:
-    decoded = unquote_plus(match.group(2)).replace(";", "&")
-    try:
-        pairs = parse_qsl(decoded, keep_blank_values=True)
-    except ValueError:
-        pairs = []
-    if any(key.lower() in _SENSITIVE_URL_KEYS for key, _ in pairs):
-        return f"{match.group(1)}#[REDACTED]"
+    # A diagnostic may contain a URL that was escaped multiple times by an SDK.
+    # Bound decoding so layered percent-encoding cannot hide credential keys.
+    fragment = match.group(2)
+    for _ in range(4):
+        try:
+            pairs = parse_qsl(fragment.replace(";", "&"), keep_blank_values=True)
+        except ValueError:
+            pairs = []
+        if any(key.lower() in _SENSITIVE_URL_KEYS for key, _ in pairs):
+            return f"{match.group(1)}#[REDACTED]"
+        decoded = unquote_plus(fragment)
+        if decoded == fragment:
+            break
+        fragment = decoded
     return match.group(0)
 
 

@@ -5,7 +5,7 @@ import pytest
 from deeper_dive.llm import LLMProviderRegistry, ProviderHealth
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.provider_tui import ProviderController
-from deeper_dive.user_config import UserConfigStore
+from deeper_dive.user_config import UserConfigError, UserConfigStore
 
 
 def _controller(tmp_path, *, environ: dict[str, str] | None = None) -> ProviderController:
@@ -194,3 +194,30 @@ def test_save_rejects_generic_legacy_capability(tmp_path) -> None:
 
     with pytest.raises(ValueError, match="unsupported provider adapter"):
         controller.save_provider("legacy", "llm")
+
+
+def test_mutated_provider_configuration_is_rejected_before_runtime_build(
+    tmp_path, monkeypatch
+) -> None:
+    controller = _controller(tmp_path)
+    controller.save_provider("planner", "fake", default_model="model-v1")
+    candidate = controller.config()
+    secret = "fragment-canary-do-not-log"
+    candidate.providers["planner"].base_url = f"https://example.test/v1#token={secret}"
+    factory = controller.provider_factory
+    assert factory is not None
+    build_calls = 0
+
+    def counted_build(config):
+        nonlocal build_calls
+        build_calls += 1
+        return factory.__class__.build(factory, config)
+
+    monkeypatch.setattr(factory, "build", counted_build)
+    with pytest.raises(UserConfigError, match="providers") as error:
+        controller._commit_candidate(candidate)
+
+    assert build_calls == 0
+    assert secret not in str(error.value)
+    assert secret not in (tmp_path / "config.json").read_text()
+    assert controller.config().providers["planner"].base_url is None
