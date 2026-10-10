@@ -348,9 +348,12 @@ class UserConfigStore:
             temporary = self._write_temporary(payload)
             replaced = False
             try:
+                # Permissions must be finalized before publication. A chmod
+                # failure after os.replace would expose new bytes while falsely
+                # reporting a failed pre-publication transaction.
+                self._restrict_permissions(temporary)
                 os.replace(temporary, self.path)
                 replaced = True
-                self._restrict_permissions(self.path)
                 self._sync_parent_directory()
             finally:
                 if not replaced:

@@ -167,6 +167,25 @@ def test_atomic_replace_failure_keeps_old_bytes_and_cleans_temp(
     assert list(tmp_path.glob(".config.json.*.tmp")) == []
 
 
+def test_temp_chmod_failure_preserves_durable_bytes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = UserConfigStore(tmp_path / "config.json")
+    store.save(UserConfig())
+    original = store.path.read_bytes()
+    candidate = store.load()
+    candidate.defaults["research_policy"] = "off"
+
+    def fail_chmod(path: Path) -> None:
+        raise OSError("injected chmod failure")
+
+    monkeypatch.setattr(store, "_restrict_permissions", fail_chmod)
+    with pytest.raises(OSError, match="injected chmod failure"):
+        store.save(candidate)
+    assert store.path.read_bytes() == original
+    assert list(tmp_path.glob(".config.json.*.tmp")) == []
+
+
 def test_temp_sync_failure_keeps_old_bytes_and_cleans_temp(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
