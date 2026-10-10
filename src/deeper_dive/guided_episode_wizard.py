@@ -557,6 +557,13 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         self._toggle_custom_duration()
 
     def _refresh_plan(self) -> None:
+        if (
+            self.context.state.current_step == "plan"
+            and self._plan is not None
+            and self._current_form_dirty()
+        ):
+            self.set_status("Unsaved plan segment changes remain; save or discard before reloading.")
+            return
         summary = self.query_one("#guided-plan-summary", Static)
         if self.context.episode_id is None:
             self._plan = None
@@ -568,6 +575,8 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         except (KeyError, OSError, RuntimeError, ValueError):
             self._plan = None
         self._render_plan()
+        if self.context.state.current_step == "plan":
+            self._remember_current_form()
 
     def _render_plan(self) -> None:
         summary = self.query_one("#guided-plan-summary", Static)
