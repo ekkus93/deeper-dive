@@ -132,6 +132,7 @@ async def _dirty_wizard_global_navigation_uses_same_confirmation(tmp_path: Path)
         app.action_navigate("home")
         assert app.screen is wizard
         assert wizard.query_one("#wizard-exit-confirmation").display
+        await pilot.pause()
         assert wizard.focused is wizard.query_one("#wizard-confirm-cancel")
 
         await pilot.press("space")

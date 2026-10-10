@@ -322,7 +322,9 @@ class WizardShell(Screen[None]):
             "Unsaved changes. Save changes and "
             f"{destination}, explicitly discard them, or continue editing."
         )
-        self.query_one("#wizard-confirm-cancel", Button).focus()
+        cancel = self.query_one("#wizard-confirm-cancel", Button)
+        cancel.focus()
+        self.call_after_refresh(cancel.focus)
 
     def _editable_snapshot(self) -> tuple[tuple[str, str], ...]:
         keys = _FORM_FIELDS.get((self.context.state.kind, self.context.state.current_step), ())

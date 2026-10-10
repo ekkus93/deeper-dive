@@ -36,8 +36,7 @@ class EpisodePlanRepository:
         with self.database.connection() as db:
             if self._started(db, episode_id):
                 raise ValueError(
-                    "episode configuration is frozen after generation starts; "
-                    "create a new episode"
+                    "episode configuration is frozen after generation starts; create a new episode"
                 )
 
     @staticmethod
