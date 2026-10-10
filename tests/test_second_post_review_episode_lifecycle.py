@@ -8,6 +8,8 @@ import pytest
 
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.storage.database import Database
+from deeper_dive.storage.episode_configuration import EpisodeConfigurationRepository
+from deeper_dive.storage.episode_plan_repository import EpisodePlanRepository
 from deeper_dive.storage.episode_repositories import (
     EpisodePlanRecord,
     HostEpisodeRepository,
@@ -101,3 +103,49 @@ def test_non_draft_episode_edit_cannot_demote_state_or_delete_plan(tmp_path, sta
     assert plan.id == "plan-original"
     assert [segment.id for segment in repository.list_segments(plan.id)] == ["segment-original"]
     assert service.edit(episode.id, config) == original
+
+
+def test_stale_planner_write_cannot_restore_plan_after_episode_edit(tmp_path) -> None:
+    database, service, repository, episode, config = _episode_with_plan(tmp_path)
+    current = repository.get_episode(episode.id)
+    assert current is not None
+    old_config_json = current.config_json
+
+    service.edit(episode.id, replace(config, focus="new research focus"))
+    assert repository.get_plan(episode.id) is None
+
+    with pytest.raises(ValueError, match="configuration changed while the plan was being built"):
+        EpisodePlanRepository(database).replace(
+            EpisodePlanRecord(
+                id="stale-plan",
+                episode_id=episode.id,
+                created_at="now",
+                modified_at="now",
+            ),
+            [],
+            expected_episode_config_json=old_config_json,
+        )
+    assert repository.get_plan(episode.id) is None
+
+
+def test_state_change_during_edit_prevents_plan_loss(tmp_path) -> None:
+    database, _service, repository, episode, _config = _episode_with_plan(tmp_path)
+    original = repository.get_episode(episode.id)
+    assert original is not None
+    with database.transaction(immediate=True) as db:
+        db.execute("UPDATE episodes SET state='running' WHERE id=?", (episode.id,))
+
+    proposal = replace(original, focus="stale proposal")
+    with pytest.raises(ValueError, match="no longer editable"):
+        EpisodeConfigurationRepository(database).update(
+            proposal,
+            [],
+            expected_config_json=original.config_json,
+        )
+
+    actual = repository.get_episode(episode.id)
+    assert actual is not None and actual.state == "running"
+    assert actual.focus == original.focus
+    plan = repository.get_plan(episode.id)
+    assert plan is not None and plan.id == "plan-original"
+    assert [item.id for item in repository.list_segments(plan.id)] == ["segment-original"]
