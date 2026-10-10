@@ -219,9 +219,7 @@ def test_settings_and_provider_transactions_race_without_clobber(
     with ThreadPoolExecutor(max_workers=2) as executor:
         tasks = [
             executor.submit(settings.set_default, "local_only", "yes"),
-            executor.submit(
-                providers.save_provider, "planner", "fake", default_model="fake-model"
-            ),
+            executor.submit(providers.save_provider, "planner", "fake", default_model="fake-model"),
         ]
         outcomes = []
         for task in tasks:
