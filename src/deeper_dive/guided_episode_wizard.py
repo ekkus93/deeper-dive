@@ -404,6 +404,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             return
         self._render_plan()
         self._sync_text()
+        self._remember_current_form()
         self.set_status("Regenerated the selected segment through EpisodePlannerService.")
 
     def action_check_preflight(self) -> None:
@@ -500,6 +501,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         self.set_busy(False)
         self._render_plan()
         self._sync_text()
+        self._remember_current_form()
         self.set_status(
             "Regenerated the production episode plan."
             if operation == "regenerate"
