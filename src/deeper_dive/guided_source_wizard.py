@@ -100,18 +100,25 @@ class GuidedSourceWizard(GuidedProjectWizard):
         self._refresh_sources()
         self._refresh_research_choice()
         self._toggle()
+        self._schedule_form_baseline()
 
-    def action_continue(self) -> None:
-        super().action_continue()
+    def action_continue(self) -> bool:
+        if not super().action_continue():
+            return False
         self._refresh_sources()
         self._refresh_research_choice()
         self._toggle()
+        self._schedule_form_baseline()
+        return True
 
-    def action_back(self) -> None:
-        super().action_back()
+    def action_back(self) -> bool:
+        if not super().action_back():
+            return False
         self._refresh_sources()
         self._refresh_research_choice()
         self._toggle()
+        self._schedule_form_baseline()
+        return True
 
     def on_select_changed(self, event: Select.Changed) -> None:
         if event.select.id == "guided-source-picker":

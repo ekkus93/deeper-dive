@@ -272,21 +272,28 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         super().on_mount()
         self._load_existing_setup()
         self._sync_setup_controls()
+        self._schedule_form_baseline()
         self._request_runtime_readiness()
 
-    def action_continue(self) -> None:
+    def action_continue(self) -> bool:
         step = self.context.state.current_step
         if step == "model-test":
             identity = self._current_llm_identity()
             if identity is None or self._model_test_identity != identity:
                 self.set_status("Run the synthetic model test successfully before continuing.")
-                return
-        super().action_continue()
+                return False
+        if not super().action_continue():
+            return False
         self._sync_setup_controls()
+        self._schedule_form_baseline()
+        return True
 
-    def action_back(self) -> None:
-        super().action_back()
+    def action_back(self) -> bool:
+        if not super().action_back():
+            return False
         self._sync_setup_controls()
+        self._schedule_form_baseline()
+        return True
 
     def on_select_changed(self, event: Select.Changed) -> None:
         super().on_select_changed(event)

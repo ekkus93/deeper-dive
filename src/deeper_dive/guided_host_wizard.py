@@ -22,6 +22,17 @@ class GuidedHostWizard(GuidedSourceWizard):
         super().__init__(context, completion_probe)
         self._selected_host_ids: list[str] = []
 
+    def _editable_snapshot(self) -> tuple[tuple[str, str], ...]:
+        values = list(super()._editable_snapshot())
+        if self.context.state.current_step == "hosts":
+            values.append(
+                (
+                    "__episode_host_order__",
+                    f"{self.context.episode_id or ''}:{','.join(self._selected_host_ids)}",
+                )
+            )
+        return tuple(values)
+
     def step_controls(self) -> tuple[Widget, ...]:
         return (
             *super().step_controls(),
@@ -84,16 +95,23 @@ class GuidedHostWizard(GuidedSourceWizard):
         self._load_episode_host_order()
         self._refresh_hosts()
         self._toggle()
+        self._schedule_form_baseline()
 
-    def action_continue(self) -> None:
-        super().action_continue()
+    def action_continue(self) -> bool:
+        if not super().action_continue():
+            return False
         self._refresh_hosts()
         self._toggle()
+        self._schedule_form_baseline()
+        return True
 
-    def action_back(self) -> None:
-        super().action_back()
+    def action_back(self) -> bool:
+        if not super().action_back():
+            return False
         self._refresh_hosts()
         self._toggle()
+        self._schedule_form_baseline()
+        return True
 
     def on_select_changed(self, event: Select.Changed) -> None:
         super().on_select_changed(event)
@@ -262,6 +280,7 @@ class GuidedHostWizard(GuidedSourceWizard):
             self.set_error("Host order save failed.", exc)
             return
         self._sync_text()
+        self._remember_current_form()
         self.set_status("Saved ordered episode hosts through EpisodeConfigurationService.")
 
     def _move_selected_host(self, delta: int) -> None:

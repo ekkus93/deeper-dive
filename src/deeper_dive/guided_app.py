@@ -24,6 +24,7 @@ from deeper_dive.guided_ready import GuidedEpisodeReadyScreen
 from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardState
 from deeper_dive.preflight_screen import PreflightScreen
 from deeper_dive.tui import DeeperDiveApp
+from deeper_dive.wizard_shell import WizardShell
 
 
 class GuidedDeeperDiveApp(DeeperDiveApp):
@@ -105,6 +106,9 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
             coordinator.close()
 
     def action_navigate(self, destination: str) -> None:
+        screen = self.screen
+        if isinstance(screen, WizardShell) and screen.request_external_navigation(destination):
+            return
         # Guard the navigation boundary, not just one Home button: global nav,
         # shortcuts, and bubbled button events must not replace a saved flow.
         if destination == "new":

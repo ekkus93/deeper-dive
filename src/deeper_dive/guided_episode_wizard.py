@@ -71,9 +71,16 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         if step == "hosts":
             if self._selected_host_record() is None:
                 self.action_create_host()
-                return self._last_form_status.startswith("Created host ")
-            self.action_save_host()
-            return self._last_form_status.startswith("Saved host ")
+                if not self._last_form_status.startswith("Created host "):
+                    return False
+            else:
+                self.action_save_host()
+                if not self._last_form_status.startswith("Saved host "):
+                    return False
+            if self._selected_host_ids:
+                self.action_save_host_order()
+                return self._last_form_status.startswith("Saved ordered episode hosts ")
+            return True
         if step == "episode":
             self.action_save_episode()
             return self._last_form_status.startswith("Saved episode settings ")
@@ -177,6 +184,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         self._refresh_plan()
         self._refresh_preflight()
         self._toggle()
+        self._schedule_form_baseline()
 
     def on_screen_resume(self) -> None:
         """A previously mounted wizard must reload production state when re-entered."""
@@ -193,19 +201,25 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         self._sync_text()
         self._toggle()
 
-    def action_continue(self) -> None:
-        super().action_continue()
+    def action_continue(self) -> bool:
+        if not super().action_continue():
+            return False
         self._load_episode_form()
         self._refresh_plan()
         self._refresh_preflight()
         self._toggle()
+        self._schedule_form_baseline()
+        return True
 
-    def action_back(self) -> None:
-        super().action_back()
+    def action_back(self) -> bool:
+        if not super().action_back():
+            return False
         self._load_episode_form()
         self._refresh_plan()
         self._refresh_preflight()
         self._toggle()
+        self._schedule_form_baseline()
+        return True
 
     def on_select_changed(self, event: Select.Changed) -> None:
         super().on_select_changed(event)
