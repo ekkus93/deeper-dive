@@ -25,7 +25,7 @@ from deeper_dive.user_config import (
     [
         b'{"defaults": ',
         b'{"schema_version":1,"defaults":{"research_policy":"invalid-mode"}}',
-        b"\\xff\\xfe",
+        bytes((255, 254)),
         b'{"schema_version":99,"defaults":{}}',
     ],
 )
