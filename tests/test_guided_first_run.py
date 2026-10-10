@@ -308,5 +308,11 @@ async def _first_run_save_exit_resumes_durable_partial_provider_setup(tmp_path: 
         provider = screen.context.composition.provider_controller.config().providers["fixture"]
         assert provider.default_model == "fake-v1"
         await _wait_for_runtime_readiness(restarted, pilot)
+        # A saved provider remains intact after asynchronous hydration and
+        # readiness refresh, with no phantom dirty confirmation.
+        assert screen.query_one("#setup-provider-name", Input).value == "fixture"
+        assert screen.query_one("#setup-provider-adapter", Input).value == "fake"
+        assert screen.query_one("#setup-provider-model", Input).value == "fake-v1"
+        assert not screen._current_form_dirty()
         screen.action_continue()
         assert screen.context.state.current_step == "model-test"

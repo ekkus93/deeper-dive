@@ -45,6 +45,10 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         self._model_test_summary = "Run a synthetic model test before continuing."
         self._model_options: tuple[tuple[str, str], ...] = ()
         self._voice_options: tuple[tuple[str, str], ...] = ()
+        # Select.Changed can arrive after a saved selection is hydrated. Track
+        # the actual choice so initial/stale events cannot reset durable fields.
+        self._last_llm_choice: str | None = None
+        self._last_speech_choice: str | None = None
 
     def _save_dirty_step(self) -> WizardSaveResult:
         step = self.context.state.current_step
@@ -265,6 +269,8 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
     def on_mount(self) -> None:
         super().on_mount()
         self._load_existing_setup()
+        self._last_llm_choice = self._select_value("#setup-ai-choice")
+        self._last_speech_choice = self._select_value("#setup-speech-choice")
         self._sync_setup_controls()
         self._remember_current_form()
         self._request_runtime_readiness()
@@ -292,12 +298,20 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
     def on_select_changed(self, event: Select.Changed) -> None:
         super().on_select_changed(event)
         if event.select.id == "setup-ai-choice":
-            self._apply_llm_choice_defaults(force=True)
+            # Ignore queued initial/programmatic events; only a real change to
+            # the current selection should replace the provider preset fields.
+            choice = self._select_value("#setup-ai-choice")
+            if choice == event.value and choice != self._last_llm_choice:
+                self._last_llm_choice = choice
+                self._apply_llm_choice_defaults(force=True)
         elif event.select.id == "setup-model-picker" and isinstance(event.value, str):
             if event.value:
                 self.query_one("#setup-provider-model", Input).value = event.value
         elif event.select.id == "setup-speech-choice":
-            self._apply_speech_choice_defaults(force=True)
+            choice = self._select_value("#setup-speech-choice")
+            if choice == event.value and choice != self._last_speech_choice:
+                self._last_speech_choice = choice
+                self._apply_speech_choice_defaults(force=True)
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id in {"setup-provider-adapter", "setup-speech-adapter"}:
