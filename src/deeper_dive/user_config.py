@@ -40,6 +40,23 @@ _HOST_PRESETS = frozenset(
     }
 )
 _BOOLEAN_DEFAULTS = frozenset({"0", "1", "false", "true", "no", "yes", "off", "on"})
+_MODEL_ROLE_DEFAULTS = frozenset(
+    {
+        "corpus_analysis",
+        "research_planning",
+        "source_analysis",
+        "episode_planning",
+        "directing",
+        "host_generation",
+        "verification",
+    }
+)
+_NETWORK_POLICIES = frozenset(
+    {"local-only", "configured-providers", "allow-remote", "remote-allowed"}
+)
+_DIAGNOSTIC_LOGGING = frozenset({"off", "normal", "verbose"})
+_SPEECH_SETUP = frozenset({"configured", "deferred"})
+_PATH_DEFAULTS = frozenset({"ffmpeg_executable", "kitten_model_dir"})
 
 
 class ProviderConfig(BaseModel):
@@ -154,6 +171,67 @@ class UserConfig(BaseModel):
             if value and value not in _BOOLEAN_DEFAULTS:
                 raise ValueError("local_only must be a boolean value")
             normalized["local_only"] = value
+
+        network = normalized.get("network_policy")
+        if network is not None:
+            value = network.strip().lower().replace("_", "-").replace(" ", "-")
+            if value and value not in _NETWORK_POLICIES:
+                raise ValueError(
+                    "network_policy must be one of: "
+                    + ", ".join(sorted(_NETWORK_POLICIES))
+                )
+            normalized["network_policy"] = value
+
+        diagnostic = normalized.get("diagnostic_logging")
+        if diagnostic is not None:
+            value = diagnostic.strip().lower()
+            if value and value not in _DIAGNOSTIC_LOGGING:
+                raise ValueError(
+                    "diagnostic_logging must be one of: "
+                    + ", ".join(sorted(_DIAGNOSTIC_LOGGING))
+                )
+            normalized["diagnostic_logging"] = value
+
+        speech_setup = normalized.get("speech_setup")
+        if speech_setup is not None:
+            value = speech_setup.strip().lower()
+            if value and value not in _SPEECH_SETUP:
+                raise ValueError(
+                    "speech_setup must be configured or deferred"
+                )
+            normalized["speech_setup"] = value
+
+        for key in _PATH_DEFAULTS:
+            raw = normalized.get(key)
+            if raw is None:
+                continue
+            value = raw.strip()
+            if "\x00" in value or "\n" in value or "\r" in value:
+                raise ValueError(f"{key} must be a single filesystem path or executable name")
+            normalized[key] = value
+
+        local_ids = normalized.get("local_provider_ids")
+        if local_ids is not None:
+            normalized["local_provider_ids"] = ",".join(
+                item.strip() for item in local_ids.split(",") if item.strip()
+            )
+
+        for key in _MODEL_ROLE_DEFAULTS:
+            raw = normalized.get(key)
+            if raw is None:
+                continue
+            value = raw.strip()
+            if value:
+                provider, separator, model = value.partition(":")
+                if not separator or not provider.strip() or not model.strip():
+                    raise ValueError(f"{key} must use non-empty provider:model")
+                value = f"{provider.strip()}:{model.strip()}"
+            normalized[key] = value
+
+        for key in ("tts_provider", "tts_voice", "tts_voice_host_1", "tts_voice_host_2"):
+            raw = normalized.get(key)
+            if raw is not None:
+                normalized[key] = raw.strip()
         return normalized
 
     @field_validator("schema_version")
