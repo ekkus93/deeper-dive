@@ -186,3 +186,39 @@ def test_app_close_suppresses_inflight_result_and_callback() -> None:
     finally:
         release.set()
         coordinator.close()
+
+
+def test_superseded_probe_timers_are_cancelled_without_unbounded_growth() -> None:
+    app = _RecordingApp()
+    started: Queue[None] = Queue()
+    release = Event()
+    fingerprint = ["first"]
+
+    def blocked_probe() -> FirstRunRuntimeSnapshot:
+        started.put(None)
+        assert release.wait(3), "probe release was never signaled"
+        return _snapshot()
+
+    coordinator = FirstRunReadinessCoordinator(
+        _context(),
+        probe=blocked_probe,
+        fingerprint=lambda: fingerprint[0],
+        timeout_seconds=5,
+        max_workers=2,
+    )
+    try:
+        assert coordinator.request(app)
+        started.get(timeout=3)
+        assert coordinator.timeout_timer_count == 1
+        fingerprint[0] = "second"
+        assert coordinator.request(app)
+        started.get(timeout=3)
+        assert coordinator.timeout_timer_count == 1
+        fingerprint[0] = "third"
+        assert not coordinator.request(app)
+        assert coordinator.view.state == "failed"
+        assert coordinator.active_worker_count == 2
+        assert coordinator.timeout_timer_count == 0
+    finally:
+        release.set()
+        coordinator.close()

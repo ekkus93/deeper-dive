@@ -173,6 +173,7 @@ class FirstRunReadinessCoordinator:
     ) -> bool:
         fingerprint = self._fingerprint_provider()
         rejected_callback: Callable[[], object] | None = None
+        stale_timers: tuple[Timer, ...] = ()
         with self._lock:
             if self._closed:
                 return False
@@ -187,6 +188,10 @@ class FirstRunReadinessCoordinator:
             ):
                 return False
             generation = self._view.generation + 1
+            # Superseded generations cannot publish; cancel their deadlines so
+            # rapid refreshes cannot accumulate abandoned timeout timers.
+            stale_timers = tuple(self._timers.values())
+            self._timers.clear()
             if len(self._active_workers) >= self.max_workers:
                 self._view = FirstRunReadinessView(
                     "failed",
@@ -203,12 +208,13 @@ class FirstRunReadinessCoordinator:
                 self._view = FirstRunReadinessView("checking", generation, fingerprint)
                 self._callbacks = [callback] if callback is not None else []
                 self._active_workers.add(generation)
+        for stale_timer in stale_timers:
+            stale_timer.cancel()
         if rejected_callback is not None:
             rejected_callback()
             return False
-        if self.view.state != "checking" or self.view.generation != generation:
-            return False
-
+        # Timer installation below owns the reserved worker slot. A separate
+        # unlocked view check could abandon a superseded slot without a worker.
         timer = Timer(
             self.timeout_seconds,
             self._dispatch_timeout,
@@ -216,7 +222,11 @@ class FirstRunReadinessCoordinator:
         )
         timer.daemon = True
         with self._lock:
-            if self._closed or self._view.generation != generation:
+            if (
+                self._closed
+                or self._view.state != "checking"
+                or self._view.generation != generation
+            ):
                 self._active_workers.discard(generation)
                 return False
             self._timers[generation] = timer
