@@ -42,6 +42,12 @@ route and FFmpeg. A disconnected or invalidated provider can cause setup to
 show **Needs attention** again. Review the provider's health and role
 assignments instead of relying on a previously completed setup screen.
 
+Provider/model/voice readiness probes run in the background. While a bounded
+probe is pending, First-run and Home show an explicit **Checking** readiness
+state and remain keyboard-responsive. A timeout or unreachable provider becomes
+a sanitized **Needs attention** result; a stale probe from older configuration
+is discarded instead of overwriting newer readiness.
+
 ## Home, Projects, and advanced navigation
 
 Home promotes **New Deep Dive**, **Projects**, and **Library**, and presents

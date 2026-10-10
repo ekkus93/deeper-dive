@@ -129,6 +129,11 @@ structurally rejects URLs with userinfo or sensitive query parameters.
 before serialization to prevent post-construction mutation from bypassing
 those checks. Multi-default updates should use one validated
 `SettingsController.set_defaults()` transaction and one durable write.
+Composite provider-plus-default actions use the same candidate-config rule:
+validate the complete `UserConfig` first, then call `UserConfigStore.save()`
+once. Do not sequence multiple `set_default()`/save calls for one user action;
+a validation or filesystem failure must leave the previous in-memory and
+on-disk configuration intact.
 `deeper_dive.diagnostics.redact` is the canonical sanitization boundary for
 recursive diagnostics and displayed error text; exception chains are sanitized
 one message at a time. Any new TUI/CLI error presentation path must use it.
