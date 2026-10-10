@@ -9,7 +9,7 @@ import pytest
 from deeper_dive.llm import LLMProviderRegistry
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.settings_screen import SettingsController
-from deeper_dive.user_config import UserConfig, UserConfigStore
+from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
 class CountingStore(UserConfigStore):
@@ -27,7 +27,18 @@ class CountingStore(UserConfigStore):
 
 def _settings(tmp_path: Path) -> tuple[SettingsController, CountingStore]:
     store = CountingStore(tmp_path / "config.json")
-    store.save(UserConfig(defaults={"keep": "unchanged"}))
+    store.save(
+        UserConfig(
+            providers={
+                "speech": ProviderConfig(
+                    provider_type="fake-tts",
+                    network_scope="local",
+                    voices=("voice-a",),
+                )
+            },
+            defaults={"keep": "unchanged"},
+        )
+    )
     store.writes = 0
     controller = SettingsController(ProviderController(store, LLMProviderRegistry(), {}))
     return controller, store
