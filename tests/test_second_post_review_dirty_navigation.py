@@ -398,6 +398,7 @@ async def _first_run_dirty_guard_covers_each_editable_stage(tmp_path: Path) -> N
         duration.value = "30" if original != "30" else "20"
 
         assert not wizard.action_back()
+
         assert wizard.context.state.current_step == "voice-defaults"
         assert duration.value != original
         assert wizard.query_one("#wizard-exit-confirmation").display
@@ -730,6 +731,7 @@ async def _host_order_survives_refresh_and_restart(tmp_path: Path) -> None:
         assert wizard._selected_host_ids == expected
         assert not wizard._host_order_dirty()
 
+
 @pytest.mark.parametrize(
     ("step", "selector", "changed"),
     (
@@ -742,9 +744,7 @@ def test_async_readiness_recovery_preserves_unsaved_setup_edits(
     tmp_path: Path, step: str, selector: str, changed: str
 ) -> None:
     asyncio.run(
-        _async_readiness_recovery_preserves_unsaved_setup_edits(
-            tmp_path, step, selector, changed
-        )
+        _async_readiness_recovery_preserves_unsaved_setup_edits(tmp_path, step, selector, changed)
     )
 
 
