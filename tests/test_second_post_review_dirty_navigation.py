@@ -241,6 +241,9 @@ async def _dirty_host_profile_blocks_picker_reselection_until_discard(tmp_path: 
 
         changed = "Unsaved instructions stay visible"
         wizard.query_one("#guided-host-instructions", Input).value = changed
+        # Yield exactly as real keyboard input does so Input.Changed records the
+        # durable-target edit before the user can activate another Select option.
+        await pilot.pause()
         picker = wizard.query_one("#guided-host-picker", Select)
         picker.value = host_ids[1]
         await pilot.pause()
