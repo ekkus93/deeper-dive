@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import pytest
 
+from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.diagnostics import redact
+from deeper_dive.llm import LLMProviderRegistry
+from deeper_dive.provider_tui import ProviderController
+from deeper_dive.settings_screen import SettingsController
+from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigError, UserConfigStore
 
 
@@ -97,3 +102,82 @@ def test_diagnostic_url_fragment_credentials_are_redacted(message: str) -> None:
 def test_benign_diagnostic_url_fragment_is_preserved() -> None:
     message = "See https://example.test/docs#installation for details"
     assert redact(message) == message
+
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("network_policy", "definitely-not-a-policy"),
+        ("diagnostic_logging", "trace-every-secret"),
+        ("speech_setup", "maybe"),
+        ("local_only", "sometimes"),
+        ("episode_planning", "missing-separator"),
+        ("host_generation", ":missing-provider"),
+        ("verification", "missing-model:"),
+    ],
+)
+def test_documented_semantic_defaults_reject_invalid_values(key: str, value: str) -> None:
+    with pytest.raises(ValueError):
+        UserConfig(defaults={key: value})
+
+
+def test_documented_defaults_normalize_without_rejecting_legacy_extension_keys() -> None:
+    config = UserConfig(
+        defaults={
+            "network_policy": "Configured Providers",
+            "diagnostic_logging": " VERBOSE ",
+            "speech_setup": " CONFIGURED ",
+            "ffmpeg_executable": " ffmpeg-custom ",
+            "kitten_model_dir": " /models/kitten ",
+            "local_provider_ids": " local-a, local-b ,",
+            "episode_planning": " planner : model-a ",
+            "legacy_extension": " preserve exact legacy value ",
+        }
+    )
+    assert config.defaults["network_policy"] == "configured-providers"
+    assert config.defaults["diagnostic_logging"] == "verbose"
+    assert config.defaults["speech_setup"] == "configured"
+    assert config.defaults["ffmpeg_executable"] == "ffmpeg-custom"
+    assert config.defaults["kitten_model_dir"] == "/models/kitten"
+    assert config.defaults["local_provider_ids"] == "local-a,local-b"
+    assert config.defaults["episode_planning"] == "planner:model-a"
+    assert config.defaults["legacy_extension"] == " preserve exact legacy value "
+
+
+@pytest.mark.parametrize("key", ["ffmpeg_executable", "kitten_model_dir"])
+@pytest.mark.parametrize("value", ["bad\x00path", "bad\npath", "bad\rpath"])
+def test_path_defaults_reject_control_characters(key: str, value: str) -> None:
+    with pytest.raises(ValueError, match="single filesystem path"):
+        UserConfig(defaults={key: value})
+
+
+def test_settings_accepted_quick_defaults_are_consumable_after_restart(tmp_path) -> None:
+    data_dir = tmp_path / "data"
+    store = UserConfigStore(data_dir / "config.json")
+    controller = SettingsController(
+        ProviderController(store, LLMProviderRegistry(), {})
+    )
+    controller.save_research_defaults("useful", "local-only")
+    controller.save_quick_deep_dive_defaults(
+        "25",
+        "skeptic,curious_explainer",
+        "off",
+    )
+    controller.save_runtime_defaults("ffmpeg", "/models/kitten", "verbose")
+
+    # Re-open through production services rather than reusing the Settings object.
+    service = DeeperDiveService(WorkspaceManager(data_dir))
+    project = service.create_project("Quick defaults consumer")
+    episode = service.quick_deep_dive(project.id)
+    config = service.hosts(project.id).get_episode(episode.id)
+    assert config is not None
+    assert config.target_duration_seconds == 25 * 60
+    hosts = service.hosts(project.id).list_hosts(project.id)
+    assert [host.preset_origin for host in hosts] == ["curious_explainer", "skeptic"] or {
+        host.preset_origin for host in hosts
+    } == {"curious_explainer", "skeptic"}
+    persisted = UserConfigStore(data_dir / "config.json").load()
+    assert persisted.defaults["quick_deep_dive_research_policy"] == "off"
+    assert persisted.defaults["network_policy"] == "local-only"
+    assert persisted.defaults["diagnostic_logging"] == "verbose"
