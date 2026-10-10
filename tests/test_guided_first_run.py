@@ -15,6 +15,15 @@ from deeper_dive.model_roles import ModelRole
 from deeper_dive.storage.workspace import WorkspaceManager
 
 
+async def _wait_for_runtime_readiness(app: GuidedDeeperDiveApp, pilot) -> None:
+    for _ in range(100):
+        coordinator = app._first_run_readiness
+        if coordinator.snapshot is not None:
+            return
+        await pilot.pause()
+    raise AssertionError("first-run readiness did not finish")
+
+
 def test_first_run_fake_llm_model_roles_and_deferred_speech_survive_restart(
     tmp_path: Path,
 ) -> None:
@@ -298,5 +307,6 @@ async def _first_run_save_exit_resumes_durable_partial_provider_setup(tmp_path: 
         assert screen.context.state.current_step == "provider-config"
         provider = screen.context.composition.provider_controller.config().providers["fixture"]
         assert provider.default_model == "fake-v1"
+        await _wait_for_runtime_readiness(restarted, pilot)
         screen.action_continue()
         assert screen.context.state.current_step == "model-test"
