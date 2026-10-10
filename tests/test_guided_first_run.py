@@ -156,9 +156,11 @@ async def _fake_tts_voice_preview_and_ready_restart(tmp_path: Path) -> None:
         screen.query_one("#setup-provider-network", Input).value = "local"
         await pilot.pause()
         screen.action_save_provider()
+        await pilot.pause()
         screen.action_continue()
         screen.action_run_model_test()
         screen.action_recommended_roles()
+        await pilot.pause()
         screen.action_continue()
         assert screen.context.state.current_step == "speech"
 
@@ -171,6 +173,7 @@ async def _fake_tts_voice_preview_and_ready_restart(tmp_path: Path) -> None:
         await pilot.pause()
         assert screen.query_one("#setup-speech-voices", Input).display
         screen.action_save_speech()
+        await pilot.pause()
         screen.action_continue()
         assert screen.context.state.current_step == "voice-defaults"
 
@@ -188,6 +191,7 @@ async def _fake_tts_voice_preview_and_ready_restart(tmp_path: Path) -> None:
         assert config.defaults["tts_voice"] == "voice-a"
         assert config.defaults["tts_voice_host_1"] == "voice-a"
         assert config.defaults["tts_voice_host_2"] == "voice-b"
+        await pilot.pause()
         screen.action_continue()
         assert screen.context.state.current_step == "ready"
         assert "Speech/audio: Ready" in str(
@@ -231,6 +235,7 @@ async def _model_test_failure_and_retry(tmp_path: Path) -> None:
         screen.query_one("#setup-provider-network", Input).value = "local"
         await pilot.pause()
         screen.action_save_provider()
+        await pilot.pause()
         screen.action_continue()
         provider = app.provider_controller.llm("fixture")
         with patch.object(provider, "generate", side_effect=RuntimeError("provider unavailable")):
