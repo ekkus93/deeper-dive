@@ -301,7 +301,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             # Ignore queued initial/programmatic events; only a real change to
             # the current selection should replace the provider preset fields.
             choice = self._select_value("#setup-ai-choice")
-            if choice == event.value and choice != self._last_llm_choice:
+            if isinstance(event.value, str) and choice == event.value and choice != self._last_llm_choice:
                 self._last_llm_choice = choice
                 self._apply_llm_choice_defaults(force=True)
         elif event.select.id == "setup-model-picker" and isinstance(event.value, str):
@@ -309,7 +309,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
                 self.query_one("#setup-provider-model", Input).value = event.value
         elif event.select.id == "setup-speech-choice":
             choice = self._select_value("#setup-speech-choice")
-            if choice == event.value and choice != self._last_speech_choice:
+            if isinstance(event.value, str) and choice == event.value and choice != self._last_speech_choice:
                 self._last_speech_choice = choice
                 self._apply_speech_choice_defaults(force=True)
 
