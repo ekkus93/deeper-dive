@@ -177,7 +177,7 @@ class FirstRunReadinessCoordinator:
             if self._closed:
                 return False
             if self._view.state == "checking" and self._view.fingerprint == fingerprint:
-                if callback is not None:
+                if callback is not None and callback not in self._callbacks:
                     self._callbacks.append(callback)
                 return False
             generation = self._view.generation + 1
