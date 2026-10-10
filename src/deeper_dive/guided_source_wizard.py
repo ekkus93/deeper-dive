@@ -295,7 +295,14 @@ class GuidedSourceWizard(GuidedProjectWizard):
         app.action_navigate("research")
 
     def _refresh_research_choice(self) -> None:
-        """Hydrate from durable project policy or the first-run user default."""
+        """Hydrate from durable policy without replacing an unsaved selection."""
+        step_is_research = self.context.state.current_step == "research"
+        if (
+            step_is_research
+            and "research" in self._form_baselines
+            and self._current_form_dirty()
+        ):
+            return
         project_id = self.context.project_id
         if project_id is None:
             return
@@ -312,6 +319,9 @@ class GuidedSourceWizard(GuidedProjectWizard):
             except ValueError:
                 mode = ResearchMode.USEFUL
         self.query_one("#guided-research-policy", Select).value = mode.value
+        if step_is_research:
+            # A clean refresh becomes the new durable baseline, not an edit.
+            self._remember_current_form()
 
     def _refresh_sources(self, preferred_source_id: str | None = None) -> None:
         project_id = self.context.project_id
