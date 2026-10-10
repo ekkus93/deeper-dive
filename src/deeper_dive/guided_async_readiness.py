@@ -102,6 +102,17 @@ class FirstRunReadinessCoordinator:
         with self._lock:
             return len(self._active_workers)
 
+    @property
+    def timeout_timer_count(self) -> int:
+        with self._lock:
+            return len(self._timers)
+
+    @property
+    def queued_worker_count(self) -> int:
+        """Requests are coalesced or rejected; the coordinator never queues probes."""
+
+        return 0
+
     def close(self) -> None:
         """Stop accepting refreshes and cancel owned timeout timers.
 
