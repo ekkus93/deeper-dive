@@ -644,7 +644,9 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             )
             self.query_one("#setup-provider-network", Input).value = provider.network_scope or ""
             choice = self._choice_for_adapter(provider.provider_type, provider.base_url)
-            self.query_one("#setup-ai-choice", Select).value = choice
+            ai_choice = self.query_one("#setup-ai-choice", Select)
+            with ai_choice.prevent(Select.Changed):
+                ai_choice.value = choice
 
         tts_names = [
             name
@@ -671,17 +673,25 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
                 if provider.provider_type in {"kitten", "openai-tts", "elevenlabs"}
                 else "advanced"
             )
-            self.query_one("#setup-speech-choice", Select).value = speech_choice
+            speech_select = self.query_one("#setup-speech-choice", Select)
+            with speech_select.prevent(Select.Changed):
+                speech_select.value = speech_choice
         elif config.defaults.get("speech_setup") == "deferred":
-            self.query_one("#setup-speech-choice", Select).value = "deferred"
+            speech_select = self.query_one("#setup-speech-choice", Select)
+            with speech_select.prevent(Select.Changed):
+                speech_select.value = "deferred"
 
         defaults = config.defaults
         duration = defaults.get("quick_deep_dive_duration_minutes", "20")
         if duration in {"10", "20", "30"}:
-            self.query_one("#setup-duration", Select).value = duration
+            duration_select = self.query_one("#setup-duration", Select)
+            with duration_select.prevent(Select.Changed):
+                duration_select.value = duration
         research = defaults.get("research_policy", "useful")
         if research in {"off", "useful", "aggressive"}:
-            self.query_one("#setup-research-default", Select).value = research
+            research_select = self.query_one("#setup-research-default", Select)
+            with research_select.prevent(Select.Changed):
+                research_select.value = research
         for role, selector in (
             (ModelRole.EPISODE_PLANNING, "#setup-role-episode-planning"),
             (ModelRole.HOST_GENERATION, "#setup-role-host-generation"),
