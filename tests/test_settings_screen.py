@@ -141,19 +141,20 @@ def test_settings_rejects_unknown_or_wrong_capability_provider_references(tmp_pa
     assert store.path.read_bytes() == original
 
 
-def test_provider_removal_rejects_referenced_provider_without_clobbering_config(
+def test_provider_removal_preserves_stale_assignment_for_preflight_repair(
     tmp_path: Path,
 ) -> None:
     controller = _provider_controller(tmp_path)
     settings = SettingsController(controller)
     settings.save_model_default("episode_planning", "planner:model-a")
-    original = controller.config_store.path.read_bytes()
 
-    with pytest.raises(ValueError, match="unknown provider"):
-        controller.remove_provider("planner")
+    controller.remove_provider("planner")
 
-    assert controller.config_store.path.read_bytes() == original
-    assert "planner" in controller.config().providers
+    config = controller.config()
+    assert "planner" not in config.providers
+    assert config.defaults["episode_planning"] == "planner:model-a"
+    with pytest.raises(KeyError, match="unknown LLM provider"):
+        controller.llm_registry.get("planner")
 
 
 def test_local_provider_ids_reject_unknown_provider_before_save(tmp_path: Path) -> None:
