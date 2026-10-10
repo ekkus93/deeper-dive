@@ -56,7 +56,6 @@ def _wait(predicate, timeout: float = 1.0) -> None:
         time.sleep(0.005)
     raise AssertionError("condition did not become true")
 
-
 def test_repeated_timeouts_never_exceed_readiness_worker_budget() -> None:
     release = Event()
     fingerprint = ["0"]
@@ -86,7 +85,6 @@ def test_repeated_timeouts_never_exceed_readiness_worker_budget() -> None:
         release.set()
     _wait(lambda: coordinator.active_worker_count == 0)
 
-
 def test_close_stops_new_readiness_requests_and_late_publication() -> None:
     release = Event()
 
@@ -112,8 +110,6 @@ def test_close_stops_new_readiness_requests_and_late_publication() -> None:
     time.sleep(0.02)
     assert coordinator.view.state == "failed"
     assert coordinator.snapshot is None
-
-
 
 def test_one_hundred_identical_refreshes_coalesce_and_each_callback_runs_once() -> None:
     release = Event()
@@ -150,7 +146,6 @@ def test_one_hundred_identical_refreshes_coalesce_and_each_callback_runs_once() 
     _wait(lambda: coordinator.view.state == "ready")
     assert sorted(callbacks) == list(range(100))
     assert coordinator.timeout_timer_count == 0
-
 
 def test_one_hundred_changing_refreshes_never_exceed_worker_or_timer_budget() -> None:
     release = Event()
@@ -191,7 +186,6 @@ def test_one_hundred_changing_refreshes_never_exceed_worker_or_timer_budget() ->
     release.set()
     _wait(lambda: coordinator.active_worker_count == 0)
     _wait(lambda: coordinator.timeout_timer_count == 0)
-
 
 def test_timeout_callback_is_not_replayed_by_late_success() -> None:
     release = Event()

@@ -10,7 +10,6 @@ from deeper_dive.settings_screen import SettingsController
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigError, UserConfigStore
 
-
 @pytest.mark.parametrize(
     "key",
     ["research_policy", "quick_deep_dive_research_policy"],
@@ -19,12 +18,10 @@ def test_invalid_research_defaults_are_rejected(key: str) -> None:
     with pytest.raises(ValueError, match=key):
         UserConfig(defaults={key: "reckless"})
 
-
 @pytest.mark.parametrize("value", ["0", "-1", "not-a-number"])
 def test_invalid_quick_duration_is_rejected(value: str) -> None:
     with pytest.raises(ValueError, match="positive integer"):
         UserConfig(defaults={"quick_deep_dive_duration_minutes": value})
-
 
 @pytest.mark.parametrize(
     "value",
@@ -33,7 +30,6 @@ def test_invalid_quick_duration_is_rejected(value: str) -> None:
 def test_invalid_quick_host_presets_are_rejected(value: str) -> None:
     with pytest.raises(ValueError, match="exactly two valid host presets"):
         UserConfig(defaults={"quick_deep_dive_host_presets": value})
-
 
 def test_valid_semantic_defaults_are_normalized() -> None:
     config = UserConfig(
@@ -53,7 +49,6 @@ def test_valid_semantic_defaults_are_normalized() -> None:
     assert config.defaults["local_only"] == "yes"
     assert config.defaults["legacy_free_form"] == " preserve me "
 
-
 def test_mutated_invalid_default_cannot_bypass_validation_at_save(tmp_path) -> None:
     path = tmp_path / "config.json"
     store = UserConfigStore(path)
@@ -66,7 +61,6 @@ def test_mutated_invalid_default_cannot_bypass_validation_at_save(tmp_path) -> N
         store.save(config)
 
     assert path.read_bytes() == original
-
 
 @pytest.mark.parametrize(
     "url",
@@ -83,7 +77,6 @@ def test_provider_base_url_rejects_fragments_without_echo(url: str) -> None:
     assert "fragment-secret" not in str(info.value)
     assert "fragment" in str(info.value).lower()
 
-
 @pytest.mark.parametrize(
     "message",
     [
@@ -98,11 +91,9 @@ def test_diagnostic_url_fragment_credentials_are_redacted(message: str) -> None:
     assert "fragment-canary" not in safe
     assert "#[REDACTED]" in safe
 
-
 def test_benign_diagnostic_url_fragment_is_preserved() -> None:
     message = "See https://example.test/docs#installation for details"
     assert redact(message) == message
-
 
 @pytest.mark.parametrize(
     ("key", "value"),
@@ -119,7 +110,6 @@ def test_benign_diagnostic_url_fragment_is_preserved() -> None:
 def test_documented_semantic_defaults_reject_invalid_values(key: str, value: str) -> None:
     with pytest.raises(ValueError):
         UserConfig(defaults={key: value})
-
 
 def test_documented_defaults_normalize_without_rejecting_legacy_extension_keys() -> None:
     config = UserConfig(
@@ -143,13 +133,11 @@ def test_documented_defaults_normalize_without_rejecting_legacy_extension_keys()
     assert config.defaults["episode_planning"] == "planner:model-a"
     assert config.defaults["legacy_extension"] == " preserve exact legacy value "
 
-
 @pytest.mark.parametrize("key", ["ffmpeg_executable", "kitten_model_dir"])
 @pytest.mark.parametrize("value", ["bad\x00path", "bad\npath", "bad\rpath"])
 def test_path_defaults_reject_control_characters(key: str, value: str) -> None:
     with pytest.raises(ValueError, match="single filesystem path"):
         UserConfig(defaults={key: value})
-
 
 def test_settings_accepted_quick_defaults_are_consumable_after_restart(tmp_path) -> None:
     data_dir = tmp_path / "data"
@@ -179,8 +167,6 @@ def test_settings_accepted_quick_defaults_are_consumable_after_restart(tmp_path)
     assert persisted.defaults["network_policy"] == "local-only"
     assert persisted.defaults["diagnostic_logging"] == "verbose"
 
-
-
 def test_multiple_and_encoded_fragment_canaries_redact_without_destroying_context() -> None:
     message = (
         "first=https://one.example/docs#install "
@@ -195,7 +181,6 @@ def test_multiple_and_encoded_fragment_canaries_redact_without_destroying_contex
     assert "two.example/v1#[REDACTED]" in safe
     assert "three.example/v1#[REDACTED]" in safe
     assert "status=401" in safe
-
 
 def test_diagnostic_bundle_redacts_nested_fragment_credentials(tmp_path) -> None:
     secret = "fragment-bundle-canary"
@@ -214,7 +199,6 @@ def test_diagnostic_bundle_redacts_nested_fragment_credentials(tmp_path) -> None
     assert secret.encode() not in payload
     assert b"safe-anchor" in payload
     assert b"[REDACTED]" in payload
-
 
 def test_rejected_fragment_provider_mutation_never_reaches_config_bytes(tmp_path) -> None:
     path = tmp_path / "config.json"

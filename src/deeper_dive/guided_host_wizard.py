@@ -149,16 +149,12 @@ class GuidedHostWizard(GuidedSourceWizard):
         self._remember_host_profile_baseline()
 
     def on_input_changed(self, event: Input.Changed) -> None:
-        if (
-            self.context.state.current_step == "hosts"
-            and event.input.id
-            in {
-                "guided-host-name",
-                "guided-host-role",
-                "guided-host-expertise",
-                "guided-host-instructions",
-            }
-        ):
+        if self.context.state.current_step == "hosts" and event.input.id in {
+            "guided-host-name",
+            "guided-host-role",
+            "guided-host-expertise",
+            "guided-host-instructions",
+        }:
             self._pending_host_form_values = self._host_form_values()
 
     def _host_form_values(self) -> tuple[str, str, str, str, object]:

@@ -29,7 +29,6 @@ _NO_DEFAULT_FFMPEG_NAME_PARTS = (
     "missing_ffmpeg",
 )
 
-
 @pytest.fixture(autouse=True)
 def _default_fake_ffmpeg(
     request: pytest.FixtureRequest,
@@ -103,7 +102,6 @@ def pytest_runtest_teardown(item: object, nextitem: object | None) -> None:
     """Cancel the per-test deadlock guard after normal completion."""
     faulthandler.cancel_dump_traceback_later()
 
-
 @dataclass(frozen=True, slots=True)
 class CompletedEpisodeAcceptance:
     """Production-created identities/artifacts, suitable for CLI and TUI assertions."""
@@ -115,7 +113,6 @@ class CompletedEpisodeAcceptance:
     turn_ids: tuple[str, ...]
     transcript_path: Path
     audio_path: Path
-
 
 @pytest.fixture
 def completed_episode_acceptance(
@@ -203,14 +200,12 @@ def completed_episode_acceptance(
 
     return create
 
-
 @dataclass(frozen=True, slots=True)
 class TwoProjectCompletedAcceptance:
     """Two isolated production-complete episodes sharing the same configured runtime."""
 
     first: CompletedEpisodeAcceptance
     second: CompletedEpisodeAcceptance
-
 
 @pytest.fixture
 def two_project_completed_acceptance(
@@ -228,8 +223,6 @@ def two_project_completed_acceptance(
 
     return create
 
-
-
 @dataclass(frozen=True, slots=True)
 class SecondPostReviewAcceptance:
     """Reusable two-project matrix with one pending generation and byte snapshots."""
@@ -241,7 +234,6 @@ class SecondPostReviewAcceptance:
     config_bytes: bytes
     pending_config_snapshot: bytes
     identity_snapshot: tuple[str, ...]
-
 
 @pytest.fixture
 def second_post_review_acceptance(

@@ -60,7 +60,6 @@ def _fixture(tmp_path: Path):
     )
     return clock, database, repository, service, episode
 
-
 def test_noop_episode_edit_preserves_plan_identity_and_modified_time(tmp_path: Path) -> None:
     _clock, _database, repository, service, episode = _fixture(tmp_path)
     before = repository.get_plan(episode.id)
@@ -74,7 +73,6 @@ def test_noop_episode_edit_preserves_plan_identity_and_modified_time(tmp_path: P
     assert after.id == before.id
     assert after.modified_at == before.modified_at
 
-
 def test_changed_draft_configuration_invalidates_plan_once(tmp_path: Path) -> None:
     _clock, _database, repository, service, episode = _fixture(tmp_path)
     current = service.load_configuration(episode.id)
@@ -84,7 +82,6 @@ def test_changed_draft_configuration_invalidates_plan_once(tmp_path: Path) -> No
     assert result.state == "draft"
     assert service.load_configuration(episode.id).focus == "Changed focus"
     assert repository.get_plan(episode.id) is None
-
 
 def test_configuration_edit_is_frozen_after_generation_run_exists(tmp_path: Path) -> None:
     clock, database, repository, service, episode = _fixture(tmp_path)
@@ -107,7 +104,6 @@ def test_configuration_edit_is_frozen_after_generation_run_exists(tmp_path: Path
     assert service.load_configuration(episode.id) == current
     assert repository.get_plan(episode.id) is not None
 
-
 def test_non_draft_episode_is_never_demoted_by_configuration_edit(tmp_path: Path) -> None:
     _clock, database, repository, service, episode = _fixture(tmp_path)
     with database.transaction() as db:
@@ -128,7 +124,6 @@ def test_non_draft_episode_is_never_demoted_by_configuration_edit(tmp_path: Path
     assert persisted is not None and persisted.state == "completed"
     assert persisted.title == "Episode"
     assert repository.get_plan(episode.id) is not None
-
 
 @pytest.mark.parametrize("run_state", ["running", "paused", "failed", "completed"])
 def test_configuration_change_is_frozen_after_run_even_without_existing_plan(
@@ -161,7 +156,6 @@ def test_configuration_change_is_frozen_after_run_even_without_existing_plan(
         service.edit(episode.id, replace(current, focus="Late configuration drift"))
 
     assert service.load_configuration(episode.id) == current
-
 
 def test_stale_episode_configuration_writer_rejected_with_frozen_clock(tmp_path: Path) -> None:
     _clock, _database, repository, service, episode = _fixture(tmp_path)
@@ -196,8 +190,6 @@ def test_stale_episode_configuration_writer_rejected_with_frozen_clock(tmp_path:
     persisted = repository.get_episode(episode.id)
     assert persisted is not None
     assert persisted.focus == "New durable focus"
-
-
 
 def test_rejected_completed_episode_edit_preserves_historical_artifacts(
     completed_episode_acceptance,
