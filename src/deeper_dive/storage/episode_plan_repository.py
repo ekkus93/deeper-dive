@@ -59,17 +59,17 @@ class EpisodePlanRepository:
         plan: EpisodePlanRecord,
         segments: list[SegmentPlanRecord],
         *,
-        expected_episode_modified_at: str | None = None,
+        expected_episode_config_json: str | None = None,
     ) -> None:
         with self.database.transaction(immediate=True) as db:
-            if expected_episode_modified_at is not None:
+            if expected_episode_config_json is not None:
                 episode = db.execute(
-                    "SELECT modified_at FROM episodes WHERE id=?",
+                    "SELECT config_json FROM episodes WHERE id=?",
                     (plan.episode_id,),
                 ).fetchone()
                 if episode is None:
                     raise KeyError(plan.episode_id)
-                if episode["modified_at"] != expected_episode_modified_at:
+                if episode["config_json"] != expected_episode_config_json:
                     raise ValueError(
                         "episode configuration changed while the plan was being built; "
                         "retry planning"

@@ -71,7 +71,7 @@ class EpisodePlannerService:
         episode = self.repository.get_episode(episode_id)
         if episode is None:
             raise KeyError(episode_id)
-        episode_revision = episode.modified_at
+        episode_revision = episode.config_json
         evidence = self.retrieval.search(episode.project_id, config.focus, limit=12)
         request = {
             "episode": config.snapshot(),
@@ -89,7 +89,7 @@ class EpisodePlannerService:
         segments = self._validate_segments(raw, config.host_ids, {hit.chunk_id for hit in evidence})
         segments = self._bound_duration(segments, config.target_duration_seconds)
         plan = EpisodePlan(str(uuid4()), episode_id, tuple(segments))
-        self._persist(plan, expected_episode_modified_at=episode_revision)
+        self._persist(plan, expected_episode_config_json=episode_revision)
         return plan
 
     def regenerate_plan(self, episode_id: str) -> EpisodePlan:
@@ -165,7 +165,7 @@ class EpisodePlannerService:
         plan: EpisodePlan,
         *,
         status: str = "draft",
-        expected_episode_modified_at: str | None = None,
+        expected_episode_config_json: str | None = None,
     ) -> None:
         timestamp = format_timestamp(self.clock.now())
         record = EpisodePlanRecord(
@@ -191,14 +191,14 @@ class EpisodePlannerService:
         self.plan_repository.replace(
             record,
             segments,
-            expected_episode_modified_at=expected_episode_modified_at,
+            expected_episode_config_json=expected_episode_config_json,
         )
 
     def _episode_revision(self, episode_id: str) -> str:
         episode = self.repository.get_episode(episode_id)
         if episode is None:
             raise KeyError(episode_id)
-        return episode.modified_at
+        return episode.config_json
 
     def _allowed_evidence_ids(self, episode_id: str) -> set[str]:
         episode = self.repository.get_episode(episode_id)

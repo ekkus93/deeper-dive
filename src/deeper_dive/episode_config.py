@@ -82,7 +82,7 @@ class EpisodeConfigurationService:
         self.configuration.update(
             record,
             list(config.host_ids),
-            expected_modified_at=existing.modified_at,
+            expected_config_json=existing.config_json,
         )
         return record
 

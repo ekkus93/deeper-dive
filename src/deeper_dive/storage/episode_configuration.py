@@ -18,7 +18,7 @@ class EpisodeConfigurationRepository:
         episode: EpisodeRecord,
         host_ids: list[str],
         *,
-        expected_modified_at: str,
+        expected_config_json: str,
     ) -> None:
         with self.database.transaction(immediate=True) as db:
             for table in ("generation_runs", "conversation_states", "conversation_turns"):
@@ -39,7 +39,7 @@ class EpisodeConfigurationRepository:
             cursor = db.execute(
                 """UPDATE episodes SET title=?,focus=?,audience=?,technical_depth=?,
                 target_duration_seconds=?,style=?,state=?,config_json=?,modified_at=?
-                WHERE id=? AND project_id=? AND modified_at=? AND state='draft'""",
+                WHERE id=? AND project_id=? AND config_json=? AND state='draft'""",
                 (
                     episode.title,
                     episode.focus,
@@ -52,7 +52,7 @@ class EpisodeConfigurationRepository:
                     episode.modified_at,
                     episode.id,
                     episode.project_id,
-                    expected_modified_at,
+                    expected_config_json,
                 ),
             )
             if cursor.rowcount != 1:
