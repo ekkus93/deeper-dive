@@ -11,6 +11,7 @@ from deeper_dive.guided_app import GuidedDeeperDiveApp
 from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
 from deeper_dive.guided_workflow import WizardKind, WizardState
 from deeper_dive.hosts import HostProfile
+from deeper_dive.storage.database import Database
 from deeper_dive.storage.workspace import WorkspaceManager
 
 
@@ -24,11 +25,7 @@ def _episode_fixture(
     for host_id, name in zip(host_ids, ("Host One", "Host Two"), strict=True):
         repository.create_host(HostProfile(host_id, project.id, name).to_record())
     configs = EpisodeConfigurationService(
-        service.database_for_project(project.id)
-        if hasattr(service, "database_for_project")
-        else __import__(
-            "deeper_dive.storage.database", fromlist=["Database"]
-        ).Database(service.workspaces.project_root(project.id) / "project.db")
+        Database(service.workspaces.project_root(project.id) / "project.db")
     )
     episode = configs.create(
         project.id,

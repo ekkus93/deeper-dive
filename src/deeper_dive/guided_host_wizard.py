@@ -144,9 +144,7 @@ class GuidedHostWizard(GuidedSourceWizard):
         baseline = self._form_baselines.get("hosts")
         if baseline is None:
             return bool(current)
-        durable_profile = tuple(
-            item for item in baseline if item[0] != "__episode_host_order__"
-        )
+        durable_profile = tuple(item for item in baseline if item[0] != "__episode_host_order__")
         return current != durable_profile
 
     def _remember_host_profile_baseline(self) -> None:
