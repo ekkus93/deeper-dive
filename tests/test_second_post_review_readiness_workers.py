@@ -2,9 +2,59 @@ from __future__ import annotations
 
 import time
 from threading import Event
+from types import SimpleNamespace
+from typing import cast
 
-from deeper_dive.guided_async_readiness import FirstRunReadinessCoordinator
-from tests.test_post_review_async_readiness import _ImmediateApp, _context, _snapshot, _wait
+from deeper_dive.first_run import FirstRunSystemCheck
+from deeper_dive.guided_async_readiness import (
+    FirstRunReadinessCoordinator,
+    FirstRunRuntimeSnapshot,
+)
+from deeper_dive.guided_readiness import FirstRunDerivedReadiness
+from deeper_dive.guided_workflow import WizardContext
+
+
+class _ImmediateApp:
+    def post_message(self, message):
+        message.run()
+        return True
+
+
+def _snapshot(*, setup_ready: bool) -> FirstRunRuntimeSnapshot:
+    return FirstRunRuntimeSnapshot(
+        FirstRunDerivedReadiness(
+            llm_provider_ready=setup_ready,
+            model_roles_ready=setup_ready,
+            speech_choice_made=True,
+            speech_deferred=True,
+            audio_ready=False,
+            ffmpeg_available=True,
+            kitten_available=True,
+            defaults_ready=setup_ready,
+        ),
+        FirstRunSystemCheck(
+            python_runtime="Python test",
+            ffmpeg_available=True,
+            kitten_available=True,
+            ollama_reachable=False,
+            llama_server_reachable=False,
+            diagnostics=(),
+        ),
+    )
+
+
+def _context() -> WizardContext:
+    state = SimpleNamespace(current_step="provider-config")
+    return cast(WizardContext, SimpleNamespace(state=state, composition=SimpleNamespace()))
+
+
+def _wait(predicate, timeout: float = 1.0) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return
+        time.sleep(0.005)
+    raise AssertionError("condition did not become true")
 
 
 def test_repeated_timeouts_never_exceed_readiness_worker_budget() -> None:
