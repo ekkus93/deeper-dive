@@ -72,7 +72,5 @@ async def _check_research_hydration(tmp_path: Path, global_mode: str) -> None:
         assert screen.context.project_id == project_id
         assert screen.context.state.current_step == "research"
         assert screen.query_one("#guided-research-policy", Select).value == selected
-        policy_store = ResearchPolicyStore(
-            restarted.composition.database_for_project(project_id)
-        )
+        policy_store = ResearchPolicyStore(restarted.composition.database_for_project(project_id))
         assert policy_store.project(project_id).mode.value == selected
