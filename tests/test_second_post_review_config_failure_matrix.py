@@ -149,10 +149,13 @@ def test_same_key_writers_conflict_without_silent_last_writer_wins(tmp_path: Pat
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         results = [
-            executor.submit(independent_writer, "off"),
             executor.submit(independent_writer, "useful"),
+            executor.submit(independent_writer, "aggressive"),
         ]
         assert sorted(result.result() for result in results) == ["conflict", "saved"]
 
-    assert UserConfigStore(path).load().defaults["research_policy"] in {"off", "useful"}
+    assert UserConfigStore(path).load().defaults["research_policy"] in {
+        "useful",
+        "aggressive",
+    }
     assert list(tmp_path.glob(".config.json.*.tmp")) == []
