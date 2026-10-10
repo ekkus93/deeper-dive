@@ -5,7 +5,13 @@ import os
 
 import pytest
 
-from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigError, UserConfigStore
+from deeper_dive.user_config import (
+    ProviderConfig,
+    UserConfig,
+    UserConfigConflictError,
+    UserConfigError,
+    UserConfigStore,
+)
 
 
 def test_user_config_round_trip_is_separate_and_versioned(tmp_path) -> None:
@@ -53,3 +59,19 @@ def test_invalid_persisted_config_fails_before_provider_use(tmp_path) -> None:
 def test_unknown_or_secret_like_fields_are_rejected() -> None:
     with pytest.raises(ValueError):
         ProviderConfig.model_validate({"provider_type": "openai", "api_key": "secret"})
+
+
+def test_first_time_writer_does_not_overwrite_concurrent_creation(tmp_path) -> None:
+    path = tmp_path / "user" / "config.json"
+    first = UserConfigStore(path).load()
+    second = UserConfigStore(path).load()
+    first.defaults["research_policy"] = "off"
+    second.defaults["research_policy"] = "useful"
+
+    UserConfigStore(path).save(first)
+    original = path.read_bytes()
+    with pytest.raises(UserConfigConflictError, match="reload and retry"):
+        UserConfigStore(path).save(second)
+
+    assert path.read_bytes() == original
+    assert UserConfigStore(path).load().defaults["research_policy"] == "off"
