@@ -11,6 +11,7 @@ from deeper_dive.domain.clock import FrozenClock, format_timestamp
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.hosts import HostProfile
 from deeper_dive.storage.database import Database
+from deeper_dive.storage.episode_configuration import EpisodeConfigurationRepository
 from deeper_dive.storage.episode_repositories import (
     EpisodePlanRecord,
     HostEpisodeRepository,
@@ -160,3 +161,39 @@ def test_configuration_change_is_frozen_after_run_even_without_existing_plan(
         service.edit(episode.id, replace(current, focus="Late configuration drift"))
 
     assert service.load_configuration(episode.id) == current
+
+
+
+def test_stale_episode_configuration_writer_rejected_with_frozen_clock(tmp_path: Path) -> None:
+    _clock, _database, repository, service, episode = _fixture(tmp_path)
+    stale_record = repository.get_episode(episode.id)
+    assert stale_record is not None
+    current = service.load_configuration(episode.id)
+
+    service.edit(episode.id, replace(current, focus="New durable focus"))
+    durable = repository.get_episode(episode.id)
+    assert durable is not None
+    # Frozen clocks intentionally make timestamps equal; content CAS still detects drift.
+    assert durable.modified_at == stale_record.modified_at
+
+    stale_candidate = replace(
+        stale_record,
+        focus="Stale writer focus",
+        config_json=service._record(
+            stale_record.id,
+            stale_record.project_id,
+            stale_record.created_at,
+            stale_record.modified_at,
+            replace(current, focus="Stale writer focus"),
+        ).config_json,
+    )
+    with pytest.raises(ValueError, match="changed concurrently"):
+        EpisodeConfigurationRepository(_database).update(
+            stale_candidate,
+            list(current.host_ids),
+            expected_config_json=stale_record.config_json,
+        )
+
+    persisted = repository.get_episode(episode.id)
+    assert persisted is not None
+    assert persisted.focus == "New durable focus"

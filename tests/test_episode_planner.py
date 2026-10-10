@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -219,3 +220,27 @@ def test_infeasible_segment_count_is_rejected_before_persistence(tmp_path):
     with pytest.raises(ValueError, match="one second per segment"):
         service.regenerate_plan(episode_id)
     assert service.load_plan(episode_id) == original
+
+
+
+def test_plan_persistence_rejects_configuration_changed_during_provider_call(tmp_path) -> None:
+    service, episode_id, fake = _service(tmp_path)
+    configurations = EpisodeConfigurationService(service.database, clock=service.clock)
+    original = configurations.load_configuration(episode_id)
+    real_generate = fake.generate_plan
+
+    def mutate_then_generate(request):
+        configurations.edit(
+            episode_id,
+            replace(original, focus="Configuration changed while provider was running"),
+        )
+        return real_generate(request)
+
+    fake.generate_plan = mutate_then_generate
+
+    with pytest.raises(ValueError, match="configuration changed while the plan was being built"):
+        service.build_plan(episode_id)
+
+    assert configurations.load_configuration(episode_id).focus.startswith("Configuration changed")
+    with pytest.raises(KeyError):
+        service.load_plan(episode_id)
