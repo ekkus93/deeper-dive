@@ -75,6 +75,7 @@ def test_mutated_invalid_default_cannot_bypass_validation_at_save(tmp_path) -> N
         "https://example.test/v1#ACCESS_TOKEN=fragment-secret",
         "https://example.test/v1#%61ccess_token%3Dfragment-secret",
         "http://[::1]:8080/v1#section",
+        "https://example.test/v1#",
     ],
 )
 def test_provider_base_url_rejects_fragments_without_echo(url: str) -> None:

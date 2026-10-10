@@ -109,7 +109,9 @@ class ProviderConfig(BaseModel):
             raise ValueError("base_url must include a valid HTTP(S) host")
         if parsed.username is not None or parsed.password is not None or "@" in parsed.netloc:
             raise ValueError("base_url must not contain credentials in URL userinfo")
-        if parsed.fragment:
+        # An empty trailing fragment delimiter is still a fragment and should
+        # never be persisted as part of a provider endpoint.
+        if "#" in value:
             raise ValueError("base_url must not contain URL fragments")
         sensitive = {
             "api_key",
