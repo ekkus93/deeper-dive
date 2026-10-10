@@ -107,6 +107,12 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
 
     def action_navigate(self, destination: str) -> None:
         screen = self.screen
+        # Button events can be delivered around a synchronous screen push. Once
+        # Resume has already installed the saved New Deep Dive wizard, treating a
+        # duplicate resume as another external navigation would make the new
+        # screen guard itself and can race its composition.
+        if destination == "resume" and screen is self.get_screen("new"):
+            return
         if isinstance(screen, WizardShell) and screen.request_external_navigation(destination):
             return
         # Guard the navigation boundary, not just one Home button: global nav,
