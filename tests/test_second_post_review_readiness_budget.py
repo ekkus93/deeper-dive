@@ -155,3 +155,31 @@ def test_new_fingerprints_cannot_spawn_unbounded_blocked_workers() -> None:
     finally:
         release.set()
         coordinator.close()
+
+
+def test_app_close_suppresses_inflight_result_and_callback() -> None:
+    app = _RecordingApp()
+    started = Event()
+    release = Event()
+    callbacks: list[str] = []
+
+    def blocked_probe() -> FirstRunRuntimeSnapshot:
+        started.set()
+        assert release.wait(3), "probe release was never signaled"
+        return _snapshot()
+
+    coordinator = FirstRunReadinessCoordinator(
+        _context(), probe=blocked_probe, fingerprint=lambda: "closing", timeout_seconds=5
+    )
+    try:
+        assert coordinator.request(app, lambda: callbacks.append("unexpected"))
+        assert started.wait(3)
+        coordinator.close()
+        assert coordinator.timeout_timer_count == 0
+        release.set()
+        app.deliver()
+        assert callbacks == []
+        assert coordinator.view.state == "failed"
+    finally:
+        release.set()
+        coordinator.close()
