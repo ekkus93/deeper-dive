@@ -73,9 +73,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
                     )
             if not invoked and title:
                 return WizardSaveResult.from_bool(self.action_add_pasted_source())
-            return WizardSaveResult(
-                WizardSaveOutcome.SAVED if invoked else WizardSaveOutcome.NOOP
-            )
+            return WizardSaveResult(WizardSaveOutcome.SAVED if invoked else WizardSaveOutcome.NOOP)
         if step == "research":
             return WizardSaveResult.from_bool(self.action_save_research())
         if step == "hosts":
@@ -92,9 +90,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             if order_dirty:
                 if not self.action_save_host_order():
                     return WizardSaveResult(
-                        WizardSaveOutcome.PARTIAL
-                        if profile_saved
-                        else WizardSaveOutcome.FAILED,
+                        WizardSaveOutcome.PARTIAL if profile_saved else WizardSaveOutcome.FAILED,
                         "Host profile changes were saved, but episode host membership/order "
                         "was not. The remaining order edit is still pending; retry or discard it."
                         if profile_saved

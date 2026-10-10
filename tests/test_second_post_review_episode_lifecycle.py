@@ -163,7 +163,6 @@ def test_configuration_change_is_frozen_after_run_even_without_existing_plan(
     assert service.load_configuration(episode.id) == current
 
 
-
 def test_stale_episode_configuration_writer_rejected_with_frozen_clock(tmp_path: Path) -> None:
     _clock, _database, repository, service, episode = _fixture(tmp_path)
     stale_record = repository.get_episode(episode.id)

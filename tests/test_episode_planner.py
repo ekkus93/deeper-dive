@@ -222,7 +222,6 @@ def test_infeasible_segment_count_is_rejected_before_persistence(tmp_path):
     assert service.load_plan(episode_id) == original
 
 
-
 def test_plan_persistence_rejects_configuration_changed_during_provider_call(tmp_path) -> None:
     service, episode_id, fake = _service(tmp_path)
     configurations = EpisodeConfigurationService(service.database, clock=service.clock)

@@ -104,7 +104,6 @@ def test_benign_diagnostic_url_fragment_is_preserved() -> None:
     assert redact(message) == message
 
 
-
 @pytest.mark.parametrize(
     ("key", "value"),
     [
@@ -155,9 +154,7 @@ def test_path_defaults_reject_control_characters(key: str, value: str) -> None:
 def test_settings_accepted_quick_defaults_are_consumable_after_restart(tmp_path) -> None:
     data_dir = tmp_path / "data"
     store = UserConfigStore(data_dir / "config.json")
-    controller = SettingsController(
-        ProviderController(store, LLMProviderRegistry(), {})
-    )
+    controller = SettingsController(ProviderController(store, LLMProviderRegistry(), {}))
     controller.save_research_defaults("useful", "local-only")
     controller.save_quick_deep_dive_defaults(
         "25",

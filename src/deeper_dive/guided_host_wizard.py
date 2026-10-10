@@ -119,8 +119,7 @@ class GuidedHostWizard(GuidedSourceWizard):
     def on_select_changed(self, event: Select.Changed) -> None:
         super().on_select_changed(event)
         if event.select.id == "guided-host-preset":
-            if self._host_picker_matches_loaded():
-                self._pending_host_form_values = self._host_form_values()
+            self._pending_host_form_values = self._host_form_values()
             return
         if event.select.id != "guided-host-picker":
             return
@@ -159,15 +158,8 @@ class GuidedHostWizard(GuidedSourceWizard):
                 "guided-host-expertise",
                 "guided-host-instructions",
             }
-            and self._host_picker_matches_loaded()
         ):
             self._pending_host_form_values = self._host_form_values()
-
-    def _host_picker_matches_loaded(self) -> bool:
-        if self._loaded_host_id is None:
-            return False
-        value = self.query_one("#guided-host-picker", Select).value
-        return isinstance(value, str) and value == self._loaded_host_id
 
     def _host_form_values(self) -> tuple[str, str, str, str, object]:
         return (

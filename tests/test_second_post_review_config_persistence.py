@@ -205,7 +205,6 @@ def test_lock_symlink_is_not_followed_on_posix(tmp_path: Path) -> None:
     assert target.read_text(encoding="utf-8") == "lock-canary"
 
 
-
 def test_temp_creation_failure_preserves_previous_bytes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

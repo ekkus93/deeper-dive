@@ -177,8 +177,7 @@ class UserConfig(BaseModel):
             value = network.strip().lower().replace("_", "-").replace(" ", "-")
             if value and value not in _NETWORK_POLICIES:
                 raise ValueError(
-                    "network_policy must be one of: "
-                    + ", ".join(sorted(_NETWORK_POLICIES))
+                    "network_policy must be one of: " + ", ".join(sorted(_NETWORK_POLICIES))
                 )
             normalized["network_policy"] = value
 
@@ -187,8 +186,7 @@ class UserConfig(BaseModel):
             value = diagnostic.strip().lower()
             if value and value not in _DIAGNOSTIC_LOGGING:
                 raise ValueError(
-                    "diagnostic_logging must be one of: "
-                    + ", ".join(sorted(_DIAGNOSTIC_LOGGING))
+                    "diagnostic_logging must be one of: " + ", ".join(sorted(_DIAGNOSTIC_LOGGING))
                 )
             normalized["diagnostic_logging"] = value
 
@@ -196,9 +194,7 @@ class UserConfig(BaseModel):
         if speech_setup is not None:
             value = speech_setup.strip().lower()
             if value and value not in _SPEECH_SETUP:
-                raise ValueError(
-                    "speech_setup must be configured or deferred"
-                )
+                raise ValueError("speech_setup must be configured or deferred")
             normalized["speech_setup"] = value
 
         for key in _PATH_DEFAULTS:
