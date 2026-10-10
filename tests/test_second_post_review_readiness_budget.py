@@ -141,8 +141,11 @@ def test_new_fingerprints_cannot_spawn_unbounded_blocked_workers() -> None:
         assert coordinator.request(app)
         started.get(timeout=3)
         fingerprint[0] = "newest"
+        assert not coordinator.request(app)
+        rejected_generation = coordinator.view.generation
         for _ in range(100):
             assert not coordinator.request(app)
+        assert coordinator.view.generation == rejected_generation
         assert calls == [1, 1]
         assert coordinator.active_worker_count == 2
         assert coordinator.queued_worker_count == 0
