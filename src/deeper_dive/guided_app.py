@@ -88,6 +88,17 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
         event.run()
 
     def action_navigate(self, destination: str) -> None:
+        # Guard the navigation boundary, not just one Home button: global nav,
+        # shortcuts, and bubbled button events must not replace a saved flow.
+        if destination == "new":
+            home = self.get_screen("home")
+            if (
+                self.screen is home
+                and isinstance(home, GuidedHomeProjectsScreen)
+                and self._draft_store.has_resume(self.composition)
+            ):
+                home.action_request_abandon(start_new=True)
+                return
         if destination == "setup":
             self.push_screen("setup")
         elif destination in {"new", "resume"}:
