@@ -209,3 +209,49 @@ async def _host_order_move_then_undo_returns_to_clean(tmp_path: Path) -> None:
         wizard._move_selected_host(1)
         assert wizard._selected_host_ids == list(host_ids)
         assert not wizard._current_form_dirty()
+
+
+def test_dirty_host_profile_blocks_picker_reselection_until_discard(tmp_path: Path) -> None:
+    asyncio.run(_dirty_host_profile_blocks_picker_reselection_until_discard(tmp_path))
+
+
+async def _dirty_host_profile_blocks_picker_reselection_until_discard(tmp_path: Path) -> None:
+    service, project_id, episode_id, host_ids = _episode_fixture(tmp_path)
+    repository = service.hosts(project_id)
+    first = repository.get_host(host_ids[0])
+    second = repository.get_host(host_ids[1])
+    assert first is not None and second is not None
+    repository.update_host(
+        HostProfile.from_record(first).to_record()
+    )
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project_id
+        wizard.context.episode_id = episode_id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "hosts")
+        wizard._load_episode_host_order()
+        wizard._refresh_hosts(host_ids[0])
+        wizard._toggle()
+        wizard._remember_current_form()
+
+        changed = "Unsaved instructions stay visible"
+        wizard.query_one("#guided-host-instructions", Input).value = changed
+        picker = wizard.query_one("#guided-host-picker", Select)
+        picker.value = host_ids[1]
+        await pilot.pause()
+
+        assert picker.value == host_ids[0]
+        assert wizard.query_one("#guided-host-instructions", Input).value == changed
+        assert wizard.query_one("#wizard-exit-confirmation").display
+
+        wizard.action_confirm_discard_exit()
+        await pilot.pause()
+        assert picker.value == host_ids[1]
+        assert wizard.query_one("#guided-host-instructions", Input).value == second.instructions
+        durable_first = repository.get_host(host_ids[0])
+        assert durable_first is not None
+        assert durable_first.instructions != changed
