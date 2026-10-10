@@ -7,7 +7,7 @@ import os
 import re
 import tempfile
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from hashlib import sha256
 from pathlib import Path
 from threading import Lock, RLock
@@ -393,10 +393,8 @@ class UserConfigStore:
         A cleanup failure cannot undo a failed write; callers retain the original
         failure so it can be diagnosed instead of reporting a misleading unlink.
         """
-        try:
+        with suppress(OSError):
             temporary.unlink(missing_ok=True)
-        except OSError:
-            pass
 
     def _current_revision(self) -> str | None:
         if not self.path.exists():
