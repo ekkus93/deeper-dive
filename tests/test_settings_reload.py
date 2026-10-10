@@ -21,6 +21,8 @@ def _provider_controller(path: Path) -> ProviderController:
 def test_settings_reload_from_durable_store_after_controller_reconstruction(tmp_path: Path) -> None:
     path = tmp_path / "config.json"
     first = SettingsController(_provider_controller(path))
+    first.provider_controller.save_provider("fake", "fake", default_model="fake-v1")
+    first.provider_controller.save_provider("fake-tts", "fake-tts", voices=("voice-a",))
     first.save_model_default("episode_planning", "fake:fake-v1")
     first.save_tts_defaults("fake-tts", "voice-a")
     first.save_research_defaults("useful", "local-only")
