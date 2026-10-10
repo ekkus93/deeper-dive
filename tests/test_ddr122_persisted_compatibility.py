@@ -9,7 +9,7 @@ from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.provider_factory import ProviderConfigurationError, ProviderFactory
 from deeper_dive.storage.workspace import WorkspaceManager
-from deeper_dive.user_config import UserConfigStore
+from deeper_dive.user_config import UserConfigError, UserConfigStore
 
 
 def test_existing_project_and_episode_reload_from_persisted_workspace(tmp_path: Path) -> None:
@@ -84,7 +84,6 @@ def test_ambiguous_legacy_provider_type_has_actionable_upgrade_guidance(
     assert legacy_type in message
 
 
-
 def test_loaded_legacy_model_role_can_be_preserved_but_not_mutated_to_new_legacy_form(
     tmp_path: Path,
 ) -> None:
@@ -112,6 +111,5 @@ def test_loaded_legacy_model_role_can_be_preserved_but_not_mutated_to_new_legacy
 
     mutated = store.load()
     mutated.defaults["host_generation"] = "different-legacy-provider"
-    with pytest.raises(ValueError, match="provider:model"):
-        # Direct model validation remains strict for a changed legacy-shaped value.
-        type(mutated).model_validate(mutated.model_dump(mode="python"))
+    with pytest.raises(UserConfigError, match="defaults"):
+        store.save(mutated)

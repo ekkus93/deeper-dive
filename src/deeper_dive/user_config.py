@@ -237,9 +237,7 @@ class UserConfig(BaseModel):
             if value:
                 provider, separator, model = value.partition(":")
                 if not separator:
-                    if legacy_roles.get(key) == value and re.fullmatch(
-                        r"[A-Za-z0-9_.-]+", value
-                    ):
+                    if legacy_roles.get(key) == value and re.fullmatch(r"[A-Za-z0-9_.-]+", value):
                         normalized[key] = value
                         continue
                     raise ValueError(f"{key} must use non-empty provider:model")
@@ -322,9 +320,7 @@ class UserConfigStore:
         try:
             validated = UserConfig.model_validate(
                 config.model_dump(mode="python"),
-                context={
-                    "legacy_model_role_defaults": dict(config._legacy_model_role_defaults)
-                },
+                context={"legacy_model_role_defaults": dict(config._legacy_model_role_defaults)},
             )
         except ValidationError as exc:
             location = ", ".join(

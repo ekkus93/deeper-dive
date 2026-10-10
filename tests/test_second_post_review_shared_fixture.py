@@ -33,7 +33,13 @@ def test_two_project_completed_acceptance_fixture_is_fully_isolated(
     second_title, second_hosts = _configuration(second)
     assert first_title == second_title == "Quick Deep Dive"
     assert first_hosts and second_hosts
-    assert set(first_hosts).isdisjoint(second_hosts)
+    # Host IDs are scoped by separate project databases and may intentionally
+    # repeat. Isolation is proven by ownership plus distinct workspace/artifact IDs.
+    for completed, host_ids in ((first, first_hosts), (second, second_hosts)):
+        repository = completed.service.hosts(completed.project_id)
+        for host_id in host_ids:
+            record = repository.get_host(host_id)
+            assert record is not None and record.project_id == completed.project_id
 
     for completed in (first, second):
         project_root = completed.service.workspaces.project_root(completed.project_id)
