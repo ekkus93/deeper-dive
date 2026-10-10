@@ -316,3 +316,36 @@ async def _first_run_save_exit_resumes_durable_partial_provider_setup(tmp_path: 
         assert not screen._current_form_dirty()
         screen.action_continue()
         assert screen.context.state.current_step == "model-test"
+
+
+def test_first_run_refresh_does_not_restore_deliberately_cleared_fields(tmp_path: Path) -> None:
+    asyncio.run(_first_run_refresh_preserves_dirty_blanks(tmp_path))
+
+
+async def _first_run_refresh_preserves_dirty_blanks(tmp_path: Path) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 30)) as pilot:
+        screen = app.screen
+        assert isinstance(screen, GuidedFirstRunWizard)
+        screen.action_continue()
+        screen.action_continue()
+        screen.action_continue()
+        await pilot.pause()
+        assert screen.context.state.current_step == "provider-config"
+        name = screen.query_one("#setup-provider-name", Input)
+        assert name.value == "ollama"
+        name.value = ""
+        assert screen._current_form_dirty()
+        screen._sync_setup_controls()
+        assert name.value == ""
+
+        screen.context.state = screen.context.state.moved_to("speech")
+        screen._sync_setup_controls()
+        screen._remember_current_form()
+        speech_name = screen.query_one("#setup-speech-name", Input)
+        assert speech_name.value == "speech"
+        speech_name.value = ""
+        assert screen._current_form_dirty()
+        screen._sync_setup_controls()
+        assert speech_name.value == ""

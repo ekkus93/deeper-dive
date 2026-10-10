@@ -777,7 +777,10 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             self.query_one(selector).display = selector in shown
 
         if step == "provider-config":
-            self._apply_llm_choice_defaults(force=False)
+            # Refreshing controls must not refill a field deliberately cleared
+            # by the user. Initial entry still applies the selected preset.
+            if step not in self._form_baselines or not self._current_form_dirty():
+                self._apply_llm_choice_defaults(force=False)
             manual = self._select_value("#setup-ai-choice") == "manual"
             self.query_one("#setup-provider-adapter", Input).display = manual
             adapter = self._selected_llm_adapter()
@@ -810,7 +813,10 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             ):
                 self.query_one(selector).display = advanced
         if step == "speech":
-            self._apply_speech_choice_defaults(force=False)
+            # Refreshing controls must not refill a field deliberately cleared
+            # by the user. Initial entry still applies the selected preset.
+            if step not in self._form_baselines or not self._current_form_dirty():
+                self._apply_speech_choice_defaults(force=False)
             choice = self._select_value("#setup-speech-choice")
             custom = choice == "advanced"
             deferred = choice == "deferred"
