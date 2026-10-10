@@ -43,9 +43,10 @@ def test_two_project_completed_acceptance_fixture_is_fully_isolated(
 
     for completed in (first, second):
         project_root = completed.service.workspaces.project_root(completed.project_id)
-        assert completed.transcript_path.is_relative_to(project_root / "output")
-        assert completed.audio_path.is_relative_to(project_root / "output")
-        assert Path(completed.transcript_path).name.startswith(completed.episode_id)
+        assert completed.transcript_path.is_relative_to(project_root / "exports")
+        assert completed.audio_path.is_relative_to(project_root / "exports")
+        assert completed.episode_id in Path(completed.transcript_path).name
+        assert completed.episode_id in Path(completed.audio_path).name
 
 
 def test_second_post_review_acceptance_fixture_includes_pending_run_and_snapshots(

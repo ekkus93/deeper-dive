@@ -344,6 +344,10 @@ class GuidedHostWizard(GuidedSourceWizard):
             if host_id not in self._selected_host_ids:
                 self._selected_host_ids.append(host_id)
         self._refresh_hosts(created[0] if created else None)
+        # The refresh above loads a just-persisted host profile synchronously.
+        # Record only that durable profile baseline; host membership/order remains
+        # dirty until action_save_host_order() succeeds.
+        self._remember_host_profile_baseline()
         self.set_status("Created/selected the recommended Curious Explainer and Skeptic pair.")
 
     def action_create_host(self) -> bool:
