@@ -201,7 +201,7 @@ This is the **only completion checklist for the second post-review cycle**. The 
 | SPR-01/02 wizard and host edits | Pending | Pending | Pending | Open |
 | SPR-03 readiness workers | Pending | Pending | Pending | Open |
 | SPR-04/05/06 settings, persistence and URL security | Pending | Pending | Pending | Open |
-| SPR-07 episode lifecycle | Pending | Pending | Pending | Open |
+| SPR-07 episode lifecycle | `4c56332737cb00e97ac5f3d96c1dc826fee2839f`, `8b04f819c42ecde2235ef78d7b819d0f79302076` (regression tests) | `tests/test_second_post_review_episode_lifecycle.py`: no-op plan/segment identity, draft plan invalidation/isolation, non-draft state preservation (7 cases) | [CI #2453](https://github.com/ekkus93/deeper-dive/actions/runs/38035568941), `8b04f819c42ecde2235ef78d7b819d0f79302076`, quality job `114165154083` (1,152 passed), fresh-machine job `114165153972` (passed) | Partial; lifecycle policy, race and cross-surface acceptance still open |
 | SPR-800/900 regression and independent audit | Pending | Pending | Pending | Open |
 | SPR-910 final reconciliation | Pending | Pending | Pending | Open |
 
