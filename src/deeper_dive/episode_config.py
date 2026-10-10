@@ -10,6 +10,7 @@ from deeper_dive.domain.clock import Clock, SystemClock, format_timestamp
 from deeper_dive.domain.ids import new_episode_id
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_configuration import EpisodeConfigurationRepository
+from deeper_dive.storage.episode_plan_repository import EpisodePlanRepository
 from deeper_dive.storage.episode_repositories import EpisodeRecord, HostEpisodeRepository
 
 
@@ -62,12 +63,21 @@ class EpisodeConfigurationService:
         if existing is None:
             raise KeyError(episode_id)
         self._validate_hosts(existing.project_id, config)
+        current = self.load_configuration(episode_id)
+        if current.snapshot() == config.snapshot():
+            return existing
+        if existing.state != "draft":
+            raise ValueError(
+                "episode configuration is frozen after generation starts; create a new episode"
+            )
+        EpisodePlanRepository(self.database).require_editable(episode_id)
         record = self._record(
             existing.id,
             existing.project_id,
             existing.created_at,
             format_timestamp(self.clock.now()),
             config,
+            state=existing.state,
         )
         self.configuration.update(record, list(config.host_ids))
         return record
@@ -106,6 +116,8 @@ class EpisodeConfigurationService:
         created_at: str,
         modified_at: str,
         config: EpisodeConfiguration,
+        *,
+        state: str = "draft",
     ) -> EpisodeRecord:
         snapshot = config.snapshot()
         return EpisodeRecord(
@@ -117,7 +129,7 @@ class EpisodeConfigurationService:
             technical_depth=config.technical_depth,
             target_duration_seconds=config.target_duration_seconds,
             style=config.style,
-            state="draft",
+            state=state,
             config_json=json.dumps(snapshot, sort_keys=True),
             created_at=created_at,
             modified_at=modified_at,
