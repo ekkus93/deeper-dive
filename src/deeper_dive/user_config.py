@@ -135,9 +135,7 @@ class UserConfig(BaseModel):
                         "quick_deep_dive_duration_minutes must be a positive integer"
                     ) from None
                 if minutes <= 0:
-                    raise ValueError(
-                        "quick_deep_dive_duration_minutes must be a positive integer"
-                    )
+                    raise ValueError("quick_deep_dive_duration_minutes must be a positive integer")
             normalized["quick_deep_dive_duration_minutes"] = value
 
         presets = normalized.get("quick_deep_dive_host_presets")
