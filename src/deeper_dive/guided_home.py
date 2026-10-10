@@ -21,15 +21,20 @@ class GuidedHomeProjectsScreen(HomeProjectsScreen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         action = event.button.name
         if action == "new" and self._has_resume():
+            # Prevent the same bubbling press from also reaching global navigation.
+            event.stop()
             self.action_request_abandon(start_new=True)
             return
         if action == "request-abandon":
+            event.stop()
             self.action_request_abandon(start_new=False)
             return
         if action == "confirm-abandon":
+            event.stop()
             self.action_confirm_abandon()
             return
         if action == "cancel-abandon":
+            event.stop()
             self.action_cancel_abandon()
             return
         super().on_button_pressed(event)
