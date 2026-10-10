@@ -86,9 +86,7 @@ def test_provider_and_settings_controller_race_is_detected_and_recoverable(
     path = tmp_path / "config.json"
     UserConfigStore(path).save(UserConfig())
     barrier = Barrier(2)
-    provider = ProviderController(
-        _SynchronizedStore(path, barrier), LLMProviderRegistry(), {}
-    )
+    provider = ProviderController(_SynchronizedStore(path, barrier), LLMProviderRegistry(), {})
     settings = SettingsController(
         ProviderController(_SynchronizedStore(path, barrier), LLMProviderRegistry(), {})
     )
@@ -115,13 +113,11 @@ def test_provider_and_settings_controller_race_is_detected_and_recoverable(
 
     assert sorted((provider_result, settings_result)) == ["conflict", "saved"]
     intermediate = UserConfigStore(path).load()
-    assert ("fake-llm" in intermediate.providers) != (
-        "local_only" in intermediate.defaults
-    )
+    assert ("fake-llm" in intermediate.providers) != ("local_only" in intermediate.defaults)
     if provider_result == "conflict":
-        ProviderController(
-            UserConfigStore(path), LLMProviderRegistry(), {}
-        ).save_provider("fake-llm", "fake", default_model="fake-model")
+        ProviderController(UserConfigStore(path), LLMProviderRegistry(), {}).save_provider(
+            "fake-llm", "fake", default_model="fake-model"
+        )
     else:
         SettingsController(
             ProviderController(UserConfigStore(path), LLMProviderRegistry(), {})
