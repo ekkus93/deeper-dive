@@ -82,3 +82,36 @@ def test_ambiguous_legacy_provider_type_has_actionable_upgrade_guidance(
     assert "ambiguous" in message
     assert "concrete adapter type" in message
     assert legacy_type in message
+
+
+
+def test_loaded_legacy_model_role_can_be_preserved_but_not_mutated_to_new_legacy_form(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "config.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "providers": {
+                    "planner": {
+                        "provider_type": "fake",
+                        "default_model": "fake-v1",
+                    }
+                },
+                "defaults": {"host_generation": "planner"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    store = UserConfigStore(path)
+    config = store.load()
+    config.defaults["research_policy"] = "useful"
+    store.save(config)
+    assert store.load().defaults["host_generation"] == "planner"
+
+    mutated = store.load()
+    mutated.defaults["host_generation"] = "different-legacy-provider"
+    with pytest.raises(ValueError, match="provider:model"):
+        # Direct model validation remains strict for a changed legacy-shaped value.
+        type(mutated).model_validate(mutated.model_dump(mode="python"))

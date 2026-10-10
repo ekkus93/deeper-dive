@@ -14,7 +14,15 @@ from threading import Lock, RLock
 from typing import IO, Literal
 from urllib.parse import parse_qsl, urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    ValidationError,
+    ValidationInfo,
+    field_validator,
+)
 
 try:
     import fcntl
@@ -125,14 +133,23 @@ class UserConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
 
     _revision: str | None = PrivateAttr(default=None)
+    _legacy_model_role_defaults: dict[str, str] = PrivateAttr(default_factory=dict)
     schema_version: int = CURRENT_CONFIG_VERSION
     providers: dict[str, ProviderConfig] = Field(default_factory=dict)
     defaults: dict[str, str] = Field(default_factory=dict)
 
     @field_validator("defaults")
     @classmethod
-    def validate_defaults(cls, values: dict[str, str]) -> dict[str, str]:
+    def validate_defaults(
+        cls,
+        values: dict[str, str],
+        info: ValidationInfo,
+    ) -> dict[str, str]:
         normalized = dict(values)
+        context = info.context if isinstance(info.context, dict) else {}
+        legacy_roles = context.get("legacy_model_role_defaults", {})
+        if not isinstance(legacy_roles, dict):
+            legacy_roles = {}
         for key in ("research_policy", "quick_deep_dive_research_policy"):
             raw = normalized.get(key)
             if raw is None:
@@ -219,7 +236,14 @@ class UserConfig(BaseModel):
             value = raw.strip()
             if value:
                 provider, separator, model = value.partition(":")
-                if not separator or not provider.strip() or not model.strip():
+                if not separator:
+                    if legacy_roles.get(key) == value and re.fullmatch(
+                        r"[A-Za-z0-9_.-]+", value
+                    ):
+                        normalized[key] = value
+                        continue
+                    raise ValueError(f"{key} must use non-empty provider:model")
+                if not provider.strip() or not model.strip():
                     raise ValueError(f"{key} must use non-empty provider:model")
                 value = f"{provider.strip()}:{model.strip()}"
             normalized[key] = value
@@ -270,8 +294,14 @@ class UserConfigStore:
         try:
             raw_bytes = self.path.read_bytes()
             raw = raw_bytes.decode("utf-8")
-            config = UserConfig.model_validate_json(raw)
+            payload = json.loads(raw)
+            legacy_roles = self._legacy_model_role_defaults(payload)
+            config = UserConfig.model_validate(
+                payload,
+                context={"legacy_model_role_defaults": legacy_roles},
+            )
             config._revision = self._revision(raw_bytes)
+            config._legacy_model_role_defaults = legacy_roles
             return config
         except ValidationError as exc:
             # Pydantic normally includes input_value, which may contain a raw secret.
@@ -290,7 +320,12 @@ class UserConfigStore:
         # Pydantic models are mutable by default. Revalidate the whole candidate
         # before taking the filesystem mutation path.
         try:
-            validated = UserConfig.model_validate(config.model_dump(mode="python"))
+            validated = UserConfig.model_validate(
+                config.model_dump(mode="python"),
+                context={
+                    "legacy_model_role_defaults": dict(config._legacy_model_role_defaults)
+                },
+            )
         except ValidationError as exc:
             location = ", ".join(
                 ".".join(map(str, err["loc"])) or "configuration"
@@ -349,6 +384,23 @@ class UserConfigStore:
         if not self.path.exists():
             return None
         return self._revision(self.path.read_bytes())
+
+    @staticmethod
+    def _legacy_model_role_defaults(payload: object) -> dict[str, str]:
+        if not isinstance(payload, dict):
+            return {}
+        defaults = payload.get("defaults")
+        if not isinstance(defaults, dict):
+            return {}
+        legacy: dict[str, str] = {}
+        for key in _MODEL_ROLE_DEFAULTS:
+            value = defaults.get(key)
+            if not isinstance(value, str):
+                continue
+            cleaned = value.strip()
+            if cleaned and ":" not in cleaned and re.fullmatch(r"[A-Za-z0-9_.-]+", cleaned):
+                legacy[key] = cleaned
+        return legacy
 
     @staticmethod
     def _revision(payload: bytes) -> str:

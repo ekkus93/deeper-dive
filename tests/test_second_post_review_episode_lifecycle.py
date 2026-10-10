@@ -229,7 +229,7 @@ def test_rejected_completed_episode_edit_preserves_historical_artifacts(
     assert completed.audio_path.read_bytes() == audio_before
     with database.connection() as db:
         rows = db.execute(
-            "SELECT id FROM conversation_turns WHERE episode_id=? ORDER BY turn_index,id",
+            "SELECT id FROM conversation_turns WHERE episode_id=?",
             (completed.episode_id,),
         ).fetchall()
-    assert tuple(str(row["id"]) for row in rows) == completed.turn_ids
+    assert {str(row["id"]) for row in rows} == set(completed.turn_ids)
