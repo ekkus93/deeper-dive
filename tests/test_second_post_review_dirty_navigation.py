@@ -8,6 +8,7 @@ from textual.widgets import Input, Select, Static
 
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
+from deeper_dive.episode_planner import EpisodePlannerService
 from deeper_dive.guided_app import GuidedDeeperDiveApp
 from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
 from deeper_dive.guided_first_run import GuidedFirstRunWizard
@@ -15,6 +16,30 @@ from deeper_dive.guided_workflow import WizardKind, WizardState
 from deeper_dive.hosts import HostProfile
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.workspace import WorkspaceManager
+
+
+class _TwoSegmentGenerator:
+    def generate_plan(self, _request):
+        return {
+            "segments": [
+                {
+                    "title": "Opening",
+                    "purpose": "Set context",
+                    "target_duration_seconds": 600,
+                    "questions": [],
+                    "evidence_ids": [],
+                    "lead_host_ids": [],
+                },
+                {
+                    "title": "Deep Dive",
+                    "purpose": "Explore evidence",
+                    "target_duration_seconds": 600,
+                    "questions": [],
+                    "evidence_ids": [],
+                    "lead_host_ids": [],
+                },
+            ]
+        }
 
 
 def _episode_fixture(
@@ -456,3 +481,60 @@ async def _duplicate_save_confirmation_cannot_create_or_navigate_twice(tmp_path:
         projects = service.list_projects()
         assert len(projects) == 1
         assert projects[0].name == "Only once"
+
+
+def test_dirty_plan_segment_blocks_reselection_until_explicit_discard(tmp_path: Path) -> None:
+    asyncio.run(_dirty_plan_segment_blocks_reselection_until_explicit_discard(tmp_path))
+
+
+async def _dirty_plan_segment_blocks_reselection_until_explicit_discard(
+    tmp_path: Path,
+) -> None:
+    service, project_id, episode_id, _host_ids = _episode_fixture(tmp_path)
+    database = Database(service.workspaces.project_root(project_id) / "project.db")
+    planner = EpisodePlannerService(database, _TwoSegmentGenerator())
+    durable = planner.build_plan(episode_id)
+    assert len(durable.segments) == 2
+
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project_id
+        wizard.context.episode_id = episode_id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "plan")
+        wizard._plan = planner.load_plan(episode_id)
+        wizard._selected_segment_ordinal = 0
+        wizard._render_plan()
+        wizard._toggle()
+        await pilot.pause()
+        wizard._remember_current_form()
+
+        changed = "Unsaved opening title"
+        title = wizard.query_one("#guided-plan-title", Input)
+        title.value = changed
+        await pilot.pause()
+        picker = wizard.query_one("#guided-plan-segment-picker", Select)
+        picker.value = "1"
+        await pilot.pause()
+
+        assert picker.value == "0"
+        assert title.value == changed
+        assert wizard.query_one("#wizard-exit-confirmation").display
+        assert wizard.focused is wizard.query_one("#wizard-confirm-cancel")
+
+        wizard.action_cancel_exit_confirmation()
+        assert picker.value == "0"
+        assert title.value == changed
+
+        picker.value = "1"
+        await pilot.pause()
+        wizard.action_confirm_discard_exit()
+        await pilot.pause()
+
+        assert picker.value == "1"
+        assert title.value == durable.segments[1].title
+        persisted = planner.load_plan(episode_id)
+        assert persisted.segments[0].title == durable.segments[0].title
