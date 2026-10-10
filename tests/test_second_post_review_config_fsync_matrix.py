@@ -86,9 +86,7 @@ def test_without_fcntl_same_process_writers_still_conflict_and_retry(
         assert sorted((a.result(), b.result())) == ["conflict", "saved"]
 
     reloaded = UserConfigStore(path).load()
-    reloaded.defaults.update(
-        {"research_policy": "off", "network_policy": "local-only"}
-    )
+    reloaded.defaults.update({"research_policy": "off", "network_policy": "local-only"})
     UserConfigStore(path).save(reloaded)
     assert UserConfigStore(path).load().defaults == {
         "research_policy": "off",
