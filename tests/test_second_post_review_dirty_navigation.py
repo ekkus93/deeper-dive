@@ -538,3 +538,69 @@ async def _dirty_plan_segment_blocks_reselection_until_explicit_discard(
         assert title.value == durable.segments[1].title
         persisted = planner.load_plan(episode_id)
         assert persisted.segments[0].title == durable.segments[0].title
+
+
+def test_explicit_discard_restores_form_when_continue_is_still_blocked(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_discard_restores_blocked_project_form(tmp_path))
+
+
+async def _discard_restores_blocked_project_form(tmp_path: Path) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard._remember_current_form()
+
+        name = wizard.query_one("#guided-project-name", Input)
+        assert name.value == ""
+        name.value = "Not saved to the workspace"
+        assert not wizard.action_continue()
+        assert wizard.query_one("#wizard-exit-confirmation").display
+        wizard.action_confirm_discard_exit()
+        await pilot.pause()
+
+        assert wizard.context.state.current_step == "project"
+        assert name.value == ""
+        assert not wizard._current_form_dirty()
+        assert service.list_projects() == []
+
+
+def test_explicit_host_order_discard_reloads_durable_membership(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_discard_restores_host_membership(tmp_path))
+
+
+async def _discard_restores_host_membership(tmp_path: Path) -> None:
+    service, project_id, episode_id, host_ids = _episode_fixture(tmp_path)
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project_id
+        wizard.context.episode_id = episode_id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "hosts")
+        wizard._load_episode_host_order()
+        wizard._refresh_hosts(host_ids[0])
+        wizard._toggle()
+        wizard._remember_current_form()
+
+        wizard._move_selected_host(1)
+        assert wizard._selected_host_ids == [host_ids[1], host_ids[0]]
+        wizard.action_save_exit()
+        assert wizard.query_one("#wizard-exit-confirmation").display
+        wizard.action_confirm_discard_exit()
+        await pilot.pause()
+
+        assert wizard._selected_host_ids == list(host_ids)
+        configs = EpisodeConfigurationService(
+            app.composition.database_for_project(project_id)
+        )
+        assert configs.load_configuration(episode_id).host_ids == host_ids

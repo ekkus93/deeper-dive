@@ -264,6 +264,18 @@ class GuidedHostWizard(GuidedSourceWizard):
         self._form_baselines["hosts"] = (*current_profile, *order)
         self._pending_host_form_values = self._host_form_values()
 
+    def _restore_discarded_form(self) -> None:
+        super()._restore_discarded_form()
+        if self.context.state.current_step != "hosts":
+            return
+        # Episode membership/order lives outside the Input/Select widget values.
+        # An explicit discard must restore the production-backed ordered IDs.
+        self._selected_host_ids = []
+        self._load_episode_host_order()
+        self._refresh_host_order()
+        self._pending_host_form_values = self._host_form_values()
+        self._remember_current_form()
+
     def _host_order_dirty(self) -> bool:
         if self.context.state.current_step != "hosts":
             return False

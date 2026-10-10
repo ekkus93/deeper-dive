@@ -431,14 +431,34 @@ class WizardShell(Screen[None]):
         self._remember_current_form()
         self._execute_pending_transition(transition)
 
+    def _restore_discarded_form(self) -> None:
+        """Restore the durable form snapshot, never adopt unsaved edits as baseline."""
+        step = self.context.state.current_step
+        baseline = self._form_baselines.get(step, ())
+        for key, value in baseline:
+            if key.startswith("__"):
+                # Subclass snapshots may contain non-widget business state.
+                continue
+            try:
+                widget = self.query_one(f"#{key}")
+            except NoMatches:
+                continue
+            if isinstance(widget, Input):
+                with widget.prevent(Input.Changed):
+                    widget.value = value
+            elif isinstance(widget, Select):
+                with widget.prevent(Select.Changed):
+                    widget.value = Select.BLANK if value == str(Select.BLANK) else value
+        self._remember_current_form()
+
     def action_confirm_discard_exit(self) -> None:
         if not self._exit_confirmation_pending or self.busy:
             return
         transition = self._pending_transition or "exit"
         self._clear_transition_confirmation()
-        # Mark only the UI snapshot clean so the requested transition can occur.
-        # No business data is persisted by an explicit discard.
-        self._remember_current_form()
+        # Discard restores last durable values before attempting the destination.
+        # A blocked transition cannot silently promote unsaved input to clean.
+        self._restore_discarded_form()
         self._execute_pending_transition(transition)
 
     def action_cancel_exit_confirmation(self) -> None:
