@@ -562,7 +562,9 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             and self._plan is not None
             and self._current_form_dirty()
         ):
-            self.set_status("Unsaved plan segment changes remain; save or discard before reloading.")
+            self.set_status(
+                "Unsaved plan segment changes remain; save or discard before reloading."
+            )
             return
         summary = self.query_one("#guided-plan-summary", Static)
         if self.context.episode_id is None:
