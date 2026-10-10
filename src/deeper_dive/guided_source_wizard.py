@@ -9,6 +9,7 @@ from textual.widget import Widget
 from textual.widgets import Button, Input, Select, Static
 
 from deeper_dive.application.service import SourceImportSummary
+from deeper_dive.batch_import import DuplicateDisposition
 from deeper_dive.guided_new_deep_dive import GuidedProjectWizard
 from deeper_dive.guided_workflow import CompletionProbe, WizardContext
 from deeper_dive.research_policy import ResearchMode, ResearchPolicy, ResearchPolicyStore
@@ -183,12 +184,13 @@ class GuidedSourceWizard(GuidedProjectWizard):
         if not summary.imported:
             self.set_status("No file/folder sources were imported; review the paths and try again.")
             return False
-        paths_input.value = ""
+        unresolved = self._unresolved_import_locators(summary)
+        paths_input.value = ", ".join(unresolved)
         preferred = summary.imported[0].id
         self._refresh_sources(preferred)
         self._sync_text()
         self.set_status(self._import_summary("file/folder", summary))
-        return True
+        return not unresolved
 
     def action_add_url_sources(self) -> bool:
         project_id = self.context.project_id
@@ -205,12 +207,13 @@ class GuidedSourceWizard(GuidedProjectWizard):
         if not summary.imported:
             self.set_status("No URL sources were imported; review the URLs and try again.")
             return False
-        urls_input.value = ""
+        unresolved = self._unresolved_import_locators(summary)
+        urls_input.value = ", ".join(unresolved)
         preferred = summary.imported[0].id
         self._refresh_sources(preferred)
         self._sync_text()
         self.set_status(self._import_summary("URL", summary))
-        return True
+        return not unresolved
 
     def action_toggle_source(self) -> None:
         project_id = self.context.project_id
@@ -388,7 +391,21 @@ class GuidedSourceWizard(GuidedProjectWizard):
     def _import_summary(kind: str, summary: SourceImportSummary) -> str:
         imported = len(summary.imported)
         skipped = len(summary.plan.candidates) - imported
-        return f"Imported {imported} {kind} source(s); skipped {skipped}."
+        unresolved = len(GuidedSourceWizard._unresolved_import_locators(summary))
+        suffix = f"; {unresolved} unresolved input(s) retained" if unresolved else ""
+        return f"Imported {imported} {kind} source(s); skipped {skipped}{suffix}."
+
+    @staticmethod
+    def _unresolved_import_locators(summary: SourceImportSummary) -> tuple[str, ...]:
+        unresolved = {
+            DuplicateDisposition.UNSUPPORTED,
+            DuplicateDisposition.READ_ERROR,
+        }
+        return tuple(
+            candidate.locator
+            for candidate in summary.plan.candidates
+            if candidate.disposition in unresolved
+        )
 
     def _toggle(self) -> None:
         step = self.context.state.current_step
