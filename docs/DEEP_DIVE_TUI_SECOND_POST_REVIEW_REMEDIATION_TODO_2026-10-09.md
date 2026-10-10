@@ -103,16 +103,16 @@ This is the **only completion checklist for the second post-review cycle**. The 
 
 ## SPR-500 — Crash-safe, race-safe user configuration persistence (SPR-05)
 
-- [ ] Specify concurrent writer policy (lock or revision/CAS), conflict outcomes and transaction granularity.
-- [ ] Use securely created unique same-directory temporary files and POSIX owner-only mode; no fixed `config.json.tmp`.
-- [ ] Serialize and validate complete config before mutating files or published provider state.
-- [ ] Flush and fsync temp data before atomic replace; fsync containing directory where supported.
+- [x] Specify concurrent writer policy (lock or revision/CAS), conflict outcomes and transaction granularity.
+- [x] Use securely created unique same-directory temporary files and POSIX owner-only mode; no fixed `config.json.tmp`.
+- [x] Serialize and validate complete config before mutating files or published provider state.
+- [x] Flush and fsync temp data before atomic replace; fsync containing directory where supported.
 - [ ] Use safe cleanup of only owned temporary files on all pre-replace errors.
 - [ ] Preserve previous durable bytes if pre-replace write/chmod/fsync/rename fails.
 - [ ] Document and test post-replace directory-fsync failure as an uncertain durability outcome, not a fake rollback.
 - [ ] Defend against temp symlink collisions and explicitly define config path/directory trust boundary.
 - [ ] Ensure Settings/ProviderController concurrent transactions cannot silently overwrite independent updates.
-- [ ] Preserve owner-only file permissions after new and replacement saves.
+- [x] Preserve owner-only file permissions after new and replacement saves.
 - [ ] Test two independent same-key and disjoint-key writers using deterministic synchronization.
 - [ ] Add failure-injection tests for create, chmod, write, fsync, replace, directory fsync, temp cleanup and restart JSON parse.
 - [ ] Add no-clobber symlink canary tests and cross-platform permitted fallback handling.
@@ -120,14 +120,14 @@ This is the **only completion checklist for the second post-review cycle**. The 
 
 ## SPR-600 — URL fragment credential rejection and cross-surface sanitization (SPR-06)
 
-- [ ] Specify provider `base_url` policy: HTTP/HTTPS endpoints cannot include fragments; preserve legitimate query/IPv6/local URLs.
-- [ ] Reject cleartext, percent-encoded and mixed-case sensitive URL fragments before storing `ProviderConfig`.
+- [x] Specify provider `base_url` policy: HTTP/HTTPS endpoints cannot include fragments; preserve legitimate query/IPv6/local URLs.
+- [x] Reject cleartext, percent-encoded and mixed-case sensitive URL fragments before storing `ProviderConfig`.
 - [ ] Revalidate mutated Pydantic configurations before save across TUI, CLI, first-run and provider controller.
-- [ ] Sanitize credential-like `#` fragments in diagnostic text while keeping ordinary context and harmless URLs intact.
+- [x] Sanitize credential-like `#` fragments in diagnostic text while keeping ordinary context and harmless URLs intact.
 - [ ] Preserve Basic/Token/Digest/Bearer, query, userinfo, recursive nested and chained-exception redaction.
 - [ ] Test multiple URLs, encoded characters, casing variants and partial malformed strings using fake canaries.
 - [ ] Inspect serialized config, nested diagnostics, exported bundles, CLI output and rendered Textual status for absence of canaries.
-- [ ] Verify user-facing validation errors do not echo rejected fragment or raw input.
+- [x] Verify user-facing validation errors do not echo rejected fragment or raw input.
 - [ ] Run focused SPR-06 security matrix and exact-head CI; record evidence.
 
 ## SPR-700 — Episode lifecycle and plan invalidation (SPR-07)
@@ -198,11 +198,19 @@ This is the **only completion checklist for the second post-review cycle**. The 
 | Cluster | Production commits on master | Regression tests / reproduction | Exact-head CI | Status |
 | --- | --- | --- | --- | --- |
 | SPR-000 baseline | Pending | Pending | Pending | Open |
-| SPR-01/02 wizard and host edits | Pending | Pending | Pending | Open |
-| SPR-03 readiness workers | `ee73733350b9afed05d3674f821d86589bb64813` (callback coalescing), `57fe0e992735c1674047211a5e72d539d4d9b16b` (shutdown tests) | `tests/test_second_post_review_readiness_budget.py`: 100-refresh coalescing, bounded workers across fingerprints, late-timeout exclusion, shutdown callback suppression; `src/deeper_dive/guided_async_readiness.py` | [CI #2465](https://github.com/ekkus93/deeper-dive/actions/runs/38037509169), `57fe0e992735c1674047211a5e72d539d4d9b16b`, quality `114170931835`, fresh-machine `114170931767` (both passed) | Partial; adapter deadlines, full worker/race audit and installed-wheel acceptance matrix still open |
-| SPR-04/05/06 settings, persistence and URL security | `4f07c9ddc42ad5cfddba9e8d59d5da9a6adaa621` (pre-build validation), `0eef63453b5e0daa9d394b80c86e713e1c0c0cc5` (fragment redaction), `c47368fd8823203d69765f706a9f4aff665abbb2` (pre-replace chmod), `e1594f3a66854c879ddd728bb5b5c6b5428194d0` (expanded tests) | `tests/test_second_post_review_config_durability.py`, `tests/test_second_post_review_config_security.py`, `tests/test_provider_tui.py`: semantic defaults, CAS conflicts, temp/failure atomicity, URL canaries, Quick settings round-trip and nested diagnostic export | [CI #2466](https://github.com/ekkus93/deeper-dive/actions/runs/38037669064), `e1594f3a66854c879ddd728bb5b5c6b5428194d0`, quality `114171399979` (1,186 passed), fresh-machine `114171399887` (passed) | Partial; remaining mutation/failure-injection, cross-surface security and independent review gates still open |
+| SPR-01/02 wizard and host edits | `7999b7e2b3539db1d902ea95c1c2663dec7135b1` (discard restoration), `5ae6d9e9194b3c5a5ea447ad397c6dc2b467bc0c` (Ruff qualification) | `tests/test_second_post_review_dirty_navigation.py`: durable input and host membership/order are restored after explicit discard; blocked Continue and host reordering regressions, existing Textual dirty Back/Continue tests | [CI #2465](https://github.com/ekkus93/deeper-dive/actions/runs/38037448372), exact `5ae6d9e9194b3c5a5ea447ad397c6dc2b467bc0c` (both jobs passed); requalified in [CI #2467](https://github.com/ekkus93/deeper-dive/actions/runs/38037669064) | Partial; full first-run, selection, restart, and error matrices remain open |
+| SPR-03 readiness workers | `ee73733350b9afed05d3674f821d86589bb64813` (callback coalescing), `57fe0e992735c1674047211a5e72d539d4d9b16b` (shutdown tests) | `tests/test_second_post_review_readiness_budget.py`: 100-refresh coalescing, bounded workers across fingerprints, late-timeout exclusion, shutdown callback suppression; `src/deeper_dive/guided_async_readiness.py` | [CI #2466](https://github.com/ekkus93/deeper-dive/actions/runs/38037509169), `57fe0e992735c1674047211a5e72d539d4d9b16b`, quality `114170931835`, fresh-machine `114170931767` (both passed) | Partial; adapter deadlines, full worker/race audit and installed-wheel acceptance matrix still open |
+| SPR-04/05/06 settings, persistence and URL security | `4f07c9ddc42ad5cfddba9e8d59d5da9a6adaa621` (pre-build validation), `0eef63453b5e0daa9d394b80c86e713e1c0c0cc5` (fragment redaction), `c47368fd8823203d69765f706a9f4aff665abbb2` (pre-replace chmod), `e1594f3a66854c879ddd728bb5b5c6b5428194d0` (expanded tests) | `tests/test_second_post_review_config_durability.py`, `tests/test_second_post_review_config_security.py`, `tests/test_provider_tui.py`: semantic defaults, CAS conflicts, temp/failure atomicity, URL canaries, Quick settings round-trip and nested diagnostic export | [CI #2467](https://github.com/ekkus93/deeper-dive/actions/runs/38037669064), `e1594f3a66854c879ddd728bb5b5c6b5428194d0`, quality `114171399979` (1,186 passed), fresh-machine `114171399887` (passed) | Partial; remaining mutation/failure-injection, cross-surface security and independent review gates still open |
 | SPR-07 episode lifecycle | `4c56332737cb00e97ac5f3d96c1dc826fee2839f`, `8b04f819c42ecde2235ef78d7b819d0f79302076` (regression tests) | `tests/test_second_post_review_episode_lifecycle.py`: no-op plan/segment identity, draft plan invalidation/isolation, non-draft state preservation (7 cases) | [CI #2453](https://github.com/ekkus93/deeper-dive/actions/runs/38035568941), `8b04f819c42ecde2235ef78d7b819d0f79302076`, quality job `114165154083` (1,152 passed), fresh-machine job `114165153972` (passed) | Partial; lifecycle policy, race and cross-surface acceptance still open |
 | SPR-800/900 regression and independent audit | Pending | Pending | Pending | Open |
 | SPR-910 final reconciliation | Pending | Pending | Pending | Open |
+
+
+### 2026-10-10 verified partial behavior and unresolved scope
+
+- The SPR-05 concurrency policy uses a process-local `RLock`, POSIX advisory flock where supported, and revision/CAS conflicts on stale writes (including two simultaneous first-time writers). Conflicts require explicit reload/retry rather than silent overwrites. `_write_temporary()` uses secure unique files, flush/fsync, atomic replace, and directory sync; the parent directory is assumed owned/trusted by the current user. A post-replace directory-sync failure is an **uncertain durability outcome**: it must not be described as rolled back. `tests/test_second_post_review_config_durability.py` exercises stale disjoint and same-key writers, temp chmod/fsync failures, replace failures, symlink canaries, and post-replace errors.
+- `ProviderController._commit_candidate()` validates mutable Pydantic config before building a runtime, `UserConfigStore.save()` revalidates again, and `ProviderConfig` rejects URL fragments without echoing their values. `diagnostics.redact()` redacts nested and repeatedly encoded sensitive URL fragments while retaining benign anchors. Original `tests/test_second_post_review_config_security.py` was restored in full rather than replaced; the additional durability suite is separate.
+- Shared wizard discard now restores baseline `Input`/`Select` values and host membership from the durable episode service; a blocked Continue cannot convert unsaved values into a clean baseline. Additional modal, first-run, selector and failure-injection cases remain unchecked.
+- The nine marked subitems above are supported by code and regression tests included in exact-head [CI #2467](https://github.com/ekkus93/deeper-dive/actions/runs/38037669064) at `e1594f3a66854c879ddd728bb5b5c6b5428194d0` (quality `114171399979`, **1,186 passed**; fresh-machine `114171399887`, passed). They remain subject to final full-cycle requalification. The current documentation-only reconciliation must also pass its own exact-head CI before it is final evidence.
 
 **Documentation creation is not remediation completion.** Creation/commit of this TODO and spec may be reported separately with its exact GitHub commit and documentation-only CI outcome; no unchecked implementation task becomes complete from that action alone.
