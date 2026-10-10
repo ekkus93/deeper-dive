@@ -5,13 +5,25 @@ from __future__ import annotations
 import json
 import os
 import re
+import tempfile
+from contextlib import contextmanager
+from hashlib import sha256
 from pathlib import Path
-from typing import Literal
+from threading import Lock, RLock
+from typing import IO, Iterator, Literal
 from urllib.parse import parse_qsl, urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError, field_validator
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - non-POSIX fallback
+    fcntl = None  # type: ignore[assignment]
 
 CURRENT_CONFIG_VERSION = 1
+
+_PATH_LOCKS_GUARD = Lock()
+_PATH_LOCKS: dict[str, RLock] = {}
 
 _RESEARCH_MODES = frozenset({"off", "conservative", "useful", "aggressive"})
 _HOST_PRESETS = frozenset(
@@ -94,6 +106,7 @@ class ProviderConfig(BaseModel):
 class UserConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
 
+    _revision: str | None = PrivateAttr(default=None)
     schema_version: int = CURRENT_CONFIG_VERSION
     providers: dict[str, ProviderConfig] = Field(default_factory=dict)
     defaults: dict[str, str] = Field(default_factory=dict)
@@ -158,18 +171,35 @@ class UserConfigError(ValueError):
     """Actionable configuration load/validation failure."""
 
 
+class UserConfigConflictError(UserConfigError):
+    """Raised instead of silently overwriting a config changed by another writer."""
+
+
 class UserConfigStore:
-    """JSON-backed user config explicitly separate from per-project databases."""
+    """JSON-backed user config with atomic publication and stale-writer detection.
+
+    The parent directory is assumed to be owned/trusted by the current user. Files
+    created by this store never follow a config or temporary-file symlink.
+    """
 
     def __init__(self, path: Path) -> None:
         self.path = path
 
     def load(self) -> UserConfig:
+        with self._locked():
+            return self._load_unlocked()
+
+    def _load_unlocked(self) -> UserConfig:
+        if self.path.is_symlink():
+            raise UserConfigError(f"invalid user configuration path at {self.path}")
         if not self.path.exists():
             return UserConfig()
         try:
-            raw = self.path.read_text(encoding="utf-8")
-            return UserConfig.model_validate_json(raw)
+            raw_bytes = self.path.read_bytes()
+            raw = raw_bytes.decode("utf-8")
+            config = UserConfig.model_validate_json(raw)
+            config._revision = self._revision(raw_bytes)
+            return config
         except ValidationError as exc:
             # Pydantic normally includes input_value, which may contain a raw secret.
             # Only return error locations and types, never the submitted values.
@@ -180,12 +210,12 @@ class UserConfigStore:
             raise UserConfigError(
                 f"invalid user configuration at {self.path}: check {location}"
             ) from None
-        except (OSError, ValueError):
+        except (OSError, UnicodeError, ValueError):
             raise UserConfigError(f"invalid user configuration at {self.path}") from None
 
     def save(self, config: UserConfig) -> None:
-        # Pydantic models are mutable by default. A field changed after construction
-        # must not bypass provider credential-reference or URL validation at write time.
+        # Pydantic models are mutable by default. Revalidate the whole candidate
+        # before taking the filesystem mutation path.
         try:
             validated = UserConfig.model_validate(config.model_dump(mode="python"))
         except ValidationError as exc:
@@ -194,13 +224,105 @@ class UserConfigStore:
                 for err in exc.errors(include_input=False, include_url=False)
             )
             raise UserConfigError(f"invalid user configuration: check {location}") from None
+
+        payload = (
+            json.dumps(validated.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
+        ).encode("utf-8")
+        with self._locked():
+            if self.path.is_symlink():
+                raise UserConfigError(f"invalid user configuration path at {self.path}")
+            current_revision = self._current_revision()
+            if config._revision is not None and current_revision != config._revision:
+                raise UserConfigConflictError(
+                    "user configuration changed since it was loaded; reload and retry"
+                )
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            temporary = self._write_temporary(payload)
+            replaced = False
+            try:
+                os.replace(temporary, self.path)
+                replaced = True
+                self._restrict_permissions(self.path)
+                self._sync_parent_directory()
+            finally:
+                if not replaced:
+                    temporary.unlink(missing_ok=True)
+            config._revision = self._revision(payload)
+
+    def _write_temporary(self, payload: bytes) -> Path:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        payload = json.dumps(validated.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
-        temporary = self.path.with_suffix(self.path.suffix + ".tmp")
-        temporary.write_text(payload, encoding="utf-8")
-        self._restrict_permissions(temporary)
-        temporary.replace(self.path)
-        self._restrict_permissions(self.path)
+        temporary: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="wb",
+                dir=self.path.parent,
+                prefix=f".{self.path.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as handle:
+                temporary = Path(handle.name)
+                if os.name == "posix":
+                    os.fchmod(handle.fileno(), 0o600)
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            return temporary
+        except Exception:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+            raise
+
+    def _current_revision(self) -> str | None:
+        if not self.path.exists():
+            return None
+        return self._revision(self.path.read_bytes())
+
+    @staticmethod
+    def _revision(payload: bytes) -> str:
+        return sha256(payload).hexdigest()
+
+    @contextmanager
+    def _locked(self) -> Iterator[None]:
+        key = str(self.path.absolute())
+        with _PATH_LOCKS_GUARD:
+            process_lock = _PATH_LOCKS.setdefault(key, RLock())
+        with process_lock:
+            lock_handle = self._open_advisory_lock()
+            try:
+                yield
+            finally:
+                if lock_handle is not None:
+                    if fcntl is not None:
+                        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+                    lock_handle.close()
+
+    def _open_advisory_lock(self) -> IO[bytes] | None:
+        if fcntl is None:
+            return None
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        lock_path = self.path.parent / f".{self.path.name}.lock"
+        flags = os.O_CREAT | os.O_RDWR
+        if hasattr(os, "O_CLOEXEC"):
+            flags |= os.O_CLOEXEC
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        descriptor = os.open(lock_path, flags, 0o600)
+        handle = os.fdopen(descriptor, "r+b", closefd=True)
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        except Exception:
+            handle.close()
+            raise
+        return handle
+
+    def _sync_parent_directory(self) -> None:
+        if os.name != "posix" or not hasattr(os, "O_DIRECTORY"):
+            return
+        descriptor = os.open(self.path.parent, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
 
     @staticmethod
     def _restrict_permissions(path: Path) -> None:
