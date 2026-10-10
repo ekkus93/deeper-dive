@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+
+import pytest
 from pathlib import Path
 from unittest.mock import patch
 
@@ -13,11 +15,27 @@ from deeper_dive.settings_screen import SettingsController, SettingsScreen
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.tts import FakeTTSProvider
 from deeper_dive.tui import DeeperDiveApp
-from deeper_dive.user_config import UserConfigStore
+from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
 
 
 def _provider_controller(tmp_path: Path) -> ProviderController:
     store = UserConfigStore(tmp_path / "config.json")
+    store.save(
+        UserConfig(
+            providers={
+                "planner": ProviderConfig(
+                    provider_type="fake",
+                    default_model="model-a",
+                    network_scope="local",
+                ),
+                "fake-tts": ProviderConfig(
+                    provider_type="fake-tts",
+                    network_scope="local",
+                    voices=("voice-a",),
+                ),
+            }
+        )
+    )
     return ProviderController(store, LLMProviderRegistry(), {"fake-tts": FakeTTSProvider()})
 
 
@@ -100,3 +118,50 @@ async def _settings_screen_persists_default_from_tui_action(tmp_path: Path) -> N
         assert "Runtime readiness" in readiness
         assert "FFmpeg:" in readiness
         assert "KittenTTS:" in readiness
+
+
+def test_settings_rejects_unknown_or_wrong_capability_provider_references(tmp_path: Path) -> None:
+    controller = SettingsController(_provider_controller(tmp_path))
+    store = controller.provider_controller.config_store
+    original = store.path.read_bytes()
+
+    with pytest.raises(ValueError, match="unknown provider"):
+        controller.save_model_default("episode_planning", "missing:model-a")
+    assert store.path.read_bytes() == original
+
+    with pytest.raises(ValueError, match="language-model provider"):
+        controller.save_model_default("episode_planning", "fake-tts:model-a")
+    assert store.path.read_bytes() == original
+
+    with pytest.raises(ValueError, match="unknown provider"):
+        controller.save_tts_defaults("missing", "voice-a")
+    assert store.path.read_bytes() == original
+
+    with pytest.raises(ValueError, match="speech provider"):
+        controller.save_tts_defaults("planner", "voice-a")
+    assert store.path.read_bytes() == original
+
+
+def test_provider_removal_rejects_referenced_provider_without_clobbering_config(
+    tmp_path: Path,
+) -> None:
+    controller = _provider_controller(tmp_path)
+    settings = SettingsController(controller)
+    settings.save_model_default("episode_planning", "planner:model-a")
+    original = controller.config_store.path.read_bytes()
+
+    with pytest.raises(ValueError, match="unknown provider"):
+        controller.remove_provider("planner")
+
+    assert controller.config_store.path.read_bytes() == original
+    assert "planner" in controller.config().providers
+
+
+def test_local_provider_ids_reject_unknown_provider_before_save(tmp_path: Path) -> None:
+    controller = SettingsController(_provider_controller(tmp_path))
+    original = controller.provider_controller.config_store.path.read_bytes()
+
+    with pytest.raises(ValueError, match="local_provider_ids"):
+        controller.set_default("local_provider_ids", "planner,missing")
+
+    assert controller.provider_controller.config_store.path.read_bytes() == original

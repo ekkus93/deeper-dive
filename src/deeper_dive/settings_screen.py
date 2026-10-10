@@ -45,6 +45,7 @@ class SettingsController:
                 config.defaults[name] = value
             else:
                 config.defaults.pop(name, None)
+        self.provider_controller.validate_default_references(config)
         self.provider_controller.config_store.save(config)
 
     def set_default(self, key: str, value: str) -> None:

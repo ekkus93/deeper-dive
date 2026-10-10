@@ -6,6 +6,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
 from deeper_dive.llm import LLMProvider, LLMProviderRegistry
+from deeper_dive.model_roles import ModelRole
 from deeper_dive.provider_factory import (
     LLM_PROVIDER_TYPES,
     TTS_PROVIDER_TYPES,
@@ -92,6 +93,38 @@ class ProviderController:
         except KeyError as exc:
             raise ValueError(f"unsupported provider adapter {provider_type!r}") from exc
 
+    def validate_default_references(self, config: UserConfig) -> None:
+        """Reject impossible provider references without performing live discovery."""
+
+        for role in ModelRole:
+            identity = config.defaults.get(role.value, "").strip()
+            if not identity or ":" not in identity:
+                # Legacy bare model IDs are preserved on load and may be migrated
+                # later, but newly written invalid syntax is rejected by UserConfig.
+                continue
+            provider_id, _model = identity.split(":", 1)
+            referenced = config.providers.get(provider_id)
+            if referenced is None:
+                raise ValueError(f"{role.value} references an unknown provider")
+            if self.capability(referenced.provider_type) != "llm":
+                raise ValueError(f"{role.value} must reference a language-model provider")
+
+        tts_provider = config.defaults.get("tts_provider", "").strip()
+        if tts_provider:
+            referenced = config.providers.get(tts_provider)
+            if referenced is None:
+                raise ValueError("tts_provider references an unknown provider")
+            if self.capability(referenced.provider_type) != "tts":
+                raise ValueError("tts_provider must reference a speech provider")
+
+        local_ids = tuple(
+            item.strip()
+            for item in config.defaults.get("local_provider_ids", "").split(",")
+            if item.strip()
+        )
+        if any(provider_id not in config.providers for provider_id in local_ids):
+            raise ValueError("local_provider_ids contains an unknown provider")
+
     def save_provider(
         self,
         name: str,
@@ -142,6 +175,7 @@ class ProviderController:
     def _commit_candidate(self, candidate: UserConfig) -> ProviderBuildResult | None:
         """Build first, persist second, and publish only a fully durable runtime."""
 
+        self.validate_default_references(candidate)
         if self.provider_factory is None:
             self.config_store.save(candidate)
             return None
