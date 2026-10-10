@@ -253,3 +253,44 @@ async def _dirty_host_profile_blocks_picker_reselection_until_discard(tmp_path: 
         durable_first = repository.get_host(host_ids[0])
         assert durable_first is not None
         assert durable_first.instructions != changed
+
+
+def test_partial_file_import_retains_unresolved_input_on_save_exit(tmp_path: Path) -> None:
+    asyncio.run(_partial_file_import_retains_unresolved_input_on_save_exit(tmp_path))
+
+
+async def _partial_file_import_retains_unresolved_input_on_save_exit(tmp_path: Path) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    project = service.create_project("Mixed source input")
+    good = tmp_path / "good.md"
+    good.write_text("Durable evidence from the supported file.", encoding="utf-8")
+    unsupported = tmp_path / "unsupported.bin"
+    unsupported.write_bytes(b"not a supported source")
+    app = GuidedDeeperDiveApp(service)
+
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project.id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "sources")
+        wizard._refresh_sources()
+        wizard._toggle()
+        wizard._remember_current_form()
+
+        field = wizard.query_one("#guided-source-paths", Input)
+        field.value = f"{good},{unsupported}"
+        wizard.action_save_exit()
+        assert wizard.query_one("#wizard-exit-confirmation").display
+        wizard.action_confirm_save_exit()
+        await pilot.pause()
+
+        assert app.screen is wizard
+        assert field.value == str(unsupported)
+        imported = service.list_sources(project.id)
+        assert len(imported) == 1
+        assert imported[0].locator == str(good)
+        assert "unresolved input(s) retained" in str(
+            wizard.query_one("#wizard-status").render()
+        )
