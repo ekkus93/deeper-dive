@@ -675,3 +675,58 @@ async def _recommended_hosts_guard_unsaved_profile(
         assert persisted is not None
         assert persisted.instructions == (changed if decision == "save" else original.instructions)
         assert wizard.query_one("#guided-host-instructions", Input).value != changed
+
+
+def test_host_order_survives_unrelated_refresh_and_app_restart(tmp_path: Path) -> None:
+    asyncio.run(_host_order_survives_refresh_and_restart(tmp_path))
+
+
+async def _host_order_survives_refresh_and_restart(tmp_path: Path) -> None:
+    service, project_id, episode_id, host_ids = _episode_fixture(tmp_path)
+    expected = [host_ids[1], host_ids[0]]
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project_id
+        wizard.context.episode_id = episode_id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "hosts")
+        wizard._load_episode_host_order()
+        wizard._refresh_hosts(host_ids[0])
+        wizard._toggle()
+        wizard._remember_current_form()
+
+        wizard._move_selected_host(1)
+        assert wizard._selected_host_ids == expected
+        assert wizard._host_order_dirty()
+        wizard._refresh_hosts(host_ids[1])
+        await pilot.pause()
+        assert wizard._selected_host_ids == expected
+        assert wizard._host_order_dirty()
+        assert wizard.action_save_host_order()
+        assert not wizard._host_order_dirty()
+
+    configs = EpisodeConfigurationService(
+        Database(service.workspaces.project_root(project_id) / "project.db")
+    )
+    assert configs.load_configuration(episode_id).host_ids == tuple(expected)
+
+    reopened = GuidedDeeperDiveApp(service)
+    async with reopened.run_test(size=(100, 35)) as pilot:
+        reopened.action_navigate("new")
+        await pilot.pause()
+        wizard = reopened.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project_id
+        wizard.context.episode_id = episode_id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "hosts")
+        wizard._load_episode_host_order()
+        wizard._refresh_hosts(host_ids[0])
+        wizard._toggle()
+        wizard._remember_current_form()
+
+        assert wizard._selected_host_ids == expected
+        assert not wizard._host_order_dirty()
+
