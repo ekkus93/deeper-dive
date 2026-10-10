@@ -285,6 +285,11 @@ jobs:
             "$GITHUB_WORKSPACE/tests/test_post_review_atomic_settings.py" \
             "$GITHUB_WORKSPACE/tests/test_post_review_security.py" \
             "$GITHUB_WORKSPACE/tests/test_post_review_async_readiness.py" \
+            "$GITHUB_WORKSPACE/tests/test_second_post_review_dirty_navigation.py" \
+            "$GITHUB_WORKSPACE/tests/test_second_post_review_config_security.py" \
+            "$GITHUB_WORKSPACE/tests/test_second_post_review_config_persistence.py" \
+            "$GITHUB_WORKSPACE/tests/test_second_post_review_readiness_workers.py" \
+            "$GITHUB_WORKSPACE/tests/test_second_post_review_episode_lifecycle.py" \
             "$GITHUB_WORKSPACE/tests/test_cli.py::test_cli_visible_errors_are_sanitized"
 
       - name: Install real KittenTTS runtime
