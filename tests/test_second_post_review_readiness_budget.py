@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from queue import Queue
 from threading import Event
+from time import sleep
 from typing import cast
 
 from textual.message import Message
@@ -11,6 +12,7 @@ from textual.message import Message
 from deeper_dive.guided_async_readiness import (
     FirstRunReadinessCoordinator,
     FirstRunReadinessDispatch,
+    FirstRunReadinessView,
     FirstRunRuntimeSnapshot,
 )
 from deeper_dive.guided_workflow import WizardContext
@@ -221,4 +223,41 @@ def test_superseded_probe_timers_are_cancelled_without_unbounded_growth() -> Non
         assert coordinator.timeout_timer_count == 0
     finally:
         release.set()
+        coordinator.close()
+
+
+def test_supersession_between_reservation_and_view_read_never_leaks_slot() -> None:
+    app = _RecordingApp()
+    fingerprint = ["original"]
+
+    class InterleavedCoordinator(FirstRunReadinessCoordinator):
+        injected = False
+
+        @property
+        def view(self) -> FirstRunReadinessView:
+            if not self.injected:
+                # Simulate another request interleaving with an unlocked view
+                # read after the original generation reserved worker capacity.
+                self.injected = True
+                fingerprint[0] = "superseding"
+                self.request(app)
+            return super().view
+
+    coordinator = InterleavedCoordinator(
+        _context(),
+        probe=_snapshot,
+        fingerprint=lambda: fingerprint[0],
+        timeout_seconds=5,
+        max_workers=2,
+    )
+    try:
+        assert coordinator.request(app)
+        app.deliver()
+        for _ in range(1000):
+            if coordinator.active_worker_count == 0:
+                break
+            sleep(0.001)
+        assert coordinator.active_worker_count == 0
+        assert coordinator.queued_worker_count == 0
+    finally:
         coordinator.close()
