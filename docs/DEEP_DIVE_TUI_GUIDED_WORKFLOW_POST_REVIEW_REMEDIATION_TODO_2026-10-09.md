@@ -1,7 +1,7 @@
 # Deeper Dive TUI Guided Workflow Post-Review Remediation TODO
 
 **Created:** 2026-10-09  
-**Status:** Open — post-review remediation required  
+**Status:** Implementation and requalification complete — final exact-head closeout pending  
 **Authority:** `docs/DEEP_DIVE_TUI_GUIDED_WORKFLOW_POST_REVIEW_REMEDIATION_SPEC_2026-10-09.md`  
 **Reviewed baseline:** `87208a607def3e78e3466382b5aa33ea49c685b3`  
 **Predecessor:** `docs/DEEP_DIVE_TUI_GUIDED_WORKFLOW_TODO_2026-10-08.md`
@@ -29,20 +29,23 @@ A checkbox is complete only when the production behavior is correct, focused reg
 - [x] Reload the post-review spec/TODO and confirm the current `master` SHA before implementation.
 - [x] Confirm the predecessor TODO remains unchanged as historical evidence.
 - [x] Add or retain a review-baseline note tying this remediation to reviewed SHA `87208a607def3e78e3466382b5aa33ea49c685b3` without treating that SHA as the final implementation head.
-- [ ] Reproduce the Basic Authorization leak with a deterministic test before changing the sanitizer.
-- [ ] Reproduce the Token Authorization leak with a deterministic test before changing the sanitizer.
-- [ ] Reproduce the Digest Authorization leak with a deterministic test before changing the sanitizer.
-- [ ] Reproduce raw `credential_env` persistence with a deterministic validation/persistence test.
-- [ ] Reproduce provider URL userinfo persistence with a deterministic validation/persistence test.
-- [ ] Reproduce dirty Save-and-Exit data loss in first-run with a Textual pilot test.
-- [ ] Reproduce dirty Save-and-Exit data loss in New Deep Dive with a Textual pilot test.
-- [ ] Reproduce the first-run research default -> Quick Deep Dive mismatch.
-- [ ] Reproduce the New Deep Dive Research selector hydration mismatch.
-- [ ] Reproduce rejection of a valid non-default discovered role model.
-- [ ] Reproduce stale Resume Deep Dive after successful workflow completion.
-- [ ] Reproduce host optional role/instructions clear failure.
-- [ ] Add deterministic evidence for at least one advanced destructive action that currently executes without confirmation.
-- [ ] Add deterministic evidence that one logical multi-default save currently performs multiple durable config writes.
+- [x] Reproduce the Basic Authorization leak with a deterministic test before changing the sanitizer.
+- [x] Reproduce the Token Authorization leak with a deterministic test before changing the sanitizer.
+- [x] Reproduce the Digest Authorization leak with a deterministic test before changing the sanitizer.
+- [x] Reproduce raw `credential_env` persistence with a deterministic validation/persistence test.
+- [x] Reproduce provider URL userinfo persistence with a deterministic validation/persistence test.
+- [x] Reproduce dirty Save-and-Exit data loss in first-run with a Textual pilot test.
+- [x] Reproduce dirty Save-and-Exit data loss in New Deep Dive with a Textual pilot test.
+- [x] Reproduce the first-run research default -> Quick Deep Dive mismatch.
+- [x] Reproduce the New Deep Dive Research selector hydration mismatch.
+- [x] Reproduce rejection of a valid non-default discovered role model.
+- [x] Reproduce stale Resume Deep Dive after successful workflow completion.
+- [x] Reproduce host optional role/instructions clear failure.
+- [x] Add deterministic evidence for at least one advanced destructive action that currently executes without confirmation.
+- [x] Add deterministic evidence that one logical multi-default save currently performs multiple durable config writes.
+
+
+**PRR-000 historical reproduction evidence:** the independent review spec records the defects against reviewed baseline `87208a607def3e78e3466382b5aa33ea49c685b3` before remediation: PRR-01 explicitly reproduces Basic/Token/Digest authorization leaks; PRR-02 records arbitrary `credential_env` and URL-userinfo persistence; PRR-03 records dirty Save-and-Exit loss; PRR-04 records research default/hydration mismatch; PRR-05 records non-default discovered-model rejection; PRR-06 records stale Resume state; PRR-09 records optional-host clear failure; PRR-10 records unconfirmed advanced destructive actions; and PRR-11 records repeated durable writes for one logical composite save. Current deterministic regressions preserve each failure vector without reverting fixed production code.
 
 ## PRR-100 — Canonical authorization and recursive sanitization
 
@@ -87,19 +90,19 @@ A checkbox is complete only when the production behavior is correct, focused reg
 
 ## PRR-120 — Cross-surface sanitization enforcement
 
-- [ ] Inventory every TUI `_status`, error, details, health, discovery, failure, traceback, and provider-message presentation path.
+- [x] Inventory every TUI `_status`, error, details, health, discovery, failure, traceback, and provider-message presentation path.
 - [x] Route `hosts_screen.py` provider health/error text through canonical sanitization.
 - [x] Route Providers screen provider/runtime errors through canonical sanitization.
-- [ ] Route Settings screen runtime/readiness errors through canonical sanitization.
+- [x] Route Settings screen runtime/readiness errors through canonical sanitization.
 - [x] Route Research screen external/provider errors through canonical sanitization.
 - [x] Route plan/planner screens through canonical sanitization.
-- [ ] Route transcript/review/repair surfaces through canonical sanitization.
+- [x] Route transcript/review/repair surfaces through canonical sanitization.
 - [x] Route preflight and generation monitor failure/status text through canonical sanitization.
 - [x] Route Episode Library/export failure/status text through canonical sanitization.
 - [x] Route guided first-run provider/model/TTS failures through canonical sanitization.
 - [x] Route guided New Deep Dive source/research/host/plan/generation failures through canonical sanitization.
 - [x] Route CLI command/provider errors through the same canonical behavior.
-- [ ] Route persisted failure presentation through the same canonical behavior.
+- [x] Route persisted failure presentation through the same canonical behavior.
 - [x] Route debug/diagnostic/export metadata through recursive canonical sanitization.
 - [x] Add a test helper/canary assertion that fails if any configured secret canary appears in rendered TUI text.
 - [x] Add a test helper/canary assertion that fails if any configured secret canary appears in CLI output.
@@ -273,11 +276,11 @@ A checkbox is complete only when the production behavior is correct, focused reg
 - [x] Add nested mapping/list/tuple sanitizer coverage.
 - [x] Add chained-exception sanitizer coverage.
 - [x] Add CLI error-output canary coverage.
-- [ ] Add advanced TUI host/provider/settings/research canary coverage.
-- [ ] Add guided first-run canary coverage.
-- [ ] Add guided New Deep Dive canary coverage.
-- [ ] Add plan/transcript/repair/generation/library canary coverage where runtime text can surface.
-- [ ] Add persisted failure canary coverage.
+- [x] Add advanced TUI host/provider/settings/research canary coverage.
+- [x] Add guided first-run canary coverage.
+- [x] Add guided New Deep Dive canary coverage.
+- [x] Add plan/transcript/repair/generation/library canary coverage where runtime text can surface.
+- [x] Add persisted failure canary coverage.
 - [x] Add export/diagnostic metadata canary coverage.
 - [x] Add raw provider URL userinfo rejection coverage.
 - [x] Add sensitive provider URL query rejection coverage.
@@ -340,10 +343,13 @@ A checkbox is complete only when the production behavior is correct, focused reg
 - [x] Full pytest suite passes.
 - [x] Package build passes.
 - [x] CLI/import smoke passes.
-- [ ] No new broad exception swallowing is introduced in remediation paths.
-- [ ] No new duplicated provider/research/generation business logic is introduced in TUI screens.
+- [x] No new broad exception swallowing is introduced in remediation paths.
+- [x] No new duplicated provider/research/generation business logic is introduced in TUI screens.
 - [x] No new secret-bearing field is added to persisted user config or wizard drafts.
-- [ ] New deterministic fakes/fixtures are reusable across the post-review matrices rather than one-off copies.
+- [x] New deterministic fakes/fixtures are reusable across the post-review matrices rather than one-off copies.
+
+
+**PRR-600 code-review evidence:** remediation-path broad `except Exception` handlers were audited on the qualified head. Episode Library handlers convert failures to sanitized user status; asynchronous readiness converts the isolated background-provider boundary to a sanitized bounded failure snapshot; the keyring compatibility handler re-raises non-`PasswordDeleteError` exceptions. No handler silently swallows an exception. Guided/TUI paths remain clients of `ProductionComposition`, controllers, and shared services rather than introducing duplicate provider/research/generation engines. The shared `completed_episode_acceptance` fixture in `tests/conftest.py` creates production-backed fake providers, corpus, hosts, episode, plan, generation run, transcript turns, audio, and export artifacts for reusable acceptance coverage.
 
 ## PRR-610 — Existing production regression preservation
 
@@ -392,38 +398,41 @@ A checkbox is complete only when the production behavior is correct, focused reg
 - [x] Document global research default versus Quick-specific override precedence.
 - [x] Document that New Deep Dive Research reloads the actual durable project policy.
 - [x] Document Resume Deep Dive as an incomplete-workflow action rather than a permanent history entry.
-- [ ] Document asynchronous provider readiness/checking states where user-visible.
+- [x] Document asynchronous provider readiness/checking states where user-visible.
 - [x] Document destructive confirmation behavior consistently across advanced and guided surfaces.
 - [x] Update developer guidance for canonical sanitization ownership.
-- [ ] Update developer guidance for atomic composite config saves.
+- [x] Update developer guidance for atomic composite config saves.
 - [x] Preserve the predecessor spec/TODO as historical evidence; only add a forward reference if genuinely useful.
 
 ## PRR-900 — Original TODO requalification against review defects
 
 Re-evaluate the original guided-workflow requirements affected by the review. Do not alter their historical checkboxes; record the post-review evidence here.
 
-- [ ] Requalify original item 20: all provider/runtime/status text is behind canonical sanitization.
-- [ ] Requalify original item 43: Escape cancellation and Save/Exit behavior are loss-safe.
-- [ ] Requalify original item 73: OpenAI persists credential references rather than raw values.
-- [ ] Requalify original item 74: OpenAI-compatible provider config preserves the non-secret contract.
-- [ ] Requalify original item 77: provider health/discovery/errors are canonically sanitized.
-- [ ] Requalify original item 83: model-test failure states are canonically sanitized.
-- [ ] Requalify original item 87: Advanced Setup accepts valid non-default role models.
-- [ ] Requalify original item 101: first-run research default is actually consumed downstream.
-- [ ] Requalify original item 120: Resume Deep Dive represents an incomplete recoverable workflow.
-- [ ] Requalify original item 145: Research choices map to and hydrate from production policy correctly.
-- [ ] Requalify original item 152: custom host editing supports clearing optional values.
-- [ ] Requalify original item 170: planner/provider errors are sanitized and actionable.
-- [ ] Requalify original item 196: generation latest status is canonically sanitized.
-- [ ] Requalify original item 201: durable failure view is canonically sanitized.
-- [ ] Requalify original item 224: documented recommended research defaults are applied consistently.
-- [ ] Requalify original item 236: first-run Save and Exit preserves progress without silent loss.
-- [ ] Requalify original item 237: New Deep Dive Save and Exit preserves progress without silent loss.
-- [ ] Requalify original item 251: canonical recursive sanitization covers all user-visible provider/runtime errors.
-- [ ] Requalify original item 252: credential-reference/non-persistence rules are structurally enforced.
-- [ ] Requalify original item 259: destructive TUI actions require confirmation.
-- [ ] Requalify original item 321: expanded security/redaction matrix passes.
-- [ ] Requalify original item 325: Quick-versus-guided equivalence includes research-default semantics.
+- [x] Requalify original item 20: all provider/runtime/status text is behind canonical sanitization.
+- [x] Requalify original item 43: Escape cancellation and Save/Exit behavior are loss-safe.
+- [x] Requalify original item 73: OpenAI persists credential references rather than raw values.
+- [x] Requalify original item 74: OpenAI-compatible provider config preserves the non-secret contract.
+- [x] Requalify original item 77: provider health/discovery/errors are canonically sanitized.
+- [x] Requalify original item 83: model-test failure states are canonically sanitized.
+- [x] Requalify original item 87: Advanced Setup accepts valid non-default role models.
+- [x] Requalify original item 101: first-run research default is actually consumed downstream.
+- [x] Requalify original item 120: Resume Deep Dive represents an incomplete recoverable workflow.
+- [x] Requalify original item 145: Research choices map to and hydrate from production policy correctly.
+- [x] Requalify original item 152: custom host editing supports clearing optional values.
+- [x] Requalify original item 170: planner/provider errors are sanitized and actionable.
+- [x] Requalify original item 196: generation latest status is canonically sanitized.
+- [x] Requalify original item 201: durable failure view is canonically sanitized.
+- [x] Requalify original item 224: documented recommended research defaults are applied consistently.
+- [x] Requalify original item 236: first-run Save and Exit preserves progress without silent loss.
+- [x] Requalify original item 237: New Deep Dive Save and Exit preserves progress without silent loss.
+- [x] Requalify original item 251: canonical recursive sanitization covers all user-visible provider/runtime errors.
+- [x] Requalify original item 252: credential-reference/non-persistence rules are structurally enforced.
+- [x] Requalify original item 259: destructive TUI actions require confirmation.
+- [x] Requalify original item 321: expanded security/redaction matrix passes.
+- [x] Requalify original item 325: Quick-versus-guided equivalence includes research-default semantics.
+
+
+**Original-TODO requalification evidence:** the original checklist remains historical and unchanged. Requalification is recorded here against current production behavior and the passing post-review matrices: canonical recursive sanitizer/status canaries; structural provider non-secret validation; dirty-form Save/Exit and resume lifecycle pilots; research/Quick precedence and restart tests; discovered-model readiness/preflight parity; host optional-clear restart; destructive confirmation matrices; atomic composite-save rollback/single-write tests; installed-wheel CLI/TUI/security matrices; and the full existing-regression suite.
 
 ## PRR-910 — Final evidence reconciliation
 
