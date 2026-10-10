@@ -43,9 +43,7 @@ def test_shared_completed_and_pending_episodes_preserve_identity_on_edits(
         assert before_episode is not None
         assert before_plan is not None
         assert before_run is not None and before_run.state == "completed"
-        segment_ids = tuple(
-            segment.id for segment in repository.list_segments(before_plan.id)
-        )
+        segment_ids = tuple(segment.id for segment in repository.list_segments(before_plan.id))
         original_audio = _digest(item.audio_path)
         original_transcript = _digest(item.transcript_path)
         existing_config = config_service.load_configuration(item.episode_id)
@@ -54,9 +52,9 @@ def test_shared_completed_and_pending_episodes_preserve_identity_on_edits(
 
         assert repository.get_episode(item.episode_id) == before_episode
         assert repository.get_plan(item.episode_id) == before_plan
-        assert tuple(
-            segment.id for segment in repository.list_segments(before_plan.id)
-        ) == segment_ids
+        assert (
+            tuple(segment.id for segment in repository.list_segments(before_plan.id)) == segment_ids
+        )
         assert service.runs(item.project_id).get(item.run_id) == before_run
         assert _digest(item.audio_path) == original_audio
         assert _digest(item.transcript_path) == original_transcript
