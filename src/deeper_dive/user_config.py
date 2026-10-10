@@ -338,7 +338,7 @@ class UserConfigStore:
             if self.path.is_symlink():
                 raise UserConfigError(f"invalid user configuration path at {self.path}")
             current_revision = self._current_revision()
-            if config._revision is not None and current_revision != config._revision:
+            if current_revision != config._revision:
                 raise UserConfigConflictError(
                     "user configuration changed since it was loaded; reload and retry"
                 )
