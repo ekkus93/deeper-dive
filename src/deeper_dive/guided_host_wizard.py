@@ -161,7 +161,7 @@ class GuidedHostWizard(GuidedSourceWizard):
             self._ignore_host_picker_value = self._loaded_host_id
             original_host_id = self._loaded_host_id
             with event.select.prevent(Select.Changed):
-                event.select.value = original_host_id
+                event.select.value = original_host_id  # type: ignore[assignment]
             self._restore_host_form_values(preserved)
             self._pending_host_form_values = preserved
             self._request_dirty_transition(f"host-select:{destination}")
@@ -190,7 +190,7 @@ class GuidedHostWizard(GuidedSourceWizard):
         if picker.value != original_host_id:
             self._ignore_host_picker_value = original_host_id
             with picker.prevent(Select.Changed):
-                picker.value = original_host_id  # type: ignore[assignment]
+                picker.value = original_host_id
         self._loaded_host_id = original_host_id
         self._restore_host_form_values(preserved)
         self._pending_host_form_values = preserved
