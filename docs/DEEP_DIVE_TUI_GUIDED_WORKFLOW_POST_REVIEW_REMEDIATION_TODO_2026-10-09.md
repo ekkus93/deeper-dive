@@ -26,8 +26,8 @@ A checkbox is complete only when the production behavior is correct, focused reg
 
 ## PRR-000 — Baseline, reproduction, and guardrails
 
-- [ ] Reload the post-review spec/TODO and confirm the current `master` SHA before implementation.
-- [ ] Confirm the predecessor TODO remains unchanged as historical evidence.
+- [x] Reload the post-review spec/TODO and confirm the current `master` SHA before implementation.
+- [x] Confirm the predecessor TODO remains unchanged as historical evidence.
 - [x] Add or retain a review-baseline note tying this remediation to reviewed SHA `87208a607def3e78e3466382b5aa33ea49c685b3` without treating that SHA as the final implementation head.
 - [ ] Reproduce the Basic Authorization leak with a deterministic test before changing the sanitizer.
 - [ ] Reproduce the Token Authorization leak with a deterministic test before changing the sanitizer.
@@ -76,11 +76,11 @@ A checkbox is complete only when the production behavior is correct, focused reg
 - [x] Reject URL username/userinfo.
 - [x] Reject URL password/userinfo.
 - [x] Reject known sensitive query parameters case-insensitively (`api_key`, `apikey`, `key`, `token`, `access_token`, `auth`, `authorization`, `password`, `secret`).
-- [ ] Keep valid Ollama, llama-server, OpenAI, OpenAI-compatible LLM, OpenAI TTS, OpenAI-compatible TTS, and ElevenLabs endpoints working.
+- [x] Keep valid Ollama, llama-server, OpenAI, OpenAI-compatible LLM, OpenAI TTS, OpenAI-compatible TTS, and ElevenLabs endpoints working.
 - [x] Ensure provider validation errors do not echo rejected credential material.
-- [ ] Ensure invalid secret-bearing provider config cannot be written by first-run.
-- [ ] Ensure invalid secret-bearing provider config cannot be written by the advanced Providers screen.
-- [ ] Ensure invalid secret-bearing provider config cannot be written through any CLI/config mutation path.
+- [x] Ensure invalid secret-bearing provider config cannot be written by first-run.
+- [x] Ensure invalid secret-bearing provider config cannot be written by the advanced Providers screen.
+- [x] Ensure invalid secret-bearing provider config cannot be written through any CLI/config mutation path.
 - [x] Inspect serialized `config.json` bytes in tests and prove raw credential canaries are absent.
 - [x] Keep runtime credential lookup environment-reference based in provider factories.
 - [x] Define and test safe failure behavior for a pre-existing invalid secret-bearing config.
@@ -88,89 +88,89 @@ A checkbox is complete only when the production behavior is correct, focused reg
 ## PRR-120 — Cross-surface sanitization enforcement
 
 - [ ] Inventory every TUI `_status`, error, details, health, discovery, failure, traceback, and provider-message presentation path.
-- [ ] Route `hosts_screen.py` provider health/error text through canonical sanitization.
-- [ ] Route Providers screen provider/runtime errors through canonical sanitization.
+- [x] Route `hosts_screen.py` provider health/error text through canonical sanitization.
+- [x] Route Providers screen provider/runtime errors through canonical sanitization.
 - [ ] Route Settings screen runtime/readiness errors through canonical sanitization.
-- [ ] Route Research screen external/provider errors through canonical sanitization.
-- [ ] Route plan/planner screens through canonical sanitization.
+- [x] Route Research screen external/provider errors through canonical sanitization.
+- [x] Route plan/planner screens through canonical sanitization.
 - [ ] Route transcript/review/repair surfaces through canonical sanitization.
-- [ ] Route preflight and generation monitor failure/status text through canonical sanitization.
-- [ ] Route Episode Library/export failure/status text through canonical sanitization.
-- [ ] Route guided first-run provider/model/TTS failures through canonical sanitization.
-- [ ] Route guided New Deep Dive source/research/host/plan/generation failures through canonical sanitization.
-- [ ] Route CLI command/provider errors through the same canonical behavior.
+- [x] Route preflight and generation monitor failure/status text through canonical sanitization.
+- [x] Route Episode Library/export failure/status text through canonical sanitization.
+- [x] Route guided first-run provider/model/TTS failures through canonical sanitization.
+- [x] Route guided New Deep Dive source/research/host/plan/generation failures through canonical sanitization.
+- [x] Route CLI command/provider errors through the same canonical behavior.
 - [ ] Route persisted failure presentation through the same canonical behavior.
-- [ ] Route debug/diagnostic/export metadata through recursive canonical sanitization.
-- [ ] Add a test helper/canary assertion that fails if any configured secret canary appears in rendered TUI text.
-- [ ] Add a test helper/canary assertion that fails if any configured secret canary appears in CLI output.
+- [x] Route debug/diagnostic/export metadata through recursive canonical sanitization.
+- [x] Add a test helper/canary assertion that fails if any configured secret canary appears in rendered TUI text.
+- [x] Add a test helper/canary assertion that fails if any configured secret canary appears in CLI output.
 
 ## PRR-200 — Shared dirty-form and safe-exit contract
 
-- [ ] Define a shared dirty-form protocol/contract usable by both guided wizards.
-- [ ] Compare current editable controls to their last successfully loaded/persisted values deterministically.
-- [ ] Mark first-run provider configuration dirty when relevant fields change.
-- [ ] Mark first-run model/default controls dirty when relevant fields change.
-- [ ] Mark first-run speech/voice/default controls dirty when relevant fields change.
-- [ ] Mark New Deep Dive project setup dirty when relevant fields change.
-- [ ] Mark pasted-source form dirty while title/body contains unsaved text.
-- [ ] Mark file/folder and URL source inputs dirty while unsaved text is present.
-- [ ] Mark research choice dirty when changed from the currently durable/effective policy.
-- [ ] Mark host create/edit form dirty when changed from durable host state.
-- [ ] Mark episode settings dirty when changed from durable episode configuration.
-- [ ] Mark any other guided editable form dirty where exiting can otherwise lose user input.
-- [ ] Make clean Save and Exit checkpoint and exit without unnecessary confirmation.
-- [ ] Make dirty Save and Exit open an explicit confirmation instead of discarding edits.
-- [ ] Provide a Save changes and exit action through the normal production save/validation path.
-- [ ] Provide an explicit Exit without unsaved changes action.
-- [ ] Provide Cancel/continue-editing action.
-- [ ] Ensure destructive discard is not the default-focused confirmation action.
-- [ ] On save validation failure, remain on the same screen with entered values intact.
-- [ ] On production save failure, remain on the same screen with entered values intact.
-- [ ] On explicit discard, preserve previously durable production state.
-- [ ] Preserve the last safe wizard checkpoint when unsaved edits are explicitly discarded.
-- [ ] Make non-modal Escape invoke the same dirty-aware safe-exit flow.
-- [ ] Make Escape inside the confirmation modal cancel/close the modal.
-- [ ] Prevent key-repeat/double-submit from executing save/discard twice.
+- [x] Define a shared dirty-form protocol/contract usable by both guided wizards.
+- [x] Compare current editable controls to their last successfully loaded/persisted values deterministically.
+- [x] Mark first-run provider configuration dirty when relevant fields change.
+- [x] Mark first-run model/default controls dirty when relevant fields change.
+- [x] Mark first-run speech/voice/default controls dirty when relevant fields change.
+- [x] Mark New Deep Dive project setup dirty when relevant fields change.
+- [x] Mark pasted-source form dirty while title/body contains unsaved text.
+- [x] Mark file/folder and URL source inputs dirty while unsaved text is present.
+- [x] Mark research choice dirty when changed from the currently durable/effective policy.
+- [x] Mark host create/edit form dirty when changed from durable host state.
+- [x] Mark episode settings dirty when changed from durable episode configuration.
+- [x] Mark any other guided editable form dirty where exiting can otherwise lose user input.
+- [x] Make clean Save and Exit checkpoint and exit without unnecessary confirmation.
+- [x] Make dirty Save and Exit open an explicit confirmation instead of discarding edits.
+- [x] Provide a Save changes and exit action through the normal production save/validation path.
+- [x] Provide an explicit Exit without unsaved changes action.
+- [x] Provide Cancel/continue-editing action.
+- [x] Ensure destructive discard is not the default-focused confirmation action.
+- [x] On save validation failure, remain on the same screen with entered values intact.
+- [x] On production save failure, remain on the same screen with entered values intact.
+- [x] On explicit discard, preserve previously durable production state.
+- [x] Preserve the last safe wizard checkpoint when unsaved edits are explicitly discarded.
+- [x] Make non-modal Escape invoke the same dirty-aware safe-exit flow.
+- [x] Make Escape inside the confirmation modal cancel/close the modal.
+- [x] Prevent key-repeat/double-submit from executing save/discard twice.
 
 ## PRR-210 — Wizard draft security and lifecycle
 
-- [ ] Keep raw provider credentials out of wizard draft serialization.
-- [ ] Keep pasted source body text out of wizard draft serialization.
-- [ ] Keep other production business records out of wizard draft serialization.
-- [ ] If new UI-only draft fields are required, explicitly allowlist and version them.
-- [ ] Keep the guided draft size bound enforced.
-- [ ] Keep atomic temp-file + fsync + replace semantics for draft writes.
-- [ ] Keep symlink rejection for draft loads.
-- [ ] Add a symlink-safe `clear(kind)` operation to `GuidedDraftStore`.
-- [ ] Clear First-run draft when setup reaches its defined completed boundary.
-- [ ] Clear New Deep Dive draft when the guided workflow reaches its defined terminal completed boundary.
-- [ ] Clear the appropriate draft after explicit confirmed abandonment.
-- [ ] Retain the draft on normal Save and Exit.
-- [ ] Retain the draft on recoverable validation/provider/runtime failure.
-- [ ] Retain the draft while generation is in progress when resume is meaningful.
-- [ ] Invalidate/recover stale drafts whose referenced project/episode/run identities are no longer usable.
-- [ ] Make `has_resume()` reflect recoverable incomplete state rather than mere file existence.
-- [ ] Ensure Home removes Resume Deep Dive after successful completion.
-- [ ] Ensure Home retains Resume Deep Dive after an intentionally saved incomplete workflow.
-- [ ] Ensure draft clearing cannot delete an unrelated file through symlink/path manipulation.
+- [x] Keep raw provider credentials out of wizard draft serialization.
+- [x] Keep pasted source body text out of wizard draft serialization.
+- [x] Keep other production business records out of wizard draft serialization.
+- [x] If new UI-only draft fields are required, explicitly allowlist and version them.
+- [x] Keep the guided draft size bound enforced.
+- [x] Keep atomic temp-file + fsync + replace semantics for draft writes.
+- [x] Keep symlink rejection for draft loads.
+- [x] Add a symlink-safe `clear(kind)` operation to `GuidedDraftStore`.
+- [x] Clear First-run draft when setup reaches its defined completed boundary.
+- [x] Clear New Deep Dive draft when the guided workflow reaches its defined terminal completed boundary.
+- [x] Clear the appropriate draft after explicit confirmed abandonment.
+- [x] Retain the draft on normal Save and Exit.
+- [x] Retain the draft on recoverable validation/provider/runtime failure.
+- [x] Retain the draft while generation is in progress when resume is meaningful.
+- [x] Invalidate/recover stale drafts whose referenced project/episode/run identities are no longer usable.
+- [x] Make `has_resume()` reflect recoverable incomplete state rather than mere file existence.
+- [x] Ensure Home removes Resume Deep Dive after successful completion.
+- [x] Ensure Home retains Resume Deep Dive after an intentionally saved incomplete workflow.
+- [x] Ensure draft clearing cannot delete an unrelated file through symlink/path manipulation.
 
 ## PRR-300 — Research default, hydration, and Quick parity
 
-- [ ] Document global New Deep Dive research precedence in code-facing documentation/tests.
-- [ ] Initialize a new project's Research selector from user-level `research_policy` when no project policy exists.
-- [ ] Hydrate the Research selector from an existing durable project policy on revisit.
-- [ ] Hydrate the Research selector from durable project policy after restart/resume.
-- [ ] Do not overwrite an existing project policy merely by opening/revisiting the screen.
-- [ ] Keep Save Research Choice routed through the production research controller/store.
+- [x] Document global New Deep Dive research precedence in code-facing documentation/tests.
+- [x] Initialize a new project's Research selector from user-level `research_policy` when no project policy exists.
+- [x] Hydrate the Research selector from an existing durable project policy on revisit.
+- [x] Hydrate the Research selector from durable project policy after restart/resume.
+- [x] Do not overwrite an existing project policy merely by opening/revisiting the screen.
+- [x] Keep Save Research Choice routed through the production research controller/store.
 - [x] Define Quick Deep Dive precedence as project Quick override > explicit user Quick override > user `research_policy` > built-in Useful.
 - [x] Update `QuickDeepDiveService` to fall back to `research_policy` when no explicit Quick research override exists.
 - [x] Preserve explicit `quick_deep_dive_research_policy` behavior.
 - [x] Preserve project Quick Deep Dive research override behavior.
-- [ ] Make first-run `research_policy` affect subsequent New Deep Dive by default.
-- [ ] Make first-run `research_policy` affect Quick Deep Dive when no more-specific Quick override exists.
-- [ ] Test Off across first-run -> New Deep Dive.
-- [ ] Test Useful across first-run -> New Deep Dive.
-- [ ] Test Aggressive across first-run -> New Deep Dive.
+- [x] Make first-run `research_policy` affect subsequent New Deep Dive by default.
+- [x] Make first-run `research_policy` affect Quick Deep Dive when no more-specific Quick override exists.
+- [x] Test Off across first-run -> New Deep Dive.
+- [x] Test Useful across first-run -> New Deep Dive.
+- [x] Test Aggressive across first-run -> New Deep Dive.
 - [x] Test Off across first-run/global -> Quick Deep Dive fallback.
 - [x] Test Aggressive across first-run/global -> Quick Deep Dive fallback.
 - [x] Test explicit user Quick override beats global research default.
@@ -182,97 +182,97 @@ A checkbox is complete only when the production behavior is correct, focused reg
 
 ## PRR-310 — Model-role readiness parity
 
-- [ ] Remove the requirement that a valid assigned role model equal `provider.default_model`.
-- [ ] Validate assigned model existence against the provider discovery snapshot.
-- [ ] Keep provider capability validation for role assignments.
-- [ ] Keep provider health/readiness validation for role assignments.
-- [ ] Align first-run role readiness with the production preflight compatibility policy.
-- [ ] Add a provider with default model A and discovered model B fixture.
-- [ ] Prove a role assigned to valid discovered model B passes first-run readiness.
-- [ ] Prove the same role/model passes production preflight.
-- [ ] Prove an undiscovered model fails first-run readiness.
-- [ ] Prove the same undiscovered model fails production preflight consistently.
-- [ ] Preserve restart/reload of non-default role assignments.
+- [x] Remove the requirement that a valid assigned role model equal `provider.default_model`.
+- [x] Validate assigned model existence against the provider discovery snapshot.
+- [x] Keep provider capability validation for role assignments.
+- [x] Keep provider health/readiness validation for role assignments.
+- [x] Align first-run role readiness with the production preflight compatibility policy.
+- [x] Add a provider with default model A and discovered model B fixture.
+- [x] Prove a role assigned to valid discovered model B passes first-run readiness.
+- [x] Prove the same role/model passes production preflight.
+- [x] Prove an undiscovered model fails first-run readiness.
+- [x] Prove the same undiscovered model fails production preflight consistently.
+- [x] Preserve restart/reload of non-default role assignments.
 
 ## PRR-320 — Non-blocking provider readiness and discovery
 
-- [ ] Inventory synchronous provider `health()`, `models()`, and `voices()` calls reachable from Textual mount/navigation/readiness paths.
-- [ ] Move potentially blocking first-run provider probes off the Textual UI event loop.
-- [ ] Move potentially blocking Home/setup-readiness provider probes off the Textual UI event loop.
-- [ ] Keep keyboard navigation responsive while provider readiness is checking.
-- [ ] Render an explicit Checking state while asynchronous readiness is pending.
-- [ ] Render Ready/Needs attention from the completed bounded snapshot.
-- [ ] Render sanitized actionable failure state on timeout/unreachable provider.
-- [ ] Prevent obsolete worker results from overwriting newer provider configuration/readiness state.
-- [ ] Coalesce or safely supersede duplicate readiness refreshes.
-- [ ] Reuse one model-discovery result within a readiness refresh where possible.
-- [ ] Eliminate the OpenAI health-plus-immediate-second-models discovery pattern from one readiness refresh.
-- [ ] Preserve configured timeout/retry policy without blocking UI input.
-- [ ] Add a deterministic slow-provider fake that blocks until released by the test.
-- [ ] Prove Textual pilot input/navigation remains responsive while the slow provider probe is pending.
-- [ ] Add unreachable-provider readiness coverage without real network access.
-- [ ] Add stale-result race coverage by changing provider config while an older probe is pending.
-- [ ] Assert bounded provider-call counts per readiness refresh.
+- [x] Inventory synchronous provider `health()`, `models()`, and `voices()` calls reachable from Textual mount/navigation/readiness paths.
+- [x] Move potentially blocking first-run provider probes off the Textual UI event loop.
+- [x] Move potentially blocking Home/setup-readiness provider probes off the Textual UI event loop.
+- [x] Keep keyboard navigation responsive while provider readiness is checking.
+- [x] Render an explicit Checking state while asynchronous readiness is pending.
+- [x] Render Ready/Needs attention from the completed bounded snapshot.
+- [x] Render sanitized actionable failure state on timeout/unreachable provider.
+- [x] Prevent obsolete worker results from overwriting newer provider configuration/readiness state.
+- [x] Coalesce or safely supersede duplicate readiness refreshes.
+- [x] Reuse one model-discovery result within a readiness refresh where possible.
+- [x] Eliminate the OpenAI health-plus-immediate-second-models discovery pattern from one readiness refresh.
+- [x] Preserve configured timeout/retry policy without blocking UI input.
+- [x] Add a deterministic slow-provider fake that blocks until released by the test.
+- [x] Prove Textual pilot input/navigation remains responsive while the slow provider probe is pending.
+- [x] Add unreachable-provider readiness coverage without real network access.
+- [x] Add stale-result race coverage by changing provider config while an older probe is pending.
+- [x] Assert bounded provider-call counts per readiness refresh.
 
 ## PRR-400 — Guided host edit completeness
 
-- [ ] Define required versus optional guided host fields.
-- [ ] Keep required host fields validated against blank values.
-- [ ] Treat blank optional role as an explicit clear during edit.
-- [ ] Treat blank optional instructions as an explicit clear during edit.
-- [ ] Route clearing through the existing host production service/repository path.
-- [ ] Refresh the guided host card/summary after clearing.
-- [ ] Prove cleared role survives restart.
-- [ ] Prove cleared instructions survive restart.
-- [ ] Preserve normal custom-host creation defaults where documented.
+- [x] Define required versus optional guided host fields.
+- [x] Keep required host fields validated against blank values.
+- [x] Treat blank optional role as an explicit clear during edit.
+- [x] Treat blank optional instructions as an explicit clear during edit.
+- [x] Route clearing through the existing host production service/repository path.
+- [x] Refresh the guided host card/summary after clearing.
+- [x] Prove cleared role survives restart.
+- [x] Prove cleared instructions survive restart.
+- [x] Preserve normal custom-host creation defaults where documented.
 
 ## PRR-410 — Consistent destructive-action confirmations
 
-- [ ] Define one reusable confirmation interaction/pattern for destructive TUI actions.
-- [ ] Require confirmation before advanced provider removal.
-- [ ] Require confirmation before advanced host removal.
-- [ ] Require confirmation before advanced source deletion.
-- [ ] Preserve confirmation before guided source deletion.
-- [ ] Preserve confirmation before project deletion.
-- [ ] Preserve confirmation before generation cancellation where applicable.
-- [ ] Confirmation text identifies the selected target using friendly identity.
-- [ ] Confirmation is keyboard accessible.
-- [ ] Default action is cancel/non-destructive.
-- [ ] Changing the selected provider clears pending provider-delete confirmation.
-- [ ] Changing the selected host clears pending host-delete confirmation.
-- [ ] Changing the selected source clears pending source-delete confirmation.
-- [ ] Repeated key/button events cannot execute a destructive mutation twice.
-- [ ] Cancel leaves durable state unchanged.
-- [ ] Confirm still routes through the existing production delete/remove service/controller.
+- [x] Define one reusable confirmation interaction/pattern for destructive TUI actions.
+- [x] Require confirmation before advanced provider removal.
+- [x] Require confirmation before advanced host removal.
+- [x] Require confirmation before advanced source deletion.
+- [x] Preserve confirmation before guided source deletion.
+- [x] Preserve confirmation before project deletion.
+- [x] Preserve confirmation before generation cancellation where applicable.
+- [x] Confirmation text identifies the selected target using friendly identity.
+- [x] Confirmation is keyboard accessible.
+- [x] Default action is cancel/non-destructive.
+- [x] Changing the selected provider clears pending provider-delete confirmation.
+- [x] Changing the selected host clears pending host-delete confirmation.
+- [x] Changing the selected source clears pending source-delete confirmation.
+- [x] Repeated key/button events cannot execute a destructive mutation twice.
+- [x] Cancel leaves durable state unchanged.
+- [x] Confirm still routes through the existing production delete/remove service/controller.
 
 ## PRR-420 — Atomic composite settings/default saves
 
-- [ ] Add a controller/service helper that validates and saves a complete candidate `UserConfig` once.
-- [ ] Avoid repeated `UserConfigStore.save()` calls for one logical multi-field user action.
-- [ ] Make TTS provider + voice default save atomic.
-- [ ] Make research + network default save atomic.
-- [ ] Make Quick Deep Dive duration + host presets + research default save atomic.
-- [ ] Make runtime/readiness default save atomic.
-- [ ] Make first-run Host 1/Host 2 voice/default bundle save atomic.
-- [ ] Make other first-run multi-default button actions atomic where currently split across repeated `set_default()` calls.
-- [ ] Validate all candidate values before mutating durable config.
-- [ ] On validation failure, retain previous in-memory and durable config.
-- [ ] On simulated filesystem save failure, retain previous durable config.
-- [ ] Preserve owner-only file permissions after successful config save.
-- [ ] Add a counting config-store fake proving one durable save per logical action.
-- [ ] Add byte-level/semantic rollback assertions for failed composite saves.
+- [x] Add a controller/service helper that validates and saves a complete candidate `UserConfig` once.
+- [x] Avoid repeated `UserConfigStore.save()` calls for one logical multi-field user action.
+- [x] Make TTS provider + voice default save atomic.
+- [x] Make research + network default save atomic.
+- [x] Make Quick Deep Dive duration + host presets + research default save atomic.
+- [x] Make runtime/readiness default save atomic.
+- [x] Make first-run Host 1/Host 2 voice/default bundle save atomic.
+- [x] Make other first-run multi-default button actions atomic where currently split across repeated `set_default()` calls.
+- [x] Validate all candidate values before mutating durable config.
+- [x] On validation failure, retain previous in-memory and durable config.
+- [x] On simulated filesystem save failure, retain previous durable config.
+- [x] Preserve owner-only file permissions after successful config save.
+- [x] Add a counting config-store fake proving one durable save per logical action.
+- [x] Add byte-level/semantic rollback assertions for failed composite saves.
 
 ## PRR-500 — Expanded security/redaction acceptance matrix
 
 - [x] Add Basic Authorization canary coverage to direct sanitizer tests.
 - [x] Add Token Authorization canary coverage to direct sanitizer tests.
 - [x] Add Digest Authorization canary coverage to direct sanitizer tests.
-- [ ] Add mixed-case Authorization canary coverage.
+- [x] Add mixed-case Authorization canary coverage.
 - [x] Add quoted and JSON-like Authorization canary coverage.
 - [x] Add multiline/multiple-secret sanitizer coverage.
 - [x] Add nested mapping/list/tuple sanitizer coverage.
 - [x] Add chained-exception sanitizer coverage.
-- [ ] Add CLI error-output canary coverage.
+- [x] Add CLI error-output canary coverage.
 - [ ] Add advanced TUI host/provider/settings/research canary coverage.
 - [ ] Add guided first-run canary coverage.
 - [ ] Add guided New Deep Dive canary coverage.
@@ -287,49 +287,49 @@ A checkbox is complete only when the production behavior is correct, focused reg
 
 ## PRR-510 — Save/Exit and resume acceptance matrix
 
-- [ ] First-run clean Save and Exit acceptance passes.
-- [ ] First-run dirty valid Save changes and exit acceptance passes.
-- [ ] First-run dirty invalid save retains input and stays in wizard.
-- [ ] First-run dirty Cancel retains input.
-- [ ] First-run explicit discard drops only unsaved edits and preserves prior durable progress.
-- [ ] First-run Escape uses the same dirty-aware contract.
-- [ ] New Deep Dive clean Save and Exit acceptance passes.
-- [ ] New Deep Dive dirty project form Save changes and exit acceptance passes.
-- [ ] New Deep Dive dirty pasted-source form cannot be silently lost.
-- [ ] New Deep Dive dirty URL/file input cannot be silently lost.
-- [ ] New Deep Dive dirty host edit cannot be silently lost.
-- [ ] New Deep Dive dirty episode settings cannot be silently lost.
-- [ ] New Deep Dive invalid save retains input and stays in wizard.
-- [ ] New Deep Dive dirty Cancel retains input.
-- [ ] New Deep Dive explicit discard preserves prior durable state.
-- [ ] Modal Escape cancels confirmation without exiting.
-- [ ] Restart resumes the last durable safe boundary after Save and Exit.
-- [ ] Serialized draft inspection proves no raw source text or credential canary was introduced.
-- [ ] Completed workflow no longer produces Resume Deep Dive.
-- [ ] Saved incomplete workflow still produces Resume Deep Dive.
+- [x] First-run clean Save and Exit acceptance passes.
+- [x] First-run dirty valid Save changes and exit acceptance passes.
+- [x] First-run dirty invalid save retains input and stays in wizard.
+- [x] First-run dirty Cancel retains input.
+- [x] First-run explicit discard drops only unsaved edits and preserves prior durable progress.
+- [x] First-run Escape uses the same dirty-aware contract.
+- [x] New Deep Dive clean Save and Exit acceptance passes.
+- [x] New Deep Dive dirty project form Save changes and exit acceptance passes.
+- [x] New Deep Dive dirty pasted-source form cannot be silently lost.
+- [x] New Deep Dive dirty URL/file input cannot be silently lost.
+- [x] New Deep Dive dirty host edit cannot be silently lost.
+- [x] New Deep Dive dirty episode settings cannot be silently lost.
+- [x] New Deep Dive invalid save retains input and stays in wizard.
+- [x] New Deep Dive dirty Cancel retains input.
+- [x] New Deep Dive explicit discard preserves prior durable state.
+- [x] Modal Escape cancels confirmation without exiting.
+- [x] Restart resumes the last durable safe boundary after Save and Exit.
+- [x] Serialized draft inspection proves no raw source text or credential canary was introduced.
+- [x] Completed workflow no longer produces Resume Deep Dive.
+- [x] Saved incomplete workflow still produces Resume Deep Dive.
 
 ## PRR-520 — Research/readiness/UX acceptance matrix
 
-- [ ] First-run research Off hydrates New Deep Dive correctly.
-- [ ] First-run research Useful hydrates New Deep Dive correctly.
-- [ ] First-run research Aggressive hydrates New Deep Dive correctly.
-- [ ] Persisted project policy hydrates correctly on revisit.
-- [ ] Persisted project policy hydrates correctly after restart.
+- [x] First-run research Off hydrates New Deep Dive correctly.
+- [x] First-run research Useful hydrates New Deep Dive correctly.
+- [x] First-run research Aggressive hydrates New Deep Dive correctly.
+- [x] Persisted project policy hydrates correctly on revisit.
+- [x] Persisted project policy hydrates correctly after restart.
 - [x] Quick fallback to global research default passes.
 - [x] Explicit user Quick override precedence passes.
 - [x] Project Quick override precedence passes.
-- [ ] Valid non-default role model passes first-run readiness.
-- [ ] Valid non-default role model passes shared production preflight.
-- [ ] Invalid/undiscovered role model fails both consistently.
-- [ ] Slow provider readiness does not block keyboard input.
-- [ ] Unreachable provider produces bounded sanitized Needs attention state.
-- [ ] Obsolete provider readiness result cannot overwrite newer configuration.
-- [ ] Provider discovery call-count assertion passes.
-- [ ] Host optional field clear survives restart.
-- [ ] Provider destructive confirmation matrix passes.
-- [ ] Host destructive confirmation matrix passes.
-- [ ] Source destructive confirmation matrix passes.
-- [ ] Composite settings single-save/rollback matrix passes.
+- [x] Valid non-default role model passes first-run readiness.
+- [x] Valid non-default role model passes shared production preflight.
+- [x] Invalid/undiscovered role model fails both consistently.
+- [x] Slow provider readiness does not block keyboard input.
+- [x] Unreachable provider produces bounded sanitized Needs attention state.
+- [x] Obsolete provider readiness result cannot overwrite newer configuration.
+- [x] Provider discovery call-count assertion passes.
+- [x] Host optional field clear survives restart.
+- [x] Provider destructive confirmation matrix passes.
+- [x] Host destructive confirmation matrix passes.
+- [x] Source destructive confirmation matrix passes.
+- [x] Composite settings single-save/rollback matrix passes.
 
 ## PRR-600 — Static quality and focused regression gates
 
@@ -342,58 +342,61 @@ A checkbox is complete only when the production behavior is correct, focused reg
 - [x] CLI/import smoke passes.
 - [ ] No new broad exception swallowing is introduced in remediation paths.
 - [ ] No new duplicated provider/research/generation business logic is introduced in TUI screens.
-- [ ] No new secret-bearing field is added to persisted user config or wizard drafts.
+- [x] No new secret-bearing field is added to persisted user config or wizard drafts.
 - [ ] New deterministic fakes/fixtures are reusable across the post-review matrices rather than one-off copies.
 
 ## PRR-610 — Existing production regression preservation
 
-- [ ] Existing guided first-run deterministic fake-LLM acceptance remains green.
-- [ ] Existing guided first-run deterministic fake-TTS acceptance remains green.
-- [ ] Existing source import/index failure/retry/restart acceptance remains green.
-- [ ] Existing research execution matrix remains green.
-- [ ] Existing host ordering/voice behavior remains green.
-- [ ] Existing episode planning validity/mutation behavior remains green.
-- [ ] Existing shared preflight behavior remains green.
-- [ ] Existing generation monitor/run-state control remains green.
-- [ ] Existing Episode Library behavior remains green.
-- [ ] Existing transcript review and targeted repair behavior remains green.
-- [ ] Existing Quick Deep Dive production-artifact acceptance remains green.
-- [ ] Existing Quick-versus-guided artifact identity/equivalence acceptance remains green.
-- [ ] Existing multi-episode isolation acceptance remains green.
-- [ ] Existing provider CLI matrix remains green.
-- [ ] Existing local-only/network-scope enforcement remains green.
-- [ ] Existing persisted compatibility/restart acceptance remains green.
+- [x] Existing guided first-run deterministic fake-LLM acceptance remains green.
+- [x] Existing guided first-run deterministic fake-TTS acceptance remains green.
+- [x] Existing source import/index failure/retry/restart acceptance remains green.
+- [x] Existing research execution matrix remains green.
+- [x] Existing host ordering/voice behavior remains green.
+- [x] Existing episode planning validity/mutation behavior remains green.
+- [x] Existing shared preflight behavior remains green.
+- [x] Existing generation monitor/run-state control remains green.
+- [x] Existing Episode Library behavior remains green.
+- [x] Existing transcript review and targeted repair behavior remains green.
+- [x] Existing Quick Deep Dive production-artifact acceptance remains green.
+- [x] Existing Quick-versus-guided artifact identity/equivalence acceptance remains green.
+- [x] Existing multi-episode isolation acceptance remains green.
+- [x] Existing provider CLI matrix remains green.
+- [x] Existing local-only/network-scope enforcement remains green.
+- [x] Existing persisted compatibility/restart acceptance remains green.
 
 ## PRR-700 — Installed-wheel and fresh-machine qualification
 
-- [ ] Build a wheel from the exact candidate master head.
-- [ ] Install the wheel into a fresh isolated environment without importing from the source tree.
-- [ ] Verify CLI entry points from the installed wheel.
-- [ ] Run deterministic CLI research workflow from the installed wheel.
-- [ ] Run deterministic CLI episode plan/generate/control/export/status workflow from the installed wheel.
-- [ ] Run deterministic guided first-run TUI acceptance from the installed wheel.
-- [ ] Run deterministic New Deep Dive TUI acceptance from the installed wheel.
-- [ ] Run Save/Exit dirty-form acceptance from the installed wheel.
-- [ ] Run research-default/Quick precedence acceptance from the installed wheel.
-- [ ] Run non-default model-role readiness/preflight acceptance from the installed wheel.
-- [ ] Run post-review security/redaction canary matrix from the installed wheel.
-- [ ] Run stale-resume/host-clear/destructive-confirmation acceptance from the installed wheel.
-- [ ] Run real KittenTTS Micro CPU smoke from the fresh environment.
-- [ ] Record exact wheel identity, master SHA, and job/run IDs used for fresh-machine qualification.
+- [x] Build a wheel from the exact candidate master head.
+- [x] Install the wheel into a fresh isolated environment without importing from the source tree.
+- [x] Verify CLI entry points from the installed wheel.
+- [x] Run deterministic CLI research workflow from the installed wheel.
+- [x] Run deterministic CLI episode plan/generate/control/export/status workflow from the installed wheel.
+- [x] Run deterministic guided first-run TUI acceptance from the installed wheel.
+- [x] Run deterministic New Deep Dive TUI acceptance from the installed wheel.
+- [x] Run Save/Exit dirty-form acceptance from the installed wheel.
+- [x] Run research-default/Quick precedence acceptance from the installed wheel.
+- [x] Run non-default model-role readiness/preflight acceptance from the installed wheel.
+- [x] Run post-review security/redaction canary matrix from the installed wheel.
+- [x] Run stale-resume/host-clear/destructive-confirmation acceptance from the installed wheel.
+- [x] Run real KittenTTS Micro CPU smoke from the fresh environment.
+- [x] Record exact wheel identity, master SHA, and job/run IDs used for fresh-machine qualification.
+
+
+**Qualified reconciliation checkpoint (2026-10-10):** implementation head `204d1df97dd49db17f4c4b17fdf07848d944c0c4` passed exact-head CI run `38012285504`. Quality job `114094736110` passed lock validation, Ruff format, Ruff lint, strict mypy, full pytest, package build, and CLI/import smoke. Fresh-machine job `114094735913` built and installed `deeper-dive==0.1.0` into `/tmp/deeper-dive-fresh`, verified the import resolved from that isolated installation, passed installed-wheel CLI/TUI and post-review remediation matrices, and passed the real KittenTTS Micro CPU smoke. The installed-wheel remediation matrix explicitly exercised CLI research, CLI episode generation/control/export, dirty Save/Exit, research/model-role readiness, stale-resume, host-clear, destructive-confirmation, atomic-settings, security/redaction, async-readiness, and sanitized CLI-error regressions.
 
 ## PRR-800 — Documentation and operator guidance
 
-- [ ] Update user guidance for dirty Save and Exit behavior.
-- [ ] Document that credential fields accept environment-variable names, not raw API keys.
-- [ ] Document provider URL userinfo/sensitive-query rejection.
-- [ ] Document global research default versus Quick-specific override precedence.
-- [ ] Document that New Deep Dive Research reloads the actual durable project policy.
-- [ ] Document Resume Deep Dive as an incomplete-workflow action rather than a permanent history entry.
+- [x] Update user guidance for dirty Save and Exit behavior.
+- [x] Document that credential fields accept environment-variable names, not raw API keys.
+- [x] Document provider URL userinfo/sensitive-query rejection.
+- [x] Document global research default versus Quick-specific override precedence.
+- [x] Document that New Deep Dive Research reloads the actual durable project policy.
+- [x] Document Resume Deep Dive as an incomplete-workflow action rather than a permanent history entry.
 - [ ] Document asynchronous provider readiness/checking states where user-visible.
-- [ ] Document destructive confirmation behavior consistently across advanced and guided surfaces.
-- [ ] Update developer guidance for canonical sanitization ownership.
+- [x] Document destructive confirmation behavior consistently across advanced and guided surfaces.
+- [x] Update developer guidance for canonical sanitization ownership.
 - [ ] Update developer guidance for atomic composite config saves.
-- [ ] Preserve the predecessor spec/TODO as historical evidence; only add a forward reference if genuinely useful.
+- [x] Preserve the predecessor spec/TODO as historical evidence; only add a forward reference if genuinely useful.
 
 ## PRR-900 — Original TODO requalification against review defects
 
