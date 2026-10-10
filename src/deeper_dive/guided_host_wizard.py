@@ -139,7 +139,12 @@ class GuidedHostWizard(GuidedSourceWizard):
             and self._host_profile_dirty()
         ):
             destination = value
-            preserved = self._pending_host_form_values or self._host_form_values()
+            live_values = self._host_form_values()
+            preserved = (
+                live_values
+                if self._host_profile_values_dirty(live_values)
+                else self._pending_host_form_values or live_values
+            )
             self._ignore_host_picker_value = self._loaded_host_id
             event.select.value = self._loaded_host_id  # type: ignore[assignment]
             self._restore_host_form_values(preserved)
@@ -177,18 +182,12 @@ class GuidedHostWizard(GuidedSourceWizard):
         self.query_one("#guided-host-instructions", Input).value = instructions
         self.query_one("#guided-host-preset", Select).value = preset
 
-    def _host_profile_dirty(self) -> bool:
-        if self.context.state.current_step != "hosts":
-            return False
+    def _host_profile_values_dirty(
+        self,
+        values: tuple[str, str, str, str, object],
+    ) -> bool:
         baseline = self._form_baselines.get("hosts")
-        current = tuple(super()._editable_snapshot())
-        if baseline is None:
-            return bool(current)
-        durable_profile = tuple(item for item in baseline if item[0] != "__episode_host_order__")
-        pending = self._pending_host_form_values
-        if pending is None:
-            return current != durable_profile
-        pending_profile = tuple(
+        candidate = tuple(
             zip(
                 (
                     "guided-host-name",
@@ -196,11 +195,23 @@ class GuidedHostWizard(GuidedSourceWizard):
                     "guided-host-expertise",
                     "guided-host-instructions",
                 ),
-                pending[:4],
+                values[:4],
                 strict=True,
             )
         )
-        return pending_profile != durable_profile
+        if baseline is None:
+            return bool(candidate)
+        durable_profile = tuple(item for item in baseline if item[0] != "__episode_host_order__")
+        return candidate != durable_profile
+
+    def _host_profile_dirty(self) -> bool:
+        if self.context.state.current_step != "hosts":
+            return False
+        live_values = self._host_form_values()
+        if self._host_profile_values_dirty(live_values):
+            return True
+        pending = self._pending_host_form_values
+        return pending is not None and self._host_profile_values_dirty(pending)
 
     def _remember_host_profile_baseline(self) -> None:
         if self.context.state.current_step != "hosts":

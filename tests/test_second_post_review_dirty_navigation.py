@@ -297,7 +297,6 @@ async def _partial_file_import_retains_unresolved_input_on_save_exit(tmp_path: P
         assert "unresolved input(s) retained" in str(wizard.query_one("#wizard-status").render())
 
 
-
 def test_dirty_episode_screen_resume_preserves_typed_values(tmp_path: Path) -> None:
     asyncio.run(_dirty_episode_screen_resume_preserves_typed_values(tmp_path))
 
@@ -324,9 +323,7 @@ async def _dirty_episode_screen_resume_preserves_typed_values(tmp_path: Path) ->
 
         assert wizard.context.state.current_step == "episode"
         assert wizard.query_one("#guided-episode-focus", Input).value == changed
-        assert "Unsaved changes remain" in str(
-            wizard.query_one("#wizard-status", Static).render()
-        )
+        assert "Unsaved changes remain" in str(wizard.query_one("#wizard-status", Static).render())
 
 
 def test_first_run_dirty_guard_covers_each_editable_stage(tmp_path: Path) -> None:

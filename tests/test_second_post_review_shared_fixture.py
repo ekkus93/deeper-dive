@@ -5,12 +5,14 @@ from pathlib import Path
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.storage.database import Database
 
+
 def _configuration(completed) -> tuple[str, tuple[str, ...]]:
     database = Database(
         completed.service.workspaces.project_root(completed.project_id) / "project.db"
     )
     config = EpisodeConfigurationService(database).load_configuration(completed.episode_id)
     return config.title, config.host_ids
+
 
 def test_two_project_completed_acceptance_fixture_is_fully_isolated(
     two_project_completed_acceptance,
@@ -38,6 +40,8 @@ def test_two_project_completed_acceptance_fixture_is_fully_isolated(
         assert completed.transcript_path.is_relative_to(project_root / "output")
         assert completed.audio_path.is_relative_to(project_root / "output")
         assert Path(completed.transcript_path).name.startswith(completed.episode_id)
+
+
 
 def test_second_post_review_acceptance_fixture_includes_pending_run_and_snapshots(
     second_post_review_acceptance,
