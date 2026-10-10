@@ -54,8 +54,26 @@ class EpisodePlanRepository:
                 return True
         return False
 
-    def replace(self, plan: EpisodePlanRecord, segments: list[SegmentPlanRecord]) -> None:
-        with self.database.transaction() as db:
+    def replace(
+        self,
+        plan: EpisodePlanRecord,
+        segments: list[SegmentPlanRecord],
+        *,
+        expected_episode_modified_at: str | None = None,
+    ) -> None:
+        with self.database.transaction(immediate=True) as db:
+            if expected_episode_modified_at is not None:
+                episode = db.execute(
+                    "SELECT modified_at FROM episodes WHERE id=?",
+                    (plan.episode_id,),
+                ).fetchone()
+                if episode is None:
+                    raise KeyError(plan.episode_id)
+                if episode["modified_at"] != expected_episode_modified_at:
+                    raise ValueError(
+                        "episode configuration changed while the plan was being built; "
+                        "retry planning"
+                    )
             existing = db.execute(
                 "SELECT id FROM episode_plans WHERE episode_id=?", (plan.episode_id,)
             ).fetchone()

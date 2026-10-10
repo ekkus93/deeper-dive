@@ -240,10 +240,10 @@ class Database:
             connection.close()
 
     @contextmanager
-    def transaction(self) -> Iterator[sqlite3.Connection]:
+    def transaction(self, *, immediate: bool = False) -> Iterator[sqlite3.Connection]:
         with self.connection() as connection:
             try:
-                connection.execute("BEGIN")
+                connection.execute("BEGIN IMMEDIATE" if immediate else "BEGIN")
                 yield connection
             except BaseException:
                 connection.rollback()

@@ -13,12 +13,33 @@ class EpisodeConfigurationRepository:
         self.database = database
         self.database.initialize()
 
-    def update(self, episode: EpisodeRecord, host_ids: list[str]) -> None:
-        with self.database.transaction() as db:
+    def update(
+        self,
+        episode: EpisodeRecord,
+        host_ids: list[str],
+        *,
+        expected_modified_at: str,
+    ) -> None:
+        with self.database.transaction(immediate=True) as db:
+            for table in ("generation_runs", "conversation_states", "conversation_turns"):
+                if (
+                    db.execute(
+                        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+                        (table,),
+                    ).fetchone()
+                    and db.execute(
+                        f"SELECT 1 FROM {table} WHERE episode_id=? LIMIT 1",
+                        (episode.id,),
+                    ).fetchone()
+                ):
+                    raise ValueError(
+                        "episode configuration is frozen after generation starts; "
+                        "create a new episode"
+                    )
             cursor = db.execute(
                 """UPDATE episodes SET title=?,focus=?,audience=?,technical_depth=?,
                 target_duration_seconds=?,style=?,state=?,config_json=?,modified_at=?
-                WHERE id=? AND project_id=?""",
+                WHERE id=? AND project_id=? AND modified_at=? AND state='draft'""",
                 (
                     episode.title,
                     episode.focus,
@@ -31,10 +52,19 @@ class EpisodeConfigurationRepository:
                     episode.modified_at,
                     episode.id,
                     episode.project_id,
+                    expected_modified_at,
                 ),
             )
             if cursor.rowcount != 1:
-                raise KeyError(episode.id)
+                current = db.execute(
+                    "SELECT modified_at,state FROM episodes WHERE id=? AND project_id=?",
+                    (episode.id, episode.project_id),
+                ).fetchone()
+                if current is None:
+                    raise KeyError(episode.id)
+                raise ValueError(
+                    "episode configuration changed concurrently or is no longer editable; retry"
+                )
             db.execute("DELETE FROM episode_hosts WHERE episode_id=?", (episode.id,))
             for ordinal, host_id in enumerate(host_ids):
                 db.execute(

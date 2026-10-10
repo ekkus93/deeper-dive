@@ -79,7 +79,11 @@ class EpisodeConfigurationService:
             config,
             state=existing.state,
         )
-        self.configuration.update(record, list(config.host_ids))
+        self.configuration.update(
+            record,
+            list(config.host_ids),
+            expected_modified_at=existing.modified_at,
+        )
         return record
 
     def load_configuration(self, episode_id: str) -> EpisodeConfiguration:

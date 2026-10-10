@@ -71,6 +71,7 @@ class EpisodePlannerService:
         episode = self.repository.get_episode(episode_id)
         if episode is None:
             raise KeyError(episode_id)
+        episode_revision = episode.modified_at
         evidence = self.retrieval.search(episode.project_id, config.focus, limit=12)
         request = {
             "episode": config.snapshot(),
@@ -88,7 +89,7 @@ class EpisodePlannerService:
         segments = self._validate_segments(raw, config.host_ids, {hit.chunk_id for hit in evidence})
         segments = self._bound_duration(segments, config.target_duration_seconds)
         plan = EpisodePlan(str(uuid4()), episode_id, tuple(segments))
-        self._persist(plan)
+        self._persist(plan, expected_episode_modified_at=episode_revision)
         return plan
 
     def regenerate_plan(self, episode_id: str) -> EpisodePlan:
@@ -100,6 +101,7 @@ class EpisodePlannerService:
         if ordinal < 0 or ordinal >= len(current.segments):
             raise IndexError(ordinal)
         config = self.configurations.load_configuration(episode_id)
+        episode_revision = self._episode_revision(episode_id)
         request = {
             "episode": config.snapshot(),
             "segment": {"ordinal": ordinal, **self._segment_payload(current.segments[ordinal])},
@@ -117,7 +119,7 @@ class EpisodePlannerService:
         segments[ordinal] = replacement[0]
         segments = self._bound_duration(segments, config.target_duration_seconds)
         plan = EpisodePlan(str(uuid4()), episode_id, tuple(segments))
-        self._persist(plan)
+        self._persist(plan, expected_episode_modified_at=episode_revision)
         return plan
 
     def edit_segment(self, episode_id: str, ordinal: int, segment: PlannedSegment) -> EpisodePlan:
@@ -128,6 +130,7 @@ class EpisodePlannerService:
         if ordinal < 0 or ordinal >= len(current.segments):
             raise IndexError(ordinal)
         config = self.configurations.load_configuration(episode_id)
+        episode_revision = self._episode_revision(episode_id)
         validated = self._validate_segments(
             {"segments": [self._segment_payload(segment)]},
             config.host_ids,
@@ -137,7 +140,7 @@ class EpisodePlannerService:
         segments[ordinal] = validated
         segments = self._bound_duration(segments, config.target_duration_seconds)
         plan = EpisodePlan(str(uuid4()), episode_id, tuple(segments))
-        self._persist(plan)
+        self._persist(plan, expected_episode_modified_at=episode_revision)
         return plan
 
     def approve_plan(self, episode_id: str) -> EpisodePlan:
@@ -157,7 +160,13 @@ class EpisodePlannerService:
         )
         return EpisodePlan(record.id, episode_id, segments)
 
-    def _persist(self, plan: EpisodePlan, *, status: str = "draft") -> None:
+    def _persist(
+        self,
+        plan: EpisodePlan,
+        *,
+        status: str = "draft",
+        expected_episode_modified_at: str | None = None,
+    ) -> None:
         timestamp = format_timestamp(self.clock.now())
         record = EpisodePlanRecord(
             id=plan.id,
@@ -179,7 +188,17 @@ class EpisodePlannerService:
             )
             for ordinal, segment in enumerate(plan.segments)
         ]
-        self.plan_repository.replace(record, segments)
+        self.plan_repository.replace(
+            record,
+            segments,
+            expected_episode_modified_at=expected_episode_modified_at,
+        )
+
+    def _episode_revision(self, episode_id: str) -> str:
+        episode = self.repository.get_episode(episode_id)
+        if episode is None:
+            raise KeyError(episode_id)
+        return episode.modified_at
 
     def _allowed_evidence_ids(self, episode_id: str) -> set[str]:
         episode = self.repository.get_episode(episode_id)
