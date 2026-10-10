@@ -8,6 +8,7 @@ from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qsl, unquote_plus
 
 _SECRET_WORDS = frozenset({"authorization", "password", "cookie"})
 _SECRET_PAIRS = frozenset(
@@ -45,6 +46,20 @@ _CREDENTIAL_QUERY = re.compile(
     r"(?i)([?&](?:api_key|apikey|key|token|access_token|auth|authorization|password|secret)=)"
     r"([^&#\s]+)"
 )
+_URL_FRAGMENT = re.compile(r"(?i)(https?://[^\s#]+)#([^\s]+)")
+_SENSITIVE_URL_KEYS = frozenset(
+    {
+        "api_key",
+        "apikey",
+        "key",
+        "token",
+        "access_token",
+        "auth",
+        "authorization",
+        "password",
+        "secret",
+    }
+)
 _CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 _WORD_SPLIT = re.compile(r"[^A-Za-z0-9]+")
 
@@ -80,6 +95,17 @@ def _redact_quoted_mapping_assignment(match: re.Match[str]) -> str:
     )
 
 
+def _redact_url_fragment(match: re.Match[str]) -> str:
+    decoded = unquote_plus(match.group(2)).replace(";", "&")
+    try:
+        pairs = parse_qsl(decoded, keep_blank_values=True)
+    except ValueError:
+        pairs = []
+    if any(key.lower() in _SENSITIVE_URL_KEYS for key, _ in pairs):
+        return f"{match.group(1)}#[REDACTED]"
+    return match.group(0)
+
+
 def _redact_text(value: str) -> str:
     value = _AUTH_QUOTED.sub(
         lambda match: f"{match.group(1)}{match.group(3)}[REDACTED]{match.group(3)}",
@@ -90,6 +116,7 @@ def _redact_text(value: str) -> str:
     value = _BEARER.sub("Bearer [REDACTED]", value)
     value = _QUOTED_MAPPING_ASSIGNMENT.sub(_redact_quoted_mapping_assignment, value)
     value = _ASSIGNMENT.sub(_redact_assignment, value)
+    value = _URL_FRAGMENT.sub(_redact_url_fragment, value)
     value = _CREDENTIAL_QUERY.sub(r"\1[REDACTED]", value)
     return _CREDENTIAL_URL.sub(r"\1[REDACTED]@", value)
 

@@ -13,6 +13,21 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 CURRENT_CONFIG_VERSION = 1
 
+_RESEARCH_MODES = frozenset({"off", "conservative", "useful", "aggressive"})
+_HOST_PRESETS = frozenset(
+    {
+        "curious_explainer",
+        "skeptic",
+        "synthesizer",
+        "domain_expert",
+        "practitioner",
+        "historian",
+        "moderator",
+        "custom",
+    }
+)
+_BOOLEAN_DEFAULTS = frozenset({"0", "1", "false", "true", "no", "yes", "off", "on"})
+
 
 class ProviderConfig(BaseModel):
     """Non-secret provider settings. Credentials are intentionally not represented."""
@@ -56,6 +71,8 @@ class ProviderConfig(BaseModel):
             raise ValueError("base_url must include a valid HTTP(S) host")
         if parsed.username is not None or parsed.password is not None or "@" in parsed.netloc:
             raise ValueError("base_url must not contain credentials in URL userinfo")
+        if parsed.fragment:
+            raise ValueError("base_url must not contain URL fragments")
         sensitive = {
             "api_key",
             "apikey",
@@ -80,6 +97,52 @@ class UserConfig(BaseModel):
     schema_version: int = CURRENT_CONFIG_VERSION
     providers: dict[str, ProviderConfig] = Field(default_factory=dict)
     defaults: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("defaults")
+    @classmethod
+    def validate_defaults(cls, values: dict[str, str]) -> dict[str, str]:
+        normalized = dict(values)
+        for key in ("research_policy", "quick_deep_dive_research_policy"):
+            raw = normalized.get(key)
+            if raw is None:
+                continue
+            value = raw.strip().lower()
+            if value and value not in _RESEARCH_MODES:
+                raise ValueError(f"{key} must be one of: {', '.join(sorted(_RESEARCH_MODES))}")
+            normalized[key] = value
+
+        duration = normalized.get("quick_deep_dive_duration_minutes")
+        if duration is not None:
+            value = duration.strip()
+            if value:
+                try:
+                    minutes = int(value)
+                except ValueError:
+                    raise ValueError(
+                        "quick_deep_dive_duration_minutes must be a positive integer"
+                    ) from None
+                if minutes <= 0:
+                    raise ValueError(
+                        "quick_deep_dive_duration_minutes must be a positive integer"
+                    )
+            normalized["quick_deep_dive_duration_minutes"] = value
+
+        presets = normalized.get("quick_deep_dive_host_presets")
+        if presets is not None:
+            parsed = tuple(item.strip() for item in presets.split(",") if item.strip())
+            if parsed and (len(parsed) != 2 or any(item not in _HOST_PRESETS for item in parsed)):
+                raise ValueError(
+                    "quick_deep_dive_host_presets must contain exactly two valid host presets"
+                )
+            normalized["quick_deep_dive_host_presets"] = ",".join(parsed)
+
+        local_only = normalized.get("local_only")
+        if local_only is not None:
+            value = local_only.strip().lower()
+            if value and value not in _BOOLEAN_DEFAULTS:
+                raise ValueError("local_only must be a boolean value")
+            normalized["local_only"] = value
+        return normalized
 
     @field_validator("schema_version")
     @classmethod
