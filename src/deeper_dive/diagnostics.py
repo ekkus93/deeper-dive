@@ -47,6 +47,11 @@ _CREDENTIAL_QUERY = re.compile(
     r"([^&#\s]+)"
 )
 _URL_FRAGMENT = re.compile(r"(?i)(https?://[^\s#]+)#([^\s]+)")
+# Percent-encoded credential *keys* in URL queries are not matched by the
+# plain-text assignment pattern. Decode only the key and retain the URL shape.
+_ENCODED_CREDENTIAL_QUERY = re.compile(
+    r"(?i)([?&])((?:[A-Za-z0-9_-]|%[0-9a-f]{2})+)(=)([^&#\\s]+)"
+)
 _SENSITIVE_URL_KEYS = frozenset(
     {
         "api_key",
@@ -113,6 +118,18 @@ def _redact_url_fragment(match: re.Match[str]) -> str:
     return match.group(0)
 
 
+def _redact_encoded_query(match: re.Match[str]) -> str:
+    key = match.group(2)
+    for _ in range(4):
+        decoded = unquote_plus(key)
+        if decoded == key:
+            break
+        key = decoded
+    if key.lower() in _SENSITIVE_URL_KEYS or _is_secret_key(key):
+        return f"{match.group(1)}{match.group(2)}{match.group(3)}[REDACTED]"
+    return match.group(0)
+
+
 def _redact_text(value: str) -> str:
     value = _AUTH_QUOTED.sub(
         lambda match: f"{match.group(1)}{match.group(3)}[REDACTED]{match.group(3)}",
@@ -125,6 +142,7 @@ def _redact_text(value: str) -> str:
     value = _ASSIGNMENT.sub(_redact_assignment, value)
     value = _URL_FRAGMENT.sub(_redact_url_fragment, value)
     value = _CREDENTIAL_QUERY.sub(r"\1[REDACTED]", value)
+    value = _ENCODED_CREDENTIAL_QUERY.sub(_redact_encoded_query, value)
     return _CREDENTIAL_URL.sub(r"\1[REDACTED]@", value)
 
 

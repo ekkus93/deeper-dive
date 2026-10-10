@@ -237,3 +237,43 @@ def test_rejected_fragment_provider_mutation_never_reaches_config_bytes(tmp_path
 
     assert path.read_bytes() == original
     assert secret.encode() not in path.read_bytes()
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "%61pi_key=encoded-query-canary",
+        "api%5Fkey=encoded-query-canary",
+        "%2561pi_key=encoded-query-canary",
+        "session%54oken=encoded-query-canary",
+        "safe=1&%61ccess_token=encoded-query-canary",
+    ],
+)
+def test_encoded_credential_query_keys_redacted_without_leaking(query: str) -> None:
+    message = f"request=https://example.test/v1?{query} status=401"
+    sanitized = str(redact(message))
+    assert "encoded-query-canary" not in sanitized
+    assert "[REDACTED]" in sanitized
+    assert "status=401" in sanitized
+
+
+def test_benign_encoded_query_key_preserved() -> None:
+    message = "request=https://example.test/docs?%73ection=overview&lang=en"
+    assert redact(message) == message
+
+
+def test_encoded_query_key_redacted_in_nested_diagnostic_bundle(tmp_path) -> None:
+    secret = "encoded-bundle-canary"
+    destination = export_diagnostic_bundle(
+        tmp_path / "bundle.json",
+        provider_diagnostics={
+            "requests": [
+                f"https://example.test/v1?api%5Fkey={secret}",
+                "https://example.test/docs?%73ection=overview",
+            ]
+        },
+    )
+    payload = destination.read_text(encoding="utf-8")
+    assert secret not in payload
+    assert "section=overview" not in payload  # Original encoded spelling retained.
+    assert "%73ection=overview" in payload
