@@ -20,13 +20,13 @@ def test_user_config_round_trip_is_separate_and_versioned(tmp_path) -> None:
                 default_model="model.gguf",
             )
         },
-        defaults={"host_generation": "local"},
+        defaults={"host_generation": "local:model.gguf"},
     )
     store.save(config)
     loaded = store.load()
     assert loaded.schema_version == 1
     assert loaded.providers["local"].base_url == "http://127.0.0.1:8080"
-    assert loaded.defaults["host_generation"] == "local"
+    assert loaded.defaults["host_generation"] == "local:model.gguf"
     assert path != project
     assert not project.exists()
 
