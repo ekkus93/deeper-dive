@@ -43,10 +43,8 @@ def test_two_project_fixture_contains_indexed_corpora_and_generation_artifacts(
         assert current.transcript_path.read_bytes()
         assert current.audio_path.read_bytes()
 
-    assert service.get_source(
-        episodes[0].project_id,
-        service.list_sources(episodes[1].project_id)[0].id,
-    ) is None
+    foreign_source_id = service.list_sources(episodes[1].project_id)[0].id
+    assert service.get_source(episodes[0].project_id, foreign_source_id) is None
 
     pending_run = service.runs(fixture.pending_project_id).get(fixture.pending_run_id)
     assert pending_run is not None and pending_run.state == "pending"
