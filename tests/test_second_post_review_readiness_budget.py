@@ -380,3 +380,58 @@ def test_probe_completion_with_unreadable_config_fails_without_canary() -> None:
     finally:
         release.set()
         coordinator.close()
+
+
+def test_fingerprint_failure_notifies_coalesced_inflight_callbacks_once() -> None:
+    app = _RecordingApp()
+    started = Event()
+    release = Event()
+    broken = [False]
+    callbacks: list[tuple[str, str]] = []
+
+    def fingerprint() -> str:
+        if broken[0]:
+            raise ValueError("https://example.test/v1#access_token=refresh-canary")
+        return "original"
+
+    def blocked_probe() -> FirstRunRuntimeSnapshot:
+        started.set()
+        assert release.wait(3)
+        return _snapshot()
+
+    coordinator = FirstRunReadinessCoordinator(
+        _context(), probe=blocked_probe, fingerprint=fingerprint, timeout_seconds=5
+    )
+
+    def record(name: str) -> None:
+        callbacks.append((name, coordinator.view.state))
+
+    def original_callback() -> None:
+        record("original")
+
+    def coalesced_callback() -> None:
+        record("coalesced")
+
+    def failed_callback() -> None:
+        record("failed-refresh")
+
+    try:
+        assert coordinator.request(app, original_callback)
+        assert started.wait(3)
+        assert not coordinator.request(app, coalesced_callback)
+        broken[0] = True
+        assert not coordinator.request(app, failed_callback)
+        assert callbacks == [
+            ("original", "failed"),
+            ("coalesced", "failed"),
+            ("failed-refresh", "failed"),
+        ]
+        assert coordinator.timeout_timer_count == 0
+        assert "refresh-canary" not in (coordinator.view.message or "")
+        release.set()
+        app.deliver()
+        assert len(callbacks) == 3
+        assert coordinator.view.state == "failed"
+    finally:
+        release.set()
+        coordinator.close()

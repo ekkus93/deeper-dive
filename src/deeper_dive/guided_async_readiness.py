@@ -266,6 +266,11 @@ class FirstRunReadinessCoordinator:
                 return
             timers = tuple(self._timers.values())
             self._timers.clear()
+            # A failed refresh supersedes any in-flight generation. Its
+            # subscribers must be notified once, not silently abandoned.
+            callbacks = list(self._callbacks)
+            if callback is not None and callback not in callbacks:
+                callbacks.append(callback)
             self._callbacks.clear()
             self._view = FirstRunReadinessView(
                 "failed",
@@ -279,8 +284,8 @@ class FirstRunReadinessCoordinator:
             )
         for timer in timers:
             timer.cancel()
-        if callback is not None:
-            callback()
+        for pending_callback in callbacks:
+            pending_callback()
 
     def _start_failed(self, generation: int, timer: Timer) -> None:
         """Release a reserved slot if the OS cannot start a timer or worker."""
