@@ -9,6 +9,7 @@ from typing import Any
 
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfigurationService
+from deeper_dive.episode_library_screen import EpisodeLibraryController
 from deeper_dive.guided_draft import GuidedDraftStore
 from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardState
 from deeper_dive.research_policy import ResearchMode, ResearchPolicyStore
@@ -157,4 +158,32 @@ def test_checkpoint_plan_run_and_export_snapshots_survive_restart(
     assert loaded.project_id == fixture.pending_project_id
     assert loaded.episode_id == fixture.pending_episode_id
     assert loaded.run_id == fixture.pending_run_id
+    assert state_bytes(reopened) == before
+
+    # Re-enter the real library/export controller after a fresh composition
+    # rebuild. Each export must retain its own episode/run identity and bytes.
+    from deeper_dive.tui import DeeperDiveApp
+
+    for index, completed in enumerate(
+        (fixture.completed.first, fixture.completed.second), start=1
+    ):
+        app = DeeperDiveApp(reopened.service)
+        app.current_project_id = completed.project_id
+        app.current_episode_id = completed.episode_id
+        app.current_run_id = completed.run_id
+        item = next(
+            row
+            for row in EpisodeLibraryController.items(app)
+            if row.episode.id == completed.episode_id
+        )
+        assert item.run is not None and item.run.id == completed.run_id
+        exported = EpisodeLibraryController.export(app, item)
+        assert exported.audio is not None
+        prefix = f"completed-{index}"
+        assert exported.transcript.read_bytes() == before[f"{prefix}-transcript"]
+        assert exported.audio.read_bytes() == before[f"{prefix}-audio"]
+        metadata = json.loads(exported.metadata.read_text(encoding="utf-8"))
+        assert metadata["project_id"] == completed.project_id
+        assert metadata["episode_id"] == completed.episode_id
+        assert metadata["run_id"] == completed.run_id
     assert state_bytes(reopened) == before
