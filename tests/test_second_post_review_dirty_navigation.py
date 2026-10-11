@@ -805,23 +805,32 @@ class _RegenerateAwareGenerator(_TwoSegmentGenerator):
 
 
 @pytest.mark.parametrize("operation", ("build", "regenerate", "regenerate-segment"))
+@pytest.mark.parametrize("resolution", ("discard", "save", "invalid-save"))
 def test_dirty_plan_operations_require_explicit_save_or_discard(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     operation: str,
+    resolution: str,
 ) -> None:
-    asyncio.run(_dirty_plan_operation(tmp_path, monkeypatch, operation))
+    asyncio.run(_dirty_plan_operation(tmp_path, monkeypatch, operation, resolution))
 
 
 async def _dirty_plan_operation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, operation: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, operation: str, resolution: str
 ) -> None:
     service, project_id, episode_id, _host_ids = _episode_fixture(tmp_path)
     database = Database(service.workspaces.project_root(project_id) / "project.db")
     planner = EpisodePlannerService(database, _RegenerateAwareGenerator())
     original = planner.build_plan(episode_id)
     assert len(original.segments) == 2
+    saved_titles: list[str] = []
+    production_edit = planner.edit_segment
 
+    def record_edit(episode, ordinal, segment):
+        saved_titles.append(segment.title)
+        return production_edit(episode, ordinal, segment)
+
+    monkeypatch.setattr(planner, "edit_segment", record_edit)
     app = GuidedDeeperDiveApp(service)
     async with app.run_test(size=(100, 35)) as pilot:
         app.action_navigate("new")
@@ -866,10 +875,22 @@ async def _dirty_plan_operation(
         assert title.value == changed
         assert planner.load_plan(episode_id).id == original.id
 
+        if resolution == "invalid-save":
+            wizard.query_one("#guided-plan-duration", Input).value = "invalid"
         invoke()
-        wizard.action_confirm_discard_exit()
+        if resolution == "discard":
+            wizard.action_confirm_discard_exit()
+        else:
+            wizard.action_confirm_save_exit()
+            wizard.action_confirm_save_exit()  # double submit is single-shot
         await pilot.pause()
-        regenerated = planner.load_plan(episode_id)
-        assert regenerated.id != original.id
-        assert title.value != changed
         assert not wizard.query_one("#wizard-exit-confirmation").display
+        if resolution == "invalid-save":
+            assert saved_titles == []
+            assert title.value == changed
+            assert planner.load_plan(episode_id).id == original.id
+            assert wizard._current_form_dirty()
+        else:
+            assert planner.load_plan(episode_id).id != original.id
+            assert title.value != changed
+            assert saved_titles == ([changed] if resolution == "save" else [])
