@@ -16,6 +16,7 @@ from deeper_dive.guided_workflow import WizardKind, WizardState
 from deeper_dive.hosts import HostProfile
 from deeper_dive.preflight import PreflightEstimate, PreflightIssue, PreflightReport
 from deeper_dive.storage.database import Database
+from deeper_dive.storage.episode_repositories import EpisodePlanRecord
 from deeper_dive.storage.workspace import WorkspaceManager
 
 
@@ -947,3 +948,59 @@ async def _dirty_plan_entrypoint_guard(tmp_path: Path, action: str) -> None:
         assert wizard.context.state.current_step == "plan"
         assert title.value == "Unsaved plan edit before starting generation"
         assert not wizard.query_one("#wizard-exit-confirmation").display
+
+def test_guided_noop_save_keeps_exact_non_minute_duration_and_plan(tmp_path: Path) -> None:
+    asyncio.run(_guided_noop_save_keeps_exact_non_minute_duration_and_plan(tmp_path))
+
+
+async def _guided_noop_save_keeps_exact_non_minute_duration_and_plan(tmp_path: Path) -> None:
+    service, project_id, episode_id, host_ids = _episode_fixture(tmp_path)
+    configs = EpisodeConfigurationService(
+        Database(service.workspaces.project_root(project_id) / "project.db")
+    )
+    configs.edit(
+        episode_id,
+        EpisodeConfiguration(
+            title="Durable title",
+            focus="Durable focus",
+            target_duration_seconds=1250,
+            host_ids=host_ids,
+        ),
+    )
+    repository = service.hosts(project_id)
+    repository.save_plan(
+        EpisodePlanRecord(
+            id="non-minute-duration-plan",
+            episode_id=episode_id,
+            created_at="now",
+            modified_at="now",
+        ),
+        [],
+    )
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project_id
+        wizard.context.episode_id = episode_id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "episode")
+        wizard._load_episode_form()
+        wizard._toggle()
+        wizard._remember_current_form()
+
+        assert wizard.query_one("#guided-episode-duration", Select).value == "custom"
+        custom = wizard.query_one("#guided-episode-custom-duration", Input)
+        assert custom.value == "21"
+        assert wizard.action_save_episode()
+        assert configs.load_configuration(episode_id).target_duration_seconds == 1250
+        assert repository.get_plan(episode_id) is not None
+        assert repository.get_plan(episode_id).id == "non-minute-duration-plan"
+
+        # An explicit duration edit still changes the durable configuration
+        # and invalidates the old plan through EpisodeConfigurationService.
+        custom.value = "22"
+        assert wizard.action_save_episode()
+        assert configs.load_configuration(episode_id).target_duration_seconds == 1320
+        assert repository.get_plan(episode_id) is None

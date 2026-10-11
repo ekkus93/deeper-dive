@@ -346,7 +346,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
                 focus=focus,
                 audience=audience,
                 technical_depth=depth,
-                target_duration_seconds=self._duration_seconds(),
+                target_duration_seconds=self._duration_seconds(current.target_duration_seconds),
                 must_cover=self._csv("#guided-episode-must-cover"),
                 avoid_topics=self._csv("#guided-episode-avoid"),
             )
@@ -709,7 +709,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         output.update("\n".join(rows))
         button.disabled = not self._preflight.ready
 
-    def _duration_seconds(self) -> int:
+    def _duration_seconds(self, persisted_seconds: int | None = None) -> int:
         value = self._select_value("#guided-episode-duration")
         if value is None:
             raise ValueError("choose an episode duration")
@@ -721,6 +721,15 @@ class GuidedEpisodeWizard(GuidedHostWizard):
                 raise ValueError("custom duration must be a whole number of minutes") from exc
             if minutes <= 0:
                 raise ValueError("custom duration must be positive")
+            # The guided form displays whole minutes, but imported/CLI episodes
+            # can retain an exact duration in seconds. A no-op guided save must
+            # not round that value and invalidate an otherwise unchanged plan.
+            if (
+                persisted_seconds is not None
+                and persisted_seconds % 60
+                and minutes == max(1, round(persisted_seconds / 60))
+            ):
+                return persisted_seconds
             return minutes * 60
         return int(value) * 60
 
