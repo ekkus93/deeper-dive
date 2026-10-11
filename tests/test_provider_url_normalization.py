@@ -29,7 +29,9 @@ def test_provider_url_preserves_query_values(raw: str, expected: str) -> None:
 def test_provider_url_query_survives_config_round_trip(tmp_path) -> None:
     store = UserConfigStore(tmp_path / "config.json")
     raw = "https://example.test/v1/?redirect=https%3A%2F%2Fother.test%2F"
-    store.save(UserConfig(providers={"remote": ProviderConfig(provider_type="openai", base_url=raw)}))
+    store.save(
+        UserConfig(providers={"remote": ProviderConfig(provider_type="openai", base_url=raw)})
+    )
     assert store.load().providers["remote"].base_url == (
         "https://example.test/v1?redirect=https%3A%2F%2Fother.test%2F"
     )
