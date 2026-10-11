@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from threading import Thread, Timer
+from threading import Event, Thread, Timer
 from typing import cast
 
 import pytest
@@ -19,9 +19,11 @@ from deeper_dive.guided_workflow import WizardContext
 class _App:
     def __init__(self) -> None:
         self.messages: list[Message] = []
+        self.arrived = Event()
 
     def post_message(self, message: Message) -> bool:
         self.messages.append(message)
+        self.arrived.set()
         return True
 
 
@@ -61,11 +63,7 @@ def test_failed_thread_start_releases_slot_and_allows_retry(
 
         monkeypatch.undo()
         assert coordinator.request(app, lambda: callbacks.append(coordinator.view.state))
-        for _ in range(1000):
-            if app.messages:
-                break
-            from time import sleep
-            sleep(0.001)
+        assert app.arrived.wait(3)
         assert len(app.messages) == 1
         dispatch = app.messages.pop()
         assert isinstance(dispatch, FirstRunReadinessDispatch)
