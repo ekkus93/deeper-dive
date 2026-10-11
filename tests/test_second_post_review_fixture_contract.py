@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
 from collections.abc import Callable
+from dataclasses import asdict
 from typing import Any
 
 from deeper_dive.composition import ProductionComposition
