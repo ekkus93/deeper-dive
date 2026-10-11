@@ -18,7 +18,8 @@ def test_foreign_project_library_export_rejected(
     app = DeeperDiveApp(fixture.first.service)
     app.current_project_id = fixture.first.project_id
     item = next(
-        row for row in EpisodeLibraryController.items(app)
+        row
+        for row in EpisodeLibraryController.items(app)
         if row.episode.id == fixture.first.episode_id
     )
     app.current_project_id = fixture.second.project_id
