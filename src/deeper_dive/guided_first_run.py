@@ -329,8 +329,38 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
                 and choice == event.value
                 and choice != self._last_speech_choice
             ):
+                if self.context.state.current_step == "speech":
+                    baseline = dict(self._form_baselines.get("speech", ()))
+                    snapshot = dict(self._editable_snapshot())
+                    dirty_fields = any(
+                        value != baseline.get(key)
+                        for key, value in snapshot.items()
+                        if key != "setup-speech-choice"
+                    )
+                    if self._exit_confirmation_pending or (
+                        "speech" in self._form_baselines and dirty_fields
+                    ):
+                        previous = self._last_speech_choice
+                        if previous is not None:
+                            with event.select.prevent(Select.Changed):
+                                event.select.value = previous
+                        if not self._exit_confirmation_pending:
+                            self._request_dirty_transition(f"speech-choice:{choice}")
+                        return
                 self._last_speech_choice = choice
                 self._apply_speech_choice_defaults(force=True)
+
+    def _execute_custom_transition(self, transition: str) -> None:
+        if transition.startswith("speech-choice:"):
+            choice = transition.split(":", 1)[1]
+            picker = self.query_one("#setup-speech-choice", Select)
+            with picker.prevent(Select.Changed):
+                picker.value = choice
+            self._last_speech_choice = choice
+            self._apply_speech_choice_defaults(force=True)
+            self._sync_setup_controls()
+            return
+        super()._execute_custom_transition(transition)
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id in {"setup-provider-adapter", "setup-speech-adapter"}:
