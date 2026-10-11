@@ -313,7 +313,11 @@ class FirstRunReadinessCoordinator:
     ) -> bool:
         # A rejected message means Textual's pump is no longer accepting work.
         # The caller closes the coordinator so deadlines/callbacks cannot leak.
-        return app.post_message(FirstRunReadinessDispatch(callback, args))
+        try:
+            return app.post_message(FirstRunReadinessDispatch(callback, args))
+        except RuntimeError:
+            # Textual may raise when its message pump has already closed.
+            return False
 
     def _complete(
         self,
