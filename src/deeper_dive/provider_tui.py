@@ -123,9 +123,7 @@ class ProviderController:
                 for key in ("tts_voice", "tts_voice_host_1", "tts_voice_host_2"):
                     voice = config.defaults.get(key, "").strip()
                     if voice and voice not in referenced.voices:
-                        raise ValueError(
-                            f"{key} references a voice not declared by tts_provider"
-                        )
+                        raise ValueError(f"{key} references a voice not declared by tts_provider")
 
         local_ids = tuple(
             item.strip()
