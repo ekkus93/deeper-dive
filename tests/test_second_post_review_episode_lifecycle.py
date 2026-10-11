@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import sqlite3
+import json
 
 import pytest
 
@@ -16,13 +18,14 @@ from deeper_dive.storage.episode_repositories import (
     SegmentPlanRecord,
 )
 from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord
+from deeper_dive.hosts import HostProfile
 
 
-def _episode_with_plan(tmp_path):
+def _episode_with_plan(tmp_path, config: EpisodeConfiguration | None = None):
     database = Database(tmp_path / "project.db")
     CorpusRepository(database).create_project(ProjectRecord("project", "Project", "now", "now"))
     service = EpisodeConfigurationService(database)
-    config = EpisodeConfiguration(title="Original", focus="initial focus")
+    config = config or EpisodeConfiguration(title="Original", focus="initial focus")
     episode = service.create("project", config)
     repository = HostEpisodeRepository(database)
     repository.save_plan(
@@ -149,3 +152,159 @@ def test_state_change_during_edit_prevents_plan_loss(tmp_path) -> None:
     plan = repository.get_plan(episode.id)
     assert plan is not None and plan.id == "plan-original"
     assert [item.id for item in repository.list_segments(plan.id)] == ["segment-original"]
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"title": "Retitled episode"},
+        {"focus": "different source question"},
+        {"audience": "expert"},
+        {"technical_depth": "deep"},
+        {"target_duration_seconds": 900},
+        {"style": "debate"},
+        {"must_cover": ("critical detail",)},
+        {"avoid_topics": ("irrelevant context",)},
+        {"source_overrides": {"source-one": False}},
+        {"research_overrides": {"mode": "off"}},
+        {"model_overrides": {"episode_planning": {"provider": "fake", "model": "fake-v2"}}},
+    ],
+)
+def test_episode_edit_plan_impact_matrix_invalidates_only_meaningful_draft_changes(
+    tmp_path, changes
+) -> None:
+    # All fields participate in EpisodePlannerService's request snapshot,
+    # so a title change cannot be treated as non-plan-affecting metadata.
+    _database, service, repository, episode, config = _episode_with_plan(tmp_path)
+    original_plan = repository.get_plan(episode.id)
+    assert original_plan is not None
+
+    edited = service.edit(episode.id, replace(config, **changes))
+
+    assert edited.state == "draft"
+    assert repository.get_plan(episode.id) is None
+    assert service.load_configuration(episode.id).snapshot() == replace(
+        config, **changes
+    ).snapshot()
+
+
+def test_semantically_identical_mapping_order_is_a_true_noop(tmp_path) -> None:
+    config = EpisodeConfiguration(
+        title="Original",
+        focus="initial focus",
+        source_overrides={"source-a": True, "source-b": False},
+        research_overrides={"alpha": 1, "beta": 2},
+        model_overrides={
+            "directing": {"provider": "fake", "model": "fake-v1"},
+            "verification": {"provider": "fake", "model": "fake-v1"},
+        },
+    )
+    _database, service, repository, episode, _config = _episode_with_plan(tmp_path, config)
+    before = repository.get_episode(episode.id)
+    before_plan = repository.get_plan(episode.id)
+    assert before is not None and before_plan is not None
+
+    equivalent = replace(
+        config,
+        source_overrides={"source-b": False, "source-a": True},
+        research_overrides={"beta": 2, "alpha": 1},
+        model_overrides={
+            "verification": {"model": "fake-v1", "provider": "fake"},
+            "directing": {"model": "fake-v1", "provider": "fake"},
+        },
+    )
+    assert service.edit(episode.id, equivalent) == before
+    assert repository.get_episode(episode.id) == before
+    assert repository.get_plan(episode.id) == before_plan
+    assert [item.id for item in repository.list_segments(before_plan.id)] == [
+        "segment-original"
+    ]
+
+
+def test_failed_plan_invalidation_rolls_back_episode_and_host_changes(tmp_path) -> None:
+    database, service, repository, episode, config = _episode_with_plan(tmp_path)
+    repository.create_host(HostProfile("new-host", "project", "New Host").to_record())
+    before = repository.get_episode(episode.id)
+    before_plan = repository.get_plan(episode.id)
+    before_hosts = repository.list_episode_host_ids(episode.id)
+    assert before is not None and before_plan is not None
+
+    with database.transaction(immediate=True) as connection:
+        connection.execute(
+            """
+            CREATE TRIGGER reject_plan_deletion
+            BEFORE DELETE ON segment_plans
+            BEGIN SELECT RAISE(ABORT, 'injected plan delete failure'); END
+            """
+        )
+    with pytest.raises(sqlite3.IntegrityError, match="injected plan delete failure"):
+        service.edit(
+            episode.id,
+            replace(config, title="Rejected update", host_ids=("new-host",)),
+        )
+
+    assert repository.get_episode(episode.id) == before
+    assert repository.get_plan(episode.id) == before_plan
+    assert repository.list_episode_host_ids(episode.id) == before_hosts
+    assert [item.id for item in repository.list_segments(before_plan.id)] == [
+        "segment-original"
+    ]
+
+
+def test_stale_configuration_writer_cannot_delete_newer_plan(tmp_path) -> None:
+    database, service, repository, episode, config = _episode_with_plan(tmp_path)
+    stale = repository.get_episode(episode.id)
+    assert stale is not None
+    service.edit(episode.id, replace(config, focus="first edit"))
+    repository.save_plan(
+        EpisodePlanRecord(
+            id="newer-plan",
+            episode_id=episode.id,
+            created_at="now",
+            modified_at="now",
+        ),
+        [
+            SegmentPlanRecord(
+                id="newer-segment",
+                episode_plan_id="newer-plan",
+                ordinal=0,
+                title="New plan",
+                target_duration_seconds=1800,
+                segment_json='{"title":"New plan","target_duration_seconds":1800}',
+            )
+        ],
+    )
+    pending = replace(
+        stale,
+        focus="stale second edit",
+        config_json=json.dumps(
+            replace(config, focus="stale second edit").snapshot(),
+            sort_keys=True,
+        ),
+    )
+    with pytest.raises(ValueError, match="changed concurrently"):
+        EpisodeConfigurationRepository(database).update(
+            pending, [], expected_config_json=stale.config_json
+        )
+    assert repository.get_plan(episode.id).id == "newer-plan"
+    assert service.load_configuration(episode.id).focus == "first edit"
+    assert [s.id for s in repository.list_segments("newer-plan")] == ["newer-segment"]
+
+
+def test_reject_cross_project_host_before_deleting_existing_plan(tmp_path) -> None:
+    database, service, repository, episode, config = _episode_with_plan(tmp_path)
+    CorpusRepository(database).create_project(
+        ProjectRecord("other-project", "Other", "now", "now")
+    )
+    repository.create_host(
+        HostProfile("other-host", "other-project", "Other Host").to_record()
+    )
+    before = repository.get_episode(episode.id)
+    original_plan = repository.get_plan(episode.id)
+    assert before is not None and original_plan is not None
+
+    with pytest.raises(ValueError, match="does not belong to project"):
+        service.edit(episode.id, replace(config, host_ids=("other-host",)))
+    assert repository.get_episode(episode.id) == before
+    assert repository.get_plan(episode.id) == original_plan
+    assert repository.list_episode_host_ids(episode.id) == []
