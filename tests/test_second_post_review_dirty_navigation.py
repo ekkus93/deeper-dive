@@ -1151,3 +1151,50 @@ async def _explicit_host_save_rehydrates_normalized_durable_values(
         assert field.value == durable.instructions
         assert not wizard._host_profile_dirty()
         assert not wizard._current_form_dirty()
+
+
+def test_combined_host_profile_and_membership_save_is_durable_and_single_shot(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_combined_host_profile_and_membership_save(tmp_path))
+
+
+async def _combined_host_profile_and_membership_save(tmp_path: Path) -> None:
+    service, project_id, episode_id, host_ids = _episode_fixture(tmp_path)
+    repository = service.hosts(project_id)
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project_id
+        wizard.context.episode_id = episode_id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "hosts")
+        wizard._load_episode_host_order()
+        wizard._refresh_hosts(host_ids[0])
+        wizard._toggle()
+        wizard._remember_current_form()
+
+        wizard.query_one("#guided-host-instructions", Input).value = (
+            "Durable profile and membership update"
+        )
+        wizard._move_selected_host(1)
+        assert wizard._host_profile_dirty()
+        assert wizard._host_order_dirty()
+
+        wizard.action_save_exit()
+        assert wizard.query_one("#wizard-exit-confirmation").display
+        wizard.action_confirm_save_exit()
+        wizard.action_confirm_save_exit()  # repeated activation cannot save twice
+        await pilot.pause()
+        assert app.screen.id == "screen-home"
+
+    persisted = repository.get_host(host_ids[0])
+    assert persisted is not None
+    assert persisted.instructions == "Durable profile and membership update"
+    reopened = DeeperDiveService(WorkspaceManager(service.workspaces.data_dir))
+    config = EpisodeConfigurationService(
+        Database(reopened.workspaces.project_root(project_id) / "project.db")
+    ).load_configuration(episode_id)
+    assert config.host_ids == (host_ids[1], host_ids[0])
