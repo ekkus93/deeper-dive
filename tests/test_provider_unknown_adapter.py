@@ -6,7 +6,11 @@ from deeper_dive.user_config import UserConfigStore
 
 
 def test_adapter_errors_do_not_echo_unrecognized_values(tmp_path):
-    controller = ProviderController(UserConfigStore(tmp_path / "config.json"), LLMProviderRegistry(), {})
+    controller = ProviderController(
+        UserConfigStore(tmp_path / "config.json"),
+        LLMProviderRegistry(),
+        {},
+    )
     value = "not-a-real-adapter"
     with pytest.raises(ValueError) as caught:
         controller.configuration_fields(value)
