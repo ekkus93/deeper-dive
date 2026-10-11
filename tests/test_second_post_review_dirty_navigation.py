@@ -1255,3 +1255,58 @@ async def _combined_host_save_isolated_across_episodes_and_projects(
     assert updated is not None and updated.instructions == "Project A only profile update"
     assert foreign_configs.load_configuration(foreign_episode.id).host_ids == host_ids
     assert foreign_hosts.get_host(host_ids[0]) == foreign_original
+
+
+def test_completed_episode_edit_guides_user_to_create_new_episode_without_plan_loss(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_completed_episode_edit_requires_new_episode(tmp_path))
+
+
+async def _completed_episode_edit_requires_new_episode(tmp_path: Path) -> None:
+    service, project_id, episode_id, _host_ids = _episode_fixture(tmp_path)
+    db = Database(service.workspaces.project_root(project_id) / "project.db")
+    configs = EpisodeConfigurationService(db)
+    repository = service.hosts(project_id)
+    repository.save_plan(
+        EpisodePlanRecord(
+            id="completed-immutable-plan",
+            episode_id=episode_id,
+            created_at="now",
+            modified_at="now",
+        ),
+        [],
+    )
+    with db.transaction(immediate=True) as connection:
+        connection.execute("UPDATE episodes SET state='completed' WHERE id=?", (episode_id,))
+    before = configs.load_configuration(episode_id)
+    before_plan = repository.get_plan(episode_id)
+    assert before_plan is not None
+
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project_id
+        wizard.context.episode_id = episode_id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "episode")
+        wizard._load_episode_form()
+        wizard._toggle()
+        wizard._remember_current_form()
+
+        focus = wizard.query_one("#guided-episode-focus", Input)
+        focus.value = "Unsaved change to completed episode"
+        assert not wizard.action_save_episode()
+        await pilot.pause()
+
+        guidance = str(wizard.query_one("#guided-episode-validation", Static).render())
+        assert "create a new episode" in guidance
+        assert wizard.context.episode_id == episode_id
+        assert wizard.context.state.current_step == "episode"
+        assert focus.value == "Unsaved change to completed episode"
+        assert wizard._current_form_dirty()
+        assert configs.load_configuration(episode_id) == before
+        assert repository.get_episode(episode_id).state == "completed"
+        assert repository.get_plan(episode_id) == before_plan
