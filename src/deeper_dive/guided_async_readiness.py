@@ -357,6 +357,15 @@ class FirstRunReadinessCoordinator:
         snapshot: FirstRunRuntimeSnapshot | None,
         message: str | None,
     ) -> None:
+        # Configuration may have changed or become invalid while the worker
+        # probed. Never call disk-backed fingerprint functions under our lock
+        # or leave a "checking" view behind after cancelling its deadline.
+        try:
+            current_fingerprint = self._fingerprint_provider()
+            fingerprint_error = None
+        except (OSError, RuntimeError, ValueError) as exc:
+            current_fingerprint = None
+            fingerprint_error = sanitize_exception_message(exc)
         with self._lock:
             timer = self._timers.pop(generation, None)
             if timer is not None:
@@ -365,10 +374,27 @@ class FirstRunReadinessCoordinator:
                 self._closed
                 or self._view.generation != generation
                 or self._view.state != "checking"
-                or self._fingerprint_provider() != fingerprint
             ):
                 return
-            if snapshot is None:
+            if fingerprint_error is not None:
+                self._view = FirstRunReadinessView(
+                    "failed",
+                    generation,
+                    fingerprint,
+                    message=(
+                        "Provider configuration could not be read. "
+                        + fingerprint_error
+                        + " Correct the configuration and retry."
+                    ),
+                )
+            elif current_fingerprint != fingerprint:
+                self._view = FirstRunReadinessView(
+                    "failed",
+                    generation,
+                    fingerprint,
+                    message="Provider configuration changed during readiness check. Retry.",
+                )
+            elif snapshot is None:
                 self._view = FirstRunReadinessView(
                     "failed",
                     generation,

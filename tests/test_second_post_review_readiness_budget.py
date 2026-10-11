@@ -314,3 +314,69 @@ def test_readiness_recovers_after_fingerprint_configuration_is_repaired() -> Non
         assert coordinator.timeout_timer_count == 0
     finally:
         coordinator.close()
+
+
+def test_probe_completion_with_changed_config_fails_actionably() -> None:
+    app = _RecordingApp()
+    started = Event()
+    release = Event()
+    fingerprint = ["before"]
+    callbacks: list[str] = []
+
+    def probe() -> FirstRunRuntimeSnapshot:
+        started.set()
+        assert release.wait(3)
+        return _snapshot()
+
+    coordinator = FirstRunReadinessCoordinator(
+        _context(), probe=probe, fingerprint=lambda: fingerprint[0], timeout_seconds=5
+    )
+    try:
+        assert coordinator.request(app, lambda: callbacks.append(coordinator.view.state))
+        assert started.wait(3)
+        fingerprint[0] = "after"
+        release.set()
+        app.deliver()
+        assert coordinator.view.state == "failed"
+        assert "changed" in (coordinator.view.message or "")
+        assert callbacks == ["failed"]
+        assert coordinator.timeout_timer_count == 0
+    finally:
+        release.set()
+        coordinator.close()
+
+
+def test_probe_completion_with_unreadable_config_fails_without_canary() -> None:
+    app = _RecordingApp()
+    started = Event()
+    release = Event()
+    reads = [0]
+    callbacks: list[str] = []
+
+    def fingerprint() -> str:
+        reads[0] += 1
+        if reads[0] > 1:
+            raise ValueError("Authorization: Bearer malformed-readiness-canary")
+        return "initial"
+
+    def probe() -> FirstRunRuntimeSnapshot:
+        started.set()
+        assert release.wait(3)
+        return _snapshot()
+
+    coordinator = FirstRunReadinessCoordinator(
+        _context(), probe=probe, fingerprint=fingerprint, timeout_seconds=5
+    )
+    try:
+        assert coordinator.request(app, lambda: callbacks.append(coordinator.view.state))
+        assert started.wait(3)
+        release.set()
+        app.deliver()
+        assert coordinator.view.state == "failed"
+        assert "Correct the configuration and retry." in (coordinator.view.message or "")
+        assert "malformed-readiness-canary" not in (coordinator.view.message or "")
+        assert callbacks == ["failed"]
+        assert coordinator.timeout_timer_count == 0
+    finally:
+        release.set()
+        coordinator.close()
