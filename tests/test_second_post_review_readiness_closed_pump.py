@@ -8,7 +8,10 @@ from typing import cast
 
 from textual.message import Message
 
-from deeper_dive.guided_async_readiness import FirstRunReadinessCoordinator
+from deeper_dive.guided_async_readiness import (
+    FirstRunReadinessCoordinator,
+    FirstRunRuntimeSnapshot,
+)
 from deeper_dive.guided_workflow import WizardContext
 
 
@@ -39,7 +42,7 @@ def test_worker_completion_closes_coordinator_when_pump_raises() -> None:
 
     coordinator = FirstRunReadinessCoordinator(
         cast(WizardContext, object()),
-        probe=lambda: cast(object, object()),
+        probe=lambda: cast(FirstRunRuntimeSnapshot, object()),
         fingerprint=lambda: "closed",
         timeout_seconds=5,
     )
