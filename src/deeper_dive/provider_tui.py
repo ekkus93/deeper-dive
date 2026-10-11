@@ -116,6 +116,16 @@ class ProviderController:
                 raise ValueError("tts_provider references an unknown provider")
             if self.capability(referenced.provider_type) != "tts":
                 raise ValueError("tts_provider must reference a speech provider")
+            # Explicitly configured provider voices are authoritative without
+            # making a network discovery call during Settings or first-run saves.
+            # Providers with no declared voices may discover them at runtime.
+            if referenced.voices:
+                for key in ("tts_voice", "tts_voice_host_1", "tts_voice_host_2"):
+                    voice = config.defaults.get(key, "").strip()
+                    if voice and voice not in referenced.voices:
+                        raise ValueError(
+                            f"{key} references a voice not declared by tts_provider"
+                        )
 
         local_ids = tuple(
             item.strip()

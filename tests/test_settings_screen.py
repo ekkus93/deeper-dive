@@ -212,3 +212,57 @@ async def _settings_screen_handles_config_io_failure_without_discarding_input(
         assert canary not in status
         assert "[REDACTED]" in status
         assert store.path.read_bytes() == original
+
+
+@pytest.mark.parametrize("key", ("tts_voice", "tts_voice_host_1", "tts_voice_host_2"))
+def test_settings_rejects_voice_not_declared_by_selected_provider_without_writing(
+    tmp_path: Path, key: str
+) -> None:
+    controller = SettingsController(_provider_controller(tmp_path))
+    controller.save_tts_defaults("fake-tts", "voice-a")
+    config_store = controller.provider_controller.config_store
+    original_bytes = config_store.path.read_bytes()
+    rejected_canary = "unknown-voice-canary"
+
+    with pytest.raises(ValueError, match=f"{key} references a voice") as error:
+        controller.set_defaults({key: rejected_canary})
+
+    assert rejected_canary not in str(error.value)
+    assert config_store.path.read_bytes() == original_bytes
+    assert config_store.load().defaults["tts_voice"] == "voice-a"
+
+
+def test_provider_default_updates_reject_unknown_declared_voice_atomically(
+    tmp_path: Path,
+) -> None:
+    controller = _provider_controller(tmp_path)
+    path = controller.config_store.path
+    original_bytes = path.read_bytes()
+
+    with pytest.raises(ValueError, match="tts_voice references a voice") as error:
+        controller.save_provider(
+            "fake-tts",
+            "fake-tts",
+            voices=("voice-a",),
+            default_updates={
+                "tts_provider": "fake-tts",
+                "tts_voice": "unknown-voice-canary",
+            },
+        )
+
+    assert "unknown-voice-canary" not in str(error.value)
+    assert path.read_bytes() == original_bytes
+    assert controller.config().defaults.get("tts_voice") is None
+
+
+def test_settings_allow_voice_for_provider_without_static_voice_catalog(
+    tmp_path: Path,
+) -> None:
+    controller = _provider_controller(tmp_path)
+    controller.save_provider("dynamic-speech", "openai-tts")
+    settings = SettingsController(controller)
+    settings.save_tts_defaults("dynamic-speech", "discovered-voice-id")
+
+    config = controller.config_store.load()
+    assert config.defaults["tts_provider"] == "dynamic-speech"
+    assert config.defaults["tts_voice"] == "discovered-voice-id"
