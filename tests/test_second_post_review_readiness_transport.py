@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-from deeper_dive.llm import LLMProviderRegistry
 from deeper_dive.openai_llm import OpenAITimeoutError
 from deeper_dive.provider_factory import ProviderFactory
 from deeper_dive.provider_tui import ProviderController
