@@ -59,3 +59,43 @@ def test_worker_completion_closes_coordinator_when_pump_raises() -> None:
         assert not coordinator.request(App())
     finally:
         coordinator.close()
+
+
+def test_timeout_closes_coordinator_when_pump_raises() -> None:
+    posted = Event()
+    started = Event()
+    release = Event()
+    callbacks: list[str] = []
+
+    class App:
+        def post_message(self, message: Message) -> bool:
+            posted.set()
+            raise RuntimeError("closed message pump")
+
+    def probe() -> FirstRunRuntimeSnapshot:
+        started.set()
+        assert release.wait(3)
+        return cast(FirstRunRuntimeSnapshot, object())
+
+    coordinator = FirstRunReadinessCoordinator(
+        cast(WizardContext, object()),
+        probe=probe,
+        fingerprint=lambda: "closed",
+        timeout_seconds=0.02,
+    )
+    try:
+        assert coordinator.request(App(), lambda: callbacks.append("unexpected"))
+        assert started.wait(3)
+        assert posted.wait(3)
+        assert coordinator.timeout_timer_count == 0
+        assert coordinator.view.state == "failed"
+        assert callbacks == []
+        assert not coordinator.request(App())
+        release.set()
+        deadline = monotonic() + 3
+        while coordinator.active_worker_count and monotonic() < deadline:
+            sleep(0.001)
+        assert coordinator.active_worker_count == 0
+    finally:
+        release.set()
+        coordinator.close()
