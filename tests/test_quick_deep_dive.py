@@ -68,6 +68,59 @@ def test_quick_deep_dive_uses_existing_project_hosts_as_defaults(tmp_path: Path)
     assert len(service.hosts(project.id).list_hosts(project.id)) == 3
 
 
+def test_quick_deep_dive_completes_a_single_existing_host_without_mutating_it(
+    tmp_path: Path,
+) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    project = service.create_project("Quick with one existing host")
+    repository = service.hosts(project.id)
+    repository.create_host(
+        HostProfile(
+            "original",
+            project.id,
+            "Existing Host",
+            tts_provider="original-speech",
+            tts_voice="unchanged-voice",
+        ).to_record()
+    )
+    before = repository.get_host("original")
+    assert before is not None
+    UserConfigStore(service.workspaces.data_dir / "config.json").save(
+        UserConfig(
+            providers={
+                "new-speech": ProviderConfig(
+                    provider_type="fake-tts",
+                    voices=("voice-b",),
+                )
+            },
+            defaults={
+                "quick_deep_dive_host_presets": "curious_explainer,skeptic",
+                "tts_provider": "new-speech",
+                "tts_voice_host_2": "voice-b",
+            },
+        )
+    )
+
+    first = service.quick_deep_dive(project.id)
+    host_ids = repository.list_episode_host_ids(first.id)
+    assert len(host_ids) == 2
+    assert host_ids[0] == "original"
+    assert repository.get_host("original") == before
+    added = repository.get_host(host_ids[1])
+    assert added is not None
+    assert added.preset_origin == "skeptic"
+    assert added.tts_provider == "new-speech"
+    assert added.tts_voice == "voice-b"
+
+    # Restarting the service and creating another episode must reuse both hosts,
+    # not create a third or overwrite the user's original voice assignment.
+    restarted = DeeperDiveService(WorkspaceManager(service.workspaces.data_dir))
+    second = restarted.quick_deep_dive(project.id)
+    assert restarted.hosts(project.id).list_episode_host_ids(second.id) == host_ids
+    assert len(restarted.hosts(project.id).list_hosts(project.id)) == 2
+    assert restarted.hosts(project.id).get_host("original") == before
+
+
 def test_quick_deep_dive_user_defaults_override_builtins(tmp_path: Path) -> None:
     service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
     project = service.create_project("Quick configured")
