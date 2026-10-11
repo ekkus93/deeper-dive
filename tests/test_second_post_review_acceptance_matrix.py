@@ -122,9 +122,7 @@ def test_reopened_composition_rejects_historical_episode_edits(
     pending_service = EpisodeConfigurationService(pending_db)
     pending_episode = pending_repo.get_episode(fixture.pending_episode_id)
     pending_plan = pending_repo.get_plan(fixture.pending_episode_id)
-    pending_run = reopened.service.runs(fixture.pending_project_id).get(
-        fixture.pending_run_id
-    )
+    pending_run = reopened.service.runs(fixture.pending_project_id).get(fixture.pending_run_id)
     assert pending_episode is not None and pending_plan is not None
     assert pending_run is not None and pending_run.state == "pending"
     with pytest.raises(ValueError, match="frozen after generation starts"):
