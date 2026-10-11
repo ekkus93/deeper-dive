@@ -491,9 +491,7 @@ def test_research_mode_production_contract_round_trip(tmp_path, mode: ResearchMo
 
 
 @pytest.mark.parametrize("preset", preset_names())
-def test_each_production_host_preset_is_valid_in_settings_and_quick(
-    tmp_path, preset: str
-) -> None:
+def test_each_production_host_preset_is_valid_in_settings_and_quick(tmp_path, preset: str) -> None:
     data_dir = tmp_path / "data"
     store = UserConfigStore(data_dir / "config.json")
     settings = SettingsController(ProviderController(store, LLMProviderRegistry(), {}))
