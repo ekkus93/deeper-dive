@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from collections.abc import Callable
 from typing import Any
 
+from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfigurationService
+from deeper_dive.guided_draft import GuidedDraftStore
+from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardState
 from deeper_dive.research_policy import ResearchMode, ResearchPolicyStore
 from deeper_dive.storage.database import Database
 from deeper_dive.user_config import UserConfigStore
@@ -57,3 +61,62 @@ def test_two_project_fixture_contains_indexed_corpora_and_generation_artifacts(
         separators=(",", ":"),
     ).encode("utf-8")
     assert serialized == fixture.pending_config_snapshot
+
+
+def test_checkpoint_plan_run_and_export_snapshots_survive_restart(
+    second_post_review_acceptance: Callable[[], Any],
+) -> None:
+    fixture = second_post_review_acceptance()
+    service = fixture.completed.first.service
+    data_dir = service.workspaces.data_dir
+    composition = ProductionComposition.build(service=service)
+    context = WizardContext(
+        composition,
+        WizardState(WizardKind.NEW_DEEP_DIVE, "episode"),
+        project_id=fixture.pending_project_id,
+        episode_id=fixture.pending_episode_id,
+        run_id=fixture.pending_run_id,
+    )
+    checkpoint = GuidedDraftStore(data_dir)
+    checkpoint.save(context)
+    draft_path = data_dir / "guided-new-deep-dive-draft.json"
+
+    def state_bytes(active: ProductionComposition) -> dict[str, bytes]:
+        active_service = active.service
+        project_id = fixture.pending_project_id
+        episode_id = fixture.pending_episode_id
+        database = Database(active_service.workspaces.project_root(project_id) / "project.db")
+        config = EpisodeConfigurationService(database).load_configuration(episode_id)
+        host_ids = active_service.hosts(project_id).list_episode_host_ids(episode_id)
+        run = active_service.runs(project_id).get(fixture.pending_run_id)
+        assert run is not None
+        with database.connection() as connection:
+            plan = connection.execute(
+                "SELECT plan_json FROM episode_plans WHERE episode_id=?",
+                (episode_id,),
+            ).fetchone()
+        assert plan is not None
+        return {
+            "config": (data_dir / "config.json").read_bytes(),
+            "draft": draft_path.read_bytes(),
+            "episode": json.dumps(config.snapshot(), sort_keys=True).encode("utf-8"),
+            "host_order": json.dumps(host_ids).encode("utf-8"),
+            "plan": str(plan["plan_json"]).encode("utf-8"),
+            "run": json.dumps(asdict(run), sort_keys=True).encode("utf-8"),
+            "transcript": fixture.completed.first.transcript_path.read_bytes(),
+            "audio": fixture.completed.first.audio_path.read_bytes(),
+        }
+
+    before = state_bytes(composition)
+    assert all(before.values())
+    assert before["config"] == fixture.config_bytes
+    assert b"api_key" not in before["draft"]
+    assert b"source_body" not in before["draft"]
+
+    reopened = ProductionComposition.build(data_dir=data_dir)
+    loaded = checkpoint.load(reopened, WizardKind.NEW_DEEP_DIVE, recover=False)
+    assert loaded is not None
+    assert loaded.project_id == fixture.pending_project_id
+    assert loaded.episode_id == fixture.pending_episode_id
+    assert loaded.run_id == fixture.pending_run_id
+    assert state_bytes(reopened) == before
