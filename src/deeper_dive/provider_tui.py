@@ -88,10 +88,11 @@ class ProviderController:
         """Return fields the UI should expose for one concrete adapter type."""
 
         kind = provider_type.strip().lower().replace("_", "-")
-        try:
-            return _PROVIDER_CONFIGURATION_FIELDS[kind]
-        except KeyError as exc:
-            raise ValueError(f"unsupported provider adapter {provider_type!r}") from exc
+        fields = _PROVIDER_CONFIGURATION_FIELDS.get(kind)
+        if fields is None:
+            # Adapter type is user input: never echo it in CLI/TUI errors.
+            raise ValueError("unsupported provider adapter")
+        return fields
 
     def validate_default_references(self, config: UserConfig) -> None:
         """Reject impossible provider references without performing live discovery."""
@@ -150,9 +151,7 @@ class ProviderController:
         kind = provider_type.strip().lower().replace("_", "-")
         if self.capability(kind) == "unknown":
             supported = ", ".join(sorted(LLM_PROVIDER_TYPES | TTS_PROVIDER_TYPES))
-            raise ValueError(
-                f"unsupported provider adapter {provider_type!r}; choose one of: {supported}"
-            )
+            raise ValueError(f"unsupported provider adapter; choose one of: {supported}")
         candidate = self.config().model_copy(deep=True)
         candidate.providers[name] = ProviderConfig(
             provider_type=kind,
@@ -251,4 +250,4 @@ class ProviderController:
             return self.llm(name).health()
         if capability == "tts":
             return self.tts(name).health()
-        raise ValueError(f"unsupported provider adapter {config.provider_type!r}")
+        raise ValueError("unsupported provider adapter")
