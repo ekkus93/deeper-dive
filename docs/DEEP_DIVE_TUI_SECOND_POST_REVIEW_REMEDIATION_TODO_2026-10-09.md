@@ -294,3 +294,11 @@ This is the **only completion checklist for the second post-review cycle**. The 
 - This is **partial** SPR-07/SPR-800 evidence. It does not yet close exhaustive lifecycle states, Quick-vs-guided-vs-CLI, all preflight/repair/control transitions, original TODO requalification, or final independent audit. Leave corresponding broad checkboxes unchecked. This documentation reconciliation itself requires a new exact-head CI pass.
 
 **Documentation creation is not remediation completion.** Creation/commit of this TODO and spec may be reported separately with its exact GitHub commit and documentation-only CI outcome; no unchecked implementation task becomes complete from that action alone.
+
+
+### 2026-10-11 cross-project CLI episode identity qualification (partial SPR-07 / SPR-800)
+
+- Direct-`master` regression commit `d645eacc8e359bc161bae25fda82c694c91445f7` adds `tests/test_second_post_review_cli_lifecycle_acceptance.py::test_cli_cross_project_episode_commands_reject_foreign_identity_without_side_effects`. Reuses the two-completed-projects/one-pending-run fixture; every CLI verb constructs a fresh production composition, exercising durable reload.
+- Ten episode commands (`show`, `show-plan`, `status`, `plan`, `generate`, `pause`, `resume`, `cancel`, `configure`, `export`) reject an episode ID belonging to a different project. Assertions cover error shape, absence of forbidden export output, preserved local pending and foreign completed run identities, unchanged completed audio/transcript hashes, and unchanged user config bytes.
+- Exact-head [CI #2603](https://github.com/ekkus93/deeper-dive/actions/runs/38131629038) at `d645eacc8e359bc161bae25fda82c694c91445f7` **passed**: quality job `114446978388` (1,381 pytest passed; lock, Ruff format/lint, mypy, wheel/sdist, CLI smoke) and fresh-machine job `114446978307` (installed-wheel CLI/TUI and remediation acceptance, real KittenTTS Micro CPU smoke).
+- This is bounded CLI project-identity/restart evidence, **not** closure of SPR-700 or SPR-800. Running/paused/failed lifecycle, Quick-vs-guided equivalence, comprehensive control/review/repair, and final audit remain unchecked. This evidence-only commit requires its own exact-head CI pass.
