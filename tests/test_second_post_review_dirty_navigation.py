@@ -1242,9 +1242,7 @@ async def _combined_host_save_isolated_across_episodes_and_projects(
         wizard._refresh_hosts(host_ids[0])
         wizard._toggle()
         wizard._remember_current_form()
-        wizard.query_one(
-            "#guided-host-instructions", Input
-        ).value = "Project A only profile update"
+        wizard.query_one("#guided-host-instructions", Input).value = "Project A only profile update"
         wizard._move_selected_host(1)
         assert wizard._host_profile_dirty() and wizard._host_order_dirty()
         wizard.action_save_exit()
