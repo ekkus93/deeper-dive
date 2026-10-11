@@ -377,9 +377,20 @@ class WizardShell(Screen[None]):
         # Rehydration may also happen between scheduling and that refresh.
         step = self.context.state.current_step
         snapshot = self._editable_snapshot()
+        baseline = self._form_baselines.get(step)
+        # This method is also called by routine refreshes. Only initial hydration
+        # may establish a baseline; adopting a dirty snapshot would silently
+        # convert unsaved user input into a clean form. Explicit production saves
+        # use _remember_current_form() to advance the durable baseline.
+        if baseline is not None and baseline != snapshot:
+            return
 
         def remember_if_unchanged() -> None:
-            if self.context.state.current_step == step and self._editable_snapshot() == snapshot:
+            if (
+                self.context.state.current_step == step
+                and self._editable_snapshot() == snapshot
+                and self._form_baselines.get(step) == baseline
+            ):
                 self._form_baselines[step] = snapshot
 
         self.call_after_refresh(remember_if_unchanged)
