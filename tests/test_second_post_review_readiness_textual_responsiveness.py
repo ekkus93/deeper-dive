@@ -63,6 +63,14 @@ async def _first_run_navigation_with_blocked_provider_probe(tmp_path: Path) -> N
             app.action_navigate("home")
             await pilot.pause()
             assert app.screen.id == "screen-home"
+            app.action_navigate("setup")
+            await pilot.pause()
+            assert app.screen is wizard
+            assert wizard.action_continue()
+            assert wizard.context.state.current_step == "ai-provider"
+            app.action_navigate("home")
+            await pilot.pause()
+            assert app.screen.id == "screen-home"
 
             # The visible UI deadline can expire without joining the blocked
             # daemon thread; neither navigation nor repeat requests may wait.
