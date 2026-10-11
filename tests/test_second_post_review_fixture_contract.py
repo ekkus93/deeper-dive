@@ -115,9 +115,9 @@ def test_checkpoint_plan_run_and_export_snapshots_survive_restart(
             completed_config = EpisodeConfigurationService(completed_db).load_configuration(
                 completed.episode_id
             )
-            completed_hosts = active_service.hosts(
-                completed.project_id
-            ).list_episode_host_ids(completed.episode_id)
+            completed_hosts = active_service.hosts(completed.project_id).list_episode_host_ids(
+                completed.episode_id
+            )
             completed_run = active_service.runs(completed.project_id).get(completed.run_id)
             assert completed_run is not None
             with completed_db.connection() as connection:
@@ -137,9 +137,7 @@ def test_checkpoint_plan_run_and_export_snapshots_survive_restart(
                     f"{prefix}-run": json.dumps(asdict(completed_run), sort_keys=True).encode(
                         "utf-8"
                     ),
-                    f"{prefix}-transcript-path": str(completed.transcript_path).encode(
-                        "utf-8"
-                    ),
+                    f"{prefix}-transcript-path": str(completed.transcript_path).encode("utf-8"),
                     f"{prefix}-audio-path": str(completed.audio_path).encode("utf-8"),
                     f"{prefix}-transcript": completed.transcript_path.read_bytes(),
                     f"{prefix}-audio": completed.audio_path.read_bytes(),
