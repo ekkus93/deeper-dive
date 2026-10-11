@@ -44,9 +44,7 @@ def test_valid_project_quick_host_presets_still_create_two_hosts(tmp_path: Path)
     service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
     project = service.create_project(
         "Valid Quick presets",
-        instructions=json.dumps(
-            {"quick_deep_dive": {"host_presets": "skeptic,domain_expert"}}
-        ),
+        instructions=json.dumps({"quick_deep_dive": {"host_presets": "skeptic,domain_expert"}}),
     )
     episode = service.quick_deep_dive(project.id)
     repository = service.hosts(project.id)
