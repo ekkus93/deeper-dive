@@ -1070,6 +1070,7 @@ async def _host_membership_add_remove_and_target_identity_dirty_contract(
         assert configs.load_configuration(other.id).host_ids == host_ids
 
 
+
 def test_host_refresh_preserves_dirty_profile_and_selected_identity(tmp_path: Path) -> None:
     asyncio.run(_host_refresh_preserves_dirty_profile_and_selected_identity(tmp_path))
 
