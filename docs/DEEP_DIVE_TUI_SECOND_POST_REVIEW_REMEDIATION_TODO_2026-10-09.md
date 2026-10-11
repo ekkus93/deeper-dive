@@ -88,13 +88,13 @@ This is the **only completion checklist for the second post-review cycle**. The 
 
 ## SPR-400 — Typed semantic defaults and atomic validation (SPR-04)
 
-- [ ] Inventory all keys in `UserConfig.defaults` and their readers/writers across first-run, Settings, provider controller, CLI, Quick, generation and preflight.
+- [x] Inventory all keys in `UserConfig.defaults` and their readers/writers across first-run, Settings, provider controller, CLI, Quick, generation and preflight.
 - [ ] Specify an authoritative typed/default-value schema with documented valid ranges, enums, aliases, optional blank semantics and legacy compatibility.
 - [x] Validate global and Quick research modes using the production `ResearchMode` contract.
 - [x] Validate Quick duration, exactly two valid host presets, and model/role/provider references where relevant.
 - [ ] Validate network/local-only, runtime/diagnostic, path and voice/default values according to actual consumer contracts.
 - [ ] Apply shared normalization/validation to composite Settings, first-run, provider defaults and CLI mutation paths.
-- [ ] Validate every candidate in full before one durable write; never publish partial runtime changes.
+- [x] Validate every candidate in full before one durable write; never publish partial runtime changes.
 - [ ] Keep old valid config files usable and explicitly handle invalid older config with safe recovery guidance.
 - [ ] Ensure no rejected value or credential canary leaks in exception or CLI/TUI output.
 - [ ] Add table-driven good/bad/blank/legacy/restart matrix and single-save/rollback assertions.
@@ -198,6 +198,13 @@ This is the **only completion checklist for the second post-review cycle**. The 
 - Normative lifecycle and call-site contract: `docs/DEEP_DIVE_EPISODE_LIFECYCLE_CONTRACT_2026-10-10.md`. The suspected current production failures of no-op plan deletion and completed-episode state demotion are **disproved** by direct service/repository tests; they are not asserted as historical incidents.
 - `tests/test_second_post_review_episode_lifecycle.py` covers semantically equal/no-op mapping order, all plan-impact config fields, planned/running/paused/failed/completed guard cases, CAS against stale planners/editors, injected deletion rollback, and cross-project host validation. `tests/test_second_post_review_acceptance_matrix.py` uses the shared production two-project completed/exported plus pending run fixture to check plan/turn/run identities and transcript/audio digests. Qualified at exact `366ec6ffa84cb6cf047852b298334c35e9bdf54e`, [CI #2548](https://github.com/ekkus93/deeper-dive/actions/runs/38117450369), quality `114405081437` and fresh-machine `114405081548` passed; requalified at `9c3c91459558b40283baa44225cfae395813b3ea`, [CI #38118100638](https://github.com/ekkus93/deeper-dive/actions/runs/38118100638), both jobs passed.
 - This documentation/TODO reconciliation commit itself requires successful exact-head CI. Broad CLI/TUI, metadata-only plan approval, failed/paused artifact restart, and final audit remain unchecked.
+
+### 2026-10-10 SPR-04 typed defaults and Settings-to-Quick evidence
+
+- Contract inventory: `docs/DEEP_DIVE_TYPED_DEFAULTS_CONTRACT_2026-10-10.md` maps all known default keys to their actual production writers, consumers and semantic constraints. It records the current unbounded-duration and voice-validation limitations, and identifies absent global-defaults CLI writer instead of inventing one.
+- Production validation source: `src/deeper_dive/user_config.py` reuses `ResearchMode` and `hosts.preset_names()`, `UserConfigStore.validate_candidate/save` revalidates mutated models and commits atomically, `ProviderController.validate_default_references/_commit_candidate` validates before publish, and `SettingsController.set_defaults` commits one logical batch. `QuickDeepDiveService._apply_overrides` validates the entire project preset pair before host creation.
+- Acceptance: `tests/test_second_post_review_config_security.py` enumerates invalid research/duration/presets, mutation/legacy/restart and Settings-to-Quick round trip; `tests/test_second_post_review_quick_project_overrides.py` proves invalid project-level host presets do not leave partially persisted hosts/episodes; provider writer and filesystem race matrices cover publication boundaries. Qualified source/test head `9c3c91459558b40283baa44225cfae395813b3ea`, [CI #38118100638](https://github.com/ekkus93/deeper-dive/actions/runs/38118100638), quality `114407016271` and fresh-machine `114407016167` passed. This documentation commit requires its own exact-head CI.
+- Do not infer broader SPR-04 completion: incomplete voice/runtime reference validation, duration upper bound, full cross-surface error-canary and legacy matrix, and final qualification remain unchecked.
 
 ## Evidence ledger
 
