@@ -340,6 +340,9 @@ class WizardShell(Screen[None]):
             "exit": "exit",
             "back": "go back",
             "continue": "continue",
+            "plan-build": "build the plan",
+            "plan-regenerate": "regenerate the plan",
+            "plan-regenerate-segment": "regenerate the selected segment",
         }
         destination = labels.get(transition, "leave this screen")
         self.set_status(
@@ -497,6 +500,15 @@ class WizardShell(Screen[None]):
             "exit": ("Save changes and exit", "Exit without changes"),
             "back": ("Save changes and go back", "Discard changes and go back"),
             "continue": ("Save changes and continue", "Discard changes and continue"),
+            "plan-build": ("Save segment then build plan", "Discard edits then build plan"),
+            "plan-regenerate": (
+                "Save segment then regenerate plan",
+                "Discard edits then regenerate plan",
+            ),
+            "plan-regenerate-segment": (
+                "Save segment then regenerate",
+                "Discard edits then regenerate",
+            ),
         }
         save_label, discard_label = labels.get(
             transition,

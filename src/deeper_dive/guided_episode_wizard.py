@@ -272,6 +272,12 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             self._toggle_custom_duration()
 
     def _execute_custom_transition(self, transition: str) -> None:
+        if transition in {"plan-build", "plan-regenerate", "plan-regenerate-segment"}:
+            if transition == "plan-regenerate-segment":
+                self.action_regenerate_plan_segment()
+            else:
+                self._run_plan_operation("build" if transition == "plan-build" else "regenerate")
+            return
         if transition.startswith("plan-select:"):
             ordinal = int(transition.split(":", 1)[1])
             self._selected_segment_ordinal = ordinal
@@ -391,6 +397,11 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         return True
 
     def action_regenerate_plan_segment(self) -> None:
+        if self.busy or self._exit_confirmation_pending:
+            return
+        if self.context.state.current_step == "plan" and self._current_form_dirty():
+            self._request_dirty_transition("plan-regenerate-segment")
+            return
         if self.context.episode_id is None:
             self.set_status("Build a plan before regenerating a segment.")
             return
@@ -481,6 +492,13 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             screen.start_background_generation()
 
     def _run_plan_operation(self, operation: str) -> None:
+        if self.busy or self._exit_confirmation_pending:
+            return
+        if self.context.state.current_step == "plan" and self._current_form_dirty():
+            self._request_dirty_transition(
+                "plan-build" if operation == "build" else "plan-regenerate"
+            )
+            return
         episode_id = self.context.episode_id
         if episode_id is None:
             self.set_status("Save episode settings before building a plan.")

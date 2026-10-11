@@ -784,3 +784,92 @@ async def _async_readiness_recovery_preserves_unsaved_setup_edits(
         assert not wizard._current_form_dirty()
         wizard._runtime_readiness_updated()
         assert wizard.context.state.current_step == "welcome"
+
+
+class _RegenerateAwareGenerator(_TwoSegmentGenerator):
+    def generate_plan(self, request):
+        if request.get("mode") == "regenerate_segment":
+            return {
+                "segments": [
+                    {
+                        "title": "Regenerated opening",
+                        "purpose": "Recheck the introductory material",
+                        "target_duration_seconds": 600,
+                        "questions": [],
+                        "evidence_ids": [],
+                        "lead_host_ids": [],
+                    }
+                ]
+            }
+        return super().generate_plan(request)
+
+
+@pytest.mark.parametrize("operation", ("build", "regenerate", "regenerate-segment"))
+def test_dirty_plan_operations_require_explicit_save_or_discard(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    operation: str,
+) -> None:
+    asyncio.run(_dirty_plan_operation(tmp_path, monkeypatch, operation))
+
+
+async def _dirty_plan_operation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, operation: str
+) -> None:
+    service, project_id, episode_id, _host_ids = _episode_fixture(tmp_path)
+    database = Database(service.workspaces.project_root(project_id) / "project.db")
+    planner = EpisodePlannerService(database, _RegenerateAwareGenerator())
+    original = planner.build_plan(episode_id)
+    assert len(original.segments) == 2
+
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        monkeypatch.setattr(wizard, "_planning_service", lambda: planner)
+        wizard.context.project_id = project_id
+        wizard.context.episode_id = episode_id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "plan")
+        wizard._plan = planner.load_plan(episode_id)
+        wizard._selected_segment_ordinal = 0
+        wizard._render_plan()
+        wizard._toggle()
+        await pilot.pause()
+        wizard._remember_current_form()
+
+        changed = "Do not silently overwrite this draft title"
+        title = wizard.query_one("#guided-plan-title", Input)
+        title.value = changed
+        await pilot.pause()
+        actions = {
+            "build": wizard.action_build_plan,
+            "regenerate": wizard.action_regenerate_plan,
+            "regenerate-segment": wizard.action_regenerate_plan_segment,
+        }
+        invoke = actions[operation]
+        invoke()
+        invoke()  # duplicate input must not bypass the pending confirmation
+        await pilot.pause()
+
+        assert wizard.query_one("#wizard-exit-confirmation").display
+        assert wizard.focused is wizard.query_one("#wizard-confirm-cancel")
+        assert title.value == changed
+        assert planner.load_plan(episode_id).id == original.id
+        assert operation.replace("-", " ") in str(
+            wizard.query_one("#wizard-status", Static).render()
+        ) or "Unsaved changes" in str(wizard.query_one("#wizard-status", Static).render())
+
+        wizard.action_cancel_exit_confirmation()
+        await pilot.pause()
+        assert title.value == changed
+        assert planner.load_plan(episode_id).id == original.id
+
+        invoke()
+        wizard.action_confirm_discard_exit()
+        await pilot.pause()
+        regenerated = planner.load_plan(episode_id)
+        assert regenerated.id != original.id
+        assert title.value != changed
+        assert not wizard.query_one("#wizard-exit-confirmation").display
