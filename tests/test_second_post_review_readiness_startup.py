@@ -74,3 +74,46 @@ def test_failed_thread_start_releases_slot_and_allows_retry(
     finally:
         monkeypatch.undo()
         coordinator.close()
+
+
+def test_provider_probe_exception_is_sanitized_and_retryable() -> None:
+    """An isolated provider failure reports once without publishing credentials."""
+    app = _App()
+    callbacks: list[str] = []
+    repaired = [False]
+
+    def probe() -> FirstRunRuntimeSnapshot:
+        if not repaired[0]:
+            raise ValueError("api_key=synthetic-probe-secret")
+        return cast(FirstRunRuntimeSnapshot, object())
+
+    coordinator = FirstRunReadinessCoordinator(
+        cast(WizardContext, object()),
+        probe=probe,
+        fingerprint=lambda: "unchanged",
+        timeout_seconds=3,
+    )
+    try:
+        assert coordinator.request(app, lambda: callbacks.append(coordinator.view.state))
+        assert app.arrived.wait(3)
+        dispatch = app.messages.pop()
+        assert isinstance(dispatch, FirstRunReadinessDispatch)
+        dispatch.run()
+        assert coordinator.view.state == "failed"
+        assert "synthetic-probe-secret" not in (coordinator.view.message or "")
+        assert "[REDACTED]" in (coordinator.view.message or "")
+        assert callbacks == ["failed"]
+        assert coordinator.timeout_timer_count == 0
+
+        app.arrived.clear()
+        repaired[0] = True
+        assert coordinator.request(app, lambda: callbacks.append(coordinator.view.state))
+        assert app.arrived.wait(3)
+        dispatch = app.messages.pop()
+        assert isinstance(dispatch, FirstRunReadinessDispatch)
+        dispatch.run()
+        assert coordinator.view.state == "ready"
+        assert callbacks == ["failed", "ready"]
+        assert coordinator.timeout_timer_count == 0
+    finally:
+        coordinator.close()
