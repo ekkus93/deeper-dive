@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
 from textual.widgets import Static
 
 from deeper_dive.application.service import DeeperDiveService
@@ -116,6 +118,21 @@ async def _library_resume_invokes_orchestration_from_checkpoint(tmp_path: Path) 
     completed_stages = runs.list_completed_stages(run_id)
     assert set(completed_stages) == set(DEFAULT_STAGES)
     assert len(completed_stages) == len(DEFAULT_STAGES)
+
+
+def test_library_resume_rejects_stale_run_without_mutating_selection(tmp_path: Path) -> None:
+    service, project_id, episode_id, run_id = _paused_resume_fixture(tmp_path)
+    app = DeeperDiveApp(service)
+    app.current_project_id = project_id
+    item = next(row for row in EpisodeLibraryController.items(app) if row.episode.id == episode_id)
+    assert item.run is not None
+    service.runs(project_id).update(replace(item.run, state="pending", pause_requested=False))
+    with pytest.raises(ValueError, match="run state pending is not resumable"):
+        EpisodeLibraryController.resume(app, item)
+    assert app.current_episode_id is None
+    assert app.current_run_id is None
+    current = service.runs(project_id).get(run_id)
+    assert current is not None and current.state == "pending"
 
 
 def test_library_resume_navigates_to_monitor_with_selected_run(tmp_path: Path) -> None:
