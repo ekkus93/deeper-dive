@@ -5,10 +5,11 @@ import pytest
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.diagnostics import export_diagnostic_bundle, redact
 from deeper_dive.hosts import preset_names
-from deeper_dive.research_policy import ResearchMode, ResearchPolicyStore
 from deeper_dive.llm import LLMProviderRegistry
 from deeper_dive.provider_tui import ProviderController
+from deeper_dive.research_policy import ResearchMode, ResearchPolicyStore
 from deeper_dive.settings_screen import SettingsController
+from deeper_dive.storage.database import Database
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigError, UserConfigStore
 
@@ -483,7 +484,7 @@ def test_research_mode_production_contract_round_trip(tmp_path, mode: ResearchMo
     service = DeeperDiveService(WorkspaceManager(data_dir))
     project = service.create_project("Research contract round trip")
     episode = service.quick_deep_dive(project.id)
-    persisted = ResearchPolicyStore(service.workspaces.project_database(project.id))
+    persisted = ResearchPolicyStore(Database(service.workspaces.project_root(project.id) / "project.db"))
     assert persisted.episode(project.id, episode.id).mode is mode
 
 
@@ -503,5 +504,6 @@ def test_each_production_host_preset_is_valid_in_settings_and_quick(
     episode = service.quick_deep_dive(project.id)
     config = service.hosts(project.id).get_episode(episode.id)
     assert config is not None and config.target_duration_seconds == 1200
-    hosts = service.hosts(project.id).list_hosts(project.id)
-    assert [host.preset_origin for host in hosts] == [preset, "skeptic"]
+    hosts = {host.id: host for host in service.hosts(project.id).list_hosts(project.id)}
+    selected = service.hosts(project.id).list_episode_host_ids(episode.id)
+    assert [hosts[host_id].preset_origin for host_id in selected] == [preset, "skeptic"]
