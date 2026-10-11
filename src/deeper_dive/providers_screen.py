@@ -200,8 +200,9 @@ class ProvidersScreen(Screen[None]):
                 ),
                 voices=self._voice_catalog(supported_fields),
             )
-        except ValueError as exc:
-            self._status(user_status("provider", exc))
+        except (OSError, ValueError) as exc:
+            # Keep the editable provider form intact if persistence fails.
+            self._status(f"{user_status('provider', exc)} {sanitize_exception_message(exc)}")
             return
         self._pending_removal.cancel()
         self.selected_provider = name
@@ -227,7 +228,11 @@ class ProvidersScreen(Screen[None]):
             self._status("Provider removal cancelled because the selection changed.")
             return
         self._sync_removal_controls()
-        self.provider_app.provider_controller.remove_provider(name)
+        try:
+            self.provider_app.provider_controller.remove_provider(name)
+        except (OSError, ValueError) as exc:
+            self._status(f"{user_status('provider', exc)} {sanitize_exception_message(exc)}")
+            return
         self.selected_provider = None
         self.refresh_providers(f"Removed provider {name}")
 
