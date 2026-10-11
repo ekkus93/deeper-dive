@@ -11,7 +11,7 @@ from deeper_dive.hosts import create_host_from_preset, preset_names
 from deeper_dive.research_policy import ResearchMode, ResearchPolicy, ResearchPolicyStore
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import EpisodeRecord, HostEpisodeRepository
-from deeper_dive.user_config import UserConfigStore
+from deeper_dive.user_config import MAX_QUICK_DURATION_MINUTES, UserConfigStore
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,9 +105,15 @@ class QuickDeepDiveService:
         fallback_presets = defaults.fallback_presets
         research_mode = defaults.research_mode
         if duration:
-            minutes = int(duration)
+            try:
+                minutes = int(duration)
+            except ValueError:
+                # Never echo arbitrary project instructions in CLI/TUI errors.
+                raise ValueError("Quick Deep Dive duration must be a positive integer") from None
             if minutes <= 0:
                 raise ValueError("Quick Deep Dive duration must be positive")
+            if minutes > MAX_QUICK_DURATION_MINUTES:
+                raise ValueError("Quick Deep Dive duration exceeds the supported storage range")
             target_duration_seconds = minutes * 60
         if presets:
             parsed = tuple(item.strip() for item in presets.split(",") if item.strip())

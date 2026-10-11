@@ -34,6 +34,9 @@ except ImportError:  # pragma: no cover - non-POSIX fallback
     fcntl = None  # type: ignore[assignment]
 
 CURRENT_CONFIG_VERSION = 1
+# SQLite stores episode.target_duration_seconds as a signed 64-bit integer.
+# Reject durations that cannot be safely converted to seconds before any write.
+MAX_QUICK_DURATION_MINUTES = ((1 << 63) - 1) // 60
 
 _PATH_LOCKS_GUARD = Lock()
 _PATH_LOCKS: dict[str, RLock] = {}
@@ -158,6 +161,10 @@ class UserConfig(BaseModel):
                     ) from None
                 if minutes <= 0:
                     raise ValueError("quick_deep_dive_duration_minutes must be a positive integer")
+                if minutes > MAX_QUICK_DURATION_MINUTES:
+                    raise ValueError(
+                        "quick_deep_dive_duration_minutes exceeds the supported storage range"
+                    )
             normalized["quick_deep_dive_duration_minutes"] = value
 
         presets = normalized.get("quick_deep_dive_host_presets")
