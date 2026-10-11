@@ -1175,9 +1175,9 @@ async def _combined_host_profile_and_membership_save(tmp_path: Path) -> None:
         wizard._toggle()
         wizard._remember_current_form()
 
-        wizard.query_one("#guided-host-instructions", Input).value = (
-            "Durable profile and membership update"
-        )
+        wizard.query_one(
+            "#guided-host-instructions", Input
+        ).value = "Durable profile and membership update"
         wizard._move_selected_host(1)
         assert wizard._host_profile_dirty()
         assert wizard._host_order_dirty()
