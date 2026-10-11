@@ -22,9 +22,7 @@ async def _host_order_remove_discard_save_restart(tmp_path) -> None:
     service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
     project = service.create_project("Host membership acceptance")
     for host_id in ("first", "second"):
-        service.hosts(project.id).create_host(
-            HostProfile(host_id, project.id, host_id).to_record()
-        )
+        service.hosts(project.id).create_host(HostProfile(host_id, project.id, host_id).to_record())
     db = Database(service.workspaces.project_root(project.id) / "project.db")
     configs = EpisodeConfigurationService(db)
     episode = configs.create(
@@ -64,5 +62,6 @@ async def _host_order_remove_discard_save_restart(tmp_path) -> None:
         assert not wizard._host_order_dirty()
 
     assert EpisodeConfigurationService(db).load_configuration(episode.id).host_ids == (
-        "second", "first"
+        "second",
+        "first",
     )
