@@ -150,6 +150,7 @@ class EpisodeLibraryScreen(Screen[None]):
         super().__init__(id="screen-library")
         self.selected_episode_id: str | None = None
         self.pending_delete_episode_id: str | None = None
+        self.pending_delete_project_id: str | None = None
 
     @property
     def _app(self) -> DeeperDiveApp:
@@ -279,23 +280,40 @@ class EpisodeLibraryScreen(Screen[None]):
             self._status("No episode selected")
             return
         self.pending_delete_episode_id = self.selected_episode_id
+        self.pending_delete_project_id = self._app.current_project_id
         self._status("Confirm episode deletion with Y, or cancel with Esc")
 
     def action_confirm_delete(self) -> None:
         episode_id = self.pending_delete_episode_id
         if episode_id is None:
             return
-        EpisodeLibraryController.delete(self._app, episode_id)
+        project_id = self.pending_delete_project_id
+        self.pending_delete_episode_id = None
+        self.pending_delete_project_id = None
+        # Confirmation is one-shot and scoped to both project and selection.
+        # A stale confirmation must not delete a different visible record.
+        if (
+            project_id != self._app.current_project_id
+            or episode_id != self.selected_episode_id
+            or self._selected() is None
+        ):
+            self._status("Episode deletion cancelled because selection or project changed")
+            return
+        try:
+            EpisodeLibraryController.delete(self._app, episode_id)
+        except KeyError:
+            self.refresh_library("Selected episode is no longer available")
+            return
         if self._app.current_episode_id == episode_id:
             self._app.current_episode_id = None
             self._app.current_run_id = None
         self.selected_episode_id = None
-        self.pending_delete_episode_id = None
         self.refresh_library("Deleted episode")
 
     def action_cancel_delete(self) -> None:
         if self.pending_delete_episode_id is not None:
             self.pending_delete_episode_id = None
+            self.pending_delete_project_id = None
             self._status("Delete cancelled")
 
     def action_new_episode(self) -> None:

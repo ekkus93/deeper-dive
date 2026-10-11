@@ -191,3 +191,69 @@ def _service(tmp_path: Path) -> DeeperDiveService:
         WorkspaceManager(tmp_path / "data"),
         clock=FrozenClock(datetime(2026, 9, 19, 12, 0, 0, tzinfo=UTC)),
     )
+
+
+def test_library_delete_confirmation_bound_to_project_and_selection(tmp_path: Path) -> None:
+    asyncio.run(_library_delete_confirmation_bound_to_project_and_selection(tmp_path))
+
+
+async def _library_delete_confirmation_bound_to_project_and_selection(tmp_path: Path) -> None:
+    """A changed selection/project cannot consume a stale destructive confirmation."""
+    service = _service(tmp_path)
+    first = service.create_project("First")
+    second = service.create_project("Second")
+    first_config = EpisodeConfigurationService(
+        Database(service.workspaces.project_root(first.id) / "project.db"),
+        clock=service.clock,
+    )
+    second_config = EpisodeConfigurationService(
+        Database(service.workspaces.project_root(second.id) / "project.db"),
+        clock=service.clock,
+    )
+    alpha = first_config.create(first.id, EpisodeConfiguration(title="Alpha"))
+    beta = first_config.create(first.id, EpisodeConfiguration(title="Beta"))
+    gamma = second_config.create(second.id, EpisodeConfiguration(title="Gamma"))
+
+    app = DeeperDiveApp(service)
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.current_project_id = first.id
+        app.current_project_name = first.name
+        screen = EpisodeLibraryScreen()
+        app.push_screen(screen)
+        await pilot.pause()
+
+        screen.selected_episode_id = alpha.id
+        screen.action_request_delete()
+        assert screen.pending_delete_episode_id == alpha.id
+        screen.selected_episode_id = beta.id
+        screen.action_confirm_delete()
+        assert screen.pending_delete_episode_id is None
+        assert screen.pending_delete_project_id is None
+        assert {item.id for item in service.hosts(first.id).list_episodes(first.id)} == {
+            alpha.id,
+            beta.id,
+        }
+        assert "cancelled" in str(screen.query_one("#screen-status", Static).render()).lower()
+
+        # A project change must invalidate a confirmation, even if the episode
+        # from the previous project remains as the selected screen identity.
+        screen.selected_episode_id = alpha.id
+        screen.action_request_delete()
+        app.current_project_id = second.id
+        screen.action_confirm_delete()
+        assert {item.id for item in service.hosts(first.id).list_episodes(first.id)} == {
+            alpha.id,
+            beta.id,
+        }
+        assert [item.id for item in service.hosts(second.id).list_episodes(second.id)] == [
+            gamma.id
+        ]
+
+        app.current_project_id = first.id
+        screen.selected_episode_id = beta.id
+        screen.action_request_delete()
+        screen.action_confirm_delete()
+        screen.action_confirm_delete()  # Already consumed: never deletes again.
+        assert [item.id for item in service.hosts(first.id).list_episodes(first.id)] == [
+            alpha.id
+        ]
