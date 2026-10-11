@@ -49,7 +49,7 @@ def test_readiness_discovery_passes_real_bounded_transport_timeout(
 
     def request(_method: str, _url: str, _payload: object, timeout: float) -> dict:
         observed.append(timeout)
-        return {"status": "ok", "models": []}
+        return {"status": "ok", "models": [], "data": []}
 
     # Exercise both discovery calls through the actual configured adapter's
     # normalized public boundary, without opening a socket.
