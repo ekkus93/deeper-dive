@@ -1,7 +1,7 @@
 # Deeper Dive TUI — Second Post-Review Remediation Specification
 
 **Created:** 2026-10-09 (America/Los_Angeles)  
-**Status:** Proposed / implementation not started  
+**Status:** Partial implementation and CI qualification; final acceptance pending  
 **Reviewed `master` baseline:** `ce5eee194b7adcce4f077b04e7f9cdb1d7f7de5b`  
 **Companion authoritative implementation checklist:** `docs/DEEP_DIVE_TUI_SECOND_POST_REVIEW_REMEDIATION_TODO_2026-10-09.md`  
 **Predecessor (historical, do not rewrite):** `docs/DEEP_DIVE_TUI_GUIDED_WORKFLOW_POST_REVIEW_REMEDIATION_TODO_2026-10-09.md`  
