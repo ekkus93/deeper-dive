@@ -484,7 +484,9 @@ def test_research_mode_production_contract_round_trip(tmp_path, mode: ResearchMo
     service = DeeperDiveService(WorkspaceManager(data_dir))
     project = service.create_project("Research contract round trip")
     episode = service.quick_deep_dive(project.id)
-    persisted = ResearchPolicyStore(Database(service.workspaces.project_root(project.id) / "project.db"))
+    persisted = ResearchPolicyStore(
+        Database(service.workspaces.project_root(project.id) / "project.db")
+    )
     assert persisted.episode(project.id, episode.id).mode is mode
 
 
