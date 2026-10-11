@@ -245,9 +245,7 @@ async def _library_delete_confirmation_bound_to_project_and_selection(tmp_path: 
             alpha.id,
             beta.id,
         }
-        assert [item.id for item in service.hosts(second.id).list_episodes(second.id)] == [
-            gamma.id
-        ]
+        assert [item.id for item in service.hosts(second.id).list_episodes(second.id)] == [gamma.id]
 
         app.current_project_id = first.id
         screen.selected_episode_id = beta.id
