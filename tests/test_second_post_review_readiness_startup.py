@@ -64,9 +64,7 @@ def test_startup_failure_releases_capacity_notifies_once_and_allows_retry(
                 patcher.setattr(readiness.Timer, "start", reject_start)
             else:
                 patcher.setattr(readiness, "Thread", FailingWorker)
-            assert not coordinator.request(
-                app, lambda: callbacks.append(coordinator.view.state)
-            )
+            assert not coordinator.request(app, lambda: callbacks.append(coordinator.view.state))
         assert coordinator.view.state == "failed"
         assert coordinator.view.message == "Unable to start provider readiness check. Retry."
         assert callbacks == ["failed"]
@@ -75,9 +73,7 @@ def test_startup_failure_releases_capacity_notifies_once_and_allows_retry(
         assert coordinator.queued_worker_count == 0
         assert app.messages.empty()
 
-        assert coordinator.request(
-            app, lambda: callbacks.append(coordinator.view.state)
-        )
+        assert coordinator.request(app, lambda: callbacks.append(coordinator.view.state))
         app.deliver()
         assert coordinator.view.state == "ready"
         assert callbacks == ["failed", "ready"]
