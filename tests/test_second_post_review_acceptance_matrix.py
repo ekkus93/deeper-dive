@@ -135,9 +135,9 @@ def test_reopened_composition_rejects_historical_episode_edits(
         )
     assert pending_repo.get_episode(fixture.pending_episode_id) == pending_episode
     assert pending_repo.get_plan(fixture.pending_episode_id) == pending_plan
-    assert reopened.service.runs(fixture.pending_project_id).get(
-        fixture.pending_run_id
-    ) == pending_run
+    assert (
+        reopened.service.runs(fixture.pending_project_id).get(fixture.pending_run_id) == pending_run
+    )
     assert (
         reopened.service.workspaces.data_dir / "config.json"
     ).read_bytes() == fixture.config_bytes
