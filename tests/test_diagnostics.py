@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from deeper_dive.diagnostics import (
     DiagnosticEvent,
     StructuredDiagnosticLog,
@@ -127,3 +129,46 @@ def test_debug_and_repr_payloads_do_not_leak_original_secret_values() -> None:
     assert f"{key_name}=[REDACTED]" in text
     assert f"{token_name}=[REDACTED]" in text
     assert "keep useful context" in text
+
+
+@pytest.mark.parametrize("layer_count", (1, 2))
+@pytest.mark.parametrize(
+    "inner_url",
+    (
+        "https://username:nested-secret-canary@inner.example/v1",
+        "https://inner.example/v1#access_token=nested-secret-canary",
+        "https://inner.example/v1#%61ccess_token%3Dnested-secret-canary",
+    ),
+)
+def test_diagnostic_encoded_redirect_hides_nested_userinfo_and_fragments(
+    tmp_path: Path, layer_count: int, inner_url: str
+) -> None:
+    from urllib.parse import quote
+
+    destination = inner_url
+    for _ in range(layer_count):
+        destination = quote(destination, safe="")
+    url = f"https://gateway.example/v1?redirect={destination}&status=ok"
+    safe = str(redact(f"request={url} response=401"))
+    assert "nested-secret-canary" not in safe
+    assert "redirect=[REDACTED]" in safe
+    assert "status=ok" in safe
+    assert "response=401" in safe
+
+    bundle = export_diagnostic_bundle(
+        tmp_path / "nested-redirect.json",
+        provider_diagnostics={"requests": [{"url": url}]},
+    ).read_text(encoding="utf-8")
+    assert "nested-secret-canary" not in bundle
+    assert "[REDACTED]" in bundle
+
+
+@pytest.mark.parametrize("layer_count", (1, 2))
+def test_diagnostic_encoded_redirect_retains_benign_fragment(layer_count: int) -> None:
+    from urllib.parse import quote
+
+    destination = "https://inner.example/docs#install"
+    for _ in range(layer_count):
+        destination = quote(destination, safe="")
+    url = f"https://gateway.example/docs?redirect={destination}&status=ok"
+    assert redact(url) == url

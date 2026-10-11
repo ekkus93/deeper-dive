@@ -134,9 +134,18 @@ def _redact_encoded_query(match: re.Match[str]) -> str:
     sensitive = is_sensitive_url_query_key(match.group(2))
     nested = match.group(4)
     for _ in range(5):
-        if "://" in nested and any(
-            is_sensitive_url_query_key(item.group(2))
-            for item in _ENCODED_CREDENTIAL_QUERY.finditer(nested)
+        # Nested redirects may conceal credentials in userinfo or fragments,
+        # not only in their query parameters. Preserve benign destinations.
+        if "://" in nested and (
+            _CREDENTIAL_URL.search(nested)
+            or any(
+                _redact_url_fragment(item) != item.group(0)
+                for item in _URL_FRAGMENT.finditer(nested)
+            )
+            or any(
+                is_sensitive_url_query_key(item.group(2))
+                for item in _ENCODED_CREDENTIAL_QUERY.finditer(nested)
+            )
         ):
             sensitive = True
             break
