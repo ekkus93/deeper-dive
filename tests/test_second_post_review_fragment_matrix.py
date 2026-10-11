@@ -25,8 +25,7 @@ from deeper_dive.user_config import ProviderConfig
     ],
 )
 def test_fragment_canary_is_rejected_and_redacted_across_surfaces(
-    tmp_path, fragment: str
-) -> None:
+tmp_path, fragment: str) -> None:
     endpoint = f"https://example.test/v1#{fragment}"
     with pytest.raises(ValueError, match="fragments") as rejected:
         ProviderConfig(provider_type="openai", base_url=endpoint)
