@@ -24,8 +24,6 @@ def test_quick_duration_invalid_input_is_rejected_without_echo_or_partial_write(
     store = UserConfigStore(tmp_path / "config.json")
     settings = SettingsController(ProviderController(store, LLMProviderRegistry(), {}))
     with pytest.raises(ValueError) as caught:
-        settings.save_quick_deep_dive_defaults(
-            rejected, "curious_explainer,skeptic", "useful"
-        )
+        settings.save_quick_deep_dive_defaults(rejected, "curious_explainer,skeptic", "useful")
     assert rejected not in str(caught.value)
     assert not store.path.exists()
