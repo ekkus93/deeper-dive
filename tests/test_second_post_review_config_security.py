@@ -508,6 +508,7 @@ def test_each_production_host_preset_is_valid_in_settings_and_quick(tmp_path, pr
     selected = service.hosts(project.id).list_episode_host_ids(episode.id)
     assert [hosts[host_id].preset_origin for host_id in selected] == [preset, "skeptic"]
 
+
 @pytest.mark.parametrize(
     "query",
     [
@@ -530,10 +531,7 @@ def test_semicolon_separated_credentials_rejected_and_redacted(query: str) -> No
 
 def test_nested_semicolon_credential_url_redacted_in_diagnostic_bundle(tmp_path) -> None:
     canary = "nested-semicolon-canary"
-    encoded_redirect = (
-        "https%3A%2F%2Fother.example%2F%3Fsafe%3D1%3B"
-        f"api%255Fkey%3D{canary}"
-    )
+    encoded_redirect = f"https%3A%2F%2Fother.example%2F%3Fsafe%3D1%3Bapi%255Fkey%3D{canary}"
     nested = f"https://example.test/v1?redirect={encoded_redirect}&section=overview"
     payload = export_diagnostic_bundle(
         tmp_path / "nested-semicolon.json",
