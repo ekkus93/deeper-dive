@@ -181,7 +181,8 @@ class FirstRunReadinessCoordinator:
         except (OSError, RuntimeError, ValueError) as exc:
             self._fingerprint_failed(exc, callback)
             return False
-        rejected_callback: Callable[[], object] | None = None
+        rejected = False
+        rejected_callbacks: tuple[Callable[[], object], ...] = ()
         stale_timers: tuple[Timer, ...] = ()
         with self._lock:
             if self._closed:
@@ -211,16 +212,23 @@ class FirstRunReadinessCoordinator:
                         "Retry after the provider timeout expires."
                     ),
                 )
+                # Superseding a coalesced pending generation must wake all
+                # subscribers exactly once, even when no worker slot is free.
+                rejected = True
+                callbacks = list(self._callbacks)
+                if callback is not None and callback not in callbacks:
+                    callbacks.append(callback)
+                rejected_callbacks = tuple(callbacks)
                 self._callbacks.clear()
-                rejected_callback = callback
             else:
                 self._view = FirstRunReadinessView("checking", generation, fingerprint)
                 self._callbacks = [callback] if callback is not None else []
                 self._active_workers.add(generation)
         for stale_timer in stale_timers:
             stale_timer.cancel()
-        if rejected_callback is not None:
-            rejected_callback()
+        if rejected:
+            for pending_callback in rejected_callbacks:
+                pending_callback()
             return False
         # Timer installation below owns the reserved worker slot. A separate
         # unlocked view check could abandon a superseded slot without a worker.

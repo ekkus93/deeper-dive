@@ -435,3 +435,82 @@ def test_fingerprint_failure_notifies_coalesced_inflight_callbacks_once() -> Non
     finally:
         release.set()
         coordinator.close()
+
+
+def test_full_worker_budget_notifies_every_superseded_subscriber_once() -> None:
+    app = _RecordingApp()
+    started = Event()
+    release = Event()
+    fingerprint = ["first"]
+    callbacks: list[tuple[str, str]] = []
+
+    def blocked_probe() -> FirstRunRuntimeSnapshot:
+        started.set()
+        assert release.wait(3), "worker release was never signaled"
+        return _snapshot()
+
+    coordinator = FirstRunReadinessCoordinator(
+        _context(),
+        probe=blocked_probe,
+        fingerprint=lambda: fingerprint[0],
+        timeout_seconds=5,
+        max_workers=1,
+    )
+
+    def record(name: str) -> None:
+        callbacks.append((name, coordinator.view.state))
+
+    try:
+        assert coordinator.request(app, lambda: record("first"))
+        assert started.wait(3)
+        assert not coordinator.request(app, lambda: record("coalesced"))
+        fingerprint[0] = "second"
+        assert not coordinator.request(app, lambda: record("rejected"))
+        assert callbacks == [
+            ("first", "failed"),
+            ("coalesced", "failed"),
+            ("rejected", "failed"),
+        ]
+        assert coordinator.active_worker_count == 1
+        assert coordinator.queued_worker_count == 0
+        assert coordinator.timeout_timer_count == 0
+        assert "Retry" in (coordinator.view.message or "")
+        release.set()
+        app.deliver()
+        assert len(callbacks) == 3
+        assert coordinator.view.state == "failed"
+    finally:
+        release.set()
+        coordinator.close()
+
+
+def test_full_worker_budget_without_callbacks_does_not_start_orphan_timer() -> None:
+    app = _RecordingApp()
+    started = Event()
+    release = Event()
+    fingerprint = ["first"]
+
+    def blocked_probe() -> FirstRunRuntimeSnapshot:
+        started.set()
+        assert release.wait(3)
+        return _snapshot()
+
+    coordinator = FirstRunReadinessCoordinator(
+        _context(),
+        probe=blocked_probe,
+        fingerprint=lambda: fingerprint[0],
+        timeout_seconds=5,
+        max_workers=1,
+    )
+    try:
+        assert coordinator.request(app)
+        assert started.wait(3)
+        fingerprint[0] = "second"
+        assert not coordinator.request(app)
+        assert coordinator.view.state == "failed"
+        assert coordinator.active_worker_count == 1
+        assert coordinator.timeout_timer_count == 0
+        assert coordinator.queued_worker_count == 0
+    finally:
+        release.set()
+        coordinator.close()
