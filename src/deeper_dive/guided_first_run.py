@@ -102,9 +102,10 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
     def _checking_text(self) -> str:
         coordinator = self._runtime_readiness
         if coordinator is not None and coordinator.view.state == "failed":
-            return "Readiness check needs attention: " + (
-                coordinator.view.message or "provider check failed"
-            )
+            message = coordinator.view.message or "provider check failed"
+            if "retry" not in message.casefold():
+                message += " Review provider settings and retry."
+            return "Readiness check needs attention: " + message
         return "Checking provider and local runtime readiness…"
 
     def step_controls(self) -> tuple[Widget, ...]:
