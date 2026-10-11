@@ -43,15 +43,17 @@ _QUOTED_MAPPING_ASSIGNMENT = re.compile(
 )
 _CREDENTIAL_URL = re.compile(r"(?i)(https?://)([^/@\s:]+)(?::([^/@\s]+))?@")
 _CREDENTIAL_QUERY = re.compile(
-    r"(?i)([?&](?:api_key|apikey|key|token|access_token|auth|authorization|password|secret)=)"
-    r"([^&#\s]+)"
+    r"(?i)([?&;](?:api_key|apikey|key|token|access_token|auth|authorization|password|secret)=)"
+    r"([^&#;\s]+)"
 )
 _URL_FRAGMENT = re.compile(r"(?i)(https?://[^\s#]+)#([^\s]+)")
 # Percent-encoded credential *keys* in URL queries are not matched by the
 # plain-text assignment pattern. Decode only the key and retain the URL shape.
 # Match raw punctuation in keys (api[key], api+key, api/key) as well as
-# percent-encoded spelling. The shared key classifier decides sensitivity.
-_ENCODED_CREDENTIAL_QUERY = re.compile(r"(?i)([?&])([^?&#=\s]+)(=)([^&#\s]+)")
+# percent-encoded spelling. Treat legacy semicolons as query separators,
+# including when an earlier non-sensitive parameter precedes the secret.
+# The shared key classifier decides sensitivity.
+_ENCODED_CREDENTIAL_QUERY = re.compile(r"(?i)([?&;])([^?&#=;\s]+)(=)([^&#;\s]+)")
 _SENSITIVE_URL_KEYS = frozenset(
     {
         "api_key",

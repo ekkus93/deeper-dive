@@ -507,3 +507,44 @@ def test_each_production_host_preset_is_valid_in_settings_and_quick(tmp_path, pr
     hosts = {host.id: host for host in service.hosts(project.id).list_hosts(project.id)}
     selected = service.hosts(project.id).list_episode_host_ids(episode.id)
     assert [hosts[host_id].preset_origin for host_id in selected] == [preset, "skeptic"]
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "safe=1;api%5Fkey=semicolon-query-canary",
+        "safe=1;session.Token=semicolon-query-canary",
+        "safe=1&lang=en;client%2Esecret=semicolon-query-canary",
+        "safe=1;api[key]=semicolon-query-canary",
+    ],
+)
+def test_semicolon_separated_credentials_rejected_and_redacted(query: str) -> None:
+    endpoint = f"https://example.test/v1?{query}"
+    sanitized = str(redact(f"GET {endpoint} status=401"))
+    assert "semicolon-query-canary" not in sanitized
+    assert "safe=1" in sanitized
+    assert "status=401" in sanitized
+    with pytest.raises(ValueError, match="credential query") as error:
+        ProviderConfig(provider_type="openai", base_url=endpoint)
+    assert "semicolon-query-canary" not in str(error.value)
+
+
+def test_nested_semicolon_credential_url_redacted_in_diagnostic_bundle(tmp_path) -> None:
+    canary = "nested-semicolon-canary"
+    encoded_redirect = (
+        "https%3A%2F%2Fother.example%2F%3Fsafe%3D1%3B"
+        f"api%255Fkey%3D{canary}"
+    )
+    nested = f"https://example.test/v1?redirect={encoded_redirect}&section=overview"
+    payload = export_diagnostic_bundle(
+        tmp_path / "nested-semicolon.json",
+        provider_diagnostics={"request": nested},
+    ).read_text(encoding="utf-8")
+    assert canary not in payload
+    assert "[REDACTED]" in payload
+    assert "section=overview" in payload
+
+
+def test_benign_semicolon_query_preserved() -> None:
+    endpoint = "https://example.test/docs?filter=kind;type&section=overview"
+    assert ProviderConfig(provider_type="openai", base_url=endpoint).base_url == endpoint
+    assert redact(f"GET {endpoint} status=200") == f"GET {endpoint} status=200"

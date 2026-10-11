@@ -113,7 +113,7 @@ class ProviderConfig(BaseModel):
             raise ValueError("base_url must not contain URL fragments")
         if any(
             is_sensitive_url_query_key(key)
-            for key, _ in parse_qsl(parsed.query, keep_blank_values=True)
+            for key, _ in parse_qsl(parsed.query.replace(";", "&"), keep_blank_values=True)
         ):
             raise ValueError("base_url must not contain credential query parameters")
         endpoint, separator, query = value.partition("?")
