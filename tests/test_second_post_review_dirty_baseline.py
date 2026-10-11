@@ -16,7 +16,9 @@ from deeper_dive.guided_workflow import WizardKind, WizardState
 def test_scheduled_refresh_does_not_clear_dirty_episode_input(
     second_post_review_acceptance: Callable[[], Any],
 ) -> None:
-    asyncio.run(_scheduled_refresh_does_not_clear_dirty_episode_input(second_post_review_acceptance))
+    asyncio.run(
+        _scheduled_refresh_does_not_clear_dirty_episode_input(second_post_review_acceptance)
+    )
 
 
 async def _scheduled_refresh_does_not_clear_dirty_episode_input(
