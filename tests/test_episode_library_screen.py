@@ -124,7 +124,9 @@ def test_library_resume_rejects_stale_run_without_mutating_selection(tmp_path: P
     service, project_id, episode_id, run_id = _paused_resume_fixture(tmp_path)
     app = DeeperDiveApp(service)
     app.current_project_id = project_id
-    item = next(row for row in EpisodeLibraryController.items(app) if row.episode.id == episode_id)
+    item = next(
+        row for row in EpisodeLibraryController.items(app) if row.episode.id == episode_id
+    )
     assert item.run is not None
     service.runs(project_id).update(replace(item.run, state="pending", pause_requested=False))
     with pytest.raises(ValueError, match="run state pending is not resumable"):
