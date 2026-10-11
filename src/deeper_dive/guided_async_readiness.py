@@ -249,7 +249,7 @@ class FirstRunReadinessCoordinator:
             self._timers[generation] = timer
         try:
             timer.start()
-        except RuntimeError:
+        except (OSError, RuntimeError):
             self._start_failed(generation, timer)
             return False
 
@@ -261,7 +261,7 @@ class FirstRunReadinessCoordinator:
         )
         try:
             worker.start()
-        except RuntimeError:
+        except (OSError, RuntimeError):
             self._start_failed(generation, timer)
             return False
         return True

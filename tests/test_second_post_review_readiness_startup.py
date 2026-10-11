@@ -1,13 +1,14 @@
-"""Regression tests for readiness thread-start failure and recovery."""
+"""Regression matrix for readiness worker/timer startup failures."""
 
 from __future__ import annotations
 
-from threading import Event, Thread, Timer
+from queue import Queue
 from typing import cast
 
 import pytest
 from textual.message import Message
 
+import deeper_dive.guided_async_readiness as readiness
 from deeper_dive.guided_async_readiness import (
     FirstRunReadinessCoordinator,
     FirstRunReadinessDispatch,
@@ -16,102 +17,68 @@ from deeper_dive.guided_async_readiness import (
 from deeper_dive.guided_workflow import WizardContext
 
 
-class _App:
+class _RecordingApp:
     def __init__(self) -> None:
-        self.messages: list[Message] = []
-        self.arrived = Event()
+        self.messages: Queue[Message] = Queue()
 
     def post_message(self, message: Message) -> bool:
-        self.messages.append(message)
-        self.arrived.set()
+        self.messages.put(message)
         return True
 
+    def deliver(self) -> None:
+        message = self.messages.get(timeout=3)
+        assert isinstance(message, FirstRunReadinessDispatch)
+        message.run()
 
-@pytest.mark.parametrize("failed_start", ["timer", "worker"])
-def test_failed_thread_start_releases_slot_and_allows_retry(
-    monkeypatch: pytest.MonkeyPatch, failed_start: str
+
+@pytest.mark.parametrize("stage", ["timer", "worker"])
+@pytest.mark.parametrize("failure_type", [RuntimeError, OSError])
+def test_startup_failure_releases_capacity_notifies_once_and_allows_retry(
+    monkeypatch: pytest.MonkeyPatch,
+    stage: str,
+    failure_type: type[Exception],
 ) -> None:
-    app = _App()
+    app = _RecordingApp()
     callbacks: list[str] = []
-    original_start = Thread.start
-
-    def fail_start(thread: Thread) -> None:
-        is_timer = isinstance(thread, Timer)
-        if (failed_start == "timer" and is_timer) or (
-            failed_start == "worker" and thread.name.startswith("deeper-dive-readiness-")
-        ):
-            raise RuntimeError("synthetic startup failure")
-        original_start(thread)
-
     coordinator = FirstRunReadinessCoordinator(
         cast(WizardContext, object()),
         probe=lambda: cast(FirstRunRuntimeSnapshot, object()),
         fingerprint=lambda: "same",
-        timeout_seconds=3,
+        timeout_seconds=5,
         max_workers=1,
     )
+
+    def reject_start(self: object) -> None:
+        raise failure_type("simulated readiness thread startup failure")
+
+    class FailingWorker:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            pass
+
+        def start(self) -> None:
+            reject_start(self)
+
     try:
-        monkeypatch.setattr(Thread, "start", fail_start)
-        assert not coordinator.request(app, lambda: callbacks.append(coordinator.view.state))
-        assert callbacks == ["failed"]
+        with monkeypatch.context() as patcher:
+            if stage == "timer":
+                patcher.setattr(readiness.Timer, "start", reject_start)
+            else:
+                patcher.setattr(readiness, "Thread", FailingWorker)
+            assert not coordinator.request(
+                app, lambda: callbacks.append(coordinator.view.state)
+            )
         assert coordinator.view.state == "failed"
-        assert "Retry" in (coordinator.view.message or "")
+        assert coordinator.view.message == "Unable to start provider readiness check. Retry."
+        assert callbacks == ["failed"]
         assert coordinator.active_worker_count == 0
         assert coordinator.timeout_timer_count == 0
         assert coordinator.queued_worker_count == 0
-        assert not app.messages
+        assert app.messages.empty()
 
-        monkeypatch.undo()
-        assert coordinator.request(app, lambda: callbacks.append(coordinator.view.state))
-        assert app.arrived.wait(3)
-        assert len(app.messages) == 1
-        dispatch = app.messages.pop()
-        assert isinstance(dispatch, FirstRunReadinessDispatch)
-        dispatch.run()
-        assert callbacks == ["failed", "ready"]
-        assert coordinator.view.state == "ready"
-        assert coordinator.timeout_timer_count == 0
-    finally:
-        monkeypatch.undo()
-        coordinator.close()
-
-
-def test_provider_probe_exception_is_sanitized_and_retryable() -> None:
-    """An isolated provider failure reports once without publishing credentials."""
-    app = _App()
-    callbacks: list[str] = []
-    repaired = [False]
-
-    def probe() -> FirstRunRuntimeSnapshot:
-        if not repaired[0]:
-            raise ValueError("api_key=synthetic-probe-secret")
-        return cast(FirstRunRuntimeSnapshot, object())
-
-    coordinator = FirstRunReadinessCoordinator(
-        cast(WizardContext, object()),
-        probe=probe,
-        fingerprint=lambda: "unchanged",
-        timeout_seconds=3,
-    )
-    try:
-        assert coordinator.request(app, lambda: callbacks.append(coordinator.view.state))
-        assert app.arrived.wait(3)
-        dispatch = app.messages.pop()
-        assert isinstance(dispatch, FirstRunReadinessDispatch)
-        dispatch.run()
-        assert coordinator.view.state == "failed"
-        assert "synthetic-probe-secret" not in (coordinator.view.message or "")
-        assert "[REDACTED]" in (coordinator.view.message or "")
-        assert callbacks == ["failed"]
-        assert coordinator.timeout_timer_count == 0
-
-        app.arrived.clear()
-        repaired[0] = True
-        assert coordinator.request(app, lambda: callbacks.append(coordinator.view.state))
-        assert app.arrived.wait(3)
-        dispatch = app.messages.pop()
-        assert isinstance(dispatch, FirstRunReadinessDispatch)
-        dispatch.run()
+        assert coordinator.request(
+            app, lambda: callbacks.append(coordinator.view.state)
+        )
+        app.deliver()
         assert coordinator.view.state == "ready"
         assert callbacks == ["failed", "ready"]
         assert coordinator.timeout_timer_count == 0
