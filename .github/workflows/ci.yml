@@ -289,6 +289,10 @@ jobs:
             "$GITHUB_WORKSPACE/tests/test_second_post_review_config_security.py" \
             "$GITHUB_WORKSPACE/tests/test_second_post_review_config_persistence.py" \
             "$GITHUB_WORKSPACE/tests/test_second_post_review_readiness_workers.py" \
+            "$GITHUB_WORKSPACE/tests/test_second_post_review_readiness_budget.py" \
+            "$GITHUB_WORKSPACE/tests/test_second_post_review_readiness_transport.py" \
+            "$GITHUB_WORKSPACE/tests/test_second_post_review_readiness_textual_responsiveness.py" \
+            "$GITHUB_WORKSPACE/tests/test_settings_screen.py" \
             "$GITHUB_WORKSPACE/tests/test_second_post_review_episode_lifecycle.py" \
             "$GITHUB_WORKSPACE/tests/test_second_post_review_shared_fixture.py" \
             "$GITHUB_WORKSPACE/tests/test_cli.py::test_cli_visible_errors_are_sanitized"
