@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
-import sqlite3
 import json
+import sqlite3
+from dataclasses import replace
 
 import pytest
 
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_configuration import EpisodeConfigurationRepository
+from deeper_dive.hosts import HostProfile
 from deeper_dive.storage.episode_plan_repository import EpisodePlanRepository
 from deeper_dive.storage.episode_repositories import (
     EpisodePlanRecord,
@@ -18,7 +19,6 @@ from deeper_dive.storage.episode_repositories import (
     SegmentPlanRecord,
 )
 from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord
-from deeper_dive.hosts import HostProfile
 
 
 def _episode_with_plan(tmp_path, config: EpisodeConfiguration | None = None):
@@ -183,9 +183,9 @@ def test_episode_edit_plan_impact_matrix_invalidates_only_meaningful_draft_chang
 
     assert edited.state == "draft"
     assert repository.get_plan(episode.id) is None
-    assert service.load_configuration(episode.id).snapshot() == replace(
-        config, **changes
-    ).snapshot()
+    assert (
+        service.load_configuration(episode.id).snapshot() == replace(config, **changes).snapshot()
+    )
 
 
 def test_semantically_identical_mapping_order_is_a_true_noop(tmp_path) -> None:
@@ -216,9 +216,7 @@ def test_semantically_identical_mapping_order_is_a_true_noop(tmp_path) -> None:
     assert service.edit(episode.id, equivalent) == before
     assert repository.get_episode(episode.id) == before
     assert repository.get_plan(episode.id) == before_plan
-    assert [item.id for item in repository.list_segments(before_plan.id)] == [
-        "segment-original"
-    ]
+    assert [item.id for item in repository.list_segments(before_plan.id)] == ["segment-original"]
 
 
 def test_failed_plan_invalidation_rolls_back_episode_and_host_changes(tmp_path) -> None:
@@ -246,9 +244,7 @@ def test_failed_plan_invalidation_rolls_back_episode_and_host_changes(tmp_path) 
     assert repository.get_episode(episode.id) == before
     assert repository.get_plan(episode.id) == before_plan
     assert repository.list_episode_host_ids(episode.id) == before_hosts
-    assert [item.id for item in repository.list_segments(before_plan.id)] == [
-        "segment-original"
-    ]
+    assert [item.id for item in repository.list_segments(before_plan.id)] == ["segment-original"]
 
 
 def test_stale_configuration_writer_cannot_delete_newer_plan(tmp_path) -> None:
@@ -293,12 +289,8 @@ def test_stale_configuration_writer_cannot_delete_newer_plan(tmp_path) -> None:
 
 def test_reject_cross_project_host_before_deleting_existing_plan(tmp_path) -> None:
     database, service, repository, episode, config = _episode_with_plan(tmp_path)
-    CorpusRepository(database).create_project(
-        ProjectRecord("other-project", "Other", "now", "now")
-    )
-    repository.create_host(
-        HostProfile("other-host", "other-project", "Other Host").to_record()
-    )
+    CorpusRepository(database).create_project(ProjectRecord("other-project", "Other", "now", "now"))
+    repository.create_host(HostProfile("other-host", "other-project", "Other Host").to_record())
     before = repository.get_episode(episode.id)
     original_plan = repository.get_plan(episode.id)
     assert before is not None and original_plan is not None
