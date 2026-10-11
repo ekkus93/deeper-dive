@@ -252,6 +252,4 @@ async def _library_delete_confirmation_bound_to_project_and_selection(tmp_path: 
         screen.action_request_delete()
         screen.action_confirm_delete()
         screen.action_confirm_delete()  # Already consumed: never deletes again.
-        assert [item.id for item in service.hosts(first.id).list_episodes(first.id)] == [
-            alpha.id
-        ]
+        assert [item.id for item in service.hosts(first.id).list_episodes(first.id)] == [alpha.id]
