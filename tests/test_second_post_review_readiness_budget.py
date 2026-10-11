@@ -261,3 +261,58 @@ def test_supersession_between_reservation_and_view_read_never_leaks_slot() -> No
         assert coordinator.queued_worker_count == 0
     finally:
         coordinator.close()
+
+
+def test_bad_fingerprint_does_not_crash_or_allocate_readiness_workers() -> None:
+    app = _RecordingApp()
+    callback_states: list[str] = []
+
+    def invalid_fingerprint() -> str:
+        raise ValueError("https://example.test/v1#access_token=fingerprint-canary")
+
+    coordinator = FirstRunReadinessCoordinator(
+        _context(), probe=_snapshot, fingerprint=invalid_fingerprint
+    )
+    try:
+        for _ in range(10):
+            assert not coordinator.request(
+                app, lambda: callback_states.append(coordinator.view.state)
+            )
+        assert callback_states == ["failed"] * 10
+        assert coordinator.view.state == "failed"
+        assert "fingerprint-canary" not in (coordinator.view.message or "")
+        assert "retry" in (coordinator.view.message or "").lower()
+        assert coordinator.active_worker_count == 0
+        assert coordinator.timeout_timer_count == 0
+        assert coordinator.queued_worker_count == 0
+        assert app.messages.empty()
+    finally:
+        coordinator.close()
+
+
+def test_readiness_recovers_after_fingerprint_configuration_is_repaired() -> None:
+    app = _RecordingApp()
+    repaired = [False]
+    callbacks: list[str] = []
+
+    def fingerprint() -> str:
+        if not repaired[0]:
+            raise OSError("configuration is temporarily unavailable")
+        return "repaired"
+
+    coordinator = FirstRunReadinessCoordinator(
+        _context(), probe=_snapshot, fingerprint=fingerprint, timeout_seconds=3
+    )
+    try:
+        assert not coordinator.request(
+            app, lambda: callbacks.append(coordinator.view.state)
+        )
+        assert coordinator.view.state == "failed"
+        repaired[0] = True
+        assert coordinator.request(app, lambda: callbacks.append(coordinator.view.state))
+        app.deliver()
+        assert coordinator.view.state == "ready"
+        assert callbacks == ["failed", "ready"]
+        assert coordinator.timeout_timer_count == 0
+    finally:
+        coordinator.close()

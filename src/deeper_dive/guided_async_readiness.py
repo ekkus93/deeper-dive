@@ -173,7 +173,11 @@ class FirstRunReadinessCoordinator:
         app: ThreadDispatchApp,
         callback: Callable[[], object] | None = None,
     ) -> bool:
-        fingerprint = self._fingerprint_provider()
+        try:
+            fingerprint = self._fingerprint_provider()
+        except (OSError, RuntimeError, ValueError) as exc:
+            self._fingerprint_failed(exc, callback)
+            return False
         rejected_callback: Callable[[], object] | None = None
         stale_timers: tuple[Timer, ...] = ()
         with self._lock:
@@ -250,6 +254,33 @@ class FirstRunReadinessCoordinator:
             self._start_failed(generation, timer)
             return False
         return True
+
+    def _fingerprint_failed(
+        self,
+        error: Exception,
+        callback: Callable[[], object] | None,
+    ) -> None:
+        """Surface a malformed/unreadable config without starting another worker."""
+        with self._lock:
+            if self._closed:
+                return
+            timers = tuple(self._timers.values())
+            self._timers.clear()
+            self._callbacks.clear()
+            self._view = FirstRunReadinessView(
+                "failed",
+                self._view.generation + 1,
+                None,
+                message=(
+                    "Provider configuration could not be read. "
+                    + sanitize_exception_message(error)
+                    + " Correct the configuration and retry."
+                ),
+            )
+        for timer in timers:
+            timer.cancel()
+        if callback is not None:
+            callback()
 
     def _start_failed(self, generation: int, timer: Timer) -> None:
         """Release a reserved slot if the OS cannot start a timer or worker."""
