@@ -1278,7 +1278,9 @@ async def _completed_episode_edit_requires_new_episode(tmp_path: Path) -> None:
         [],
     )
     with db.transaction(immediate=True) as connection:
-        connection.execute("UPDATE episodes SET state='completed' WHERE id=?", (episode_id,))
+        connection.execute(
+            "UPDATE episodes SET state='completed' WHERE id=?", (episode_id,)
+        )
     before = configs.load_configuration(episode_id)
     before_plan = repository.get_plan(episode_id)
     assert before_plan is not None
@@ -1308,5 +1310,6 @@ async def _completed_episode_edit_requires_new_episode(tmp_path: Path) -> None:
         assert focus.value == "Unsaved change to completed episode"
         assert wizard._current_form_dirty()
         assert configs.load_configuration(episode_id) == before
-        assert repository.get_episode(episode_id).state == "completed"
+        saved_episode = repository.get_episode(episode_id)
+        assert saved_episode is not None and saved_episode.state == "completed"
         assert repository.get_plan(episode_id) == before_plan
