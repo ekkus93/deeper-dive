@@ -96,7 +96,7 @@ def test_checkpoint_plan_run_and_export_snapshots_survive_restart(
                 (episode_id,),
             ).fetchone()
         assert plan is not None
-        return {
+        snapshots: dict[str, bytes] = {
             "config": (data_dir / "config.json").read_bytes(),
             "draft": draft_path.read_bytes(),
             "episode": json.dumps(config.snapshot(), sort_keys=True).encode("utf-8"),
@@ -106,6 +106,46 @@ def test_checkpoint_plan_run_and_export_snapshots_survive_restart(
             "transcript": fixture.completed.first.transcript_path.read_bytes(),
             "audio": fixture.completed.first.audio_path.read_bytes(),
         }
+        for index, completed in enumerate(
+            (fixture.completed.first, fixture.completed.second), start=1
+        ):
+            completed_db = Database(
+                active_service.workspaces.project_root(completed.project_id) / "project.db"
+            )
+            completed_config = EpisodeConfigurationService(completed_db).load_configuration(
+                completed.episode_id
+            )
+            completed_hosts = active_service.hosts(
+                completed.project_id
+            ).list_episode_host_ids(completed.episode_id)
+            completed_run = active_service.runs(completed.project_id).get(completed.run_id)
+            assert completed_run is not None
+            with completed_db.connection() as connection:
+                completed_plan = connection.execute(
+                    "SELECT plan_json FROM episode_plans WHERE episode_id=?",
+                    (completed.episode_id,),
+                ).fetchone()
+            assert completed_plan is not None
+            prefix = f"completed-{index}"
+            snapshots.update(
+                {
+                    f"{prefix}-episode": json.dumps(
+                        completed_config.snapshot(), sort_keys=True
+                    ).encode("utf-8"),
+                    f"{prefix}-host-order": json.dumps(completed_hosts).encode("utf-8"),
+                    f"{prefix}-plan": str(completed_plan["plan_json"]).encode("utf-8"),
+                    f"{prefix}-run": json.dumps(asdict(completed_run), sort_keys=True).encode(
+                        "utf-8"
+                    ),
+                    f"{prefix}-transcript-path": str(completed.transcript_path).encode(
+                        "utf-8"
+                    ),
+                    f"{prefix}-audio-path": str(completed.audio_path).encode("utf-8"),
+                    f"{prefix}-transcript": completed.transcript_path.read_bytes(),
+                    f"{prefix}-audio": completed.audio_path.read_bytes(),
+                }
+            )
+        return snapshots
 
     before = state_bytes(composition)
     assert all(before.values())
