@@ -122,6 +122,8 @@ class FirstRunReadinessCoordinator:
         """
 
         with self._lock:
+            if self._closed:
+                return
             self._closed = True
             timers = tuple(self._timers.values())
             self._timers.clear()
@@ -254,14 +256,15 @@ class FirstRunReadinessCoordinator:
             except Exception as exc:  # isolated background provider boundary
                 snapshot = None
                 message = sanitize_exception_message(exc)
-            self._dispatch(
+            if not self._dispatch(
                 app,
                 self._complete,
                 generation,
                 fingerprint,
                 snapshot,
                 message,
-            )
+            ):
+                self.close()
         finally:
             with self._lock:
                 self._active_workers.discard(generation)
@@ -272,17 +275,18 @@ class FirstRunReadinessCoordinator:
         generation: int,
         fingerprint: str,
     ) -> None:
-        self._dispatch(app, self._timeout, generation, fingerprint)
+        if not self._dispatch(app, self._timeout, generation, fingerprint):
+            self.close()
 
     @staticmethod
     def _dispatch(
         app: ThreadDispatchApp,
         callback: Callable[..., object],
         *args: object,
-    ) -> None:
-        # post_message is Textual's thread-safe boundary and safely returns False
-        # if the app/message pump is no longer accepting work.
-        app.post_message(FirstRunReadinessDispatch(callback, args))
+    ) -> bool:
+        # A rejected message means Textual's pump is no longer accepting work.
+        # The caller closes the coordinator so deadlines/callbacks cannot leak.
+        return app.post_message(FirstRunReadinessDispatch(callback, args))
 
     def _complete(
         self,
