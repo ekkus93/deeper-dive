@@ -115,6 +115,8 @@ class CompletedEpisodeAcceptance:
     turn_ids: tuple[str, ...]
     transcript_path: Path
     audio_path: Path
+    manifest_path: Path
+    metadata_path: Path
 
 
 @pytest.fixture
@@ -199,6 +201,8 @@ def completed_episode_acceptance(
             tuple(turn.id for turn in turns),
             export.transcript,
             export.audio,
+            export.manifest,
+            export.metadata,
         )
 
     return create

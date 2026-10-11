@@ -14,6 +14,7 @@ from deeper_dive.guided_draft import GuidedDraftStore
 from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardState
 from deeper_dive.research_policy import ResearchMode, ResearchPolicyStore
 from deeper_dive.storage.database import Database
+from deeper_dive.tui import DeeperDiveApp
 from deeper_dive.user_config import UserConfigStore
 
 
@@ -142,6 +143,8 @@ def test_checkpoint_plan_run_and_export_snapshots_survive_restart(
                     f"{prefix}-audio-path": str(completed.audio_path).encode("utf-8"),
                     f"{prefix}-transcript": completed.transcript_path.read_bytes(),
                     f"{prefix}-audio": completed.audio_path.read_bytes(),
+                    f"{prefix}-manifest": completed.manifest_path.read_bytes(),
+                    f"{prefix}-metadata": completed.metadata_path.read_bytes(),
                 }
             )
         return snapshots
@@ -162,11 +165,7 @@ def test_checkpoint_plan_run_and_export_snapshots_survive_restart(
 
     # Re-enter the real library/export controller after a fresh composition
     # rebuild. Each export must retain its own episode/run identity and bytes.
-    from deeper_dive.tui import DeeperDiveApp
-
-    for index, completed in enumerate(
-        (fixture.completed.first, fixture.completed.second), start=1
-    ):
+    for index, completed in enumerate((fixture.completed.first, fixture.completed.second), start=1):
         app = DeeperDiveApp(reopened.service)
         app.current_project_id = completed.project_id
         app.current_episode_id = completed.episode_id
@@ -182,6 +181,8 @@ def test_checkpoint_plan_run_and_export_snapshots_survive_restart(
         prefix = f"completed-{index}"
         assert exported.transcript.read_bytes() == before[f"{prefix}-transcript"]
         assert exported.audio.read_bytes() == before[f"{prefix}-audio"]
+        assert exported.manifest.read_bytes() == before[f"{prefix}-manifest"]
+        assert exported.metadata.read_bytes() == before[f"{prefix}-metadata"]
         metadata = json.loads(exported.metadata.read_text(encoding="utf-8"))
         assert metadata["project_id"] == completed.project_id
         assert metadata["episode_id"] == completed.episode_id
