@@ -346,11 +346,12 @@ class WizardShell(Screen[None]):
             "preflight-fix": "repair the preflight blocker",
             "generation-start": "start generation",
         }
-        destination = (
-            "switch speech providers"
-            if transition.startswith("speech-choice:")
-            else labels.get(transition, "leave this screen")
-        )
+        if transition.startswith("navigate:"):
+            destination = "go to " + transition.split(":", 1)[1].replace("-", " ")
+        elif transition.startswith("speech-choice:"):
+            destination = "switch speech providers"
+        else:
+            destination = labels.get(transition, "leave this screen")
         self.set_status(
             "Unsaved changes. Save changes and "
             f"{destination}, explicitly discard them, or continue editing."
@@ -539,6 +540,10 @@ class WizardShell(Screen[None]):
         if transition.startswith("speech-choice:"):
             save_label = "Save speech settings then switch"
             discard_label = "Discard speech edits then switch"
+        elif transition.startswith("navigate:"):
+            target = transition.split(":", 1)[1].replace("-", " ").title()
+            save_label = f"Save changes and go to {target}"
+            discard_label = f"Discard changes and go to {target}"
         self.query_one("#wizard-confirm-save", Button).label = save_label
         self.query_one("#wizard-confirm-discard", Button).label = discard_label
         self.query_one("#wizard-exit-confirmation", Horizontal).display = pending
