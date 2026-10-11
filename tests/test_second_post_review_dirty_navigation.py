@@ -14,6 +14,7 @@ from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
 from deeper_dive.guided_first_run import GuidedFirstRunWizard
 from deeper_dive.guided_workflow import WizardKind, WizardState
 from deeper_dive.hosts import HostProfile
+from deeper_dive.preflight import PreflightEstimate, PreflightIssue, PreflightReport
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.workspace import WorkspaceManager
 
@@ -894,3 +895,55 @@ async def _dirty_plan_operation(
             assert planner.load_plan(episode_id).id != original.id
             assert title.value != changed
             assert saved_titles == ([changed] if resolution == "save" else [])
+
+
+@pytest.mark.parametrize("action", ("generation", "preflight-repair"))
+def test_dirty_plan_generation_and_preflight_repair_guard(tmp_path: Path, action: str) -> None:
+    asyncio.run(_dirty_plan_entrypoint_guard(tmp_path, action))
+
+
+async def _dirty_plan_entrypoint_guard(tmp_path: Path, action: str) -> None:
+    service, project_id, episode_id, _host_ids = _episode_fixture(tmp_path)
+    database = Database(service.workspaces.project_root(project_id) / "project.db")
+    planner = EpisodePlannerService(database, _TwoSegmentGenerator())
+    plan = planner.build_plan(episode_id)
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project_id
+        wizard.context.episode_id = episode_id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "plan")
+        wizard._plan = planner.load_plan(episode_id)
+        wizard._render_plan()
+        wizard._toggle()
+        await pilot.pause()
+        wizard._remember_current_form()
+        wizard._preflight = PreflightReport(
+            (PreflightIssue("sources_missing", "Index sources"),),
+            PreflightEstimate(20, 0, 0, None),
+        )
+        title = wizard.query_one("#guided-plan-title", Input)
+        title.value = "Unsaved plan edit before starting generation"
+        await pilot.pause()
+
+        if action == "generation":
+            wizard.action_generate_deep_dive()
+        else:
+            wizard.action_fix_preflight()
+        await pilot.pause()
+
+        assert wizard.query_one("#wizard-exit-confirmation").display
+        assert wizard.focused is wizard.query_one("#wizard-confirm-cancel")
+        assert wizard.context.state.current_step == "plan"
+        assert title.value == "Unsaved plan edit before starting generation"
+        assert planner.load_plan(episode_id).id == plan.id
+        assert wizard.context.run_id is None
+
+        wizard.action_cancel_exit_confirmation()
+        await pilot.pause()
+        assert wizard.context.state.current_step == "plan"
+        assert title.value == "Unsaved plan edit before starting generation"
+        assert not wizard.query_one("#wizard-exit-confirmation").display
