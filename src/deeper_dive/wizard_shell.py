@@ -343,6 +343,8 @@ class WizardShell(Screen[None]):
             "plan-build": "build the plan",
             "plan-regenerate": "regenerate the plan",
             "plan-regenerate-segment": "regenerate the selected segment",
+            "preflight-fix": "repair the preflight blocker",
+            "generation-start": "start generation",
         }
         destination = labels.get(transition, "leave this screen")
         self.set_status(
@@ -508,6 +510,11 @@ class WizardShell(Screen[None]):
             "plan-regenerate-segment": (
                 "Save segment then regenerate",
                 "Discard edits then regenerate",
+            ),
+            "preflight-fix": ("Save edits then repair", "Discard edits then repair"),
+            "generation-start": (
+                "Save edits then start generation",
+                "Discard edits then start generation",
             ),
         }
         save_label, discard_label = labels.get(

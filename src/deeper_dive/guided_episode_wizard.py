@@ -272,6 +272,12 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             self._toggle_custom_duration()
 
     def _execute_custom_transition(self, transition: str) -> None:
+        if transition == "preflight-fix":
+            self.action_fix_preflight()
+            return
+        if transition == "generation-start":
+            self.action_generate_deep_dive()
+            return
         if transition in {"plan-build", "plan-regenerate", "plan-regenerate-segment"}:
             if transition == "plan-regenerate-segment":
                 self.action_regenerate_plan_segment()
@@ -440,6 +446,11 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             self.set_status("Preflight found blockers. Use Fix First Blocker or Back.")
 
     def action_fix_preflight(self) -> None:
+        if self.busy or self._exit_confirmation_pending:
+            return
+        if self._current_form_dirty():
+            self._request_dirty_transition("preflight-fix")
+            return
         if self._preflight is None or not self._preflight.blockers:
             self.set_status("No blocking preflight issue is currently available.")
             return
@@ -458,6 +469,11 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         self.set_status(f"Returned to {step.replace('-', ' ')} to repair the blocker.")
 
     def action_generate_deep_dive(self) -> None:
+        if self.busy or self._exit_confirmation_pending:
+            return
+        if self._current_form_dirty():
+            self._request_dirty_transition("generation-start")
+            return
         project_id = self.context.project_id
         episode_id = self.context.episode_id
         if project_id is None or episode_id is None:
