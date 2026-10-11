@@ -414,9 +414,14 @@ class FirstRunReadinessCoordinator:
             callback()
 
     def _probe_runtime(self) -> FirstRunRuntimeSnapshot:
-        controller = self.context.composition.provider_controller
+        # The visible UI timeout cannot interrupt blocked provider threads.
+        # Give each real HTTP readiness request a separate short socket budget,
+        # keeping long generation/synthesis timeouts entirely unchanged.
+        controller = self.context.composition.provider_controller.readiness_probe_controller(
+            request_timeout_seconds=min(self.timeout_seconds / 4, 1.0)
+        )
         return FirstRunRuntimeSnapshot(
-            readiness=first_run_readiness(self.context),
+            readiness=first_run_readiness(self.context, runtime_controller=controller),
             system_check=FirstRunController(controller).system_check(),
         )
 

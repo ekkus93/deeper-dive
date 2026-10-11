@@ -203,6 +203,26 @@ class ProviderController:
         self._publish(providers)
         return providers
 
+    def readiness_probe_controller(
+        self, *, request_timeout_seconds: float = 1.0
+    ) -> ProviderController:
+        """Use isolated, bounded I/O adapters for UI readiness only.
+
+        Never mutate live generation provider timeouts or published registries.
+        Custom/injected factories retain their existing deterministic test boundary.
+        """
+        if self.provider_factory is None or type(self.provider_factory) is not ProviderFactory:
+            return self
+        configured = self.config()
+        isolated = self.provider_factory.build(
+            configured, probe_timeout_seconds=request_timeout_seconds
+        )
+        return ProviderController(
+            self.config_store,
+            isolated.llm_registry,
+            isolated.tts_providers,
+        )
+
     def llm(self, name: str) -> LLMProvider:
         return self.llm_registry.get(name)
 

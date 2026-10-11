@@ -55,11 +55,13 @@ class FirstRunDerivedReadiness:
         )
 
 
-def first_run_readiness(context: WizardContext) -> FirstRunDerivedReadiness:
+def first_run_readiness(
+    context: WizardContext, *, runtime_controller: ProviderController | None = None
+) -> FirstRunDerivedReadiness:
     """Recompute first-run completion from production state; never trust a completion flag."""
 
     composition = context.composition
-    controller = composition.provider_controller
+    controller = runtime_controller or composition.provider_controller
     config = controller.config()
     status = FirstRunController(controller).status()
 

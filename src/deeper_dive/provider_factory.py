@@ -124,19 +124,39 @@ class ProviderFactory:
     def __init__(self, *, environ: Mapping[str, str] | None = None) -> None:
         self.environ = os.environ if environ is None else environ
 
-    def build(self, config: UserConfig) -> ProviderBuildResult:
+    def build(
+        self, config: UserConfig, *, probe_timeout_seconds: float | None = None
+    ) -> ProviderBuildResult:
+        """Optionally build isolated readiness adapters with short I/O timeouts.
+
+        Probe adapters do not replace the production generation registries.
+        """
+        if probe_timeout_seconds is not None and probe_timeout_seconds <= 0:
+            raise ValueError("probe timeout must be positive")
         llm_registry = LLMProviderRegistry()
         tts_registry = TTSProviderRegistry()
         tts_providers: dict[str, TTSProvider] = {}
         network_scopes: dict[str, str] = {}
         for name, provider_config in sorted(config.providers.items()):
             kind = self._normalized_type(provider_config.provider_type)
+            if probe_timeout_seconds is not None:
+                provider_config = provider_config.model_copy(
+                    update={
+                        "timeout_seconds": min(
+                            provider_config.timeout_seconds, probe_timeout_seconds
+                        )
+                    }
+                )
             network_scopes[name] = ProviderNetworkPolicy.scope_for_config(provider_config)
             if kind in LLM_PROVIDER_TYPES:
                 llm_registry.register(
                     _AliasedLLMProvider(
                         name,
-                        self._llm(kind, provider_config),
+                        self._llm(
+                            kind,
+                            provider_config,
+                            readiness_probe=probe_timeout_seconds is not None,
+                        ),
                     )
                 )
             elif kind in TTS_PROVIDER_TYPES:
@@ -168,7 +188,9 @@ class ProviderFactory:
             )
         return normalized
 
-    def _llm(self, kind: str, config: ProviderConfig) -> LLMProvider:
+    def _llm(
+        self, kind: str, config: ProviderConfig, *, readiness_probe: bool = False
+    ) -> LLMProvider:
         model = self._model(config, kind)
         if kind == "fake":
             return FakeLLMProvider(model=model, response=FAKE_PLAN_RESPONSE)
@@ -190,6 +212,7 @@ class ProviderFactory:
                 model=model,
                 base_url=config.base_url or "https://api.openai.com/v1",
                 timeout=config.timeout_seconds,
+                max_retries=0 if readiness_probe else 2,
             )
         raise ProviderConfigurationError(f"unsupported LLM provider type: {kind}")
 
