@@ -165,3 +165,69 @@ def test_pending_run_cli_rejects_export_and_configuration_change_without_mutatio
     code, still_pending, err = _cli(data_dir, capsys, "episode", "status", project_id, episode_id)
     assert code == 0, err
     assert still_pending == status
+
+
+def test_cli_cross_project_episode_commands_reject_foreign_identity_without_side_effects(
+    second_post_review_acceptance: Callable[[], Any],
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """All CLI episode verbs must resolve IDs within the supplied project.
+
+    The fixture includes two completed projects and a pending run in the first
+    project. Every CLI invocation constructs a fresh production composition,
+    exercising the same identity boundary after reloading durable state.
+    """
+    fixture = second_post_review_acceptance()
+    capsys.readouterr()
+    first = fixture.completed.first
+    foreign = fixture.completed.second
+    data_dir = first.service.workspaces.data_dir
+    completed_audio = _digest(foreign.audio_path)
+    completed_transcript = _digest(foreign.transcript_path)
+
+    # A valid local pending run must not be mistaken for the foreign completed
+    # episode, even though both share one user-level configuration directory.
+    code, local_status, err = _cli(
+        data_dir, capsys, "episode", "status", first.project_id, fixture.pending_episode_id
+    )
+    assert code == 0, err
+    assert local_status["run"]["id"] == fixture.pending_run_id
+    assert local_status["run"]["state"] == "pending"
+
+    forbidden = (
+        ("show", ()),
+        ("show-plan", ()),
+        ("status", ()),
+        ("plan", ()),
+        ("generate", ()),
+        ("pause", ()),
+        ("resume", ()),
+        ("cancel", ()),
+        ("configure", ("--title", "Foreign episode edit")),
+        ("export", ("--output-dir", str(tmp_path / "forbidden-export"))),
+    )
+    for verb, extra in forbidden:
+        code, payload, err = _cli(
+            data_dir, capsys, "episode", verb, first.project_id, foreign.episode_id, *extra
+        )
+        assert code == 2, (verb, payload, err)
+        assert payload is None, verb
+        assert "episode not found" in err, (verb, err)
+
+    assert not (tmp_path / "forbidden-export").exists()
+    code, foreign_status, err = _cli(
+        data_dir, capsys, "episode", "status", foreign.project_id, foreign.episode_id
+    )
+    assert code == 0, err
+    assert foreign_status["run"]["id"] == foreign.run_id
+    assert foreign_status["run"]["state"] == "completed"
+
+    code, local_after, err = _cli(
+        data_dir, capsys, "episode", "status", first.project_id, fixture.pending_episode_id
+    )
+    assert code == 0, err
+    assert local_after == local_status
+    assert _digest(foreign.audio_path) == completed_audio
+    assert _digest(foreign.transcript_path) == completed_transcript
+    assert (data_dir / "config.json").read_bytes() == fixture.config_bytes
