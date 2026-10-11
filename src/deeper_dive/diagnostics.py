@@ -131,7 +131,20 @@ def is_sensitive_url_query_key(key: str) -> bool:
 
 
 def _redact_encoded_query(match: re.Match[str]) -> str:
-    if is_sensitive_url_query_key(match.group(2)):
+    sensitive = is_sensitive_url_query_key(match.group(2))
+    nested = match.group(4)
+    for _ in range(5):
+        if "://" in nested and any(
+            is_sensitive_url_query_key(item.group(2))
+            for item in _ENCODED_CREDENTIAL_QUERY.finditer(nested)
+        ):
+            sensitive = True
+            break
+        decoded = unquote_plus(nested)
+        if decoded == nested:
+            break
+        nested = decoded
+    if sensitive:
         return f"{match.group(1)}{match.group(2)}{match.group(3)}[REDACTED]"
     return match.group(0)
 
