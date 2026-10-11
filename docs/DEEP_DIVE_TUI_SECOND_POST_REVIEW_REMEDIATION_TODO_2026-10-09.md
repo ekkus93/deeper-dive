@@ -83,7 +83,7 @@ This is the **only completion checklist for the second post-review cycle**. The 
 - [ ] Preserve sanitized Checking/Ready/Needs attention displays and deterministic actionable retry.
 - [x] Preserve OpenAI and ElevenLabs duplicate-discovery call-count optimizations.
 - [x] Add 100-refresh coalescing stress test, repeated timeout/retry and shutdown test with observable active-worker upper bound.
-- [ ] Add stale result/config-change, late-completion, callback-once, app-exit, provider exception and no-real-network tests.
+- [x] Add stale result/config-change, late-completion, callback-once, app-exit, provider exception and no-real-network tests.
 - [x] Run focused SPR-03 tests, installed-wheel Textual acceptance and exact-head CI; record evidence.
 
 ## SPR-400 — Typed semantic defaults and atomic validation (SPR-04)
@@ -207,6 +207,15 @@ This is the **only completion checklist for the second post-review cycle**. The 
 - Do not infer broader SPR-04 completion: incomplete voice/runtime reference validation, duration upper bound, full cross-surface error-canary and legacy matrix, and final qualification remain unchecked.
 
 ## Evidence ledger
+
+
+### 2026-10-11 SPR-03 startup-failure and provider-exception regression qualification
+
+- **Thread startup and bounded ownership:** `tests/test_second_post_review_readiness_startup.py::test_failed_thread_start_releases_slot_and_allows_retry` injects both timer and worker `Thread.start()` failures. Each fails with one actionable callback, no orphan worker reservation, timer or queue, and a successful retry using the same configuration fingerprint. `test_provider_probe_exception_is_sanitized_and_retryable` verifies a fake provider exception never leaks its canary, delivers one failure callback and permits successful recovery without network access.
+- **Complementary matrix:** `tests/test_post_review_async_readiness.py` covers stale fingerprint/config, pending/late completion, actual Textual Checking/Needs-attention status and fake-provider errors; `tests/test_second_post_review_readiness_budget.py` and `tests/test_second_post_review_readiness_workers.py` cover 100-refresh coalescing, callback-once, bounded timeouts, shutdown and app-exit suppression; `tests/test_second_post_review_readiness_transport.py` exercises production provider adapter discovery with stubbed requests, no sockets, bounded transport attempts and unchanged generation timeouts.
+- **Exact-head qualification:** startup test and formatting correction `9d31d7bc69c8e4cd0409158e74cf229c1784331e` passed [CI #38163242121](https://github.com/ekkus93/deeper-dive/actions/runs/38163242121); added provider exception recovery `e67102c1f36037ec0ced0a78506ee2baca06767a` passed [CI #38163732965](https://github.com/ekkus93/deeper-dive/actions/runs/38163732965), quality job `114541836698` (**1,419 passed**, lock/Ruff/mypy/build), fresh-machine job `114541836893` (installed-wheel remediation matrix and KittenTTS CPU smoke passed).
+- This closes the bounded **SPR-03 regression-test matrix** subtask only. Strict cross-adapter wall-clock deadlines and comprehensive sanitized retry presentation remain open; this TODO reconciliation commit itself requires new exact-head CI before final acceptance.
+
 
 ### 2026-10-11 library and wizard acceptance hardening (partial SPR-01/SPR-06/SPR-800)
 
