@@ -398,3 +398,70 @@ def test_mutated_provider_encoded_query_key_rejected_before_store_write(tmp_path
 def test_provider_accepts_benign_dotted_and_encoded_query_keys() -> None:
     url = "https://example.test/v1?release.version=1.2.3&%73ection=overview"
     assert ProviderConfig(provider_type="openai", base_url=url).base_url == url
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "api[key]=punctuation-query-canary",
+        "api+key=punctuation-query-canary",
+        "api/key=punctuation-query-canary",
+        "client[secret]=punctuation-query-canary",
+        "session+token=punctuation-query-canary",
+        "access/token=punctuation-query-canary",
+        "api%5Bkey%5D=punctuation-query-canary",
+    ],
+)
+def test_punctuated_credential_query_keys_redacted_and_rejected(query: str) -> None:
+    endpoint = f"https://example.test/v1?{query}"
+    message = f"GET {endpoint} status=401"
+    sanitized = str(redact(message))
+    assert "punctuation-query-canary" not in sanitized
+    assert "[REDACTED]" in sanitized
+    assert "status=401" in sanitized
+    with pytest.raises(ValueError, match="credential query") as error:
+        ProviderConfig(provider_type="openai", base_url=endpoint)
+    assert "punctuation-query-canary" not in str(error.value)
+
+
+def test_punctuated_query_credentials_redacted_across_diagnostic_surfaces(tmp_path) -> None:
+    from deeper_dive.diagnostics import (
+        DiagnosticEvent,
+        StructuredDiagnosticLog,
+        sanitize_exception_message,
+    )
+
+    canary = "punctuation-diagnostics-canary"
+    endpoint = f"https://example.test/v1?api[key]={canary}"
+    benign = "https://example.test/docs?release.version=1.2.3&section=overview"
+    nested = {"requests": [{"endpoint": endpoint}, {"endpoint": benign}]}
+    sanitized = str(redact(nested))
+    assert canary not in sanitized
+    assert benign in sanitized
+
+    try:
+        try:
+            raise ValueError(f"provider request failed: {endpoint}")
+        except ValueError as cause:
+            raise RuntimeError("outer request failed") from cause
+    except RuntimeError as exc:
+        safe = sanitize_exception_message(exc)
+    assert canary not in safe
+    assert "caused by:" in safe
+    assert "[REDACTED]" in safe
+
+    log_path = tmp_path / "events.jsonl"
+    StructuredDiagnosticLog(log_path).emit(
+        DiagnosticEvent(level="error", event="provider_error", details=nested)
+    )
+    log = log_path.read_text(encoding="utf-8")
+    assert canary not in log
+    assert benign in log
+
+    bundle_path = export_diagnostic_bundle(
+        tmp_path / "bundle.json",
+        provider_diagnostics=nested,
+    )
+    bundle = bundle_path.read_text(encoding="utf-8")
+    assert canary not in bundle
+    assert benign in bundle
