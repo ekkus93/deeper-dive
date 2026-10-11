@@ -4,6 +4,8 @@ import pytest
 
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.diagnostics import export_diagnostic_bundle, redact
+from deeper_dive.hosts import preset_names
+from deeper_dive.research_policy import ResearchMode, ResearchPolicyStore
 from deeper_dive.llm import LLMProviderRegistry
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.settings_screen import SettingsController
@@ -465,3 +467,41 @@ def test_punctuated_query_credentials_redacted_across_diagnostic_surfaces(tmp_pa
     bundle = bundle_path.read_text(encoding="utf-8")
     assert canary not in bundle
     assert benign in bundle
+
+
+@pytest.mark.parametrize("mode", tuple(ResearchMode))
+def test_research_mode_production_contract_round_trip(tmp_path, mode: ResearchMode) -> None:
+    data_dir = tmp_path / "data"
+    store = UserConfigStore(data_dir / "config.json")
+    settings = SettingsController(ProviderController(store, LLMProviderRegistry(), {}))
+    settings.save_research_defaults(mode.value, "local-only")
+    settings.save_quick_deep_dive_defaults("15", "curious_explainer,skeptic", mode.value)
+
+    reopened = UserConfigStore(data_dir / "config.json").load()
+    assert reopened.defaults["research_policy"] == mode.value
+    assert reopened.defaults["quick_deep_dive_research_policy"] == mode.value
+    service = DeeperDiveService(WorkspaceManager(data_dir))
+    project = service.create_project("Research contract round trip")
+    episode = service.quick_deep_dive(project.id)
+    persisted = ResearchPolicyStore(service.workspaces.project_database(project.id))
+    assert persisted.episode(project.id, episode.id).mode is mode
+
+
+@pytest.mark.parametrize("preset", preset_names())
+def test_each_production_host_preset_is_valid_in_settings_and_quick(
+    tmp_path, preset: str
+) -> None:
+    data_dir = tmp_path / "data"
+    store = UserConfigStore(data_dir / "config.json")
+    settings = SettingsController(ProviderController(store, LLMProviderRegistry(), {}))
+    settings.save_quick_deep_dive_defaults("20", f"{preset},skeptic", "useful")
+    reopened = UserConfigStore(data_dir / "config.json").load()
+    assert reopened.defaults["quick_deep_dive_host_presets"] == f"{preset},skeptic"
+
+    service = DeeperDiveService(WorkspaceManager(data_dir))
+    project = service.create_project("Preset contract round trip")
+    episode = service.quick_deep_dive(project.id)
+    config = service.hosts(project.id).get_episode(episode.id)
+    assert config is not None and config.target_duration_seconds == 1200
+    hosts = service.hosts(project.id).list_hosts(project.id)
+    assert [host.preset_origin for host in hosts] == [preset, "skeptic"]

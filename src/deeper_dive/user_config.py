@@ -25,6 +25,8 @@ from pydantic import (
 )
 
 from deeper_dive.diagnostics import is_sensitive_url_query_key
+from deeper_dive.hosts import preset_names
+from deeper_dive.research_policy import ResearchMode
 
 try:
     import fcntl
@@ -36,19 +38,10 @@ CURRENT_CONFIG_VERSION = 1
 _PATH_LOCKS_GUARD = Lock()
 _PATH_LOCKS: dict[str, RLock] = {}
 
-_RESEARCH_MODES = frozenset({"off", "conservative", "useful", "aggressive"})
-_HOST_PRESETS = frozenset(
-    {
-        "curious_explainer",
-        "skeptic",
-        "synthesizer",
-        "domain_expert",
-        "practitioner",
-        "historian",
-        "moderator",
-        "custom",
-    }
-)
+# Derive accepted semantic values from the same production enums/factories
+# that Quick Deep Dive and the research-policy stores actually consume.
+_RESEARCH_MODES = frozenset(mode.value for mode in ResearchMode)
+_HOST_PRESETS = frozenset(preset_names())
 _BOOLEAN_DEFAULTS = frozenset({"0", "1", "false", "true", "no", "yes", "off", "on"})
 _MODEL_ROLE_DEFAULTS = frozenset(
     {
