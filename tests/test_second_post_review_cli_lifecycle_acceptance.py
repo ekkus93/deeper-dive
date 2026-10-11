@@ -16,7 +16,6 @@ from typing import Any
 import pytest
 
 from deeper_dive.cli import main
-from tests.conftest import SecondPostReviewAcceptance, TwoProjectCompletedAcceptance
 
 
 def _cli(
@@ -35,7 +34,7 @@ def _digest(path: Path) -> str:
 
 
 def test_completed_episodes_cli_status_plan_noop_edit_export_and_isolation(
-    two_project_completed_acceptance: Callable[[], TwoProjectCompletedAcceptance],
+    two_project_completed_acceptance: Callable[[], Any],
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -126,7 +125,7 @@ def test_completed_episodes_cli_status_plan_noop_edit_export_and_isolation(
 
 
 def test_pending_run_cli_rejects_export_and_configuration_change_without_mutation(
-    second_post_review_acceptance: Callable[[], SecondPostReviewAcceptance],
+    second_post_review_acceptance: Callable[[], Any],
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     fixture = second_post_review_acceptance()
