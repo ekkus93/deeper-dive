@@ -237,14 +237,14 @@ class ProviderController:
         try:
             return self.tts_providers[name]
         except KeyError as exc:
-            raise KeyError(f"unknown TTS provider: {name}") from exc
+            raise KeyError("unknown TTS provider") from None
 
     def health(self, name: str) -> object:
         """Route UI health checks through the configured runtime adapter."""
 
         config = self.config().providers.get(name)
         if config is None:
-            raise KeyError(f"unknown provider: {name}")
+            raise KeyError("unknown provider") from None
         capability = self.capability(config.provider_type)
         if capability == "llm":
             return self.llm(name).health()
