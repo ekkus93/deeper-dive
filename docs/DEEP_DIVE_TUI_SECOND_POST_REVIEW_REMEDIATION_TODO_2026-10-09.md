@@ -59,16 +59,16 @@ This is the **only completion checklist for the second post-review cycle**. The 
 ## SPR-200 — Durable guided host profile and ordered membership (SPR-02)
 
 - [x] Distinguish pending host-profile edits from pending episode host membership/order edits.
-- [ ] Compare `_selected_host_ids` and episode ID to last durable ordered membership in the shared dirty snapshot.
-- [ ] Make add/remove/move dirty, no-op moves clean, and undo-to-original clean.
+- [x] Compare `_selected_host_ids` and episode ID to last durable ordered membership in the shared dirty snapshot.
+- [x] Make add/remove/move dirty, no-op moves clean, and undo-to-original clean.
 - [ ] Ensure Save and Exit/Continue saves both profile and order via production services when both are dirty.
 - [x] Define transactional or explicit safely recoverable partial-save behavior for profile+order updates.
 - [x] Prevent changing the host picker from overwriting a dirty host profile.
 - [x] Reject duplicate, missing, or cross-project host IDs before commit.
 - [x] Preserve pending order across unrelated refreshes and safely rehydrate persisted order on restart.
-- [ ] Add Textual tests for add, remove, reorder, cancel, discard, save, restart and selected-host switch.
+- [x] Add Textual tests for add, remove, reorder, cancel, discard, save, restart and selected-host switch.
 - [ ] Add mixed profile+order failure-injection, duplicate-click and multi-project/episode isolation tests.
-- [ ] Run focused SPR-02 tests and exact-head CI, then record commit and CI evidence.
+- [x] Run focused SPR-02 tests and exact-head CI, then record commit and CI evidence.
 
 ## SPR-300 — Bound readiness probes and preserve UI responsiveness (SPR-03)
 
@@ -317,3 +317,12 @@ This is the **only completion checklist for the second post-review cycle**. The 
 - **Shared production fixture:** `tests/conftest.py::second_post_review_acceptance` builds two independent indexed projects using the production project/source/host/Quick/planning/generation/export services, deterministic fake LLM/TTS providers, configured research policy, completed transcript/audio/export artifacts and a third pending episode/run. `tests/test_second_post_review_fixture_contract.py::test_two_project_fixture_contains_indexed_corpora_and_generation_artifacts` asserts indexed source chunks, per-project host membership and research policy, unique episode/run/turn identities, completed/pending state, and serialized pending configuration.
 - **Durable snapshots and re-export:** `tests/test_second_post_review_fixture_contract.py::test_checkpoint_plan_run_and_export_snapshots_survive_restart` captures exact bytes of user config, safe guided draft/checkpoint, pending episode configuration, ordered host IDs, pending plan and run, plus each completed episode's configuration, host order, plan, run, transcript, audio, manifest, metadata and export path identity. It reconstructs `ProductionComposition` from disk, reloads the checkpoint, verifies all byte snapshots, and re-enters `EpisodeLibraryController.export` for both projects to assert unchanged bundle bytes and matching project/episode/run metadata. The test retains independent project identities and does not rely on real providers.
 - **Qualification:** Direct `master` implementation/test head `1cf1b6254b7d4a73c6e04d07ae3fd5388532b307` passed exact-head [CI #2622](https://github.com/ekkus93/deeper-dive/actions/runs/38136227411), quality job `114460532962` (**1,388 passed**, Ruff format/lint, mypy, build and CLI smoke), fresh-machine job `114460533073` (installed-wheel workflow and KittenTTS CPU smoke passed). The earlier CI formatting failures were repaired before this qualifying head. This TODO-only reconciliation requires a new exact-head CI pass; other SPR-000 baseline/reproducer tasks and later clusters remain unchecked.
+
+
+### 2026-10-11 qualified host-order dirty-state matrix and restarted episode history
+
+- **SPR-02 dirty-state identity:** `src/deeper_dive/guided_host_wizard.py::_editable_snapshot` and `_host_order_dirty` compare the ordered selected-host IDs **and episode ID** against the durable form baseline. `action_select_host`, `action_remove_selected_host`, and `_move_selected_host` use the shared snapshot/refresh path. `tests/test_second_post_review_dirty_navigation.py::test_host_membership_add_remove_and_target_identity_dirty_contract` exercises add/remove/undo, a no-op boundary move, and a different episode with identical hosts without writing either episode.
+- **SPR-02 broader Textual pilots:** the same test module covers reorder/undo, Save and Exit, explicit discard, host picker reselection, cancellation of recommended-host transitions, partial profile/order save failure, and durable restart/re-hydration. `tests/test_second_post_review_host_membership.py` additionally covers missing/duplicate/cross-project host rejection and independent host-order persistence. Mixed profile+order comprehensive duplicate-submit and cross-project UI failure matrices remain open.
+- **SPR-07 partial restart history:** `tests/test_second_post_review_acceptance_matrix.py::test_reopened_composition_rejects_historical_episode_edits` reopens the real `ProductionComposition` after two independently completed fake-provider episodes and a pending generation run. It confirms no-op preservation, rejected changes, unchanged per-project plans/segments/run identity, transcript/audio hashes and user config. This does **not** qualify all running/paused/failed production lifecycle paths.
+- **Qualified implementation heads:** direct-`master` history regression `7dcbf70312375238e3afe49a27c4b45482b9e040`, [CI #2629](https://github.com/ekkus93/deeper-dive/actions/runs/38149105357), quality and fresh-machine passed; host-order regression `a8636271beaeb8fda045dee38a90c761ce7ee243`, [CI #2630](https://github.com/ekkus93/deeper-dive/actions/runs/38149432687), quality job `114499604081` (**1,391 pytest passed**; Ruff/mypy/build), fresh-machine job `114499604211` (passed).
+- **Reconciliation gate:** this evidence-only documentation commit requires its **own** successful exact-head CI before the newly checked SPR-02 boxes can be treated as finally qualified; broader SPR-02/SPR-07 and SPR-800/910 remain unchecked.
