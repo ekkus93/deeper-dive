@@ -152,11 +152,9 @@ class ProviderFactory:
                 llm_registry.register(
                     _AliasedLLMProvider(
                         name,
-                        self._llm(
-                            kind,
-                            provider_config,
-                            readiness_probe=probe_timeout_seconds is not None,
-                        ),
+                        self._llm(kind, provider_config)
+                        if probe_timeout_seconds is None
+                        else self._llm(kind, provider_config, readiness_probe=True),
                     )
                 )
             elif kind in TTS_PROVIDER_TYPES:
