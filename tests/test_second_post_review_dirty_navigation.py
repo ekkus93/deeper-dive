@@ -198,6 +198,7 @@ async def _unsaved_host_order_is_dirty_and_save_exit_persists_order(tmp_path: Pa
 
         assert wizard._selected_host_ids == list(host_ids)
         assert not wizard._current_form_dirty()
+
         wizard._move_selected_host(-1)
         assert wizard._selected_host_ids == [host_ids[1], host_ids[0]]
         assert wizard._current_form_dirty()
@@ -399,6 +400,7 @@ async def _first_run_dirty_guard_covers_each_editable_stage(tmp_path: Path) -> N
         original = duration.value
         duration.value = "30" if original != "30" else "20"
 
+
         assert not wizard.action_back()
 
         assert wizard.context.state.current_step == "voice-defaults"
@@ -598,6 +600,7 @@ async def _discard_restores_host_membership(tmp_path: Path) -> None:
         wizard._move_selected_host(1)
         assert wizard._selected_host_ids == [host_ids[1], host_ids[0]]
         wizard.action_save_exit()
+
         assert wizard.query_one("#wizard-exit-confirmation").display
         wizard.action_confirm_discard_exit()
         await pilot.pause()
@@ -798,6 +801,7 @@ class _RegenerateAwareGenerator(_TwoSegmentGenerator):
                         "purpose": "Recheck the introductory material",
                         "target_duration_seconds": 600,
                         "questions": [],
+
                         "evidence_ids": [],
                         "lead_host_ids": [],
                     }
@@ -949,6 +953,7 @@ async def _dirty_plan_entrypoint_guard(tmp_path: Path, action: str) -> None:
         assert title.value == "Unsaved plan edit before starting generation"
         assert not wizard.query_one("#wizard-exit-confirmation").display
 
+
 def test_guided_noop_save_keeps_exact_non_minute_duration_and_plan(tmp_path: Path) -> None:
     asyncio.run(_guided_noop_save_keeps_exact_non_minute_duration_and_plan(tmp_path))
 
@@ -997,6 +1002,7 @@ async def _guided_noop_save_keeps_exact_non_minute_duration_and_plan(tmp_path: P
         assert configs.load_configuration(episode_id).target_duration_seconds == 1250
         assert repository.get_plan(episode_id) is not None
         assert repository.get_plan(episode_id).id == "non-minute-duration-plan"
+
 
         # An explicit duration edit still changes the durable configuration
         # and invalidates the old plan through EpisodeConfigurationService.
