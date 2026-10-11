@@ -163,8 +163,6 @@ def test_pending_run_cli_rejects_export_and_configuration_change_without_mutatio
     code, after, err = _cli(data_dir, capsys, "episode", "show", project_id, episode_id)
     assert code == 0, err
     assert after == before
-    code, still_pending, err = _cli(
-        data_dir, capsys, "episode", "status", project_id, episode_id
-    )
+    code, still_pending, err = _cli(data_dir, capsys, "episode", "status", project_id, episode_id)
     assert code == 0, err
     assert still_pending == status
