@@ -7,7 +7,7 @@ from dataclasses import dataclass, replace
 
 from deeper_dive.domain.clock import Clock, SystemClock
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
-from deeper_dive.hosts import create_host_from_preset
+from deeper_dive.hosts import create_host_from_preset, preset_names
 from deeper_dive.research_policy import ResearchMode, ResearchPolicy, ResearchPolicyStore
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import EpisodeRecord, HostEpisodeRepository
@@ -111,8 +111,11 @@ class QuickDeepDiveService:
             target_duration_seconds = minutes * 60
         if presets:
             parsed = tuple(item.strip() for item in presets.split(",") if item.strip())
-            if len(parsed) != 2:
-                raise ValueError("Quick Deep Dive requires exactly two host presets")
+            # Validate the complete project override before _host_ids() creates any
+            # durable hosts. A valid first preset followed by an unknown second
+            # must not leave an orphan host after Quick Deep Dive fails.
+            if len(parsed) != 2 or any(name not in preset_names() for name in parsed):
+                raise ValueError("Quick Deep Dive requires exactly two valid host presets")
             fallback_presets = parsed
         if research:
             research_mode = ResearchMode(research)
