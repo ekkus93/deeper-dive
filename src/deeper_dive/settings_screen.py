@@ -172,8 +172,8 @@ class SettingsScreen(Screen[None]):
                 "Quick Deep Dive, and diagnostics.",
                 id="screen-description",
             )
-            yield Static("", id="settings-summary")
-            yield Static("", id="readiness-status")
+            yield Static("", id="settings-summary", markup=False)
+            yield Static("", id="readiness-status", markup=False)
             yield Button("Refresh Readiness", id="action-refresh-readiness", name="readiness")
             yield Button("Manage Providers / KittenTTS", id="action-manage-kitten", name="kitten")
             yield Input(placeholder="Default key", id="settings-key")
@@ -196,7 +196,7 @@ class SettingsScreen(Screen[None]):
             yield Input(placeholder="KittenTTS model directory", id="kitten-model-dir")
             yield Input(placeholder="Diagnostic logging preference", id="diagnostic-logging")
             yield Button("Save Runtime Defaults", id="action-save-runtime", name="save-runtime")
-            yield Static("Status: Ready", id="screen-status")
+            yield Static("Status: Ready", id="screen-status", markup=False)
         yield Footer()
 
     def on_mount(self) -> None:
