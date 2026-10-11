@@ -9,9 +9,9 @@ from dataclasses import replace
 import pytest
 
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
+from deeper_dive.hosts import HostProfile
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_configuration import EpisodeConfigurationRepository
-from deeper_dive.hosts import HostProfile
 from deeper_dive.storage.episode_plan_repository import EpisodePlanRepository
 from deeper_dive.storage.episode_repositories import (
     EpisodePlanRecord,
