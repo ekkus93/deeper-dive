@@ -90,15 +90,15 @@ This is the **only completion checklist for the second post-review cycle**. The 
 
 - [ ] Inventory all keys in `UserConfig.defaults` and their readers/writers across first-run, Settings, provider controller, CLI, Quick, generation and preflight.
 - [ ] Specify an authoritative typed/default-value schema with documented valid ranges, enums, aliases, optional blank semantics and legacy compatibility.
-- [ ] Validate global and Quick research modes using the production `ResearchMode` contract.
-- [ ] Validate Quick duration, exactly two valid host presets, and model/role/provider references where relevant.
+- [x] Validate global and Quick research modes using the production `ResearchMode` contract.
+- [x] Validate Quick duration, exactly two valid host presets, and model/role/provider references where relevant.
 - [ ] Validate network/local-only, runtime/diagnostic, path and voice/default values according to actual consumer contracts.
 - [ ] Apply shared normalization/validation to composite Settings, first-run, provider defaults and CLI mutation paths.
 - [ ] Validate every candidate in full before one durable write; never publish partial runtime changes.
 - [ ] Keep old valid config files usable and explicitly handle invalid older config with safe recovery guidance.
 - [ ] Ensure no rejected value or credential canary leaks in exception or CLI/TUI output.
 - [ ] Add table-driven good/bad/blank/legacy/restart matrix and single-save/rollback assertions.
-- [ ] Add integration test proving settings-accepted values are consumable by Quick Deep Dive without validation errors.
+- [x] Add integration test proving settings-accepted values are consumable by Quick Deep Dive without validation errors.
 - [ ] Run focused SPR-04 tests and exact-head CI; record evidence.
 
 ## SPR-500 — Crash-safe, race-safe user configuration persistence (SPR-05)
@@ -271,5 +271,12 @@ This is the **only completion checklist for the second post-review cycle**. The 
 - **Exact source/test qualification:** direct-`master` commits `501d4674a43a6ee173817b8395f6eff2ad9448ca`, `49e4d30f6ca00138f714a66f25e42ed8bffe4ab2`, and `cd3ca086a1a09c3473fc8ea87c466a60247b9192`; [CI #2547](https://github.com/ekkus93/deeper-dive/actions/runs/38117178245) on `cd3ca086a1a09c3473fc8ea87c466a60247b9192`, quality job `114404285599` (**1,310 passed**, Ruff/mypy/build), fresh-machine job `114404285778` passed.
 - **SPR-01 additional production guard (partial):** `src/deeper_dive/guided_episode_wizard.py` now routes Build Plan, Regenerate Plan, and Regenerate Segment through the shared `WizardShell` dirty Save/Discard/Cancel transition before replacing a modified segment form. `tests/test_second_post_review_dirty_navigation.py::test_dirty_plan_operations_require_explicit_save_or_discard` checks all three operations under a deterministic Textual pilot, including duplicate-click suppression, cancel preservation and explicit discard. Direct-`master` commit `366ec6ffa84cb6cf047852b298334c35e9bdf54e`, [CI #2548](https://github.com/ekkus93/deeper-dive/actions/runs/38117450369), quality job `114405081437` (**1,313 passed**), fresh-machine job `114405081548`, both passed. Broader SPR-01 source/host navigation, restart/failure-injection and complete keyboard matrices remain unchecked.
 - **Remaining SPR-07 scope:** full TUI/CLI/Quick cross-entry qualification, explicit lifecycle documentation/UX, metadata-only N/A disposition and independent audit remain open. This documentation-only reconciliation commit itself must pass new exact-head CI before its new checkmarks are treated as finally qualified.
+
+### 2026-10-10 qualified SPR-04 Settings-to-Quick contract
+
+- `src/deeper_dive/user_config.py` now derives research choices directly from `ResearchMode` and valid Quick presets from `hosts.preset_names()`, avoiding drift from production consumers. Existing `UserConfigStore.validate_candidate` and `ProviderController.validate_default_references` enforce valid duration, two presets and role/provider syntax before publication.
+- `tests/test_second_post_review_config_security.py::test_research_mode_production_contract_round_trip` exercises all four research modes through Settings, persisted user config, Quick episode creation and the actual research-policy store. `test_each_production_host_preset_is_valid_in_settings_and_quick` exercises all eight host presets with ordered persisted Quick episode membership. Prior `test_settings_accepted_quick_defaults_are_consumable_after_restart` covers persisted duration, research and runtime defaults.
+- `src/deeper_dive/quick_deep_dive.py` now preserves an existing single host while creating only the missing second Quick host, applying Host 2's preset/voice without changing the original user host. `tests/test_quick_deep_dive.py::test_quick_deep_dive_completes_a_single_existing_host_without_mutating_it` verifies original voice identity and restart/reuse of exactly two hosts.
+- Exact-head passing [CI #2556](https://github.com/ekkus93/deeper-dive/actions/runs/38118100638) at `9c3c91459558b40283baa44225cfae395813b3ea`: quality **1,335 passed**, fresh-machine passed. Exact-head passing [CI #2559](https://github.com/ekkus93/deeper-dive/actions/runs/38118382418) at `90428da0fd2f0f19495d41838eb3342f2c8d92aa`: quality **1,338 passed**, fresh-machine passed. The full defaults inventory, platform/error matrices and final acceptance remain unchecked. This reconciliation-only commit itself requires new exact-head CI.
 
 **Documentation creation is not remediation completion.** Creation/commit of this TODO and spec may be reported separately with its exact GitHub commit and documentation-only CI outcome; no unchecked implementation task becomes complete from that action alone.
