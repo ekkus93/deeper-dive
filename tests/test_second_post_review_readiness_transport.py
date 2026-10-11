@@ -25,7 +25,9 @@ def _controller(tmp_path: Path, provider_type: str) -> ProviderController:
             }
         )
     )
-    factory = ProviderFactory(environ={"OPENAI_API_KEY": "fake-test-only"})
+    factory = ProviderFactory(
+        environ={"OPENAI_API_KEY": "fake-test-only", "ELEVENLABS_API_KEY": "fake-test-only"}
+    )
     configured = factory.build(store.load())
     return ProviderController(
         store,
@@ -101,3 +103,45 @@ def test_probe_timeout_must_be_positive(tmp_path: Path) -> None:
     factory = ProviderFactory()
     with pytest.raises(ValueError, match="probe timeout must be positive"):
         factory.build(UserConfig(), probe_timeout_seconds=0)
+
+
+def test_elevenlabs_readiness_probes_voices_once_with_bounded_timeout(tmp_path: Path) -> None:
+    from deeper_dive.guided_readiness import _tts_runtime_ready
+
+    controller = _controller(tmp_path, "elevenlabs")
+    probe = controller.readiness_probe_controller(request_timeout_seconds=0.75)
+    delegate = probe.tts("remote")._delegate
+    observed: list[float] = []
+
+    def discover(_url: str, _headers: dict[str, str], timeout: float) -> dict:
+        observed.append(timeout)
+        return {"voices": [{"voice_id": "voice-a", "name": "Voice A"}]}
+
+    delegate._request_json = discover
+    assert _tts_runtime_ready(probe, "remote", "voice-a", "elevenlabs")
+    assert observed == [0.75]
+    assert controller.tts("remote")._delegate._timeout == 600
+
+
+def test_openai_readiness_skips_redundant_health_discovery(tmp_path: Path) -> None:
+    from deeper_dive.guided_readiness import _llm_runtime_ready
+
+    controller = _controller(tmp_path, "openai")
+    probe = controller.readiness_probe_controller(request_timeout_seconds=0.75)
+    delegate = probe.llm("remote")._delegate
+    observed: list[float] = []
+
+    def discover(
+        _method: str,
+        _url: str,
+        _payload: object,
+        _headers: dict[str, str],
+        timeout: float,
+    ) -> dict:
+        observed.append(timeout)
+        return {"data": [{"id": "model-v1"}]}
+
+    delegate._request = discover
+    assert _llm_runtime_ready(probe, "remote", "openai") == frozenset({"model-v1"})
+    assert observed == [0.75]
+    assert controller.llm("remote")._delegate._timeout == 600
