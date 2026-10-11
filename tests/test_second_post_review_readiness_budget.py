@@ -304,9 +304,7 @@ def test_readiness_recovers_after_fingerprint_configuration_is_repaired() -> Non
         _context(), probe=_snapshot, fingerprint=fingerprint, timeout_seconds=3
     )
     try:
-        assert not coordinator.request(
-            app, lambda: callbacks.append(coordinator.view.state)
-        )
+        assert not coordinator.request(app, lambda: callbacks.append(coordinator.view.state))
         assert coordinator.view.state == "failed"
         repaired[0] = True
         assert coordinator.request(app, lambda: callbacks.append(coordinator.view.state))
