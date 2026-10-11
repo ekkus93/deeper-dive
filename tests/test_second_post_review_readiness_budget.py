@@ -7,6 +7,7 @@ from threading import Event
 from time import sleep
 from typing import cast
 
+import pytest
 from textual.message import Message
 
 from deeper_dive.guided_async_readiness import (
@@ -435,3 +436,12 @@ def test_fingerprint_failure_notifies_coalesced_inflight_callbacks_once() -> Non
     finally:
         release.set()
         coordinator.close()
+
+
+@pytest.mark.parametrize("timeout_seconds", [0.0, -1.0, float("nan"), float("inf"), -float("inf")])
+def test_readiness_rejects_nonpositive_or_nonfinite_deadlines(timeout_seconds: float) -> None:
+    with pytest.raises(ValueError, match="timeout_seconds must be finite and positive"):
+        FirstRunReadinessCoordinator(
+            _context(), probe=_snapshot, fingerprint=lambda: "static",
+            timeout_seconds=timeout_seconds,
+        )

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from dataclasses import dataclass
+from math import isfinite
 from threading import Lock, Thread, Timer
 from typing import Literal, Protocol
 
@@ -79,6 +80,8 @@ class FirstRunReadinessCoordinator:
         self._fingerprint_provider = fingerprint or self._configuration_fingerprint
         if max_workers < 1:
             raise ValueError("max_workers must be positive")
+        if not isfinite(timeout_seconds) or timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be finite and positive")
         self.timeout_seconds = timeout_seconds
         self.max_workers = max_workers
         self._lock = Lock()
