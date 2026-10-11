@@ -251,3 +251,57 @@ def test_cli_research_uses_production_composition_controller(
     payload = json.loads(capsys.readouterr().out)
     assert payload[0]["id"] == "gap-from-composition"
     assert controller.analyzed == [(project_id, "missing context")]
+
+
+def test_cli_bootstrap_invalid_configuration_reports_sanitized_error(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Malformed durable config must not escape the top-level CLI error boundary."""
+    secret = "bootstrap-fragment-canary"
+    (tmp_path / "config.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "providers": {
+                    "remote": {
+                        "provider_type": "openai",
+                        "base_url": f"https://example.test/v1#access_token={secret}",
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert main(["--data-dir", str(tmp_path), "project", "list"]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "invalid user configuration" in captured.err
+    assert secret not in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_cli_bootstrap_failure_sanitizes_chained_provider_errors(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Error redaction must apply even if provider composition fails before dispatch."""
+    secret = "bootstrap-url-canary"
+    endpoint = f"https://example.test/v1?api%5Fkey={secret}"
+
+    def fail_build(*args: object, **kwargs: object) -> None:
+        try:
+            raise ValueError(f"provider request failed: {endpoint}")
+        except ValueError as cause:
+            raise RuntimeError("cannot initialize providers") from cause
+
+    monkeypatch.setattr(cli_module.ProductionComposition, "build", fail_build)
+    assert main(["--data-dir", str(tmp_path), "project", "list"]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "cannot initialize providers" in captured.err
+    assert "caused by:" in captured.err
+    assert "[REDACTED]" in captured.err
+    assert secret not in captured.err
+    assert "Traceback" not in captured.err

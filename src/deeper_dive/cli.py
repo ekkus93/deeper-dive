@@ -170,9 +170,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command is None:
         parser.print_help()
         return 0
-    composition = ProductionComposition.build(data_dir=args.data_dir)
-    service = composition.service
     try:
+        # Bootstrap can fail on malformed persisted configuration or provider setup.
+        # Route it through the same sanitized CLI error boundary as commands.
+        composition = ProductionComposition.build(data_dir=args.data_dir)
+        service = composition.service
         if args.command == "project":
             return _project_command(service, args)
         if args.command == "source":
