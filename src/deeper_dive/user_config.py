@@ -14,8 +14,6 @@ from threading import Lock, RLock
 from typing import IO, Literal
 from urllib.parse import parse_qsl, urlsplit
 
-from deeper_dive.diagnostics import is_sensitive_url_query_key
-
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -25,6 +23,8 @@ from pydantic import (
     ValidationInfo,
     field_validator,
 )
+
+from deeper_dive.diagnostics import is_sensitive_url_query_key
 
 try:
     import fcntl
