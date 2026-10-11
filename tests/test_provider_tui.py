@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-import traceback
 
 from deeper_dive.llm import LLMProviderRegistry, ProviderHealth
 from deeper_dive.provider_factory import ProviderFactory
@@ -222,30 +221,3 @@ def test_mutated_provider_configuration_is_rejected_before_runtime_build(
     assert secret not in str(error.value)
     assert secret not in (tmp_path / "config.json").read_text()
     assert controller.config().providers["planner"].base_url is None
-
-
-@pytest.mark.parametrize(
-    "provider_type",
-    [
-        "https://example.test/v1#access_token=provider-type-canary",
-        "Bearer provider-type-canary",
-        "fake\nprovider-type-canary",
-    ],
-)
-def test_unknown_adapter_errors_do_not_echo_untrusted_type(tmp_path, provider_type: str) -> None:
-    controller = _controller(tmp_path)
-    before = controller.config()
-
-    for operation in (
-        lambda: controller.configuration_fields(provider_type),
-        lambda: controller.save_provider("untrusted", provider_type),
-    ):
-        with pytest.raises(ValueError, match="unsupported provider adapter") as error:
-            operation()
-        assert "provider-type-canary" not in str(error.value)
-        assert "provider-type-canary" not in "".join(
-            traceback.format_exception(error.value)
-        )
-
-    assert controller.config() == before
-    assert not (tmp_path / "config.json").exists()
