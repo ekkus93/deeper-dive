@@ -1005,3 +1005,66 @@ async def _guided_noop_save_keeps_exact_non_minute_duration_and_plan(tmp_path: P
         assert wizard.action_save_episode()
         assert configs.load_configuration(episode_id).target_duration_seconds == 1320
         assert repository.get_plan(episode_id) is None
+
+
+def test_host_membership_add_remove_and_target_identity_dirty_contract(tmp_path: Path) -> None:
+    asyncio.run(_host_membership_add_remove_and_target_identity_dirty_contract(tmp_path))
+
+
+async def _host_membership_add_remove_and_target_identity_dirty_contract(
+    tmp_path: Path,
+) -> None:
+    service, project_id, episode_id, host_ids = _episode_fixture(tmp_path)
+    repository = service.hosts(project_id)
+    repository.create_host(HostProfile("third-host", project_id, "Third Host").to_record())
+    configs = EpisodeConfigurationService(
+        Database(service.workspaces.project_root(project_id) / "project.db")
+    )
+    other = configs.create(
+        project_id, EpisodeConfiguration(title="Other episode", host_ids=host_ids)
+    )
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project_id
+        wizard.context.episode_id = episode_id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "hosts")
+        wizard._load_episode_host_order()
+        wizard._refresh_hosts("third-host")
+        wizard._toggle()
+        await pilot.pause()
+        wizard._remember_current_form()
+
+        assert not wizard._current_form_dirty()
+        wizard.action_select_host()
+        assert wizard._selected_host_ids == [*host_ids, "third-host"]
+        assert wizard._host_order_dirty()
+        wizard.action_remove_selected_host()
+        assert wizard._selected_host_ids == list(host_ids)
+        assert not wizard._current_form_dirty()
+
+        wizard._refresh_hosts(host_ids[1])
+        await pilot.pause()
+        wizard._remember_current_form()
+        wizard.action_remove_selected_host()
+        assert wizard._host_order_dirty()
+        wizard.action_select_host()
+        assert wizard._selected_host_ids == list(host_ids)
+        assert not wizard._host_order_dirty()
+
+        wizard._refresh_hosts(host_ids[0])
+        await pilot.pause()
+        wizard._remember_current_form()
+        wizard._move_selected_host(-1)
+        assert not wizard._host_order_dirty()
+
+        # Identical host IDs in a different episode are a different dirty target.
+        wizard.context.episode_id = other.id
+        assert wizard._host_order_dirty()
+        wizard.context.episode_id = episode_id
+        assert not wizard._host_order_dirty()
+        assert configs.load_configuration(episode_id).host_ids == host_ids
+        assert configs.load_configuration(other.id).host_ids == host_ids
