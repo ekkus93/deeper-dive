@@ -31,12 +31,14 @@ def test_two_project_fixture_contains_indexed_corpora_and_generation_artifacts(
         assert len(sources) == 1
         chunks = service.list_source_chunks(current.project_id, sources[0].id)
         assert chunks and all(chunk.text for chunk in chunks)
-        assert len(service.hosts(current.project_id).list_episode_host_ids(current.episode_id)) == 2
+        host_ids = service.hosts(current.project_id).list_episode_host_ids(current.episode_id)
+        assert len(host_ids) == 2
         policy = ResearchPolicyStore(
             Database(service.workspaces.project_root(current.project_id) / "project.db")
         )
         assert policy.episode(current.project_id, current.episode_id).mode is ResearchMode.USEFUL
-        assert service.runs(current.project_id).get(current.run_id).state == "completed"
+        run = service.runs(current.project_id).get(current.run_id)
+        assert run is not None and run.state == "completed"
         assert current.turn_ids and len(set(current.turn_ids)) == len(current.turn_ids)
         assert current.transcript_path.read_bytes()
         assert current.audio_path.read_bytes()
