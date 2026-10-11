@@ -386,9 +386,9 @@ def test_mutated_provider_encoded_query_key_rejected_before_store_write(tmp_path
     store.save(UserConfig(providers={"remote": ProviderConfig(provider_type="openai")}))
     original = store.path.read_bytes()
     candidate = store.load()
-    candidate.providers["remote"].base_url = (
-        "https://example.test/v1?api%252Ekey=mutated-query-canary"
-    )
+    candidate.providers[
+        "remote"
+    ].base_url = "https://example.test/v1?api%252Ekey=mutated-query-canary"
     with pytest.raises(UserConfigError, match="providers") as error:
         store.save(candidate)
     assert "mutated-query-canary" not in str(error.value)
