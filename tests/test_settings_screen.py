@@ -182,9 +182,7 @@ def test_settings_screen_handles_config_io_failure_without_discarding_input(
     tmp_path: Path, endpoint: str
 ) -> None:
     asyncio.run(
-        _settings_screen_handles_config_io_failure_without_discarding_input(
-            tmp_path, endpoint
-        )
+        _settings_screen_handles_config_io_failure_without_discarding_input(tmp_path, endpoint)
     )
 
 
