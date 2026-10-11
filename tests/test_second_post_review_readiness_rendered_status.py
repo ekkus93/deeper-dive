@@ -39,7 +39,7 @@ async def _run_case(tmp_path) -> None:
                 await asyncio.sleep(0.01)
             assert coordinator.view.state == "failed"
             await pilot.pause()
-            content = str(wizard.query_one("#wizard-step-content", Static).renderable)
+            content = str(wizard.query_one("#wizard-step-content", Static).render())
             assert "needs attention" in content
             assert "provider is temporarily unavailable" in content
             assert "retry" in content.lower()
