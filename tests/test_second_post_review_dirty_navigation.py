@@ -1278,9 +1278,7 @@ async def _completed_episode_edit_requires_new_episode(tmp_path: Path) -> None:
         [],
     )
     with db.transaction(immediate=True) as connection:
-        connection.execute(
-            "UPDATE episodes SET state='completed' WHERE id=?", (episode_id,)
-        )
+        connection.execute("UPDATE episodes SET state='completed' WHERE id=?", (episode_id,))
     before = configs.load_configuration(episode_id)
     before_plan = repository.get_plan(episode_id)
     assert before_plan is not None
