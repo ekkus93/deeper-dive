@@ -13,7 +13,7 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
-from deeper_dive.diagnostics import redact
+from deeper_dive.diagnostics import redact, sanitize_exception_message
 from deeper_dive.kitten_tts import MICRO_MODEL_ID
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.provider_tui import ProviderController
@@ -296,8 +296,10 @@ class SettingsScreen(Screen[None]):
     def _save(self, operation: Callable[[], None], success: str) -> None:
         try:
             operation()
-        except (TypeError, ValueError) as exc:
-            self._status(str(exc))
+        except (OSError, TypeError, ValueError) as exc:
+            # A failed durable config write must leave the form and navigation
+            # in place, while keeping any chained provider/path secrets private.
+            self._status(sanitize_exception_message(exc))
             return
         self.refresh_settings(success)
 

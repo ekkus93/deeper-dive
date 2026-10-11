@@ -165,3 +165,50 @@ def test_local_provider_ids_reject_unknown_provider_before_save(tmp_path: Path) 
         controller.set_default("local_provider_ids", "planner,missing")
 
     assert controller.provider_controller.config_store.path.read_bytes() == original
+
+
+def test_settings_screen_handles_config_io_failure_without_discarding_input(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_settings_screen_handles_config_io_failure_without_discarding_input(tmp_path))
+
+
+async def _settings_screen_handles_config_io_failure_without_discarding_input(
+    tmp_path: Path,
+) -> None:
+    """Failed durable writes preserve the edited form and sanitize error context."""
+    controller = _provider_controller(tmp_path)
+    store = controller.config_store
+    original = store.path.read_bytes()
+    app = DeeperDiveApp(
+        DeeperDiveService(WorkspaceManager(tmp_path / "data")),
+        provider_controller=controller,
+    )
+    canary = "settings-io-failure-canary"
+    endpoint = f"https://example.test/v1?api%5Fkey={canary}"
+
+    def fail_write(self: SettingsController, key: str, value: str) -> None:
+        _ = (self, key, value)
+        try:
+            raise ValueError(f"remote provider failed: {endpoint}")
+        except ValueError as cause:
+            raise OSError("unable to persist settings") from cause
+
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.action_navigate("settings")
+        await pilot.pause()
+        screen = app.screen
+        assert isinstance(screen, SettingsScreen)
+        screen.query_one("#settings-key", Input).value = "local_only"
+        screen.query_one("#settings-value", Input).value = "true"
+        with patch.object(SettingsController, "set_default", fail_write):
+            screen.action_save_default()
+        await pilot.pause()
+        assert app.screen is screen
+        assert screen.query_one("#settings-value", Input).value == "true"
+        status = str(screen.query_one("#screen-status", Static).render())
+        assert "unable to persist settings" in status
+        assert "caused by:" in status
+        assert canary not in status
+        assert "[REDACTED]" in status
+        assert store.path.read_bytes() == original
