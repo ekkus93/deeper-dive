@@ -132,12 +132,12 @@ This is the **only completion checklist for the second post-review cycle**. The 
 
 ## SPR-700 — Episode lifecycle and plan invalidation (SPR-07)
 
-- [ ] Reproduce or conclusively disprove no-op `EpisodeConfigurationService.edit()` deleting an existing plan.
-- [ ] Reproduce or conclusively disprove completed episode edit demoting state to `draft` and determine actual UI/CLI reachability.
-- [ ] Inventory every episode state, latest-run state, plan consumer, library listing, exporter, Quick and generation control path.
-- [ ] Document lifecycle state machine and policy for edits in draft, planned, running, paused, failed and completed conditions.
-- [ ] Define historical run/plan/artifact immutability and whether completed episode edits are prohibited, forked or revisioned.
-- [ ] Compare canonical plan-relevant configuration fields and skip invalidation for exact no-op/non-plan-affecting edits.
+- [x] Reproduce or conclusively disprove no-op `EpisodeConfigurationService.edit()` deleting an existing plan.
+- [x] Reproduce or conclusively disprove completed episode edit demoting state to `draft` and determine actual UI/CLI reachability.
+- [x] Inventory every episode state, latest-run state, plan consumer, library listing, exporter, Quick and generation control path.
+- [x] Document lifecycle state machine and policy for edits in draft, planned, running, paused, failed and completed conditions.
+- [x] Define historical run/plan/artifact immutability and whether completed episode edits are prohibited, forked or revisioned.
+- [x] Compare canonical plan-relevant configuration fields and skip invalidation for exact no-op/non-plan-affecting edits.
 - [x] Retain a usable plan and its identity on semantically identical episode saves.
 - [x] Invalidate only necessary editable draft plans on meaningful plan-affecting changes.
 - [x] Preserve completed/running episode and run status, existing transcript, audio and export identity.
@@ -192,6 +192,12 @@ This is the **only completion checklist for the second post-review cycle**. The 
 - [ ] If reconciliation changes only documentation, run new exact-head CI on the documentation commit too.
 - [ ] Reload both documents from final `master` and confirm all tasks/subtasks accounted for and final head itself CI-qualified.
 - [ ] Declare second remediation complete only after all evidence requirements are satisfied and no unqualified unchecked item remains.
+
+### 2026-10-10 SPR-07 lifecycle contract inventory and baseline disposition
+
+- Normative lifecycle and call-site contract: `docs/DEEP_DIVE_EPISODE_LIFECYCLE_CONTRACT_2026-10-10.md`. The suspected current production failures of no-op plan deletion and completed-episode state demotion are **disproved** by direct service/repository tests; they are not asserted as historical incidents.
+- `tests/test_second_post_review_episode_lifecycle.py` covers semantically equal/no-op mapping order, all plan-impact config fields, planned/running/paused/failed/completed guard cases, CAS against stale planners/editors, injected deletion rollback, and cross-project host validation. `tests/test_second_post_review_acceptance_matrix.py` uses the shared production two-project completed/exported plus pending run fixture to check plan/turn/run identities and transcript/audio digests. Qualified at exact `366ec6ffa84cb6cf047852b298334c35e9bdf54e`, [CI #2548](https://github.com/ekkus93/deeper-dive/actions/runs/38117450369), quality `114405081437` and fresh-machine `114405081548` passed; requalified at `9c3c91459558b40283baa44225cfae395813b3ea`, [CI #38118100638](https://github.com/ekkus93/deeper-dive/actions/runs/38118100638), both jobs passed.
+- This documentation/TODO reconciliation commit itself requires successful exact-head CI. Broad CLI/TUI, metadata-only plan approval, failed/paused artifact restart, and final audit remain unchecked.
 
 ## Evidence ledger
 
