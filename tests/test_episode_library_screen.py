@@ -253,3 +253,33 @@ async def _library_delete_confirmation_bound_to_project_and_selection(tmp_path: 
         screen.action_confirm_delete()
         screen.action_confirm_delete()  # Already consumed: never deletes again.
         assert [item.id for item in service.hosts(first.id).list_episodes(first.id)] == [alpha.id]
+
+
+def test_library_renders_redacted_status_and_titles_literally(tmp_path: Path) -> None:
+    asyncio.run(_library_renders_redacted_status_and_titles_literally(tmp_path))
+
+
+async def _library_renders_redacted_status_and_titles_literally(tmp_path: Path) -> None:
+    service = _service(tmp_path)
+    project = service.create_project("Literal library")
+    episodes = EpisodeConfigurationService(
+        Database(service.workspaces.project_root(project.id) / "project.db"),
+        clock=service.clock,
+    )
+    episodes.create(project.id, EpisodeConfiguration(title="Literal [REDACTED] title"))
+    app = DeeperDiveApp(service)
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.current_project_id = project.id
+        app.current_project_name = project.name
+        screen = EpisodeLibraryScreen()
+        app.push_screen(screen)
+        await pilot.pause()
+
+        listing = str(screen.query_one("#episode-library-list", Static).render())
+        assert "Literal [REDACTED] title" in listing
+
+        screen._status("Provider failed api_key=library-tui-canary")
+        await pilot.pause()
+        status = str(screen.query_one("#screen-status", Static).render())
+        assert "api_key=[REDACTED]" in status
+        assert "library-tui-canary" not in status

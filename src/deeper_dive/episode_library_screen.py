@@ -172,8 +172,8 @@ class EpisodeLibraryScreen(Screen[None]):
             yield Static(
                 "Complete, draft, failed, and paused episodes retain independent run state."
             )
-            yield Static("", id="episode-library-list")
-            yield Static("", id="episode-library-selection")
+            yield Static("", id="episode-library-list", markup=False)
+            yield Static("", id="episode-library-selection", markup=False)
             yield Button("Play", name="play-episode")
             yield Button("Open / Review", name="open-episode")
             yield Button("Resume", name="resume-episode")
@@ -183,7 +183,7 @@ class EpisodeLibraryScreen(Screen[None]):
             yield Button("Confirm Delete", name="confirm-delete-episode")
             yield Button("Cancel Delete", name="cancel-delete-episode")
             yield Button("New Episode", name="new-episode")
-            yield Static("Status: Ready", id="screen-status")
+            yield Static("Status: Ready", id="screen-status", markup=False)
         yield Footer()
 
     def on_mount(self) -> None:
