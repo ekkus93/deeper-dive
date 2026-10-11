@@ -232,7 +232,11 @@ class FirstRunReadinessCoordinator:
                 self._active_workers.discard(generation)
                 return False
             self._timers[generation] = timer
-        timer.start()
+        try:
+            timer.start()
+        except RuntimeError:
+            self._start_failed(generation, timer)
+            return False
 
         worker = Thread(
             target=self._run_probe,
@@ -240,8 +244,31 @@ class FirstRunReadinessCoordinator:
             name=f"deeper-dive-readiness-{generation}",
             daemon=True,
         )
-        worker.start()
+        try:
+            worker.start()
+        except RuntimeError:
+            self._start_failed(generation, timer)
+            return False
         return True
+
+    def _start_failed(self, generation: int, timer: Timer) -> None:
+        """Release a reserved slot if the OS cannot start a timer or worker."""
+        timer.cancel()
+        with self._lock:
+            self._timers.pop(generation, None)
+            self._active_workers.discard(generation)
+            if self._closed or self._view.generation != generation:
+                return
+            self._view = FirstRunReadinessView(
+                "failed",
+                generation,
+                self._view.fingerprint,
+                message="Unable to start provider readiness check. Retry.",
+            )
+            callbacks = tuple(self._callbacks)
+            self._callbacks.clear()
+        for callback in callbacks:
+            callback()
 
     def _run_probe(
         self,
