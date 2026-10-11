@@ -266,3 +266,37 @@ def test_settings_allow_voice_for_provider_without_static_voice_catalog(
     config = controller.config_store.load()
     assert config.defaults["tts_provider"] == "dynamic-speech"
     assert config.defaults["tts_voice"] == "discovered-voice-id"
+
+
+def test_settings_screen_rejected_voice_preserves_typed_value_and_durable_config(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_settings_screen_rejected_voice_preserves_typed_value(tmp_path))
+
+
+async def _settings_screen_rejected_voice_preserves_typed_value(tmp_path: Path) -> None:
+    controller = _provider_controller(tmp_path)
+    SettingsController(controller).save_tts_defaults("fake-tts", "voice-a")
+    original_bytes = controller.config_store.path.read_bytes()
+    app = DeeperDiveApp(
+        DeeperDiveService(WorkspaceManager(tmp_path / "data")),
+        provider_controller=controller,
+    )
+    rejected_canary = "tui-rejected-voice-canary"
+
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.action_navigate("settings")
+        await pilot.pause()
+        screen = app.screen
+        assert isinstance(screen, SettingsScreen)
+        screen.query_one("#tts-provider", Input).value = "fake-tts"
+        screen.query_one("#tts-voice", Input).value = rejected_canary
+        screen.action_save_tts_defaults()
+        await pilot.pause()
+
+        assert app.screen is screen
+        assert screen.query_one("#tts-voice", Input).value == rejected_canary
+        status = str(screen.query_one("#screen-status", Static).render())
+        assert "tts_voice references a voice" in status
+        assert rejected_canary not in status
+        assert controller.config_store.path.read_bytes() == original_bytes
