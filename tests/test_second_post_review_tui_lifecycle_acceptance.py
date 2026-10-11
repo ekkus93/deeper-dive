@@ -82,8 +82,7 @@ async def _exercise_library(completed: Any, foreign: Any) -> None:
             EpisodeConfigurationService(db).load_configuration(episode_id).host_ids
         )
         duplicate_item = next(
-            row for row in EpisodeLibraryController.items(app)
-            if row.episode.id == duplicate_id
+            row for row in EpisodeLibraryController.items(app) if row.episode.id == duplicate_id
         )
         assert duplicate_item.run is None
         assert duplicate_item.state == "draft"
