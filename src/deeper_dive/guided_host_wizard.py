@@ -394,7 +394,7 @@ class GuidedHostWizard(GuidedSourceWizard):
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
             self.set_error("Host creation failed.", exc)
             return False
-        self._refresh_hosts(host.id)
+        self._refresh_hosts(host.id, preserve_dirty=False)
         self._remember_host_profile_baseline()
         self.set_status(f"Created host {host.display_name}.")
         return True
@@ -412,7 +412,7 @@ class GuidedHostWizard(GuidedSourceWizard):
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
             self.set_error("Host save failed.", exc)
             return False
-        self._refresh_hosts(record.id)
+        self._refresh_hosts(record.id, preserve_dirty=False)
         self._remember_host_profile_baseline()
         self.set_status(f"Saved host {host.display_name}.")
         return True
@@ -523,9 +523,22 @@ class GuidedHostWizard(GuidedSourceWizard):
             return
         self._selected_host_ids = list(config.host_ids)
 
-    def _refresh_hosts(self, preferred_host_id: str | None = None) -> None:
+    def _refresh_hosts(
+        self, preferred_host_id: str | None = None, *, preserve_dirty: bool = True
+    ) -> None:
         project_id = self.context.project_id
         picker = self.query_one("#guided-host-picker", Select)
+        # An unrelated refresh may update picker options, but it must not
+        # rehydrate a durable host over unsaved edits or change their target.
+        pending = (
+            self._host_form_values()
+            if preserve_dirty
+            and self.context.state.current_step == "hosts"
+            and self._loaded_host_id is not None
+            and self._host_profile_dirty()
+            else None
+        )
+        original_host_id = self._loaded_host_id
         if project_id is None:
             picker.set_options([])
             self._refresh_host_order()
@@ -542,6 +555,19 @@ class GuidedHostWizard(GuidedSourceWizard):
             ]
         )
         ids = {record.id for record in records}
+        if pending is not None:
+            if original_host_id in ids:
+                with picker.prevent(Select.Changed):
+                    picker.value = original_host_id
+            else:
+                self.set_status(
+                    "The edited host is no longer available. Keep editing or "
+                    "explicitly discard before choosing another host."
+                )
+            self._restore_host_form_values(pending)
+            self._pending_host_form_values = pending
+            self._refresh_host_order()
+            return
         if preferred_host_id in ids:
             picker.value = preferred_host_id
         elif records and (not isinstance(picker.value, str) or picker.value not in ids):

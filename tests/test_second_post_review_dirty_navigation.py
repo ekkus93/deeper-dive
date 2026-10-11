@@ -1068,3 +1068,84 @@ async def _host_membership_add_remove_and_target_identity_dirty_contract(
         assert not wizard._host_order_dirty()
         assert configs.load_configuration(episode_id).host_ids == host_ids
         assert configs.load_configuration(other.id).host_ids == host_ids
+
+def test_host_refresh_preserves_dirty_profile_and_selected_identity(tmp_path: Path) -> None:
+    asyncio.run(_host_refresh_preserves_dirty_profile_and_selected_identity(tmp_path))
+
+
+async def _host_refresh_preserves_dirty_profile_and_selected_identity(
+    tmp_path: Path,
+) -> None:
+    service, project_id, episode_id, host_ids = _episode_fixture(tmp_path)
+    repository = service.hosts(project_id)
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project_id
+        wizard.context.episode_id = episode_id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "hosts")
+        wizard._load_episode_host_order()
+        wizard._refresh_hosts(host_ids[0])
+        wizard._toggle()
+        wizard._remember_current_form()
+
+        field = wizard.query_one("#guided-host-instructions", Input)
+        field.value = "Unsaved instructions must survive host list refresh"
+        await pilot.pause()
+        assert wizard._host_profile_dirty()
+        wizard._refresh_hosts(host_ids[1])
+        await pilot.pause()
+
+        assert wizard.query_one("#guided-host-picker", Select).value == host_ids[0]
+        assert wizard._loaded_host_id == host_ids[0]
+        assert field.value == "Unsaved instructions must survive host list refresh"
+        assert wizard._host_profile_dirty()
+        assert wizard._current_form_dirty()
+        durable = repository.get_host(host_ids[0])
+        assert durable is not None and durable.instructions != field.value
+
+        wizard.action_save_exit()
+        assert wizard.query_one("#wizard-exit-confirmation").display
+        wizard.action_cancel_exit_confirmation()
+        assert field.value == "Unsaved instructions must survive host list refresh"
+
+
+def test_explicit_host_save_rehydrates_normalized_durable_values(tmp_path: Path) -> None:
+    asyncio.run(_explicit_host_save_rehydrates_normalized_durable_values(tmp_path))
+
+
+async def _explicit_host_save_rehydrates_normalized_durable_values(
+    tmp_path: Path,
+) -> None:
+    service, project_id, episode_id, host_ids = _episode_fixture(tmp_path)
+    repository = service.hosts(project_id)
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project_id
+        wizard.context.episode_id = episode_id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "hosts")
+        wizard._load_episode_host_order()
+        wizard._refresh_hosts(host_ids[0])
+        wizard._toggle()
+        wizard._remember_current_form()
+
+        field = wizard.query_one("#guided-host-instructions", Input)
+        field.value = "  Normalized durable instructions  "
+        await pilot.pause()
+        assert wizard._host_profile_dirty()
+        assert wizard.action_save_host()
+        await pilot.pause()
+
+        durable = repository.get_host(host_ids[0])
+        assert durable is not None
+        assert durable.instructions == "Normalized durable instructions"
+        assert field.value == durable.instructions
+        assert not wizard._host_profile_dirty()
+        assert not wizard._current_form_dirty()
