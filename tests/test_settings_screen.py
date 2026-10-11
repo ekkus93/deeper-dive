@@ -167,14 +167,29 @@ def test_local_provider_ids_reject_unknown_provider_before_save(tmp_path: Path) 
     assert controller.provider_controller.config_store.path.read_bytes() == original
 
 
+@pytest.mark.parametrize(
+    "endpoint",
+    (
+        "https://example.test/v1?api%5Fkey=settings-io-failure-canary",
+        "https://example.test/v1#access_token=settings-io-failure-canary",
+        "Authorization: Bearer settings-io-failure-canary",
+        "Authorization: Basic settings-io-failure-canary",
+        "Authorization: Token settings-io-failure-canary",
+        'Authorization: Digest username="settings-io-failure-canary", realm="fixture"',
+    ),
+)
 def test_settings_screen_handles_config_io_failure_without_discarding_input(
-    tmp_path: Path,
+    tmp_path: Path, endpoint: str
 ) -> None:
-    asyncio.run(_settings_screen_handles_config_io_failure_without_discarding_input(tmp_path))
+    asyncio.run(
+        _settings_screen_handles_config_io_failure_without_discarding_input(
+            tmp_path, endpoint
+        )
+    )
 
 
 async def _settings_screen_handles_config_io_failure_without_discarding_input(
-    tmp_path: Path,
+    tmp_path: Path, endpoint: str
 ) -> None:
     """Failed durable writes preserve the edited form and sanitize error context."""
     controller = _provider_controller(tmp_path)
@@ -185,7 +200,6 @@ async def _settings_screen_handles_config_io_failure_without_discarding_input(
         provider_controller=controller,
     )
     canary = "settings-io-failure-canary"
-    endpoint = f"https://example.test/v1?api%5Fkey={canary}"
 
     def fail_write(self: SettingsController, key: str, value: str) -> None:
         _ = (self, key, value)
