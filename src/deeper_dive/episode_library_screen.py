@@ -90,9 +90,12 @@ class EpisodeLibraryController:
     @staticmethod
     def play(app: DeeperDiveApp, item: EpisodeLibraryItem) -> PlaybackState:
         audio = EpisodeLibraryController.audio_path(app, item)
+        # A playback backend may fail after audio lookup. Do not publish a
+        # different episode/run selection unless the operation has returned.
+        state = app.composition.playback_controller.play(audio)
         app.current_episode_id = item.episode.id
         app.current_run_id = item.run.id if item.run is not None else None
-        return app.composition.playback_controller.play(audio)
+        return state
 
     @staticmethod
     def audio_path(app: DeeperDiveApp, item: EpisodeLibraryItem) -> Path:

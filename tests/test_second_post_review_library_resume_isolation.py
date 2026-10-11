@@ -33,3 +33,31 @@ def test_resume_rejects_cross_project_and_mismatched_run(
         EpisodeLibraryController.resume(app, other_item)
     assert app.current_episode_id == completed.first.episode_id
     assert app.current_run_id == completed.first.run_id
+
+
+def test_playback_backend_error_preserves_previous_episode_selection(
+    two_project_completed_acceptance: Callable[[], Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    completed = two_project_completed_acceptance()
+    app = DeeperDiveApp(completed.first.service)
+    project_id = completed.first.project_id
+    app.current_project_id = project_id
+    prior_episode = app.service.quick_deep_dive(project_id)
+    app.current_episode_id = prior_episode.id
+    app.current_run_id = None
+    selected = next(
+        item
+        for item in EpisodeLibraryController.items(app)
+        if item.episode.id == completed.first.episode_id
+    )
+
+    def fail_playback(*args: object, **kwargs: object) -> None:
+        _ = (args, kwargs)
+        raise OSError("synthetic player launch failure")
+
+    monkeypatch.setattr(app.composition.playback_controller, "play", fail_playback)
+    with pytest.raises(OSError, match="synthetic player launch failure"):
+        EpisodeLibraryController.play(app, selected)
+    assert app.current_episode_id == prior_episode.id
+    assert app.current_run_id is None
