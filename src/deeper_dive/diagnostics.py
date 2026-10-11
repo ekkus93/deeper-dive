@@ -116,14 +116,20 @@ def _redact_url_fragment(match: re.Match[str]) -> str:
     return match.group(0)
 
 
-def _redact_encoded_query(match: re.Match[str]) -> str:
-    key = match.group(2)
+def is_sensitive_url_query_key(key: str) -> bool:
+    """Recognize credential query keys, including layered percent-encoding."""
     for _ in range(4):
+        if key.lower() in _SENSITIVE_URL_KEYS or _is_secret_key(key):
+            return True
         decoded = unquote_plus(key)
         if decoded == key:
             break
         key = decoded
-    if key.lower() in _SENSITIVE_URL_KEYS or _is_secret_key(key):
+    return key.lower() in _SENSITIVE_URL_KEYS or _is_secret_key(key)
+
+
+def _redact_encoded_query(match: re.Match[str]) -> str:
+    if is_sensitive_url_query_key(match.group(2)):
         return f"{match.group(1)}{match.group(2)}{match.group(3)}[REDACTED]"
     return match.group(0)
 

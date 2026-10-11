@@ -14,6 +14,8 @@ from threading import Lock, RLock
 from typing import IO, Literal
 from urllib.parse import parse_qsl, urlsplit
 
+from deeper_dive.diagnostics import is_sensitive_url_query_key
+
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -113,19 +115,9 @@ class ProviderConfig(BaseModel):
         # never be persisted as part of a provider endpoint.
         if "#" in value:
             raise ValueError("base_url must not contain URL fragments")
-        sensitive = {
-            "api_key",
-            "apikey",
-            "key",
-            "token",
-            "access_token",
-            "auth",
-            "authorization",
-            "password",
-            "secret",
-        }
         if any(
-            key.lower() in sensitive for key, _ in parse_qsl(parsed.query, keep_blank_values=True)
+            is_sensitive_url_query_key(key)
+            for key, _ in parse_qsl(parsed.query, keep_blank_values=True)
         ):
             raise ValueError("base_url must not contain credential query parameters")
         return value.rstrip("/")

@@ -361,3 +361,40 @@ def test_dotted_and_encoded_credential_query_keys_are_redacted(query: str) -> No
 def test_benign_dotted_query_key_is_preserved() -> None:
     message = "GET https://example.test/docs?release.version=1.2.3 status=200"
     assert redact(message) == message
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "api.key=provider-query-canary",
+        "api%2Ekey=provider-query-canary",
+        "api%252Ekey=provider-query-canary",
+        "session.Token=provider-query-canary",
+        "client.secret=provider-query-canary",
+        "safe=1&%2561pi_key=provider-query-canary",
+        "safe=1&%252561pi_key=provider-query-canary",
+    ],
+)
+def test_provider_rejects_encoded_and_dotted_credential_query_keys(query: str) -> None:
+    with pytest.raises(ValueError, match="credential query") as error:
+        ProviderConfig(provider_type="openai", base_url=f"https://example.test/v1?{query}")
+    assert "provider-query-canary" not in str(error.value)
+
+
+def test_mutated_provider_encoded_query_key_rejected_before_store_write(tmp_path) -> None:
+    store = UserConfigStore(tmp_path / "config.json")
+    store.save(UserConfig(providers={"remote": ProviderConfig(provider_type="openai")}))
+    original = store.path.read_bytes()
+    candidate = store.load()
+    candidate.providers["remote"].base_url = (
+        "https://example.test/v1?api%252Ekey=mutated-query-canary"
+    )
+    with pytest.raises(UserConfigError, match="providers") as error:
+        store.save(candidate)
+    assert "mutated-query-canary" not in str(error.value)
+    assert store.path.read_bytes() == original
+
+
+def test_provider_accepts_benign_dotted_and_encoded_query_keys() -> None:
+    url = "https://example.test/v1?release.version=1.2.3&%73ection=overview"
+    assert ProviderConfig(provider_type="openai", base_url=url).base_url == url
