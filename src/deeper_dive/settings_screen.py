@@ -69,10 +69,6 @@ class SettingsController:
         host_presets: str,
         research_policy: str,
     ) -> None:
-        if duration_minutes.strip():
-            minutes = int(duration_minutes)
-            if minutes <= 0:
-                raise ValueError("Quick Deep Dive duration must be positive")
         self.set_defaults(
             {
                 "quick_deep_dive_duration_minutes": duration_minutes,
