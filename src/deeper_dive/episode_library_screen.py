@@ -61,14 +61,24 @@ class EpisodeLibraryController:
 
     @staticmethod
     def resume(app: DeeperDiveApp, item: EpisodeLibraryItem) -> GenerationRunRecord:
-        EpisodeLibraryController._project_id(app)
+        project_id = EpisodeLibraryController._project_id(app)
+        if item.episode.project_id != project_id:
+            raise ValueError("selected episode does not belong to the open project")
         if item.run is None:
             raise ValueError("selected episode has no generation run to resume")
-        if item.run.state != "paused":
-            raise ValueError(f"run state {item.run.state} is not resumable")
+        if item.run.episode_id != item.episode.id:
+            raise ValueError("selected generation run does not belong to the episode")
+        # A screen selection may outlive a run transition. Do not resume a
+        # stale paused snapshot or change the current selection on failure.
+        current = app.service.runs(project_id).get(item.run.id)
+        if current is None or current.episode_id != item.episode.id:
+            raise ValueError("selected generation run is no longer available")
+        if current.state != "paused":
+            raise ValueError(f"run state {current.state} is not resumable")
+        resumed = app.generation_monitor_controller.resume(app, current)
         app.current_episode_id = item.episode.id
-        app.current_run_id = item.run.id
-        return app.generation_monitor_controller.resume(app, item.run)
+        app.current_run_id = resumed.id
+        return resumed
 
     @staticmethod
     def export(app: DeeperDiveApp, item: EpisodeLibraryItem) -> EpisodeExportResult:
