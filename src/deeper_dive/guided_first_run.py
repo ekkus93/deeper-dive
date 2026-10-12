@@ -557,9 +557,15 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
     def action_save_speech(self) -> bool:
         choice = self._select_value("#setup-speech-choice") or "kitten"
         if choice == "deferred":
-            self.settings.set_defaults(
-                {"speech_setup": "deferred", "tts_provider": "", "tts_voice": ""}
-            )
+            try:
+                self.settings.set_defaults(
+                    {"speech_setup": "deferred", "tts_provider": "", "tts_voice": ""}
+                )
+            except (KeyError, OSError, RuntimeError, ValueError) as exc:
+                # Deferred speech uses the same loss-safe, sanitized save
+                # contract as configured speech providers and other steps.
+                self.set_error("Speech configuration failed.", exc)
+                return False
             self._tts_provider_name = None
             self._sync_text()
             self._remember_current_form()
