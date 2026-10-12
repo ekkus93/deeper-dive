@@ -517,7 +517,11 @@ async def _guided_hosts_reorder_edit_and_restart(tmp_path: Path) -> None:
         assert any((service.workspaces.data_dir / "voice-previews").iterdir())
 
         screen.query_one("#guided-host-name", Input).value = "Custom Evidence Host"
-        screen.action_create_host()
+        # Creating a new host now confirms how to handle edits to the selected
+        # existing profile before replacing the form with a new host.
+        assert not screen.action_create_host()
+        assert screen.query_one("#wizard-exit-confirmation").display
+        screen.action_confirm_save_exit()
         assert any(
             host.display_name == "Custom Evidence Host"
             for host in service.hosts(project_id).list_hosts(project_id)
@@ -539,7 +543,7 @@ async def _guided_hosts_reorder_edit_and_restart(tmp_path: Path) -> None:
         assert wizard.context.project_id == project_id
         assert wizard.context.episode_id == episode_id
         assert wizard._selected_host_ids == [original_ids[1], original_ids[0]]
-        assert "Reordered Evidence Host" in str(
+        assert "Custom Evidence Host" in str(
             wizard.query_one("#guided-host-order", Static).render()
         )
 

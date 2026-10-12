@@ -86,7 +86,5 @@ async def _check_voice_discovery(tmp_path: Path) -> None:
             await pilot.pause()
             assert first.value == Select.BLANK
             assert second.value == "beta"
-            assert "Choose replacement" in str(
-                wizard.query_one("#wizard-status", Static).render()
-            )
+            assert "Choose replacement" in str(wizard.query_one("#wizard-status", Static).render())
             assert wizard._current_form_dirty()
