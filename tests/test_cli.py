@@ -347,9 +347,9 @@ def test_missing_child_record_does_not_echo_untrusted_id(
 ) -> None:
     project = _create_project(tmp_path, capsys)
     project_id = str(project["id"])
-    assert main(
-        ["--data-dir", str(tmp_path), *command, project_id, _MISSING_IDENTIFIER_CANARY]
-    ) == 2
+    assert (
+        main(["--data-dir", str(tmp_path), *command, project_id, _MISSING_IDENTIFIER_CANARY]) == 2
+    )
     captured = capsys.readouterr()
     assert captured.out == ""
     assert expected in captured.err
