@@ -265,6 +265,33 @@ class UserConfigConflictError(UserConfigError):
     """Raised instead of silently overwriting a config changed by another writer."""
 
 
+def _validation_error_locations(error: ValidationError) -> str:
+    """Preserve actionable field names, never arbitrary mapping keys in diagnostics.
+
+    Pydantic loc tuples for provider maps contain user-controlled provider IDs.
+    Unknown top-level/provider fields can also carry arbitrary text. Neither is
+    safe to embed unmodified in CLI/TUI-visible configuration errors.
+    """
+    locations: list[str] = []
+    for item in error.errors(include_input=False, include_url=False):
+        location = item["loc"]
+        if not location:
+            locations.append("configuration")
+        elif location[0] == "providers":
+            path = "providers"
+            if len(location) > 1:
+                path += ".<provider>"
+            if len(location) > 2:
+                field = location[2]
+                path += f".{field}" if field in ProviderConfig.model_fields else ".field"
+            locations.append(path)
+        elif location[0] in {"schema_version", "defaults"}:
+            locations.append(str(location[0]))
+        else:
+            locations.append("configuration")
+    return ", ".join(locations) or "configuration"
+
+
 class UserConfigStore:
     """JSON-backed user config with atomic publication and stale-writer detection.
 
@@ -299,10 +326,7 @@ class UserConfigStore:
         except ValidationError as exc:
             # Pydantic normally includes input_value, which may contain a raw secret.
             # Only return error locations and types, never the submitted values.
-            location = ", ".join(
-                ".".join(map(str, err["loc"])) or "configuration"
-                for err in exc.errors(include_input=False, include_url=False)
-            )
+            location = _validation_error_locations(exc)
             raise UserConfigError(
                 f"invalid user configuration at {self.path}: check {location}"
             ) from None
@@ -318,10 +342,7 @@ class UserConfigStore:
                 context={"legacy_model_role_defaults": dict(config._legacy_model_role_defaults)},
             )
         except ValidationError as exc:
-            location = ", ".join(
-                ".".join(map(str, err["loc"])) or "configuration"
-                for err in exc.errors(include_input=False, include_url=False)
-            )
+            location = _validation_error_locations(exc)
             raise UserConfigError(f"invalid user configuration: check {location}") from None
 
     def save(self, config: UserConfig) -> None:

@@ -587,3 +587,66 @@ def test_colon_fragment_in_nested_encoded_redirect_is_redacted_in_bundle(tmp_pat
 def test_benign_colon_fragment_is_preserved_in_diagnostics() -> None:
     url = "https://example.test/docs#section%3Aoverview"
     assert redact(f"GET {url} status=200") == f"GET {url} status=200"
+
+
+@pytest.mark.parametrize("entry_point", ["load", "save", "provider-controller"])
+def test_config_validation_error_locations_never_echo_provider_mapping_keys(
+    tmp_path, entry_point: str
+) -> None:
+    import json
+
+    store = UserConfigStore(tmp_path / "config.json")
+    store.save(UserConfig(defaults={"research_policy": "off"}))
+    original_bytes = store.path.read_bytes()
+    untrusted_provider = "https://provider.example.test/#access_token=provider-key-canary"
+    malformed_url = "https://provider.example.test/v1#token=invalid-url-canary"
+
+    if entry_point == "load":
+        store.path.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "providers": {
+                        untrusted_provider: {"provider_type": "openai", "base_url": malformed_url}
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        with pytest.raises(UserConfigError, match="providers") as error:
+            store.load()
+    else:
+        candidate = store.load()
+        candidate.providers[untrusted_provider] = ProviderConfig(provider_type="fake")
+        candidate.providers[untrusted_provider].base_url = malformed_url
+        with pytest.raises(UserConfigError, match="providers") as error:
+            if entry_point == "save":
+                store.save(candidate)
+            else:
+                ProviderController(store, LLMProviderRegistry(), {})._commit_candidate(candidate)
+        assert store.path.read_bytes() == original_bytes
+
+    assert "provider-key-canary" not in str(error.value)
+    assert "invalid-url-canary" not in str(error.value)
+    assert "base_url" in str(error.value)
+
+
+@pytest.mark.parametrize("field", ["top-level", "provider-field"])
+def test_invalid_config_unknown_field_names_are_not_echoed(
+    tmp_path, field: str
+) -> None:
+    import json
+
+    canary = "untrusted-schema-field-CANARY"
+    config: dict[str, object] = {"schema_version": 1, "providers": {}}
+    if field == "top-level":
+        config[canary] = "invalid"
+    else:
+        config["providers"] = {
+            "fixture-provider": {"provider_type": "fake", canary: "invalid"}
+        }
+    store = UserConfigStore(tmp_path / "config.json")
+    store.path.write_text(json.dumps(config), encoding="utf-8")
+    with pytest.raises(UserConfigError, match="invalid user configuration") as error:
+        store.load()
+    assert canary not in str(error.value)
