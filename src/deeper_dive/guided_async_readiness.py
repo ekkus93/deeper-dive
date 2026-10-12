@@ -183,7 +183,7 @@ class FirstRunReadinessCoordinator:
                 return False
         try:
             fingerprint = self._fingerprint_provider()
-        except (OSError, RuntimeError, ValueError) as exc:
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
             self._fingerprint_failed(exc, callback)
             return False
         rejected = False
@@ -391,7 +391,7 @@ class FirstRunReadinessCoordinator:
         try:
             current_fingerprint = self._fingerprint_provider()
             fingerprint_error = None
-        except (OSError, RuntimeError, ValueError) as exc:
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
             current_fingerprint = None
             fingerprint_error = sanitize_exception_message(exc)
         with self._lock:
