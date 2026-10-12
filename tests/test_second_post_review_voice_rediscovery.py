@@ -89,7 +89,9 @@ async def _check_voice_discovery(tmp_path: Path) -> None:
                 await pilot.pause()
             assert (first.value, second.value) == ("alpha", "beta")
             assert not wizard._current_form_dirty()
-            assert "Voice discovery failed" in str(wizard.query_one("#wizard-status", Static).render())
+            assert "Voice discovery failed" in str(
+                wizard.query_one("#wizard-status", Static).render()
+            )
             assert "voice-discovery-canary" not in str(
                 wizard.query_one("#wizard-status", Static).render()
             )
