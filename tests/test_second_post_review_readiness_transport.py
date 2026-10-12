@@ -99,9 +99,7 @@ def test_readiness_probe_never_publishes_or_persists_timeout_change(tmp_path: Pa
     assert (tmp_path / "config.json").read_bytes() == original_bytes
 
 
-@pytest.mark.parametrize(
-    "deadline", [0.0, -1.0, float("nan"), float("inf"), -float("inf")]
-)
+@pytest.mark.parametrize("deadline", [0.0, -1.0, float("nan"), float("inf"), -float("inf")])
 def test_probe_timeout_must_be_finite_and_positive(deadline: float) -> None:
     factory = ProviderFactory()
     with pytest.raises(ValueError, match="probe timeout must be finite and positive"):
