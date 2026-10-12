@@ -236,7 +236,7 @@ class ProviderController:
     def tts(self, name: str) -> TTSProvider:
         try:
             return self.tts_providers[name]
-        except KeyError as exc:
+        except KeyError:
             raise KeyError("unknown TTS provider") from None
 
     def health(self, name: str) -> object:
