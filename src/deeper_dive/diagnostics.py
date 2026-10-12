@@ -113,6 +113,14 @@ def _redact_url_fragment(match: re.Match[str]) -> str:
             pairs = []
         if any(key.lower() in _SENSITIVE_URL_KEYS or _is_secret_key(key) for key, _ in pairs):
             return f"{match.group(1)}#[REDACTED]"
+        # SDK diagnostics sometimes render fragment assignments as key:value.
+        # Only treat a colon as a credential separator for known sensitive keys;
+        # preserve benign anchors such as #section:overview.
+        if any(
+            ":" in part and is_sensitive_url_query_key(part.partition(":")[0])
+            for part in re.split(r"[&;]", fragment)
+        ):
+            return f"{match.group(1)}#[REDACTED]"
         decoded = unquote_plus(fragment)
         if decoded == fragment:
             break

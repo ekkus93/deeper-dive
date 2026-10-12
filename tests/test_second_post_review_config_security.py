@@ -546,3 +546,44 @@ def test_benign_semicolon_query_preserved() -> None:
     endpoint = "https://example.test/docs?filter=kind;type&section=overview"
     assert ProviderConfig(provider_type="openai", base_url=endpoint).base_url == endpoint
     assert redact(f"GET {endpoint} status=200") == f"GET {endpoint} status=200"
+
+
+@pytest.mark.parametrize(
+    "fragment",
+    [
+        "api%5Fkey:colon-fragment-canary",
+        "api%255Fkey%3Acolon-fragment-canary",
+        "session.Token%3Acolon-fragment-canary",
+        "safe=1;api%255Fkey%3Acolon-fragment-canary",
+    ],
+)
+def test_encoded_colon_credential_fragments_are_redacted(fragment: str) -> None:
+    url = f"https://example.test/v1#{fragment}"
+    sanitized = str(redact(f"GET {url} status=401"))
+    assert "colon-fragment-canary" not in sanitized
+    assert "#[REDACTED]" in sanitized
+    assert "status=401" in sanitized
+
+    with pytest.raises(ValueError, match="fragments") as error:
+        ProviderConfig(provider_type="openai", base_url=url)
+    assert "colon-fragment-canary" not in str(error.value)
+
+
+def test_colon_fragment_in_nested_encoded_redirect_is_redacted_in_bundle(tmp_path) -> None:
+    nested = (
+        "https://example.test/v1?redirect="
+        "https%3A%2F%2Fother.example%2F%23api%255Fkey%3Aredirect-colon-canary"
+        "&section=overview"
+    )
+    payload = export_diagnostic_bundle(
+        tmp_path / "colon-fragment.json",
+        provider_diagnostics={"request": nested},
+    ).read_text(encoding="utf-8")
+    assert "redirect-colon-canary" not in payload
+    assert "[REDACTED]" in payload
+    assert "section=overview" in payload
+
+
+def test_benign_colon_fragment_is_preserved_in_diagnostics() -> None:
+    url = "https://example.test/docs#section%3Aoverview"
+    assert redact(f"GET {url} status=200") == f"GET {url} status=200"

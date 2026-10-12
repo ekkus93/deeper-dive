@@ -516,7 +516,6 @@ def test_full_worker_budget_without_callbacks_does_not_start_orphan_timer() -> N
         coordinator.close()
 
 
-
 def test_closed_readiness_never_reloads_configuration_for_request_or_late_result() -> None:
     """Close invalidates queued results without another disk-backed config read."""
     app = _RecordingApp()
