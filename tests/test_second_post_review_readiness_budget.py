@@ -514,3 +514,39 @@ def test_full_worker_budget_without_callbacks_does_not_start_orphan_timer() -> N
     finally:
         release.set()
         coordinator.close()
+
+
+
+def test_closed_readiness_never_reloads_configuration_for_request_or_late_result() -> None:
+    """Close invalidates queued results without another disk-backed config read."""
+    app = _RecordingApp()
+    reads: list[str] = []
+    callbacks: list[str] = []
+
+    def fingerprint() -> str:
+        reads.append("configuration read")
+        return "initial-config"
+
+    coordinator = FirstRunReadinessCoordinator(
+        _context(),
+        probe=_snapshot,
+        fingerprint=fingerprint,
+        timeout_seconds=5,
+        max_workers=1,
+    )
+    try:
+        assert coordinator.request(app, lambda: callbacks.append("initial"))
+        queued = app.messages.get(timeout=3)
+        assert isinstance(queued, FirstRunReadinessDispatch)
+        assert reads == ["configuration read"]
+
+        coordinator.close()
+        closed_view = coordinator.view
+        queued.run()
+        assert not coordinator.request(app, lambda: callbacks.append("after close"))
+        assert coordinator.view == closed_view
+        assert reads == ["configuration read"]
+        assert callbacks == []
+        assert coordinator.timeout_timer_count == 0
+    finally:
+        coordinator.close()

@@ -176,6 +176,11 @@ class FirstRunReadinessCoordinator:
         app: ThreadDispatchApp,
         callback: Callable[[], object] | None = None,
     ) -> bool:
+        # Once the screen/app has closed, do not read mutable or disk-backed
+        # configuration merely to reject another readiness request.
+        with self._lock:
+            if self._closed:
+                return False
         try:
             fingerprint = self._fingerprint_provider()
         except (OSError, RuntimeError, ValueError) as exc:
@@ -373,6 +378,13 @@ class FirstRunReadinessCoordinator:
         snapshot: FirstRunRuntimeSnapshot | None,
         message: str | None,
     ) -> None:
+        # A late provider result is inert after shutdown: avoid another
+        # disk-backed configuration read on an already-closed coordinator.
+        # Check without holding the lock while invoking the fingerprint; the
+        # subsequent locked generation check still rejects concurrent close.
+        with self._lock:
+            if self._closed:
+                return
         # Configuration may have changed or become invalid while the worker
         # probed. Never call disk-backed fingerprint functions under our lock
         # or leave a "checking" view behind after cancelling its deadline.
