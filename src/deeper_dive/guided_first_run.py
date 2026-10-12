@@ -287,7 +287,17 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
 
     def action_continue(self) -> bool:
         step = self.context.state.current_step
-        if step == "model-test":
+        # A pending role edit must reach the shared Save/Discard/Cancel guard
+        # before the synthetic-test prerequisite is checked. Otherwise Continue
+        # silently rejects the request and leaves unsaved fields unprotected.
+        # After explicit save/discard, the pending transition re-enters this
+        # method and checks the prerequisite against the durable form.
+        if (
+            step == "model-test"
+            and not self.busy
+            and not self._exit_confirmation_pending
+            and not self._current_form_dirty()
+        ):
             identity = self._current_llm_identity()
             if identity is None or self._model_test_identity != identity:
                 self.set_status("Run the synthetic model test successfully before continuing.")
