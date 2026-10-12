@@ -289,6 +289,9 @@ async def _guided_mixed_host_save_exit_is_single_shot_and_project_isolated(tmp_p
         primary.id,
         EpisodeConfiguration(title="Primary", host_ids=("first", "second")),
     )
+    sibling_episode = primary_configs.create(
+        primary.id, EpisodeConfiguration(title="Sibling", host_ids=("first", "second"))
+    )
     other_episode = unrelated_configs.create(
         unrelated.id,
         EpisodeConfiguration(title="Other", host_ids=("first", "second")),
@@ -325,6 +328,9 @@ async def _guided_mixed_host_save_exit_is_single_shot_and_project_isolated(tmp_p
             "first",
         )
         assert wizard.save_exit_requested
+        assert primary_configs.load_configuration(sibling_episode.id).host_ids == (
+            "first", "second"
+        )
         assert unrelated_configs.load_configuration(other_episode.id).host_ids == (
             "first",
             "second",
