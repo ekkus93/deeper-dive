@@ -269,7 +269,9 @@ async def _guided_partial_profile_save_preserves_order(
 def test_guided_mixed_host_save_exit_is_single_shot_and_project_isolated(
     tmp_path, transition: str
 ) -> None:
-    asyncio.run(_guided_mixed_host_save_exit_is_single_shot_and_project_isolated(tmp_path, transition))
+    asyncio.run(
+        _guided_mixed_host_save_exit_is_single_shot_and_project_isolated(tmp_path, transition)
+    )
 
 
 async def _guided_mixed_host_save_exit_is_single_shot_and_project_isolated(
