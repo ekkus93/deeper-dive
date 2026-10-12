@@ -79,6 +79,22 @@ async def _check_voice_discovery(tmp_path: Path) -> None:
             assert (first.value, second.value) == ("alpha", "beta")
             assert not wizard._current_form_dirty()
 
+            # Discovery failure must retain both choices, their clean durable
+            # baseline and a sanitized actionable error.
+            def fail_discovery() -> None:
+                raise OSError("Authorization: Bearer voice-discovery-canary")
+
+            with patch.object(fake, "voices", side_effect=fail_discovery):
+                wizard.action_discover_voices()
+                await pilot.pause()
+            assert (first.value, second.value) == ("alpha", "beta")
+            assert not wizard._current_form_dirty()
+            assert "Voice discovery failed" in str(wizard.query_one("#wizard-status", Static).render())
+            assert "voice-discovery-canary" not in str(
+                wizard.query_one("#wizard-status", Static).render()
+            )
+            assert "voice-discovery-canary" not in (wizard._error_details or "")
+
             # A provider removing a selected voice is actionable, never silent
             # reassignment to an arbitrary new voice.
             voices[:] = ["beta", "gamma"]
