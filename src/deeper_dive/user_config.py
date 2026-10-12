@@ -26,6 +26,7 @@ from pydantic import (
 
 from deeper_dive.diagnostics import is_sensitive_url_query_key
 from deeper_dive.hosts import preset_names
+from deeper_dive.openai_compatible_tts import SUPPORTED_RESPONSE_FORMATS
 from deeper_dive.research_policy import ResearchMode
 
 try:
@@ -78,6 +79,14 @@ class ProviderConfig(BaseModel):
     response_format: str = "wav"
     timeout_seconds: float = Field(default=60.0, gt=0, le=600)
     network_scope: Literal["local", "remote"] | None = None
+
+    @field_validator("response_format")
+    @classmethod
+    def validate_response_format(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if normalized not in SUPPORTED_RESPONSE_FORMATS:
+            raise ValueError("response_format must be a supported audio format")
+        return normalized
 
     @field_validator("credential_env")
     @classmethod

@@ -26,6 +26,7 @@ _MEDIA_TYPES = {
     "pcm": "audio/pcm",
     "wav": "audio/wav",
 }
+SUPPORTED_RESPONSE_FORMATS = frozenset(_MEDIA_TYPES)
 
 
 def _request_binary(
@@ -75,7 +76,7 @@ class OpenAICompatibleTTSProvider:
         if not voices or any(not voice for voice in voices):
             raise ValueError("at least one non-empty voice is required")
         if response_format.lower() not in _MEDIA_TYPES:
-            raise ValueError(f"unsupported response format: {response_format}")
+            raise ValueError("unsupported response format")
         if timeout <= 0:
             raise ValueError("timeout must be positive")
         self._provider_id = provider_id
@@ -107,7 +108,7 @@ class OpenAICompatibleTTSProvider:
             raise ValueError(f"unknown compatible TTS voice: {request.voice}")
         response_format = (request.response_format or self._response_format).lower()
         if response_format not in _MEDIA_TYPES:
-            raise ValueError(f"unsupported response format: {response_format}")
+            raise ValueError("unsupported response format")
         model = request.model or self._model
         payload: dict[str, object] = {
             "model": model,

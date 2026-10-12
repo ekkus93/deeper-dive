@@ -106,3 +106,28 @@ def test_compatible_tts_rejects_invalid_config_and_provider_deviations() -> None
         provider.synthesize(TTSRequest("Hi", "v"))
     with pytest.raises(ValueError, match="voice"):
         provider.synthesize(TTSRequest("Hi", "missing"))
+
+@pytest.mark.parametrize("boundary", ["configuration", "synthesis"])
+def test_compatible_tts_invalid_format_does_not_echo_untrusted_input(
+    boundary: str,
+) -> None:
+    canary = "arbitrary-format-canary"
+    if boundary == "configuration":
+        with pytest.raises(ValueError, match="unsupported response format") as error:
+            OpenAICompatibleTTSProvider(
+                provider_id="x",
+                base_url="http://localhost",
+                model="m",
+                voices=("v",),
+                response_format=canary,
+            )
+    else:
+        provider = OpenAICompatibleTTSProvider(
+            provider_id="x",
+            base_url="http://localhost",
+            model="m",
+            voices=("v",),
+        )
+        with pytest.raises(ValueError, match="unsupported response format") as error:
+            provider.synthesize(TTSRequest("Hi", "v", response_format=canary))
+    assert canary not in str(error.value)

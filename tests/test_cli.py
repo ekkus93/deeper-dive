@@ -281,6 +281,32 @@ def test_cli_bootstrap_invalid_configuration_reports_sanitized_error(
     assert "Traceback" not in captured.err
 
 
+def test_cli_bootstrap_invalid_provider_response_format_is_sanitized(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    canary = "cli-response-format-canary"
+    (tmp_path / "config.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "providers": {
+                    "speech": {
+                        "provider_type": "openai-compatible-tts",
+                        "response_format": canary,
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert main(["--data-dir", str(tmp_path), "project", "list"]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "response_format" in captured.err
+    assert canary not in captured.err
+    assert "Traceback" not in captured.err
+
+
 def test_cli_bootstrap_failure_sanitizes_chained_provider_errors(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

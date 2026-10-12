@@ -646,3 +646,61 @@ def test_invalid_config_unknown_field_names_are_not_echoed(tmp_path, field: str)
     with pytest.raises(UserConfigError, match="invalid user configuration") as error:
         store.load()
     assert canary not in str(error.value)
+
+@pytest.mark.parametrize("valid", ["wav", " WAV ", "Mp3", "flac", "aac", "opus", "pcm"])
+def test_provider_response_format_matches_runtime_supported_formats(valid: str) -> None:
+    provider = ProviderConfig(
+        provider_type="openai-compatible-tts", response_format=valid
+    )
+    assert provider.response_format == valid.strip().lower()
+
+
+@pytest.mark.parametrize("mutation_path", ["store", "provider-controller"])
+def test_invalid_provider_response_format_rejected_before_persistence(
+    tmp_path, mutation_path: str
+) -> None:
+    store = UserConfigStore(tmp_path / "config.json")
+    store.save(
+        UserConfig(
+            providers={
+                "speech": ProviderConfig(
+                    provider_type="openai-compatible-tts", response_format="wav"
+                )
+            }
+        )
+    )
+    original = store.path.read_bytes()
+    candidate = store.load()
+    canary = "format-canary-never-store"
+    candidate.providers["speech"].response_format = canary
+    with pytest.raises(UserConfigError, match="response_format") as error:
+        if mutation_path == "store":
+            store.save(candidate)
+        else:
+            ProviderController(store, LLMProviderRegistry(), {})._commit_candidate(candidate)
+    assert canary not in str(error.value)
+    assert store.path.read_bytes() == original
+
+
+def test_provider_response_format_rejected_on_load_without_echo(tmp_path) -> None:
+    import json
+
+    store = UserConfigStore(tmp_path / "config.json")
+    canary = "invalid-response-format-canary"
+    store.path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "providers": {
+                    "speech": {
+                        "provider_type": "openai-compatible-tts",
+                        "response_format": canary,
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(UserConfigError, match="response_format") as error:
+        store.load()
+    assert canary not in str(error.value)
