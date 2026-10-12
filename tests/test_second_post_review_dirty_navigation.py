@@ -1311,3 +1311,73 @@ async def _completed_episode_edit_requires_new_episode(tmp_path: Path) -> None:
         saved_episode = repository.get_episode(episode_id)
         assert saved_episode is not None and saved_episode.state == "completed"
         assert repository.get_plan(episode_id) == before_plan
+
+
+@pytest.mark.parametrize("first_run", (True, False))
+def test_escape_dirty_confirmation_cancels_transition_without_losing_edits(
+    tmp_path: Path, first_run: bool
+) -> None:
+    asyncio.run(_escape_dirty_confirmation_cancels_transition(tmp_path, first_run))
+
+
+async def _escape_dirty_confirmation_cancels_transition(
+    tmp_path: Path, first_run: bool
+) -> None:
+    """Keyboard Escape cancels a dirty confirmation, never silently discards."""
+    if first_run:
+        service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    else:
+        service, project_id, episode_id, _hosts = _episode_fixture(tmp_path)
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        if first_run:
+            await pilot.pause()
+            wizard = app.screen
+            assert isinstance(wizard, GuidedFirstRunWizard)
+            wizard.context.state = WizardState(WizardKind.FIRST_RUN, "provider-config")
+            wizard._sync_text()
+            wizard._sync_setup_controls()
+            selector = "#setup-provider-name"
+        else:
+            app.action_navigate("new")
+            await pilot.pause()
+            wizard = app.screen
+            assert isinstance(wizard, GuidedEpisodeWizard)
+            wizard.context.project_id = project_id
+            wizard.context.episode_id = episode_id
+            wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "episode")
+            wizard._load_episode_host_order()
+            wizard._load_episode_form()
+            wizard._toggle()
+            selector = "#guided-episode-title"
+
+        wizard._remember_current_form()
+        input_widget = wizard.query_one(selector, Input)
+        input_widget.value = "Pending Escape edit"
+        assert wizard._current_form_dirty()
+        assert wizard.action_back() is False
+        await pilot.pause()
+        assert wizard.query_one("#wizard-exit-confirmation").display
+        assert wizard.focused is wizard.query_one("#wizard-confirm-cancel")
+
+        await pilot.press("escape")
+        await pilot.pause()
+
+        assert app.screen is wizard
+        assert not wizard.query_one("#wizard-exit-confirmation").display
+        assert input_widget.value == "Pending Escape edit"
+        assert wizard._current_form_dirty()
+        if first_run:
+            assert wizard.context.state.current_step == "provider-config"
+        else:
+            assert wizard.context.state.current_step == "episode"
+            config = EpisodeConfigurationService(
+                app.composition.database_for_project(project_id)
+            ).load_configuration(episode_id)
+            assert config.title == "Durable title"
+
+        await pilot.press("escape")
+        await pilot.pause()
+        assert wizard.query_one("#wizard-exit-confirmation").display
+        assert input_widget.value == "Pending Escape edit"
+        wizard.action_cancel_exit_confirmation()
