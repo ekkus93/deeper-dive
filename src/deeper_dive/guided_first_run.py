@@ -362,6 +362,9 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
                 self._apply_speech_choice_defaults(force=True)
 
     def _execute_custom_transition(self, transition: str) -> None:
+        if transition == "discover-voices":
+            self.action_discover_voices()
+            return
         if transition == "discover-models":
             self.action_discover_models()
             return
@@ -624,6 +627,13 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         return True
 
     def action_discover_voices(self) -> None:
+        if self.busy or self._exit_confirmation_pending:
+            return
+        if self.context.state.current_step == "voice-defaults" and self._current_form_dirty():
+            # A discovery refresh replaces Select options. The user must decide
+            # what happens to unsaved voice/duration/research defaults first.
+            self._request_dirty_transition("discover-voices")
+            return
         name = self._selected_tts_name()
         if name is None:
             self.set_status("Configure a speech provider before discovering voices.")
@@ -633,16 +643,33 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
             self.set_error("Voice discovery failed.", exc)
             return
+
+        selectors = ("#setup-host1-voice", "#setup-host2-voice")
+        previous = tuple(self._select_value(selector) for selector in selectors)
         self._voice_options = tuple((voice.name, voice.id) for voice in voices)
-        for selector in ("#setup-host1-voice", "#setup-host2-voice"):
+        available = {voice.id for voice in voices}
+        vanished = []
+        for index, selector in enumerate(selectors):
             widget = self.query_one(selector, Select)
             widget.set_options(self._voice_options)
-        if voices:
-            self.query_one("#setup-host1-voice", Select).value = voices[0].id
-            self.query_one("#setup-host2-voice", Select).value = (
-                voices[1].id if len(voices) > 1 else voices[0].id
+            selected = previous[index]
+            if selected in available:
+                # Discovery order may change: retain stable saved voice IDs.
+                widget.value = selected
+            elif selected:
+                # A removed voice must not silently become another voice.
+                widget.value = Select.BLANK
+                vanished.append(f"Host {index + 1}")
+            elif voices:
+                widget.value = voices[min(index, len(voices) - 1)].id
+        if vanished:
+            self.set_status(
+                "Voice selection no longer available for "
+                + ", ".join(vanished)
+                + ". Choose replacement voice(s) and save defaults."
             )
-        self.set_status(f"Discovered {len(voices)} friendly voice option(s) from {name}.")
+        else:
+            self.set_status(f"Discovered {len(voices)} friendly voice option(s) from {name}.")
 
     def action_preview_voice(self) -> None:
         name = self._selected_tts_name()

@@ -342,6 +342,7 @@ class WizardShell(Screen[None]):
             "continue": "continue",
             "plan-build": "build the plan",
             "discover-models": "discover models",
+            "discover-voices": "discover voices",
             "create-host": "create a host",
             "plan-regenerate": "regenerate the plan",
             "plan-regenerate-segment": "regenerate the selected segment",
@@ -528,6 +529,10 @@ class WizardShell(Screen[None]):
             "create-host": (
                 "Save host then create a new host",
                 "Discard edits then create a new host",
+            ),
+            "discover-voices": (
+                "Save defaults then discover voices",
+                "Discard edits then discover voices",
             ),
             "plan-regenerate": (
                 "Save segment then regenerate plan",
