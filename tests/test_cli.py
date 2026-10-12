@@ -305,3 +305,95 @@ def test_cli_bootstrap_failure_sanitizes_chained_provider_errors(
     assert "[REDACTED]" in captured.err
     assert secret not in captured.err
     assert "Traceback" not in captured.err
+
+
+_MISSING_IDENTIFIER_CANARY = "private-caller-identifier-CANARY-987654321"
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        ["project", "info", _MISSING_IDENTIFIER_CANARY],
+        ["source", "list", _MISSING_IDENTIFIER_CANARY],
+        ["research", "gaps", _MISSING_IDENTIFIER_CANARY],
+        ["host", "list", _MISSING_IDENTIFIER_CANARY],
+        ["episode", "list", _MISSING_IDENTIFIER_CANARY],
+    ],
+)
+def test_missing_project_does_not_echo_untrusted_id(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], command: list[str]
+) -> None:
+    assert main(["--data-dir", str(tmp_path), *command]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "project not found" in captured.err
+    assert _MISSING_IDENTIFIER_CANARY not in captured.err
+    assert "Traceback" not in captured.err
+
+
+@pytest.mark.parametrize(
+    ("command", "expected"),
+    [
+        (["source", "show"], "source not found"),
+        (["host", "edit"], "host not found"),
+        (["episode", "show"], "episode not found"),
+    ],
+)
+def test_missing_child_record_does_not_echo_untrusted_id(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    command: list[str],
+    expected: str,
+) -> None:
+    project = _create_project(tmp_path, capsys)
+    project_id = str(project["id"])
+    assert main(
+        ["--data-dir", str(tmp_path), *command, project_id, _MISSING_IDENTIFIER_CANARY]
+    ) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert expected in captured.err
+    assert _MISSING_IDENTIFIER_CANARY not in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_missing_generation_run_has_stable_error(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    project = _create_project(tmp_path, capsys)
+    project_id = str(project["id"])
+    assert (
+        main(
+            [
+                "--data-dir",
+                str(tmp_path),
+                "--json",
+                "episode",
+                "create",
+                project_id,
+                "--title",
+                "Episode",
+            ]
+        )
+        == 0
+    )
+    episode_id = str(json.loads(capsys.readouterr().out)["id"])
+    assert main(["--data-dir", str(tmp_path), "episode", "pause", project_id, episode_id]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "no generation run for episode" in captured.err
+    assert episode_id not in captured.err
+
+
+@pytest.mark.parametrize("method", ["edit", "load_configuration"])
+def test_episode_service_missing_record_never_echoes_id(tmp_path: Path, method: str) -> None:
+    from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
+    from deeper_dive.storage.database import Database
+
+    service = EpisodeConfigurationService(Database(tmp_path / "project.db"))
+    with pytest.raises(KeyError, match="episode not found") as exc:
+        if method == "edit":
+            service.edit(_MISSING_IDENTIFIER_CANARY, EpisodeConfiguration(title="Demo"))
+        else:
+            service.load_configuration(_MISSING_IDENTIFIER_CANARY)
+    assert _MISSING_IDENTIFIER_CANARY not in str(exc.value)
