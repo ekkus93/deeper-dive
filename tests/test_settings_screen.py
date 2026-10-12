@@ -312,3 +312,52 @@ async def _settings_screen_rejected_voice_preserves_typed_value(tmp_path: Path) 
         assert "tts_voice references a voice" in status
         assert rejected_canary not in status
         assert controller.config_store.path.read_bytes() == original_bytes
+
+
+@pytest.mark.parametrize(
+    "rejected_role",
+    ("secret-role-canary", "https://example.test/#access_token=role-canary"),
+)
+def test_invalid_model_role_never_echoes_untrusted_input(
+    tmp_path: Path, rejected_role: str
+) -> None:
+    controller = SettingsController(_provider_controller(tmp_path))
+    durable = controller.provider_controller.config_store.path.read_bytes()
+
+    with pytest.raises(ValueError, match="model role must be a supported role") as error:
+        controller.save_model_default(rejected_role, "planner:model-a")
+
+    assert rejected_role not in str(error.value)
+    assert "role-canary" not in str(error.value)
+    assert controller.provider_controller.config_store.path.read_bytes() == durable
+
+
+def test_settings_screen_invalid_model_role_does_not_leak_identifier(tmp_path: Path) -> None:
+    asyncio.run(_settings_screen_invalid_model_role_does_not_leak_identifier(tmp_path))
+
+
+async def _settings_screen_invalid_model_role_does_not_leak_identifier(
+    tmp_path: Path,
+) -> None:
+    provider = _provider_controller(tmp_path)
+    durable = provider.config_store.path.read_bytes()
+    app = DeeperDiveApp(
+        DeeperDiveService(WorkspaceManager(tmp_path / "data")),
+        provider_controller=provider,
+    )
+    rejected = "invalid-model-role-canary"
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.action_navigate("settings")
+        await pilot.pause()
+        screen = app.screen
+        assert isinstance(screen, SettingsScreen)
+        screen.query_one("#model-role", Input).value = rejected
+        screen.query_one("#model-assignment", Input).value = "planner:model-a"
+        screen.action_save_model_default()
+        await pilot.pause()
+
+        status = str(screen.query_one("#screen-status", Static).render())
+        assert "model role must be a supported role" in status
+        assert rejected not in status
+        assert screen.query_one("#model-role", Input).value == rejected
+        assert provider.config_store.path.read_bytes() == durable

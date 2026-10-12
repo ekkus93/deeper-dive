@@ -52,7 +52,12 @@ class SettingsController:
         self.set_defaults({key: value})
 
     def save_model_default(self, role: str, provider_model: str) -> None:
-        role_key = ModelRole(role.strip()).value
+        try:
+            role_key = ModelRole(role.strip()).value
+        except ValueError:
+            # Enum conversion includes the submitted value in its default error.
+            # Settings errors reach the TUI; never echo untrusted identifiers.
+            raise ValueError("model role must be a supported role") from None
         if provider_model.strip() and ":" not in provider_model:
             raise ValueError("model default must use provider:model")
         self.set_default(role_key, provider_model)
