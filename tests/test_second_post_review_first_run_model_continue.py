@@ -22,9 +22,7 @@ def test_model_role_continue_guards_unsaved_input_before_test_prerequisite(
     synthetic_test_passed: bool,
 ) -> None:
     asyncio.run(
-        _model_role_continue_guards_unsaved_input(
-            tmp_path, monkeypatch, synthetic_test_passed
-        )
+        _model_role_continue_guards_unsaved_input(tmp_path, monkeypatch, synthetic_test_passed)
     )
 
 
