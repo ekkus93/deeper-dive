@@ -21,7 +21,9 @@ def test_completed_episode_tui_edit_requires_new_episode_without_mutating_artifa
     second_post_review_acceptance: Callable[[], Any],
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    asyncio.run(_completed_episode_tui_edit_requires_new_episode(second_post_review_acceptance, capsys))
+    asyncio.run(
+        _completed_episode_tui_edit_requires_new_episode(second_post_review_acceptance, capsys)
+    )
 
 
 async def _completed_episode_tui_edit_requires_new_episode(
@@ -42,7 +44,9 @@ async def _completed_episode_tui_edit_requires_new_episode(
     original_plan = repository.get_plan(first.episode_id)
     original_run = service.runs(first.project_id).get(first.run_id)
     original_other = other_repository.get_episode(second.episode_id)
-    assert original_episode is not None and original_episode.state == "completed"
+    # Run state is canonical historical evidence: the episode configuration
+    # row may still say "draft" even after a completed run exists.
+    assert original_episode is not None
     assert original_plan is not None
     assert original_run is not None and original_run.state == "completed"
     assert original_other is not None
@@ -78,18 +82,21 @@ async def _completed_episode_tui_edit_requires_new_episode(
 
     # The shared CLI service must reject the same edit and leave the durable
     # completed-episode identity untouched.
-    assert main(
-        [
-            "--data-dir",
-            str(service.workspaces.data_dir),
-            "episode",
-            "configure",
-            first.project_id,
-            first.episode_id,
-            "--title",
-            "Must create a separate CLI episode",
-        ]
-    ) == 2
+    assert (
+        main(
+            [
+                "--data-dir",
+                str(service.workspaces.data_dir),
+                "episode",
+                "configure",
+                first.project_id,
+                first.episode_id,
+                "--title",
+                "Must create a separate CLI episode",
+            ]
+        )
+        == 2
+    )
     captured = capsys.readouterr()
     assert "create a new episode" in captured.err
     assert "Must create a separate CLI episode" not in captured.err
