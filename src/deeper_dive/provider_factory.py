@@ -286,7 +286,7 @@ class ProviderFactory:
             # Preserve the documented fallback name but never echo custom input.
             if config.credential_env:
                 raise ProviderConfigurationError(
-                    f"provider type {kind!r} requires the configured credential environment variable"
+                    f"provider type {kind!r} requires configured credential environment variable"
                 )
             raise ProviderConfigurationError(
                 f"provider type {kind!r} requires credential environment variable {fallback_env}"
