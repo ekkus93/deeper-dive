@@ -303,6 +303,9 @@ class GuidedHostWizard(GuidedSourceWizard):
         self._form_baselines["hosts"] = (*profile, *order)
 
     def _execute_custom_transition(self, transition: str) -> None:
+        if transition == "create-host":
+            self.action_create_host()
+            return
         if transition == "create-recommended-hosts":
             self.action_create_recommended_hosts()
             return
@@ -373,6 +376,17 @@ class GuidedHostWizard(GuidedSourceWizard):
         self.set_status("Created/selected the recommended Curious Explainer and Skeptic pair.")
 
     def action_create_host(self) -> bool:
+        if self.busy or self._exit_confirmation_pending:
+            return False
+        # Creating a host selects a newly persisted profile and reloads these
+        # controls. Do not replace edits to the selected durable host.
+        if (
+            self.context.state.current_step == "hosts"
+            and self._loaded_host_id is not None
+            and self._host_profile_dirty()
+        ):
+            self._request_dirty_transition("create-host")
+            return False
         project_id = self.context.project_id
         if project_id is None:
             self.set_status("Create the project before creating a host.")
