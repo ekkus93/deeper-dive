@@ -198,7 +198,7 @@ def _project_command(service: DeeperDiveService, args: argparse.Namespace) -> in
         return _output([asdict(project) for project in service.list_projects()], args.json_output)
     project = service.open_project(args.project_id)
     if project is None:
-        print(f"project not found: {args.project_id}", file=sys.stderr)
+        print("project not found", file=sys.stderr)
         return 2
     return _output(asdict(project), args.json_output)
 
@@ -206,7 +206,7 @@ def _project_command(service: DeeperDiveService, args: argparse.Namespace) -> in
 def _source_command(service: DeeperDiveService, args: argparse.Namespace) -> int:
     project_id = args.project_id
     if service.open_project(project_id) is None:
-        print(f"project not found: {project_id}", file=sys.stderr)
+        print("project not found", file=sys.stderr)
         return 2
     if args.source_command == "add":
         summary = (
@@ -219,7 +219,7 @@ def _source_command(service: DeeperDiveService, args: argparse.Namespace) -> int
         return _output_sources(service.list_sources(project_id), args.json_output)
     source = service.get_source(project_id, args.source_id)
     if source is None:
-        print(f"source not found: {args.source_id}", file=sys.stderr)
+        print("source not found", file=sys.stderr)
         return 2
     if args.source_command == "show":
         return _output_source(source, args.json_output)
@@ -237,7 +237,7 @@ def _research_command(composition: ProductionComposition, args: argparse.Namespa
     controller: PersistentResearchController = composition.research_controller
     project_id = args.project_id
     if service.open_project(project_id) is None:
-        print(f"project not found: {project_id}", file=sys.stderr)
+        print("project not found", file=sys.stderr)
         return 2
     if args.research_command == "analyze":
         return _output(
@@ -289,7 +289,7 @@ def _host_command(service: DeeperDiveService, args: argparse.Namespace) -> int:
         return _output([{"name": name} for name in preset_names()], args.json_output)
     project_id = args.project_id
     if service.open_project(project_id) is None:
-        print(f"project not found: {project_id}", file=sys.stderr)
+        print("project not found", file=sys.stderr)
         return 2
     repository = service.hosts(project_id)
     if args.host_command == "list":
@@ -309,7 +309,7 @@ def _host_command(service: DeeperDiveService, args: argparse.Namespace) -> int:
         return _output(host.as_dict(), args.json_output)
     record = repository.get_host(args.host_id)
     if record is None or record.project_id != project_id:
-        raise KeyError(args.host_id)
+        raise KeyError("host not found")
     if args.host_command == "voice":
         updated = replace(record, tts_provider=args.provider, tts_voice=args.voice)
     else:
@@ -331,7 +331,7 @@ def _episode_command(composition: ProductionComposition, args: argparse.Namespac
     service = composition.service
     project_id = args.project_id
     if service.open_project(project_id) is None:
-        print(f"project not found: {project_id}", file=sys.stderr)
+        print("project not found", file=sys.stderr)
         return 2
     database = composition.database_for_project(project_id)
     repository = service.hosts(project_id)
@@ -381,7 +381,7 @@ def _episode_run_command(
     if args.episode_command == "status":
         return _output(_status_payload(episode, run), args.json_output)
     if run is None:
-        raise KeyError(f"no generation run for episode: {episode.id}")
+        raise KeyError("no generation run for episode")
     pipeline = composition.generation_pipeline(episode.project_id)
     if args.episode_command == "pause":
         pipeline.request_pause(run.id)
@@ -487,7 +487,7 @@ def _episode_record(
     record: EpisodeRecord | None, project_id: str, episode_id: str
 ) -> EpisodeRecord:
     if record is None or record.project_id != project_id:
-        raise KeyError(f"episode not found: {episode_id}")
+        raise KeyError("episode not found")
     return record
 
 

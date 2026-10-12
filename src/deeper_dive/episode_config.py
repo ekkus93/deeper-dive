@@ -61,7 +61,7 @@ class EpisodeConfigurationService:
     def edit(self, episode_id: str, config: EpisodeConfiguration) -> EpisodeRecord:
         existing = self.episodes.get_episode(episode_id)
         if existing is None:
-            raise KeyError(episode_id)
+            raise KeyError("episode not found")
         self._validate_hosts(existing.project_id, config)
         current = self.load_configuration(episode_id)
         if current.snapshot() == config.snapshot():
@@ -89,7 +89,7 @@ class EpisodeConfigurationService:
     def load_configuration(self, episode_id: str) -> EpisodeConfiguration:
         record = self.episodes.get_episode(episode_id)
         if record is None:
-            raise KeyError(episode_id)
+            raise KeyError("episode not found")
         payload = json.loads(record.config_json)
         return EpisodeConfiguration(
             title=record.title,
