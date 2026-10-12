@@ -646,13 +646,23 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
 
         selectors = ("#setup-host1-voice", "#setup-host2-voice")
         previous = tuple(self._select_value(selector) for selector in selectors)
+        config = self.context.composition.provider_controller.config()
+        defaults = config.defaults
+        saved = (
+            (
+                defaults.get("tts_voice_host_1") or defaults.get("tts_voice"),
+                defaults.get("tts_voice_host_2") or defaults.get("tts_voice"),
+            )
+            if defaults.get("tts_provider") == name
+            else (None, None)
+        )
         self._voice_options = tuple((voice.name, voice.id) for voice in voices)
         available = {voice.id for voice in voices}
         vanished = []
         for index, selector in enumerate(selectors):
             widget = self.query_one(selector, Select)
             widget.set_options(self._voice_options)
-            selected = previous[index]
+            selected = previous[index] or saved[index]
             if selected in available:
                 # Discovery order may change: retain stable saved voice IDs.
                 widget.value = selected
@@ -662,6 +672,13 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
                 vanished.append(f"Host {index + 1}")
             elif voices:
                 widget.value = voices[min(index, len(voices) - 1)].id
+        if not vanished and all(
+            selected and self._select_value(selector) == selected
+            for selector, selected in zip(selectors, saved, strict=True)
+        ):
+            # Rediscovered selections matching durable defaults are hydration,
+            # not new unsaved user edits. The dirty guard above excluded edits.
+            self._remember_current_form()
         if vanished:
             self.set_status(
                 "Voice selection no longer available for "
