@@ -107,6 +107,7 @@ def test_compatible_tts_rejects_invalid_config_and_provider_deviations() -> None
     with pytest.raises(ValueError, match="voice"):
         provider.synthesize(TTSRequest("Hi", "missing"))
 
+
 @pytest.mark.parametrize("boundary", ["configuration", "synthesis"])
 def test_compatible_tts_invalid_format_does_not_echo_untrusted_input(
     boundary: str,

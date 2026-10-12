@@ -647,11 +647,10 @@ def test_invalid_config_unknown_field_names_are_not_echoed(tmp_path, field: str)
         store.load()
     assert canary not in str(error.value)
 
+
 @pytest.mark.parametrize("valid", ["wav", " WAV ", "Mp3", "flac", "aac", "opus", "pcm"])
 def test_provider_response_format_matches_runtime_supported_formats(valid: str) -> None:
-    provider = ProviderConfig(
-        provider_type="openai-compatible-tts", response_format=valid
-    )
+    provider = ProviderConfig(provider_type="openai-compatible-tts", response_format=valid)
     assert provider.response_format == valid.strip().lower()
 
 
