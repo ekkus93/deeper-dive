@@ -229,7 +229,9 @@ def test_missing_configured_credential_env_reference_is_not_echoed(
             )
         }
     )
-    with pytest.raises(ProviderConfigurationError, match="configured credential environment") as exc:
+    with pytest.raises(
+        ProviderConfigurationError, match="configured credential environment"
+    ) as exc:
         ProviderFactory(environ={}).build(config)
     assert private_env_name not in str(exc.value)
     assert "private-provider" not in str(exc.value)
