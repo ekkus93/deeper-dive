@@ -640,9 +640,7 @@ def test_invalid_config_unknown_field_names_are_not_echoed(tmp_path, field: str)
     if field == "top-level":
         config[canary] = "invalid"
     else:
-        config["providers"] = {
-            "fixture-provider": {"provider_type": "fake", canary: "invalid"}
-        }
+        config["providers"] = {"fixture-provider": {"provider_type": "fake", canary: "invalid"}}
     store = UserConfigStore(tmp_path / "config.json")
     store.path.write_text(json.dumps(config), encoding="utf-8")
     with pytest.raises(UserConfigError, match="invalid user configuration") as error:
