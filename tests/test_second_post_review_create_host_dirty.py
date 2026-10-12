@@ -74,7 +74,10 @@ async def _create_host_requires_explicit_decision(tmp_path: Path, resolution: st
             assert len(repository.list_hosts(project.id)) == 2
         assert not wizard.query_one("#wizard-exit-confirmation").display
         if resolution != "cancel":
-            assert name.value != "Unsaved original edit"
+            # Explicit Save persists the edit to the original host first; the
+            # newly created host may intentionally have the same display name.
+            assert wizard._loaded_host_id != "original"
+            assert not wizard._current_form_dirty()
             assert str(wizard.query_one("#wizard-status", Static).render()).startswith(
                 "Created host "
             )
