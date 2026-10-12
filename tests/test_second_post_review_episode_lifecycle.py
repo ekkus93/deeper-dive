@@ -19,6 +19,7 @@ from deeper_dive.storage.episode_repositories import (
     SegmentPlanRecord,
 )
 from deeper_dive.storage.repositories import CorpusRepository, ProjectRecord
+from deeper_dive.storage.run_repositories import GenerationRunRecord, GenerationRunRepository
 
 
 def _episode_with_plan(tmp_path, config: EpisodeConfiguration | None = None):
@@ -300,3 +301,38 @@ def test_reject_cross_project_host_before_deleting_existing_plan(tmp_path) -> No
     assert repository.get_episode(episode.id) == before
     assert repository.get_plan(episode.id) == original_plan
     assert repository.list_episode_host_ids(episode.id) == []
+
+
+@pytest.mark.parametrize(
+    "run_state",
+    ("pending", "running", "paused", "failed", "completed", "cancelled"),
+)
+def test_durable_run_freezes_legacy_draft_episode_configuration(
+    tmp_path, run_state: str
+) -> None:
+    """A run's durable existence freezes edits even if episode.state stays draft."""
+    database, service, repository, episode, config = _episode_with_plan(tmp_path)
+    runs = GenerationRunRepository(database)
+    runs.create(
+        GenerationRunRecord(
+            id="history-run",
+            episode_id=episode.id,
+            stage="sources",
+            state=run_state,
+            created_at="now",
+            modified_at="now",
+        )
+    )
+    before_episode = repository.get_episode(episode.id)
+    before_plan = repository.get_plan(episode.id)
+    before_run = runs.get("history-run")
+    assert before_episode is not None and before_episode.state == "draft"
+    assert before_plan is not None and before_run is not None
+
+    with pytest.raises(ValueError, match="frozen after generation starts"):
+        service.edit(episode.id, replace(config, focus="would overwrite historical inputs"))
+
+    assert repository.get_episode(episode.id) == before_episode
+    assert repository.get_plan(episode.id) == before_plan
+    assert runs.get("history-run") == before_run
+    assert service.load_configuration(episode.id) == config
