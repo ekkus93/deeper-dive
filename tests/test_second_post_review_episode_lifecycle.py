@@ -334,3 +334,46 @@ def test_durable_run_freezes_legacy_draft_episode_configuration(tmp_path, run_st
     assert repository.get_plan(episode.id) == before_plan
     assert runs.get("history-run") == before_run
     assert service.load_configuration(episode.id) == config
+
+
+def test_concurrent_independent_episode_editors_preserve_winner_and_invalidate_plan_once(
+    tmp_path, monkeypatch
+) -> None:
+    """Separate SQLite clients cannot silently overwrite competing episode edits."""
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    database, service, repository, episode, config = _episode_with_plan(tmp_path)
+    # Both clients must pass all service-layer reads before either enters
+    # the transactional compare-and-swap writer.
+    barrier = Barrier(2)
+    original_update = EpisodeConfigurationRepository.update
+
+    def synchronized_update(self, record, host_ids, *, expected_config_json):
+        if record.id == episode.id:
+            barrier.wait(timeout=10)
+        return original_update(
+            self, record, host_ids, expected_config_json=expected_config_json
+        )
+
+    monkeypatch.setattr(EpisodeConfigurationRepository, "update", synchronized_update)
+
+    def edit(focus: str) -> str:
+        independent = EpisodeConfigurationService(Database(tmp_path / "project.db"))
+        try:
+            independent.edit(episode.id, replace(config, focus=focus))
+        except ValueError as exc:
+            assert "changed concurrently" in str(exc)
+            return "conflict"
+        return focus
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(edit, "first competing edit")
+        second = pool.submit(edit, "second competing edit")
+        outcomes = (first.result(), second.result())
+
+    assert outcomes.count("conflict") == 1
+    winner = next(outcome for outcome in outcomes if outcome != "conflict")
+    assert service.load_configuration(episode.id).focus == winner
+    assert repository.get_plan(episode.id) is None
+    assert database.path == tmp_path / "project.db"
