@@ -1320,9 +1320,7 @@ def test_escape_dirty_confirmation_cancels_transition_without_losing_edits(
     asyncio.run(_escape_dirty_confirmation_cancels_transition(tmp_path, first_run))
 
 
-async def _escape_dirty_confirmation_cancels_transition(
-    tmp_path: Path, first_run: bool
-) -> None:
+async def _escape_dirty_confirmation_cancels_transition(tmp_path: Path, first_run: bool) -> None:
     """Keyboard Escape cancels a dirty confirmation, never silently discards."""
     if first_run:
         service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
