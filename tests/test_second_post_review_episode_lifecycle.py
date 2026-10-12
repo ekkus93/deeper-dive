@@ -352,9 +352,7 @@ def test_concurrent_independent_episode_editors_preserve_winner_and_invalidate_p
     def synchronized_update(self, record, host_ids, *, expected_config_json):
         if record.id == episode.id:
             barrier.wait(timeout=10)
-        return original_update(
-            self, record, host_ids, expected_config_json=expected_config_json
-        )
+        return original_update(self, record, host_ids, expected_config_json=expected_config_json)
 
     monkeypatch.setattr(EpisodeConfigurationRepository, "update", synchronized_update)
 
