@@ -188,7 +188,7 @@ def redact(value: object, *, drop_secret_keys: bool = False) -> object:
     """Recursively redact credentials while preserving useful diagnostic shape."""
     if isinstance(value, Mapping):
         return {
-            str(key): (
+            str(redact(str(key))): (
                 "[REDACTED]"
                 if _is_secret_key(key)
                 else redact(item, drop_secret_keys=drop_secret_keys)
