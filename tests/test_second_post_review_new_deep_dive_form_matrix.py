@@ -165,7 +165,6 @@ async def _check_dirty_step(tmp_path: Path, step: str, field_id: str) -> None:
                 "Original episode"
             )
         if step == "plan":
-            stored_plan = EpisodePlannerService(database, _FixturePlanGenerator()).load_plan(
-                episode.id
-            )
+            planner = EpisodePlannerService(database, _FixturePlanGenerator())
+            stored_plan = planner.load_plan(episode.id)
             assert stored_plan.segments[0].title == "Opening"
