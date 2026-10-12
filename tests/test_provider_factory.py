@@ -204,11 +204,7 @@ def test_factory_errors_never_echo_untrusted_provider_identifiers(
 ) -> None:
     untrusted_name = "https://endpoint.example.test/#token=provider-id-canary"
     config = UserConfig(
-        providers={
-            untrusted_name: ProviderConfig(
-                provider_type=provider_type, base_url=base_url
-            )
-        }
+        providers={untrusted_name: ProviderConfig(provider_type=provider_type, base_url=base_url)}
     )
 
     with pytest.raises(ProviderConfigurationError, match=expected_error) as error:

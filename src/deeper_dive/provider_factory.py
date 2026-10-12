@@ -240,9 +240,7 @@ class ProviderFactory:
             )
         if kind == "openai-compatible-tts":
             if not config.base_url:
-                raise ProviderConfigurationError(
-                    "openai-compatible-tts requires base_url"
-                )
+                raise ProviderConfigurationError("openai-compatible-tts requires base_url")
             configured_voices = tuple(config.voices)
             if not configured_voices:
                 raise ProviderConfigurationError(
