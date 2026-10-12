@@ -41,6 +41,9 @@ async def _check_voice_discovery(tmp_path: Path) -> None:
         wizard._sync_text()
         wizard._sync_setup_controls()
         await pilot.pause()
+        # This test positions the wizard directly on the voice step rather
+        # than navigating through prerequisites; establish its clean baseline.
+        wizard._remember_current_form()
         with (
             patch.object(wizard, "_selected_tts_name", return_value="fixture-speech"),
             patch.object(type(app.composition.provider_controller), "tts", return_value=fake),
