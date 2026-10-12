@@ -43,7 +43,7 @@ async def _check_voice_discovery(tmp_path: Path) -> None:
         await pilot.pause()
         with (
             patch.object(wizard, "_selected_tts_name", return_value="fixture-speech"),
-            patch.object(app.composition.provider_controller, "tts", return_value=fake),
+            patch.object(type(app.composition.provider_controller), "tts", return_value=fake),
         ):
             wizard.action_discover_voices()
             await pilot.pause()
