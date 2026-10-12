@@ -216,10 +216,7 @@ def test_stringified_punctuated_credential_keys_are_redacted_across_surfaces(
 ) -> None:
     """Untrusted repr/JSON fragments receive the same secret-key treatment as maps."""
     canary = "stringified-key-canary-2026"
-    message = (
-        f"ProviderError(headers={{'{credential_key}': '{canary}', "
-        "'phase': 'retry'}})"
-    )
+    message = f"ProviderError(headers={{'{credential_key}': '{canary}', 'phase': 'retry'}})"
     expected = f"'{credential_key}': '[REDACTED]'"
     sanitized = str(redact(message))
     assert canary not in sanitized
