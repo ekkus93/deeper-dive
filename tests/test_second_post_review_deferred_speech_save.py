@@ -24,9 +24,7 @@ def test_deferred_speech_write_failure_preserves_wizard_and_allows_retry(
     asyncio.run(_deferred_speech_write_failure(tmp_path, via_confirmation))
 
 
-async def _deferred_speech_write_failure(
-    tmp_path: Path, via_confirmation: bool
-) -> None:
+async def _deferred_speech_write_failure(tmp_path: Path, via_confirmation: bool) -> None:
     service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
     app = GuidedDeeperDiveApp(service)
     async with app.run_test(size=(100, 35)) as pilot:
