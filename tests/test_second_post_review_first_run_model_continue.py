@@ -58,9 +58,7 @@ async def _model_role_continue_guards_unsaved_input(
         assert not wizard.action_continue()
         assert wizard.context.state.current_step == "model-test"
         assert wizard.query_one("#wizard-exit-confirmation").display
-        assert "Unsaved changes" in str(
-            wizard.query_one("#wizard-status", Static).render()
-        )
+        assert "Unsaved changes" in str(wizard.query_one("#wizard-status", Static).render())
         assert field.value == changed
 
         wizard.action_cancel_exit_confirmation()
