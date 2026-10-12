@@ -194,7 +194,7 @@ def test_factory_configuration_errors_never_echo_secret_values() -> None:
 @pytest.mark.parametrize(
     ("provider_type", "base_url", "expected_error"),
     [
-        ("unknown-provider-type-canary", None, "unsupported adapter type"),
+        ("unknown-provider-type-canary", None, "unsupported provider_type"),
         ("openai-compatible-tts", None, "requires base_url"),
         ("openai-compatible-tts", "https://tts.example.test/v1", "configured voice"),
     ],

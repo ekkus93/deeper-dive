@@ -167,7 +167,7 @@ class ProviderFactory:
             else:
                 # Provider names and types originate in imported user configuration.
                 # Never echo potentially credential-bearing input in UI/CLI errors.
-                raise ProviderConfigurationError("provider has unsupported adapter type")
+                raise ProviderConfigurationError("provider has unsupported provider_type")
         return ProviderBuildResult(
             llm_registry,
             tts_registry,
