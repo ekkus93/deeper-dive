@@ -65,10 +65,21 @@ def test_missing_generation_run_has_stable_error(
 ) -> None:
     assert main(["--data-dir", str(tmp_path), "--json", "project", "create", "Demo"]) == 0
     project_id = str(json.loads(capsys.readouterr().out)["id"])
-    assert main(
-        ["--data-dir", str(tmp_path), "--json", "episode", "create", project_id,
-         "--title", "Episode"]
-    ) == 0
+    assert (
+        main(
+            [
+                "--data-dir",
+                str(tmp_path),
+                "--json",
+                "episode",
+                "create",
+                project_id,
+                "--title",
+                "Episode",
+            ]
+        )
+        == 0
+    )
     episode_id = str(json.loads(capsys.readouterr().out)["id"])
     assert main(["--data-dir", str(tmp_path), "episode", "pause", project_id, episode_id]) == 2
     captured = capsys.readouterr()
@@ -78,9 +89,7 @@ def test_missing_generation_run_has_stable_error(
 
 
 @pytest.mark.parametrize("method", ["edit", "load_configuration"])
-def test_episode_service_missing_record_never_echoes_id(
-    tmp_path: Path, method: str
-) -> None:
+def test_episode_service_missing_record_never_echoes_id(tmp_path: Path, method: str) -> None:
     service = EpisodeConfigurationService(Database(tmp_path / "project.db"))
     with pytest.raises(KeyError, match="episode not found") as exc:
         if method == "edit":
