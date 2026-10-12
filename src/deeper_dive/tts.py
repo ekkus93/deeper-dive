@@ -74,8 +74,9 @@ class TTSProviderRegistry:
     def get(self, provider_id: str) -> TTSProvider:
         try:
             return self._providers[provider_id]
-        except KeyError as exc:
-            raise KeyError(f"unknown TTS provider: {provider_id}") from exc
+        except KeyError:
+            # This ID can come from stored host/configuration input.
+            raise KeyError("unknown TTS provider") from None
 
     def provider_ids(self) -> tuple[str, ...]:
         return tuple(sorted(self._providers))
@@ -89,15 +90,14 @@ class TTSProviderRegistry:
     def resolve_host(self, host: HostProfile) -> tuple[TTSProvider, TTSVoice]:
         """Resolve and validate the provider/voice assigned to one host."""
         if not host.tts_provider:
-            raise ValueError(f"host {host.id!r} has no TTS provider assigned")
+            raise ValueError("host has no TTS provider assigned")
         if not host.tts_voice:
-            raise ValueError(f"host {host.id!r} has no TTS voice assigned")
+            raise ValueError("host has no TTS voice assigned")
         provider = self.get(host.tts_provider)
         voice = next((item for item in provider.voices() if item.id == host.tts_voice), None)
         if voice is None:
-            raise ValueError(
-                f"unknown TTS voice {host.tts_voice!r} for provider {host.tts_provider!r}"
-            )
+            # Provider and voice identifiers may be untrusted and credential-like.
+            raise ValueError("unknown TTS voice for provider")
         return provider, voice
 
 
