@@ -165,10 +165,9 @@ class ProviderFactory:
                 tts_registry.register(provider)
                 tts_providers[name] = provider
             else:
-                raise ProviderConfigurationError(
-                    f"provider {name!r} has unsupported provider_type "
-                    f"{provider_config.provider_type!r}"
-                )
+                # Provider names and types originate in imported user configuration.
+                # Never echo potentially credential-bearing input in UI/CLI errors.
+                raise ProviderConfigurationError("provider has unsupported adapter type")
         return ProviderBuildResult(
             llm_registry,
             tts_registry,
@@ -242,12 +241,12 @@ class ProviderFactory:
         if kind == "openai-compatible-tts":
             if not config.base_url:
                 raise ProviderConfigurationError(
-                    f"provider {name!r} requires base_url for openai-compatible-tts"
+                    "openai-compatible-tts requires base_url"
                 )
             configured_voices = tuple(config.voices)
             if not configured_voices:
                 raise ProviderConfigurationError(
-                    f"provider {name!r} requires at least one configured voice"
+                    "openai-compatible-tts requires at least one configured voice"
                 )
             return OpenAICompatibleTTSProvider(
                 provider_id=name,

@@ -189,3 +189,31 @@ def test_factory_configuration_errors_never_echo_secret_values() -> None:
     message = str(captured.value)
     assert "base_url" in message
     assert secret not in message
+
+
+@pytest.mark.parametrize(
+    ("provider_type", "base_url", "expected_error"),
+    [
+        ("unknown-provider-type-canary", None, "unsupported adapter type"),
+        ("openai-compatible-tts", None, "requires base_url"),
+        ("openai-compatible-tts", "https://tts.example.test/v1", "configured voice"),
+    ],
+)
+def test_factory_errors_never_echo_untrusted_provider_identifiers(
+    provider_type: str, base_url: str | None, expected_error: str
+) -> None:
+    untrusted_name = "https://endpoint.example.test/#token=provider-id-canary"
+    config = UserConfig(
+        providers={
+            untrusted_name: ProviderConfig(
+                provider_type=provider_type, base_url=base_url
+            )
+        }
+    )
+
+    with pytest.raises(ProviderConfigurationError, match=expected_error) as error:
+        ProviderFactory(environ={}).build(config)
+
+    assert "provider-id-canary" not in str(error.value)
+    assert "unknown-provider-type-canary" not in str(error.value)
+    assert untrusted_name not in str(error.value)
