@@ -262,3 +262,72 @@ async def _guided_partial_profile_save_preserves_order(
         assert wizard.action_save_host_order()
         assert configs.load_configuration(episode.id).host_ids == ("second", "first")
         assert not wizard._host_order_dirty()
+
+
+def test_guided_mixed_host_save_exit_is_single_shot_and_project_isolated(tmp_path) -> None:
+    asyncio.run(_guided_mixed_host_save_exit_is_single_shot_and_project_isolated(tmp_path))
+
+
+async def _guided_mixed_host_save_exit_is_single_shot_and_project_isolated(tmp_path) -> None:
+    """One confirmation saves profile and ordered membership, not other projects."""
+    from textual.widgets import Input
+
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    primary = service.create_project("Primary host order")
+    unrelated = service.create_project("Unrelated host order")
+    for project in (primary, unrelated):
+        repository = service.hosts(project.id)
+        for host_id in ("first", "second"):
+            repository.create_host(
+                HostProfile(host_id, project.id, f"{project.id}-{host_id}").to_record()
+            )
+    primary_db = Database(service.workspaces.project_root(primary.id) / "project.db")
+    unrelated_db = Database(service.workspaces.project_root(unrelated.id) / "project.db")
+    primary_configs = EpisodeConfigurationService(primary_db)
+    unrelated_configs = EpisodeConfigurationService(unrelated_db)
+    episode = primary_configs.create(
+        primary.id,
+        EpisodeConfiguration(title="Primary", host_ids=("first", "second")),
+    )
+    other_episode = unrelated_configs.create(
+        unrelated.id,
+        EpisodeConfiguration(title="Other", host_ids=("first", "second")),
+    )
+
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = primary.id
+        wizard.context.episode_id = episode.id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "hosts")
+        wizard._load_episode_host_order()
+        wizard._refresh_hosts("first")
+        wizard._toggle()
+        wizard._remember_current_form()
+
+        wizard.query_one("#guided-host-instructions", Input).value = "Saved once"
+        wizard._move_selected_host(1)
+        assert wizard._host_profile_dirty() and wizard._host_order_dirty()
+        wizard.action_save_exit()
+        assert wizard.query_one("#wizard-exit-confirmation").display
+        wizard.action_confirm_save_exit()
+        # A repeated confirmation must be inert after the first transaction.
+        wizard.action_confirm_save_exit()
+        await pilot.pause()
+
+        saved = service.hosts(primary.id).get_host("first")
+        assert saved is not None and saved.instructions == "Saved once"
+        assert primary_configs.load_configuration(episode.id).host_ids == (
+            "second",
+            "first",
+        )
+        assert wizard.save_exit_requested
+        assert unrelated_configs.load_configuration(other_episode.id).host_ids == (
+            "first",
+            "second",
+        )
+        untouched = service.hosts(unrelated.id).get_host("first")
+        assert untouched is not None and untouched.instructions == ""
