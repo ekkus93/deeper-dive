@@ -30,7 +30,7 @@ This is the **only completion checklist for the second post-review cycle**. The 
 - [ ] SPR-04: demonstrate accepted invalid research/preset/network/default input and its downstream failure.
 - [ ] SPR-05: reproduce fixed-temp-path collision/concurrent lost update and exercise temp-path symlink/failure-injection in an isolated fixture.
 - [ ] SPR-06: demonstrate fragment credential acceptance and diagnostic credential disclosure using fake canaries.
-- [ ] SPR-07: test no-op episode edit plan deletion and editing completed episode's state; check guards that may rule out actual production reachability.
+- [x] SPR-07: test no-op episode edit plan deletion and editing completed episode's state; check guards that may rule out actual production reachability.
 - [ ] Record findings as confirmed, disproved, or needs-design with exact test/source evidence; do not conflate risk with a demonstrated incident.
 
 ## SPR-100 — Shared dirty-form navigation and save contract (SPR-01)
@@ -61,7 +61,7 @@ This is the **only completion checklist for the second post-review cycle**. The 
 - [x] Distinguish pending host-profile edits from pending episode host membership/order edits.
 - [x] Compare `_selected_host_ids` and episode ID to last durable ordered membership in the shared dirty snapshot.
 - [x] Make add/remove/move dirty, no-op moves clean, and undo-to-original clean.
-- [ ] Ensure Save and Exit/Continue saves both profile and order via production services when both are dirty.
+- [x] Ensure Save and Exit/Continue saves both profile and order via production services when both are dirty.
 - [x] Define transactional or explicit safely recoverable partial-save behavior for profile+order updates.
 - [x] Prevent changing the host picker from overwriting a dirty host profile.
 - [x] Reject duplicate, missing, or cross-project host IDs before commit.
@@ -144,7 +144,7 @@ This is the **only completion checklist for the second post-review cycle**. The 
 - [x] Prevent edits racing with generation start or planner write using transactional/versioned state checks.
 - [ ] Keep TUI, CLI, library, plan display, export and preflight consistent with the lifecycle policy.
 - [ ] Provide actionable UX when edit requires a new episode/revision.
-- [ ] Add SQLite-level tests for same-config, metadata-only and plan-affecting updates.
+- [x] Add SQLite-level tests for same-config, metadata-only and plan-affecting updates.
 - [ ] Add running/completed/failed/paused state, no-revision-confusion, restart and artifact-identity tests.
 - [ ] Add multi-episode/project isolation and Quick-vs-guided-vs-CLI acceptance tests.
 - [ ] Run focused SPR-07 matrix and exact-head CI; record evidence or justified N/A rationale.
@@ -410,3 +410,11 @@ This is the **only completion checklist for the second post-review cycle**. The 
 - **Deterministic regression:** `tests/test_settings_screen.py::test_invalid_model_role_never_echoes_untrusted_input` covers fake canaries and byte-preservation of the persisted config. `test_settings_screen_invalid_model_role_does_not_leak_identifier` uses the actual Textual Settings screen, requiring a useful sanitized validation message, unchanged persisted bytes, and retained typed input on failure.
 - **Qualified source/test head:** direct `master` commit `f9ad7ca81db12cf1f64fa328125895b166af183f` passed exact-head [CI #38293662478](https://github.com/ekkus93/deeper-dive/actions/runs/38293662478), quality job [114959468303](https://github.com/ekkus93/deeper-dive/actions/runs/38293662478/job/114959468303) and installed-wheel fresh-machine job [114959467955](https://github.com/ekkus93/deeper-dive/actions/runs/38293662478/job/114959467955), both successful.
 - **Scope:** Only the SPR-000 baseline-inspection checkbox is reconciled; the full SPR-04 semantic-defaults matrix, SPR-06 cross-surface security matrix, independent code review, and final qualification remain unchecked. This documentation-only reconciliation itself requires a **new successful exact-head CI** to be accepted.
+
+
+### 2026-10-12 SPR-02 combined host saves and SPR-07 baseline/SQLite reconciliation
+
+- **SPR-02 combined Save-and-Exit/Continue (reconciled):** `GuidedEpisodeWizard._save_dirty_step` evaluates independently dirty profile and ordered membership, saves through `action_save_host` and `action_save_host_order`, returns typed `WizardSaveResult`, and blocks transition on partial failure. `tests/test_second_post_review_host_membership.py::test_guided_mixed_host_save_exit_is_single_shot_and_project_isolated` parameterizes both Exit and Continue, asserts exactly one production profile save and one host-order save, persisted edited profile/order, and isolation of a sibling episode and separate project. `test_guided_partial_profile_save_preserves_unsaved_order_for_retry` injects host-order failure, verifies saved profile, original durable order, pending in-memory order, no exit and eventual retry. Both test production services under a Textual pilot.
+- **SPR-07 baseline reproducer disposition (reconciled, *disproved on reviewed production path*):** `EpisodeConfigurationService.edit` compares semantic snapshots and returns unchanged records on no-op before invalidation; `EpisodeConfigurationRepository.update` enforces draft state and generation-history guards inside an immediate SQLite transaction. `tests/test_second_post_review_episode_lifecycle.py::test_noop_episode_edit_preserves_plan_segment_and_episode_identity`, `test_semantically_identical_mapping_order_is_a_true_noop`, and parameterized `test_non_draft_episode_edit_cannot_demote_state_or_delete_plan` disprove the suspected current no-op plan deletion/completed-row demotion. No historical incident is claimed. The lifecycle policy and reproduction limitations are documented in `docs/DEEP_DIVE_EPISODE_LIFECYCLE_CONTRACT_2026-10-10.md`.
+- **SPR-07 SQLite no-op/metadata/plan-impact test (reconciled with explicit narrow N/A):** `test_episode_edit_plan_impact_matrix_invalidates_only_meaningful_draft_changes` parameterizes every canonical planner-input field (including title), while the two no-op tests preserve plan/segment identity. `test_failed_plan_invalidation_rolls_back_episode_and_host_changes` verifies the SQLite transaction rolls back completely on a deletion failure; `test_stale_configuration_writer_cannot_delete_newer_plan` enforces CAS. **Metadata-only edit N/A:** `EpisodePlannerService` consumes the entire `EpisodeConfiguration.snapshot()`; all currently editable episode fields are plan-relevant. The schema defines no independently editable, non-plan-affecting configuration metadata field, so creating a fictitious metadata edit would violate the production contract. Plan status/approval metadata is separately managed and is not an episode-configuration edit. The explicit N/A is supported by the canonical snapshot-field matrix and the lifecycle contract; any future independently mutable metadata field will require additional tests.
+- **Qualification:** Existing direct-`master` production and test behavior was requalified in exact-head [CI #38293662478](https://github.com/ekkus93/deeper-dive/actions/runs/38293662478), with passed quality job `114959468303` and fresh-machine job `114959467955`. The baseline/Settings evidence reconciliation head `9adf95b2fd33ed39442d50512fb532601c804c74` passed [CI #38294753038](https://github.com/ekkus93/deeper-dive/actions/runs/38294753038), both jobs passed. This new checklist-only edit must pass **its own** exact-head CI before these three marks are finally accepted. Other SPR-01/02/04/06/07/800/900/910 broad matrix and final tasks remain open.
