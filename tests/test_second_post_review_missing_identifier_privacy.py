@@ -2,14 +2,9 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
-
-from deeper_dive.cli import main
-from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
-from deeper_dive.storage.database import Database
 
 
 CANARY = "private-caller-identifier-CANARY-987654321"
@@ -28,6 +23,8 @@ CANARY = "private-caller-identifier-CANARY-987654321"
 def test_missing_project_does_not_echo_untrusted_id(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], command: list[str]
 ) -> None:
+    from deeper_dive.cli import main
+
     assert main(["--data-dir", str(tmp_path), *command]) == 2
     captured = capsys.readouterr()
     assert captured.out == ""
@@ -50,6 +47,10 @@ def test_missing_child_record_does_not_echo_untrusted_id(
     command: list[str],
     expected: str,
 ) -> None:
+    import json
+
+    from deeper_dive.cli import main
+
     assert main(["--data-dir", str(tmp_path), "--json", "project", "create", "Demo"]) == 0
     project_id = str(json.loads(capsys.readouterr().out)["id"])
     assert main(["--data-dir", str(tmp_path), *command, project_id, CANARY]) == 2
@@ -63,6 +64,10 @@ def test_missing_child_record_does_not_echo_untrusted_id(
 def test_missing_generation_run_has_stable_error(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    import json
+
+    from deeper_dive.cli import main
+
     assert main(["--data-dir", str(tmp_path), "--json", "project", "create", "Demo"]) == 0
     project_id = str(json.loads(capsys.readouterr().out)["id"])
     assert (
@@ -90,6 +95,9 @@ def test_missing_generation_run_has_stable_error(
 
 @pytest.mark.parametrize("method", ["edit", "load_configuration"])
 def test_episode_service_missing_record_never_echoes_id(tmp_path: Path, method: str) -> None:
+    from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
+    from deeper_dive.storage.database import Database
+
     service = EpisodeConfigurationService(Database(tmp_path / "project.db"))
     with pytest.raises(KeyError, match="episode not found") as exc:
         if method == "edit":
