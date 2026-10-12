@@ -99,10 +99,13 @@ def test_readiness_probe_never_publishes_or_persists_timeout_change(tmp_path: Pa
     assert (tmp_path / "config.json").read_bytes() == original_bytes
 
 
-def test_probe_timeout_must_be_positive(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "deadline", [0.0, -1.0, float("nan"), float("inf"), -float("inf")]
+)
+def test_probe_timeout_must_be_finite_and_positive(deadline: float) -> None:
     factory = ProviderFactory()
-    with pytest.raises(ValueError, match="probe timeout must be positive"):
-        factory.build(UserConfig(), probe_timeout_seconds=0)
+    with pytest.raises(ValueError, match="probe timeout must be finite and positive"):
+        factory.build(UserConfig(), probe_timeout_seconds=deadline)
 
 
 def test_elevenlabs_readiness_probes_voices_once_with_bounded_timeout(tmp_path: Path) -> None:

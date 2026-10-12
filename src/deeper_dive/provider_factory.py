@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
+from math import isfinite
 
 from deeper_dive.elevenlabs_tts import ElevenLabsTTSProvider
 from deeper_dive.kitten_tts import KittenTTSMicroProvider
@@ -131,8 +132,10 @@ class ProviderFactory:
 
         Probe adapters do not replace the production generation registries.
         """
-        if probe_timeout_seconds is not None and probe_timeout_seconds <= 0:
-            raise ValueError("probe timeout must be positive")
+        if probe_timeout_seconds is not None and (
+            not isfinite(probe_timeout_seconds) or probe_timeout_seconds <= 0
+        ):
+            raise ValueError("probe timeout must be finite and positive")
         llm_registry = LLMProviderRegistry()
         tts_registry = TTSProviderRegistry()
         tts_providers: dict[str, TTSProvider] = {}
