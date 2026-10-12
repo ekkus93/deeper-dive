@@ -172,3 +172,36 @@ def test_diagnostic_encoded_redirect_retains_benign_fragment(layer_count: int) -
         destination = quote(destination, safe="")
     url = f"https://gateway.example/docs?redirect={destination}&status=ok"
     assert redact(url) == url
+
+
+def test_untrusted_diagnostic_mapping_keys_are_redacted_across_exports(
+    tmp_path: Path,
+) -> None:
+    canary = "mapping-key-canary-2026"
+    unsafe_key = f"https://example.test/v1#access_token={canary}"
+    nested = {"requests": [{unsafe_key: {"status": "failed"}}], "safe": "context"}
+    sanitized = json.dumps(redact(nested), sort_keys=True)
+    assert canary not in sanitized
+    assert "https://example.test/v1#[REDACTED]" in sanitized
+    assert '"safe": "context"' in sanitized
+
+    log_path = tmp_path / "events.jsonl"
+    StructuredDiagnosticLog(log_path).emit(
+        DiagnosticEvent(level="error", event="provider_error", details=nested)
+    )
+    assert canary not in log_path.read_text(encoding="utf-8")
+
+    bundle_path = export_diagnostic_bundle(
+        tmp_path / "bundle.json",
+        provider_diagnostics=nested,
+        configuration={"providers": {unsafe_key: {"type": "fake"}}},
+    )
+    bundle = bundle_path.read_text(encoding="utf-8")
+    assert canary not in bundle
+    assert "[REDACTED]" in bundle
+    assert '"safe": "context"' in bundle
+
+
+def test_benign_diagnostic_mapping_keys_keep_identity() -> None:
+    payload = {"provider-id": {"https://example.test/docs#overview": "ok"}}
+    assert redact(payload) == payload
