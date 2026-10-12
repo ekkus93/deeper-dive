@@ -189,3 +189,29 @@ def test_router_rewrites_delegated_cli_errors(
     assert captured.out == ""
     assert "Network request failed." in captured.err
     assert "gap IDs" not in captured.err
+
+
+@pytest.mark.parametrize(
+    ("provider_type", "command", "expected"),
+    [
+        ("fake", "voices", "does not support voice discovery"),
+        ("fake-tts", "models", "does not support model discovery"),
+    ],
+)
+def test_unsupported_provider_capabilities_never_echo_provider_id(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    provider_type: str,
+    command: str,
+    expected: str,
+) -> None:
+    private_id = "private-provider-identity-CANARY-213"
+    UserConfigStore(tmp_path / "config.json").save(
+        UserConfig(providers={private_id: ProviderConfig(provider_type=provider_type)})
+    )
+    assert main(["--data-dir", str(tmp_path), "provider", command, private_id]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert expected in captured.err
+    assert private_id not in captured.err
+    assert "Traceback" not in captured.err

@@ -129,11 +129,11 @@ def _inspect_provider(
     capability = controller.capability(provider_config.provider_type)
     if command == "models":
         if capability != "llm":
-            raise ValueError(f"provider {provider_id!r} does not support model discovery")
+            raise ValueError("provider does not support model discovery")
         return [asdict(model) for model in controller.llm(provider_id).models()]
     if command == "voices":
         if capability != "tts":
-            raise ValueError(f"provider {provider_id!r} does not support voice discovery")
+            raise ValueError("provider does not support voice discovery")
         return [asdict(voice) for voice in controller.tts(provider_id).voices()]
     if command in {"health", "test"}:
         if capability == "llm":
@@ -142,8 +142,8 @@ def _inspect_provider(
         if capability == "tts":
             tts = controller.tts(provider_id)
             return {"id": tts.provider_id, **asdict(tts.health())}
-        raise ValueError(f"provider {provider_id!r} has unsupported adapter capability")
-    raise ValueError(f"provider {provider_id!r} does not support {command}")
+        raise ValueError("provider has unsupported adapter capability")
+    raise ValueError(f"provider does not support {command}")
 
 
 def _kitten(
