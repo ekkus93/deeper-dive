@@ -632,9 +632,7 @@ def test_config_validation_error_locations_never_echo_provider_mapping_keys(
 
 
 @pytest.mark.parametrize("field", ["top-level", "provider-field"])
-def test_invalid_config_unknown_field_names_are_not_echoed(
-    tmp_path, field: str
-) -> None:
+def test_invalid_config_unknown_field_names_are_not_echoed(tmp_path, field: str) -> None:
     import json
 
     canary = "untrusted-schema-field-CANARY"
