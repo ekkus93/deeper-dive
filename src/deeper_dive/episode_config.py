@@ -111,7 +111,7 @@ class EpisodeConfigurationService:
         for host_id in config.host_ids:
             host = self.episodes.get_host(host_id)
             if host is None or host.project_id != project_id:
-                raise ValueError(f"host {host_id!r} does not belong to project")
+                raise ValueError("episode host does not belong to project")
 
     @staticmethod
     def _record(
