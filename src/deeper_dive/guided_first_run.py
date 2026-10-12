@@ -362,6 +362,9 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
                 self._apply_speech_choice_defaults(force=True)
 
     def _execute_custom_transition(self, transition: str) -> None:
+        if transition == "discover-models":
+            self.action_discover_models()
+            return
         if transition.startswith("speech-choice:"):
             choice = transition.split(":", 1)[1]
             picker = self.query_one("#setup-speech-choice", Select)
@@ -449,6 +452,13 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         self.set_status(f"{name} connection is healthy. {message}".strip())
 
     def action_discover_models(self) -> None:
+        if self.busy or self._exit_confirmation_pending:
+            return
+        if self.context.state.current_step == "provider-config" and self._current_form_dirty():
+            # Model discovery selects the first model and rehydrates the provider
+            # input. Preserve the existing edited model until Save/Discard/Cancel.
+            self._request_dirty_transition("discover-models")
+            return
         name = self._selected_llm_name()
         if name is None:
             self.set_status("Save or select a language-model provider first.")

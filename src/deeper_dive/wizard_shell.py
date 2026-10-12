@@ -341,6 +341,7 @@ class WizardShell(Screen[None]):
             "back": "go back",
             "continue": "continue",
             "plan-build": "build the plan",
+            "discover-models": "discover models",
             "plan-regenerate": "regenerate the plan",
             "plan-regenerate-segment": "regenerate the selected segment",
             "preflight-fix": "repair the preflight blocker",
@@ -519,6 +520,10 @@ class WizardShell(Screen[None]):
             "back": ("Save changes and go back", "Discard changes and go back"),
             "continue": ("Save changes and continue", "Discard changes and continue"),
             "plan-build": ("Save segment then build plan", "Discard edits then build plan"),
+            "discover-models": (
+                "Save provider then discover models",
+                "Discard edits then discover models",
+            ),
             "plan-regenerate": (
                 "Save segment then regenerate plan",
                 "Discard edits then regenerate plan",
