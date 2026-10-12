@@ -86,7 +86,9 @@ def test_host_missing_tts_assignment_does_not_echo_host_id(
     registry = TTSProviderRegistry()
     host_id = "https://example.test/v1#token=host-id-canary"
     host = HostProfile(
-        host_id, "project", "Test host",
+        host_id,
+        "project",
+        "Test host",
         tts_provider="fake-tts" if missing_field == "voice" else None,
     )
     with pytest.raises(ValueError, match=f"no TTS {missing_field}") as error:
@@ -99,8 +101,11 @@ def test_unknown_host_voice_never_echoes_credential_like_voice_id() -> None:
     registry.register(FakeTTSProvider())
     voice_id = "https://example.test/v1#api_key=voice-id-canary"
     host = HostProfile(
-        "host-1", "project", "Test host",
-        tts_provider="fake-tts", tts_voice=voice_id,
+        "host-1",
+        "project",
+        "Test host",
+        tts_provider="fake-tts",
+        tts_voice=voice_id,
     )
     with pytest.raises(ValueError, match="unknown TTS voice") as error:
         registry.resolve_host(host)
