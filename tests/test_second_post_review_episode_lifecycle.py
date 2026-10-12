@@ -307,9 +307,7 @@ def test_reject_cross_project_host_before_deleting_existing_plan(tmp_path) -> No
     "run_state",
     ("pending", "running", "paused", "failed", "completed", "cancelled"),
 )
-def test_durable_run_freezes_legacy_draft_episode_configuration(
-    tmp_path, run_state: str
-) -> None:
+def test_durable_run_freezes_legacy_draft_episode_configuration(tmp_path, run_state: str) -> None:
     """A run's durable existence freezes edits even if episode.state stays draft."""
     database, service, repository, episode, config = _episode_with_plan(tmp_path)
     runs = GenerationRunRepository(database)
