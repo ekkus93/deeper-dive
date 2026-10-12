@@ -213,3 +213,23 @@ def test_factory_errors_never_echo_untrusted_provider_identifiers(
     assert "provider-id-canary" not in str(error.value)
     assert "unknown-provider-type-canary" not in str(error.value)
     assert untrusted_name not in str(error.value)
+
+
+@pytest.mark.parametrize("provider_type", ["openai", "openai-tts", "elevenlabs"])
+def test_missing_configured_credential_env_reference_is_not_echoed(
+    provider_type: str,
+) -> None:
+    private_env_name = "CONFIGURED_PRIVATE_ENV_NAME_CANARY_614"
+    config = UserConfig(
+        providers={
+            "private-provider": ProviderConfig(
+                provider_type=provider_type,
+                default_model="fixture-model",
+                credential_env=private_env_name,
+            )
+        }
+    )
+    with pytest.raises(ProviderConfigurationError, match="configured credential environment") as exc:
+        ProviderFactory(environ={}).build(config)
+    assert private_env_name not in str(exc.value)
+    assert "private-provider" not in str(exc.value)

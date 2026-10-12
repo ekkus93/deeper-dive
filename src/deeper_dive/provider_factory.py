@@ -282,7 +282,13 @@ class ProviderFactory:
         env_name = config.credential_env or fallback_env
         secret = self.environ.get(env_name)
         if not secret:
+            # A user-supplied credential_env can itself encode private metadata.
+            # Preserve the documented fallback name but never echo custom input.
+            if config.credential_env:
+                raise ProviderConfigurationError(
+                    f"provider type {kind!r} requires the configured credential environment variable"
+                )
             raise ProviderConfigurationError(
-                f"provider type {kind!r} requires credential environment variable {env_name}"
+                f"provider type {kind!r} requires credential environment variable {fallback_env}"
             )
         return secret
