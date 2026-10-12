@@ -38,8 +38,9 @@ _ASSIGNMENT = re.compile(
     r"[A-Za-z0-9_-]*)(\s*[:=]\s*)([^\s,;]+)"
 )
 _QUOTED_MAPPING_ASSIGNMENT = re.compile(
-    r"(?i)(['\"])([A-Za-z0-9_-]*(?:authorization|api[-_]?key|token|secret|password|cookie)"
-    r"[A-Za-z0-9_-]*)\1(\s*:\s*)(['\"])([^'\"]+)\4"
+    # Match a bounded, quoted mapping key and decide sensitivity with _is_secret_key.
+    # Dots, slashes, brackets and plus signs must not bypass credential redaction.
+    r"(?i)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*)(['\"])((?:\\.|(?!\4)[^\\\r\n])+)\4"
 )
 _CREDENTIAL_URL = re.compile(r"(?i)(https?://)([^/@\s:]+)(?::([^/@\s]+))?@")
 _CREDENTIAL_QUERY = re.compile(

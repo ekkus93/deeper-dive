@@ -205,3 +205,41 @@ def test_untrusted_diagnostic_mapping_keys_are_redacted_across_exports(
 def test_benign_diagnostic_mapping_keys_keep_identity() -> None:
     payload = {"provider-id": {"https://example.test/docs#overview": "ok"}}
     assert redact(payload) == payload
+
+
+@pytest.mark.parametrize(
+    "credential_key",
+    ("session.Token", "api[key]", "api+key", "client/secret"),
+)
+def test_stringified_punctuated_credential_keys_are_redacted_across_surfaces(
+    tmp_path: Path, credential_key: str
+) -> None:
+    """Untrusted repr/JSON fragments receive the same secret-key treatment as maps."""
+    canary = "stringified-key-canary-2026"
+    message = (
+        f"ProviderError(headers={{'{credential_key}': '{canary}', "
+        "'phase': 'retry'}})"
+    )
+    expected = f"'{credential_key}': '[REDACTED]'"
+    sanitized = str(redact(message))
+    assert canary not in sanitized
+    assert expected in sanitized
+    assert "'phase': 'retry'" in sanitized
+    assert expected in sanitize_provider_error("fake", RuntimeError(message)).message
+
+    log_path = tmp_path / "quoted-key.jsonl"
+    StructuredDiagnosticLog(log_path).emit(
+        DiagnosticEvent(level="error", event="provider_error", message=message)
+    )
+    bundle_path = export_diagnostic_bundle(
+        tmp_path / "quoted-key.json",
+        provider_diagnostics={"sdk_repr": message},
+    )
+    for output in (log_path.read_text(), bundle_path.read_text()):
+        assert canary not in output
+        assert "[REDACTED]" in output
+
+
+def test_benign_quoted_diagnostic_keys_are_preserved() -> None:
+    benign = """ProviderError(context={'request.id': 'request-123', 'phase': 'retry'})"""
+    assert redact(benign) == benign
