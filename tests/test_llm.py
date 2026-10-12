@@ -39,3 +39,21 @@ def test_registry_normalizes_configuration_health_and_model_discovery() -> None:
 
     with pytest.raises(KeyError, match="unknown LLM provider"):
         registry.get("missing")
+
+
+@pytest.mark.parametrize(
+    "untrusted_id",
+    [
+        "https://provider.example.test/v1#access_token=registry-canary",
+        "Bearer registry-canary",
+        "missing\\nAuthorization: Basic registry-canary",
+    ],
+)
+def test_unknown_registry_provider_never_echoes_untrusted_id(untrusted_id: str) -> None:
+    registry = LLMProviderRegistry()
+    with pytest.raises(KeyError, match="unknown LLM provider") as error:
+        registry.get(untrusted_id)
+
+    assert "registry-canary" not in str(error.value)
+    assert untrusted_id not in str(error.value)
+    assert error.value.__suppress_context__ is True

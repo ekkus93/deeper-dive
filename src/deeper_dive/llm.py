@@ -101,8 +101,10 @@ class LLMProviderRegistry:
     def get(self, provider_id: str) -> LLMProvider:
         try:
             return self._providers[provider_id]
-        except KeyError as exc:
-            raise KeyError(f"unknown LLM provider: {provider_id}") from exc
+        except KeyError:
+            # Provider IDs can originate in CLI/configuration input; never echo
+            # credential-like values or expose the original dictionary KeyError.
+            raise KeyError("unknown LLM provider") from None
 
     def provider_ids(self) -> tuple[str, ...]:
         return tuple(sorted(self._providers))

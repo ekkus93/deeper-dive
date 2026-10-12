@@ -221,3 +221,16 @@ def test_mutated_provider_configuration_is_rejected_before_runtime_build(
     assert secret not in str(error.value)
     assert secret not in (tmp_path / "config.json").read_text()
     assert controller.config().providers["planner"].base_url is None
+
+
+def test_missing_llm_provider_id_cannot_leak_in_controller_error(tmp_path) -> None:
+    controller = _controller(tmp_path)
+    canary = "controller-credential-canary"
+    untrusted_id = f"https://example.test/v1#api_key={canary}"
+
+    with pytest.raises(KeyError, match="unknown LLM provider") as error:
+        controller.llm(untrusted_id)
+
+    assert canary not in str(error.value)
+    assert untrusted_id not in str(error.value)
+    assert error.value.__suppress_context__ is True
