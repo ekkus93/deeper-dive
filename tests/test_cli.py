@@ -307,7 +307,7 @@ def test_cli_bootstrap_failure_sanitizes_chained_provider_errors(
     assert "Traceback" not in captured.err
 
 
-_MISSING_IDENTIFIER_CANARY = "private-caller-identifier-CANARY-987654321"
+_MISSING_IDENTIFIER_CANARY = "a1b2c3d4-e5f6-4a8b-9c0d-0123456789ab"
 
 
 @pytest.mark.parametrize(
