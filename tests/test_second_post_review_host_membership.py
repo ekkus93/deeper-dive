@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import replace
+from unittest.mock import patch
 
 import pytest
 
@@ -314,11 +315,19 @@ async def _guided_mixed_host_save_exit_is_single_shot_and_project_isolated(tmp_p
         wizard.query_one("#guided-host-instructions", Input).value = "Saved once"
         wizard._move_selected_host(1)
         assert wizard._host_profile_dirty() and wizard._host_order_dirty()
-        wizard.action_save_exit()
-        assert wizard.query_one("#wizard-exit-confirmation").display
-        wizard.action_confirm_save_exit()
-        # A repeated confirmation must be inert after the first transaction.
-        wizard.action_confirm_save_exit()
+        with (
+            patch.object(wizard, "action_save_host", wraps=wizard.action_save_host) as profile_save,
+            patch.object(
+                wizard, "action_save_host_order", wraps=wizard.action_save_host_order
+            ) as order_save,
+        ):
+            wizard.action_save_exit()
+            assert wizard.query_one("#wizard-exit-confirmation").display
+            wizard.action_confirm_save_exit()
+            # A repeated confirmation must not run either durable transaction again.
+            wizard.action_confirm_save_exit()
+            assert profile_save.call_count == 1
+            assert order_save.call_count == 1
         await pilot.pause()
 
         saved = service.hosts(primary.id).get_host("first")
