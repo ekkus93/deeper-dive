@@ -8,6 +8,7 @@ import wave
 from dataclasses import dataclass, field
 from typing import Protocol
 
+from deeper_dive.diagnostics import redact
 from deeper_dive.hosts import HostProfile
 from deeper_dive.llm import ProviderHealth
 
@@ -97,7 +98,10 @@ class TTSProviderRegistry:
         voice = next((item for item in provider.voices() if item.id == host.tts_voice), None)
         if voice is None:
             # Provider and voice identifiers may be untrusted and credential-like.
-            raise ValueError("unknown TTS voice for provider")
+            raise ValueError(
+                f"unknown TTS voice {redact(host.tts_voice)!r} "
+                f"for provider {redact(host.tts_provider)!r}"
+            )
         return provider, voice
 
 
