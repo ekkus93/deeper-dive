@@ -99,6 +99,16 @@ async def _check_field(tmp_path: Path, step: str, selector: str) -> None:
             assert widget.value == pending
             wizard.action_cancel_exit_confirmation()
 
+        # Global navigation must obey the same guard for every first-run field.
+        app.action_navigate("home")
+        assert app.screen is wizard
+        assert wizard.query_one("#wizard-exit-confirmation").display
+        assert widget.value == pending
+        await pilot.pause()
+        assert wizard.focused is wizard.query_one("#wizard-confirm-cancel")
+        wizard.action_cancel_exit_confirmation()
+        assert widget.value == pending
+
         assert not wizard.action_back()
         wizard.action_confirm_discard_exit()
         await pilot.pause()
