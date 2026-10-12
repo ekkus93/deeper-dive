@@ -41,6 +41,8 @@ This is the **only completion checklist for the second post-review cycle**. The 
 - [ ] Intercept Back and Continue before a dirty form's editable values are replaced.
 - [ ] Intercept global Home/Projects navigation, new/resume, wizard completion and other screen transitions that would discard unsaved edits.
 - [ ] Protect host/plan/source entity reselection from overwriting edits in the previously selected record.
+- [ ] Independently reproduce and guard Create Host replacing an existing selected host's dirty profile without Save/Discard/Cancel; exercise cancellation, successful save, explicit discard and durable identity.
+- [ ] Independently reproduce and guard first-run voice rediscovery replacing dirty defaults or already-valid saved host voice choices; exercise reordering, vanished voices, provider errors and durable defaults.
 - [ ] Prevent reload/resume/automatic service refresh from overwriting dirty input.
 - [ ] Offer Save changes and continue, Discard changes and continue, and Cancel/keep editing with the intended destination displayed.
 - [x] Default-focus Cancel, preserve keyboard/assistive navigation, and make modal Escape cancel rather than discard.
