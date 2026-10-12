@@ -44,7 +44,9 @@ async def _discovery_requires_explicit_choice(tmp_path: Path) -> None:
         )
         with (
             patch.object(wizard, "_selected_llm_name", return_value="configured-llm"),
-            patch.object(type(app.composition.provider_controller), "llm", return_value=fake_provider),
+            patch.object(
+                type(app.composition.provider_controller), "llm", return_value=fake_provider
+            ),
         ):
             wizard.action_discover_models()
             await pilot.pause()
