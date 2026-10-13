@@ -105,9 +105,7 @@ def test_store_revalidates_mutated_nested_provider_before_publication(
     )
     durable = store.path.read_bytes()
     candidate = store.load()
-    candidate.providers["local"] = candidate.providers["local"].model_copy(
-        update={field: invalid}
-    )
+    candidate.providers["local"] = candidate.providers["local"].model_copy(update={field: invalid})
 
     with pytest.raises(UserConfigError) as error:
         store.save(candidate)
