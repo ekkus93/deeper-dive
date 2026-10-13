@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from deeper_dive.user_config import UserConfig, UserConfigError, UserConfigStore
+from deeper_dive.user_config import (
+    UserConfig,
+    UserConfigError,
+    UserConfigStore,
+)
 
 
 _DEFAULT_CASES = [
