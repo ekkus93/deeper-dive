@@ -285,6 +285,21 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         self._remember_current_form()
         self._request_runtime_readiness()
 
+    def on_screen_resume(self) -> None:
+        """Refresh externally saved setup only when the active form is clean."""
+        if not self.is_mounted:
+            return
+        if self._current_form_dirty():
+            self.set_status("Unsaved setup edits remain; save or discard before reloading.")
+            return
+        self._load_existing_setup()
+        self._last_llm_choice = self._select_value("#setup-ai-choice")
+        self._last_speech_choice = self._select_value("#setup-speech-choice")
+        self._sync_text()
+        self._sync_setup_controls()
+        self._remember_current_form()
+        self._request_runtime_readiness()
+
     def action_continue(self) -> bool:
         step = self.context.state.current_step
         # A pending role edit must reach the shared Save/Discard/Cancel guard
@@ -298,6 +313,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             and not self._exit_confirmation_pending
             and not self._current_form_dirty()
         ):
+
             identity = self._current_llm_identity()
             if identity is None or self._model_test_identity != identity:
                 self.set_status("Run the synthetic model test successfully before continuing.")
@@ -598,6 +614,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             return False
         voices = tuple(
             item.strip()
+
             for item in self.query_one("#setup-speech-voices", Input).value.split(",")
             if item.strip()
         )
@@ -898,6 +915,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             fields = (
                 controller.configuration_fields(adapter)
                 if controller.capability(adapter) == "llm"
+
                 else frozenset()
             )
             for selector, field in (
