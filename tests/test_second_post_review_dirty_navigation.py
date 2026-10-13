@@ -1681,7 +1681,7 @@ async def _clean_first_run_navigation(tmp_path: Path) -> None:
         assert isinstance(wizard, GuidedFirstRunWizard)
         assert wizard.context.state.current_step == "welcome"
         assert wizard.action_continue()
-        assert wizard.context.state.current_step == "ai-choice"
+        assert wizard.context.state.current_step == "system-check"
         assert not wizard.query_one("#wizard-exit-confirmation").display
         assert wizard.action_back()
         assert wizard.context.state.current_step == "welcome"
