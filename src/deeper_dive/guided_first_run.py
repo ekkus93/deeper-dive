@@ -782,7 +782,8 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             if controller.capability(provider.provider_type) == "llm"
         ]
         if llm_names:
-            self._llm_provider_name = llm_names[0]
+            if self._llm_provider_name not in llm_names:
+                self._llm_provider_name = llm_names[0]
             provider = config.providers[self._llm_provider_name]
             self.query_one("#setup-provider-name", Input).value = self._llm_provider_name
             self.query_one("#setup-provider-adapter", Input).value = provider.provider_type

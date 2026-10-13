@@ -48,6 +48,17 @@ async def _exercise_screen_resume(tmp_path: Path) -> None:
         model = wizard.query_one("#setup-provider-model", Input)
         assert model.value == "durable-first"
         assert not wizard._current_form_dirty()
+        assert wizard._llm_provider_name == "resume-fixture"
+
+        # Adding an alphabetically earlier LLM must not silently reselect it
+        # when this wizard has an existing, still-valid provider identity.
+        controller.save_provider(
+            "aaa-alternate",
+            "ollama",
+            base_url="http://127.0.0.1:11434",
+            default_model="unrelated-model",
+            network_scope="local",
+        )
 
         # An external Settings update must refresh a clean visible provider.
         controller.save_provider(
@@ -67,6 +78,7 @@ async def _exercise_screen_resume(tmp_path: Path) -> None:
             await pilot.pause()
             assert app.screen is wizard
         assert model.value == "durable-second"
+        assert wizard._llm_provider_name == "resume-fixture"
         assert not wizard._current_form_dirty()
 
         # A further external write must not replace typed, not-yet-saved input.
