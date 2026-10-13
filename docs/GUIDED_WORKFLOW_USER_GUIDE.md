@@ -202,12 +202,22 @@ wizard's Save changes action) succeeds. If a profile save succeeds but the host-
 save fails, the profile remains durable and only the still-unsaved host order remains
 dirty for retry or explicit discard; the wizard does not claim the whole form was saved.
 
-Provider/model/voice readiness probes use finite I/O deadlines where the adapter
-supports them, plus a bounded background-worker budget. Python cannot forcibly
-interrupt every blocking local provider call after a timeout: the old worker
-may still be running, but its late result cannot replace newer readiness.
-Repeated refreshes are coalesced or rejected when the worker budget is
-exhausted rather than creating an unbounded number of threads.
+Provider/model/voice readiness uses separate, non-published HTTP provider adapters.
+Readiness clamps configured adapter timeouts to the smaller of one second and
+one quarter of the UI readiness budget; normal generation/synthesis adapters
+retain their configured timeouts. The OpenAI LLM readiness adapter also disables
+its normal transient-request retries. Health/model/voice discovery calls on
+network adapters pass the readiness timeout through their HTTP transport.
+Some speech adapters perform configuration/static checks without a network call.
+
+An HTTP socket timeout is **not** a guaranteed end-to-end wall-clock deadline:
+DNS resolution, unusually long streaming responses, or a blocked local/third-party
+adapter can still occupy a Python thread. Python cannot safely force-kill these
+calls after the UI-level timeout. The coordinator permits at most two in-flight
+worker threads per application, coalesces identical requests, and rejects excess
+retries until a slot is available. Late results cannot publish over a timeout,
+changed configuration, or app shutdown. Retry after connectivity is restored or
+the timed-out workers finish; the UI remains responsive while checks run.
 
 Settings are validated as one candidate before a durable replacement. Invalid research
 modes, Quick Deep Dive presets/durations, network/diagnostic policy values, malformed
