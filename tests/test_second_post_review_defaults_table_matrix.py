@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
 
 from deeper_dive.user_config import UserConfig, UserConfigError, UserConfigStore
@@ -35,16 +33,24 @@ _DEFAULT_CASES = [
 
 @pytest.mark.parametrize(("key", "valid", "expected", "invalid"), _DEFAULT_CASES)
 def test_v1_defaults_good_bad_blank_restart_and_single_write(
-    tmp_path, key: str, valid: str, expected: str, invalid: str
+    tmp_path, monkeypatch, key: str, valid: str, expected: str, invalid: str
 ) -> None:
     store = UserConfigStore(tmp_path / "config.json")
     store.save(UserConfig(defaults={"legacy_extension": " keep exact legacy whitespace "}))
 
     candidate = store.load()
     candidate.defaults[key] = valid
-    with patch.object(store, "_write_temporary", wraps=store._write_temporary) as writer:
+    writes = []
+    original_write = store._write_temporary
+
+    def tracked_write(payload):
+        writes.append(1)
+        return original_write(payload)
+
+    monkeypatch.setattr(store, "_write_temporary", tracked_write)
+    if True:
         store.save(candidate)
-        assert writer.call_count == 1
+        assert len(writes) == 1
 
         persisted = store.load()
         assert persisted.defaults[key] == expected
@@ -54,13 +60,13 @@ def test_v1_defaults_good_bad_blank_restart_and_single_write(
         persisted.defaults[key] = invalid
         with pytest.raises(UserConfigError):
             store.save(persisted)
-        assert writer.call_count == 1
+        assert len(writes) == 1
         assert store.path.read_bytes() == original_bytes
 
         unchanged = store.load()
         unchanged.defaults[key] = ""
         store.save(unchanged)
-        assert writer.call_count == 2
+        assert len(writes) == 2
     reopened = UserConfigStore(store.path).load()
     assert reopened.defaults[key] == ""
     assert reopened.defaults["legacy_extension"] == " keep exact legacy whitespace "
