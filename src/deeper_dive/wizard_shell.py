@@ -56,6 +56,33 @@ class WizardSaveResult:
         return cls(outcome)
 
 
+@dataclass(frozen=True, slots=True)
+class WizardDirtyFormSnapshot:
+    """Loss-safe, typed identity and values used by all guided dirty guards.
+
+    Displayed values are exact user inputs; semantic values normalize only
+    fields whose production save strips whitespace. A target-identity change
+    is dirty until a production hydration/save records a fresh baseline.
+    """
+
+    kind: WizardKind
+    step_key: str
+    target_identity: tuple[str | None, str | None, str | None]
+    baseline_identity: tuple[str | None, str | None, str | None] | None
+    durable_baseline: tuple[tuple[str, str], ...] | None
+    displayed_values: tuple[tuple[str, str], ...]
+    semantic_snapshot: tuple[tuple[str, str], ...]
+    original_destination: str | None
+
+    @property
+    def dirty(self) -> bool:
+        if self.durable_baseline is None:
+            return bool(self.displayed_values)
+        return self.displayed_values != self.durable_baseline or (
+            self.baseline_identity is not None and self.target_identity != self.baseline_identity
+        )
+
+
 # Only editable business-form controls participate in dirty detection. Navigation
 # pickers, action buttons, and generated status text are intentionally excluded.
 _FORM_FIELDS: dict[tuple[WizardKind, str], tuple[str, ...]] = {
@@ -175,6 +202,9 @@ class WizardShell(Screen[None]):
         self._pending_transition: str | None = None
         self._last_form_status = ""
         self._form_baselines: dict[str, tuple[tuple[str, str], ...]] = {}
+        self._form_baseline_targets: dict[
+            str, tuple[str | None, str | None, str | None]
+        ] = {}
         self._viewport_width = RECOMMENDED_TERMINAL_WIDTH
 
     @property
@@ -376,39 +406,77 @@ class WizardShell(Screen[None]):
                 values.append((key, str(widget.value)))
         return tuple(values)
 
+    def _form_target_identity(self) -> tuple[str | None, str | None, str | None]:
+        """Identify the production record behind the currently displayed edit."""
+
+        step = self.context.state.current_step
+        target: str | None = None
+        if step == "hosts":
+            target = getattr(self, "_loaded_host_id", None)
+        elif step == "plan":
+            ordinal = getattr(self, "_loaded_segment_ordinal", None)
+            target = str(ordinal) if ordinal is not None else None
+        elif step == "provider-config":
+            target = getattr(self, "_llm_provider_name", None)
+        elif step == "speech":
+            target = getattr(self, "_tts_provider_name", None)
+        elif step in {"episode", "project", "research"}:
+            target = self.context.episode_id if step == "episode" else self.context.project_id
+        elif step == "sources":
+            target = "new-source"
+        return (self.context.project_id, self.context.episode_id, target)
+
+    def _dirty_form_snapshot(self) -> WizardDirtyFormSnapshot:
+        step = self.context.state.current_step
+        displayed = self._editable_snapshot()
+        # Textual must preserve raw text for loss-safe navigation. The separate
+        # semantic projection lets save handlers/acceptance tests inspect
+        # domain-normalized values without promoting unsaved edits to durable.
+        semantics = tuple(
+            (field, value if field in {"guided-source-text", "guided-host-instructions"} or field.startswith("__") else value.strip())
+            for field, value in displayed
+        )
+        return WizardDirtyFormSnapshot(
+            kind=self.context.state.kind,
+            step_key=step,
+            target_identity=self._form_target_identity(),
+            baseline_identity=self._form_baseline_targets.get(step),
+            durable_baseline=self._form_baselines.get(step),
+            displayed_values=displayed,
+            semantic_snapshot=semantics,
+            original_destination=self._pending_transition,
+        )
+
     def _schedule_form_baseline(self) -> None:
         # Do not turn edits made before Textual's next refresh into the baseline.
-        # Rehydration may also happen between scheduling and that refresh.
         step = self.context.state.current_step
         snapshot = self._editable_snapshot()
+        identity = self._form_target_identity()
         baseline = self._form_baselines.get(step)
-        # This method is also called by routine refreshes. Only initial hydration
-        # may establish a baseline; adopting a dirty snapshot would silently
-        # convert unsaved user input into a clean form. Explicit production saves
-        # use _remember_current_form() to advance the durable baseline.
-        if baseline is not None and baseline != snapshot:
+        baseline_identity = self._form_baseline_targets.get(step)
+        if baseline is not None and (baseline != snapshot or baseline_identity != identity):
             return
 
         def remember_if_unchanged() -> None:
             if (
                 self.context.state.current_step == step
                 and self._editable_snapshot() == snapshot
+                and self._form_target_identity() == identity
                 and self._form_baselines.get(step) == baseline
+                and self._form_baseline_targets.get(step) == baseline_identity
             ):
                 self._form_baselines[step] = snapshot
+                self._form_baseline_targets[step] = identity
 
         self.call_after_refresh(remember_if_unchanged)
 
     def _remember_current_form(self) -> None:
-        self._form_baselines[self.context.state.current_step] = self._editable_snapshot()
+        step = self.context.state.current_step
+        self._form_baselines[step] = self._editable_snapshot()
+        self._form_baseline_targets[step] = self._form_target_identity()
 
     def _current_form_dirty(self) -> bool:
-        snapshot = self._editable_snapshot()
-        baseline = self._form_baselines.get(self.context.state.current_step)
-        if baseline is None:
-            # Fail closed before the first post-mount snapshot can be captured.
-            return bool(snapshot)
-        return snapshot != baseline
+        return self._dirty_form_snapshot().dirty
 
     def action_save_exit(self) -> None:
         if self.busy:

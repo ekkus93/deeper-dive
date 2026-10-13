@@ -263,6 +263,7 @@ class GuidedHostWizard(GuidedSourceWizard):
         previous = self._form_baselines.get("hosts", ())
         order = tuple(item for item in previous if item[0] == "__episode_host_order__")
         self._form_baselines["hosts"] = (*current_profile, *order)
+        self._form_baseline_targets["hosts"] = self._form_target_identity()
         self._pending_host_form_values = self._host_form_values()
 
     def _restore_discarded_form(self) -> None:
@@ -302,6 +303,7 @@ class GuidedHostWizard(GuidedSourceWizard):
             ),
         )
         self._form_baselines["hosts"] = (*profile, *order)
+        self._form_baseline_targets["hosts"] = self._form_target_identity()
 
     def _execute_custom_transition(self, transition: str) -> None:
         if transition == "create-host":

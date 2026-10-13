@@ -1729,3 +1729,56 @@ async def _source_picker_preserves_unsaved_import_fields(tmp_path: Path) -> None
         assert len(service.list_sources(project.id)) == 2
         wizard.action_cancel_exit_confirmation()
         assert body.value == "Unsaved source text that must not be replaced."
+
+
+def test_shared_typed_dirty_snapshot_carries_target_values_and_intended_destination(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_typed_dirty_snapshot_preserves_target(tmp_path))
+
+
+async def _typed_dirty_snapshot_preserves_target(tmp_path: Path) -> None:
+    service, project_id, episode_id, _hosts = _episode_fixture(tmp_path)
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project_id
+        wizard.context.episode_id = episode_id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "episode")
+        wizard._load_episode_form()
+        wizard._toggle()
+        wizard._remember_current_form()
+        clean = wizard._dirty_form_snapshot()
+        assert clean.target_identity == (project_id, episode_id, episode_id)
+        assert clean.baseline_identity == clean.target_identity
+        assert clean.durable_baseline == clean.displayed_values
+        assert not clean.dirty
+        assert clean.original_destination is None
+
+        title = wizard.query_one("#guided-episode-title", Input)
+        title.value = "  Unsaved episode title  "
+        pending = wizard._dirty_form_snapshot()
+        assert pending.dirty
+        assert ("guided-episode-title", "  Unsaved episode title  ") in pending.displayed_values
+        assert ("guided-episode-title", "Unsaved episode title") in pending.semantic_snapshot
+        assert not wizard.action_back()
+        pending = wizard._dirty_form_snapshot()
+        assert pending.original_destination == "back"
+        assert pending.target_identity == clean.target_identity
+        assert pending.durable_baseline == clean.durable_baseline
+        wizard.action_cancel_exit_confirmation()
+        assert wizard._dirty_form_snapshot().dirty
+
+        # Switching to a different underlying episode without rehydrating
+        # must never make the old screen's baseline appear clean.
+        another = EpisodeConfigurationService(
+            Database(service.workspaces.project_root(project_id) / "project.db")
+        ).create(project_id, EpisodeConfiguration(title="Independent target"))
+        wizard.context.episode_id = another.id
+        title.value = "Durable title"
+        switched = wizard._dirty_form_snapshot()
+        assert switched.target_identity[1] == another.id
+        assert switched.dirty
