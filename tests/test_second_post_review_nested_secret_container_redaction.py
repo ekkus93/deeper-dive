@@ -137,3 +137,39 @@ def test_tuple_header_chained_cli_exception_and_diagnostic_bundle(
     assert secret not in payload
     assert "status" in payload
     assert "[REDACTED]" in payload
+
+
+
+def test_textual_provider_error_redacts_tuple_header(tmp_path) -> None:
+    import asyncio
+
+    from textual.widgets import Static
+
+    from deeper_dive.application.service import DeeperDiveService
+    from deeper_dive.guided_app import GuidedDeeperDiveApp
+    from deeper_dive.guided_first_run import GuidedFirstRunWizard
+    from deeper_dive.storage.workspace import WorkspaceManager
+
+    async def exercise() -> None:
+        service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+        app = GuidedDeeperDiveApp(service)
+        async with app.run_test(size=(100, 35)) as pilot:
+            app._first_run_readiness.close()
+            wizard = app.screen
+            assert isinstance(wizard, GuidedFirstRunWizard)
+            secret = "textual-tuple-canary"
+            cause = ValueError(f"headers={{'Authorization': ('Basic {secret}',), 'status': 403}}")
+            error = RuntimeError("Provider setup failed")
+            error.__cause__ = cause
+            wizard.set_error("Provider setup failed.", error)
+            await pilot.pause()
+            rendered = str(wizard.query_one("#wizard-status", Static).render())
+            assert secret not in rendered
+            assert "Provider setup failed" in rendered
+            wizard.action_help()
+            details = str(wizard.query_one("#wizard-status", Static).render())
+            assert secret not in details
+            assert "[REDACTED]" in details
+            assert secret not in (wizard._error_details or "")
+
+    asyncio.run(exercise())
