@@ -167,6 +167,10 @@ class ProviderController:
             name_key = key.strip()
             if not name_key:
                 raise ValueError("settings key is required")
+            # The provider-composite path must not strip control bytes before
+            # the shared durable validation sees the caller's original value.
+            if any(ord(character) < 32 or ord(character) == 127 for character in key + value):
+                raise ValueError("settings keys and values must be single-line")
             normalized = value.strip()
             if normalized:
                 candidate.defaults[name_key] = normalized

@@ -80,6 +80,15 @@ class ProviderConfig(BaseModel):
     timeout_seconds: float = Field(default=60.0, gt=0, le=600)
     network_scope: Literal["local", "remote"] | None = None
 
+    @field_validator("default_model")
+    @classmethod
+    def validate_default_model(cls, value: str | None) -> str | None:
+        if value is not None and any(
+            ord(character) < 32 or ord(character) == 127 for character in value
+        ):
+            raise ValueError("default_model must be a single-line identifier")
+        return value
+
     @field_validator("voices")
     @classmethod
     def validate_voices(cls, values: tuple[str, ...]) -> tuple[str, ...]:

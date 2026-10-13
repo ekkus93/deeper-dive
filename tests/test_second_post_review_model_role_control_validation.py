@@ -98,3 +98,32 @@ def test_settings_does_not_strip_terminal_controls_before_validating(
     with pytest.raises(ValueError, match="single-line"):
         controller.save_model_default("host_generation", unsafe_value)
     assert store.path.read_bytes() == original
+
+
+def test_provider_controller_rejects_untrimmed_controls_in_composite_defaults(tmp_path) -> None:
+    store = UserConfigStore(tmp_path / "config.json")
+    store.save(UserConfig(providers={"local": ProviderConfig(provider_type="ollama")}))
+    original = store.path.read_bytes()
+    controller = ProviderController(store, LLMProviderRegistry(), {})
+    with pytest.raises(ValueError, match="single-line"):
+        controller.save_provider(
+            "local",
+            "ollama",
+            default_updates={"host_generation": "local:valid-model\n"},
+        )
+    assert store.path.read_bytes() == original
+
+
+@pytest.mark.parametrize("control", ["\r", "\n", "\x00", "\x1b", "\x7f"])
+def test_provider_default_model_controls_are_rejected_before_persistence(
+    tmp_path, control: str
+) -> None:
+    store = UserConfigStore(tmp_path / "config.json")
+    store.save(UserConfig(providers={"local": ProviderConfig(provider_type="ollama")}))
+    original = store.path.read_bytes()
+    controller = ProviderController(store, LLMProviderRegistry(), {})
+    canary = "provider-model-canary"
+    with pytest.raises(ValueError) as caught:
+        controller.save_provider("local", "ollama", default_model="model" + control + canary)
+    assert canary not in str(caught.value)
+    assert store.path.read_bytes() == original

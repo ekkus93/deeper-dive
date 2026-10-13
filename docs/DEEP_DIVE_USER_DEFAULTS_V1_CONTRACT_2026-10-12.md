@@ -60,7 +60,7 @@ Each `providers[provider_id]` contains a `ProviderConfig`:
   encoded spellings). Benign query parameters and IPv6 are permitted.
 - `credential_env`: optional trimmed environment-variable identifier,
   `[A-Za-z_][A-Za-z0-9_]*`; never a literal API key.
-- `default_model`: optional provider-specific model ID, resolved by adapter.
+- `default_model`: optional provider-specific model ID without terminal-control characters, resolved by adapter.
 - `voices`: tuple of provider voice identifiers; reject ASCII control
   characters, preserve printable names.
 - `response_format`: case-folded supported audio format.
