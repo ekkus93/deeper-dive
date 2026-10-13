@@ -154,9 +154,7 @@ class ProviderConfig(BaseModel):
             raise ValueError("base_url must not contain credential query parameters")
         # Query values can carry encoded nested endpoints. Apply the same
         # sanitization contract to each decoded destination before persistence.
-        for _, query_value in parse_qsl(
-            parsed.query.replace(";", "&"), keep_blank_values=True
-        ):
+        for _, query_value in parse_qsl(parsed.query.replace(";", "&"), keep_blank_values=True):
             nested = query_value
             for _ in range(5):
                 if nested.lower().startswith(("http://", "https://")) and redact(nested) != nested:
