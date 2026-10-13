@@ -42,7 +42,7 @@ default with a required empty provider/role identifier.
 | `local_provider_ids` | Comma-delimited trimmed nonblank provider IDs | The provider controller checks referential integrity on normal Settings/provider writes; explicit `network_scope` still overrides legacy local-ID hints. |
 | `tts_provider` | Optional trimmed TTS provider ID; no ASCII controls | Provider controller checks the referenced provider exists and supports TTS when defaults are changed through it. |
 | `tts_voice`, `tts_voice_host_1`, `tts_voice_host_2` | Optional trimmed voice IDs; no ASCII controls | If the referenced TTS provider declares voices, the provider controller checks voice membership. Otherwise discovery occurs later. |
-| `corpus_analysis`, `research_planning`, `source_analysis`, `episode_planning`, `directing`, `host_generation`, `verification` | Optional `provider:model` (each side nonempty, outer whitespace trimmed); all model role keys correspond to `ModelRole` | `ProviderController.validate_default_references()` checks a configured provider exists and is an LLM. Episode/project overrides follow production precedence. |
+| `corpus_analysis`, `research_planning`, `source_analysis`, `episode_planning`, `directing`, `host_generation`, `verification` | Optional `provider:model` (each side nonempty, outer whitespace trimmed; ASCII terminal controls rejected before trimming); all model role keys correspond to `ModelRole` | `ProviderController.validate_default_references()` checks a configured provider exists and is an LLM. Episode/project overrides follow production precedence. |
 
 The defaults mapping deliberately permits **unknown legacy extension keys** and
 does not rewrite their values. Do not reject them casually in a new migration.

@@ -248,6 +248,11 @@ class UserConfig(BaseModel):
             raw = normalized.get(key)
             if raw is None:
                 continue
+            # Reject terminal-control bytes before stripping. Otherwise CR/LF
+            # at the edges is silently accepted and embedded ANSI/control text
+            # can survive as a model or provider identifier on CLI/TUI surfaces.
+            if any(ord(character) < 32 or ord(character) == 127 for character in raw):
+                raise ValueError(f"{key} must be a single-line provider:model identifier")
             value = raw.strip()
             if value:
                 provider, separator, model = value.partition(":")
