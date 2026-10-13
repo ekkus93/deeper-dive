@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import pytest
 
+from deeper_dive.llm import LLMProviderRegistry
+from deeper_dive.provider_tui import ProviderController
+from deeper_dive.settings_screen import SettingsController
+from deeper_dive.tts import FakeTTSProvider
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigError, UserConfigStore
 
 
@@ -63,3 +67,36 @@ def test_printable_voice_identifiers_and_optional_blank_values_remain_valid() ->
     assert config.providers["speech"].voices == ("Friendly Voice",)
     assert config.defaults["tts_voice"] == "Friendly Voice"
     assert config.defaults["tts_voice_host_1"] == ""
+
+
+
+def test_settings_and_provider_mutations_reject_voice_controls_atomically(tmp_path) -> None:
+    store = UserConfigStore(tmp_path / "config.json")
+    store.save(
+        UserConfig(
+            providers={
+                "speech": ProviderConfig(provider_type="fake-tts", voices=("voice-a",))
+            },
+            defaults={"tts_provider": "speech", "tts_voice": "voice-a"},
+        )
+    )
+    original = store.path.read_bytes()
+    provider = ProviderController(
+        store,
+        LLMProviderRegistry(),
+        {"speech": FakeTTSProvider()},
+    )
+    settings = SettingsController(provider)
+    with pytest.raises(ValueError) as failure:
+        settings.save_tts_defaults("speech", "voice-a\nBearer value-canary")
+    assert "value-canary" not in str(failure.value)
+    assert store.path.read_bytes() == original
+
+    with pytest.raises(ValueError) as failure:
+        provider.save_provider(
+            "speech",
+            "fake-tts",
+            voices=("voice-a", "other\rAuthorization: value-canary"),
+        )
+    assert "value-canary" not in str(failure.value)
+    assert store.path.read_bytes() == original
