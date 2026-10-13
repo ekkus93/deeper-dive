@@ -132,7 +132,8 @@ class HostEpisodeRepository:
             cursor = db.execute(
                 """UPDATE hosts SET display_name=?,preset_origin=?,role=?,expertise=?,
                 instructions=?,behavior_json=?,evidence_priorities_json=?,tts_provider=?,tts_voice=?
-                WHERE id=? AND project_id=?""" + compare,
+                WHERE id=? AND project_id=?"""
+                + compare,
                 (
                     host.display_name,
                     host.preset_origin,
