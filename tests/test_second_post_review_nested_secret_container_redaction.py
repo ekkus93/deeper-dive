@@ -174,7 +174,6 @@ def test_textual_provider_error_redacts_tuple_header(tmp_path) -> None:
     asyncio.run(exercise())
 
 
-
 @pytest.mark.parametrize("scheme", ("Basic", "Token", "Digest", "Bearer"))
 @pytest.mark.parametrize("separator", (":", "="))
 def test_all_authorization_schemes_are_scrubbed_before_log_or_export(
