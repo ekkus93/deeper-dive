@@ -203,6 +203,8 @@ def test_all_authorization_schemes_are_scrubbed_before_log_or_export(
         assert secret not in text
         assert "status=401" in text
         assert "[REDACTED]" in text
+
+
 @pytest.mark.parametrize(
     "key",
     ("client.secret", "api[key]", "api/key", "refresh+token", "bearer.token", "client[secret]"),
