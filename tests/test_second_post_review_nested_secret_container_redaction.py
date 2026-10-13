@@ -83,3 +83,55 @@ def test_unterminated_sensitive_container_does_not_leak_trailing_credential() ->
     safe = str(redact(text))
     assert "nested-secret-canary" not in safe
     assert "[REDACTED]" in safe
+
+
+@pytest.mark.parametrize(
+    "nested",
+    [
+        "('Basic tuple-secret-canary',)",
+        "(('Basic tuple-secret-canary',), {'extra': 'safe'})",
+        "('prefix)tuple-secret-canary', ['extra'])",
+        "('Basic tuple-secret-canary'",
+    ],
+)
+def test_stringified_secret_header_tuple_is_redacted(nested: str) -> None:
+    raw = f"provider response headers={{'Authorization': {nested}, 'status': 401}} retry=yes"
+    safe = str(redact(raw))
+    assert "tuple-secret-canary" not in safe
+    assert "[REDACTED]" in safe
+
+
+def test_benign_tuple_mapping_does_not_lose_context() -> None:
+    raw = "headers={'Accept': ('application/json',), 'status': 200}"
+    assert redact(raw) == raw
+
+
+def test_tuple_header_chained_cli_exception_and_diagnostic_bundle(tmp_path, capsys, monkeypatch) -> None:
+    from deeper_dive import cli as cli_module
+
+    secret = "tuple-boundary-canary"
+    header_repr = f"{{'Authorization': ('Basic {secret}',), 'status': 429}}"
+
+    def reject_bootstrap(*args, **kwargs) -> None:
+        try:
+            raise ValueError(f"provider failed headers={header_repr}")
+        except ValueError as cause:
+            raise RuntimeError("unable to configure provider") from cause
+
+    monkeypatch.setattr(cli_module.ProductionComposition, "build", reject_bootstrap)
+    assert cli_module.main(["--data-dir", str(tmp_path), "project", "list"]) == 2
+    cli = capsys.readouterr()
+    assert cli.out == ""
+    assert secret not in cli.err
+    assert "unable to configure provider" in cli.err
+    assert "status" in cli.err
+    assert "Traceback" not in cli.err
+
+    output = export_diagnostic_bundle(
+        tmp_path / "bundle.json",
+        provider_diagnostics={"error": f"provider failed headers={header_repr}"},
+    )
+    payload = output.read_text(encoding="utf-8")
+    assert secret not in payload
+    assert "status" in payload
+    assert "[REDACTED]" in payload

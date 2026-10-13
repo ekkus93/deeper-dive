@@ -43,8 +43,8 @@ _QUOTED_MAPPING_ASSIGNMENT = re.compile(
     r"(?i)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*)(['\"])((?:\\.|(?!\4)[^\\\r\n])+)\4"
 )
 # SDK exceptions sometimes stringify header mappings whose sensitive values
-# are nested lists or dictionaries rather than quoted strings.
-_QUOTED_CONTAINER_START = re.compile(r"(?i)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*)([\[{])")
+# are nested lists, tuples, or dictionaries rather than quoted strings.
+_QUOTED_CONTAINER_START = re.compile(r"(?i)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*)([\[({])")
 _CREDENTIAL_URL = re.compile(r"(?i)(https?://)([^/@\s:]+)(?::([^/@\s]+))?@")
 _CREDENTIAL_QUERY = re.compile(
     r"(?i)([?&;](?:api_key|apikey|key|token|access_token|auth|authorization|password|secret)=)"
@@ -202,7 +202,7 @@ def _redact_quoted_secret_containers(value: str) -> str:
         if match.start() < position or not _is_secret_key(match.group(2)):
             continue
         opening = match.end() - 1
-        pending = ["]" if value[opening] == "[" else "}"]
+        pending = [{"[": "]", "{": "}", "(": ")"}[value[opening]]]
         quote: str | None = None
         escaped = False
         end = len(value)
