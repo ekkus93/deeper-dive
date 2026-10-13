@@ -57,9 +57,15 @@ async def _exercise_screen_resume(tmp_path: Path) -> None:
             default_model="durable-second",
             network_scope="local",
         )
+        # Exercise the real installed Textual screen transition, not only
+        # a direct call to the resume hook.
         with patch.object(wizard, "_request_runtime_readiness"):
-            wizard.on_screen_resume()
+            app.action_navigate("home")
             await pilot.pause()
+            assert app.screen is not wizard
+            app.action_navigate("setup")
+            await pilot.pause()
+            assert app.screen is wizard
         assert model.value == "durable-second"
         assert not wizard._current_form_dirty()
 
