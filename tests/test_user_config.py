@@ -75,3 +75,67 @@ def test_first_time_writer_does_not_overwrite_concurrent_creation(tmp_path) -> N
 
     assert path.read_bytes() == original
     assert UserConfigStore(path).load().defaults["research_policy"] == "off"
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid"),
+    [
+        ("base_url", "https://example.test/v1#api_key=mutated-provider-canary"),
+        ("credential_env", "INVALID ENV mutated-provider-canary"),
+        ("timeout_seconds", 0),
+        ("response_format", "not-a-real-audio-format"),
+        ("voices", ("safe", "mutated-provider-canary\nunsafe")),
+    ],
+)
+def test_store_revalidates_mutated_nested_provider_before_publication(
+    tmp_path, field: str, invalid: object
+) -> None:
+    """Pydantic model_copy(update=...) skips field validators; persistence must not."""
+    store = UserConfigStore(tmp_path / "user-config.json")
+    store.save(
+        UserConfig(
+            providers={
+                "local": ProviderConfig(
+                    provider_type="ollama",
+                    base_url="http://127.0.0.1:11434",
+                    default_model="default",
+                )
+            }
+        )
+    )
+    durable = store.path.read_bytes()
+    candidate = store.load()
+    candidate.providers["local"] = candidate.providers["local"].model_copy(
+        update={field: invalid}
+    )
+
+    with pytest.raises(UserConfigError) as error:
+        store.save(candidate)
+    assert "mutated-provider-canary" not in str(error.value)
+    assert store.path.read_bytes() == durable
+    assert store.load().providers["local"].base_url == "http://127.0.0.1:11434"
+
+
+@pytest.mark.parametrize(
+    ("key", "invalid"),
+    [
+        ("research_policy", "mutated-settings-canary"),
+        ("network_policy", "mutated-settings-canary"),
+        ("quick_deep_dive_duration_minutes", "-1"),
+        ("local_only", "mutated-settings-canary"),
+    ],
+)
+def test_store_revalidates_mutated_semantic_defaults_before_publication(
+    tmp_path, key: str, invalid: str
+) -> None:
+    store = UserConfigStore(tmp_path / "user-config.json")
+    store.save(UserConfig(defaults={"research_policy": "off"}))
+    durable = store.path.read_bytes()
+    candidate = store.load()
+    candidate.defaults[key] = invalid
+
+    with pytest.raises(UserConfigError) as error:
+        store.save(candidate)
+    assert "mutated-settings-canary" not in str(error.value)
+    assert store.path.read_bytes() == durable
+    assert store.load().defaults == {"research_policy": "off"}
