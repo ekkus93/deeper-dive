@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -16,7 +17,7 @@ from deeper_dive.guided_workflow import WizardKind, WizardState
 from deeper_dive.hosts import HostProfile
 from deeper_dive.preflight import PreflightEstimate, PreflightIssue, PreflightReport
 from deeper_dive.storage.database import Database
-from deeper_dive.storage.episode_repositories import EpisodePlanRecord
+from deeper_dive.storage.episode_repositories import EpisodePlanRecord, HostEpisodeRepository
 from deeper_dive.storage.workspace import WorkspaceManager
 
 
@@ -1442,3 +1443,61 @@ async def _stale_guided_episode_save_is_rejected(tmp_path: Path) -> None:
         assert saved.title == "New title after explicit reload"
         assert saved.focus == "Updated by other writer"
         assert service.hosts(project_id).get_episode(sibling.id) == original_sibling
+
+
+def test_concurrent_host_edit_rejects_stale_guided_profile_and_preserves_input(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_stale_guided_host_save_is_rejected(tmp_path))
+
+
+async def _stale_guided_host_save_is_rejected(tmp_path: Path) -> None:
+    service, project_id, episode_id, host_ids = _episode_fixture(tmp_path)
+    external = HostEpisodeRepository(\n        Database(service.workspaces.project_root(project_id) / "project.db")\n    )
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project_id
+        wizard.context.episode_id = episode_id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "hosts")
+        wizard._load_episode_host_order()
+        wizard._refresh_hosts(host_ids[0])
+        wizard._toggle()
+        wizard._remember_current_form()
+
+        instructions = wizard.query_one("#guided-host-instructions", Input)
+        instructions.value = "Pending instructions from first editor"
+        durable = external.get_host(host_ids[0])
+        assert durable is not None
+        external.update_host(replace(durable, role="Role from the other editor"))
+        assert not wizard.action_save_host()
+        assert instructions.value == "Pending instructions from first editor"
+        assert wizard._host_profile_dirty()
+        actual = external.get_host(host_ids[0])
+        assert actual is not None
+        assert actual.role == "Role from the other editor"
+        assert actual.instructions == durable.instructions
+
+        # A second write raced after any UI precheck: SQLite's expected-row
+        # predicate rejects it rather than losing the newer durable data.
+        with pytest.raises(ValueError, match="changed concurrently"):
+            external.update_host(
+                replace(durable, instructions="would erase newer role"),
+                expected_host=durable,
+            )
+        assert external.get_host(host_ids[0]) == actual
+
+        wizard._refresh_hosts(host_ids[0], preserve_dirty=False)
+        wizard._remember_host_profile_baseline()
+        assert wizard.query_one("#guided-host-role", Input).value == actual.role
+        instructions.value = "New instructions after deliberate reload"
+        assert wizard.action_save_host()
+        saved = external.get_host(host_ids[0])
+        assert saved is not None
+        assert saved.role == actual.role
+        assert saved.instructions == "New instructions after deliberate reload"
+        assert external.get_host(host_ids[1]) is not None
+        assert tuple(service.hosts(project_id).list_episode_host_ids(episode_id)) == host_ids

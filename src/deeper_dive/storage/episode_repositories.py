@@ -96,12 +96,42 @@ class HostEpisodeRepository:
                 ),
             )
 
-    def update_host(self, host: HostProfileRecord) -> None:
+    def update_host(
+        self, host: HostProfileRecord, *, expected_host: HostProfileRecord | None = None
+    ) -> None:
+        # A supplied form baseline adds an atomic compare-and-swap precondition
+        # inside the same SQLite UPDATE; the check cannot race with another writer.
+        if expected_host is not None and (
+            host.id != expected_host.id or host.project_id != expected_host.project_id
+        ):
+            raise ValueError("host identity changed; reload before saving")
+        previous_fields = (
+            (
+                expected_host.display_name,
+                expected_host.preset_origin,
+                expected_host.role,
+                expected_host.expertise,
+                expected_host.instructions,
+                expected_host.behavior_json,
+                expected_host.evidence_priorities_json,
+                expected_host.tts_provider,
+                expected_host.tts_voice,
+            )
+            if expected_host is not None
+            else ()
+        )
+        compare = (
+            """ AND display_name IS ? AND preset_origin IS ? AND role IS ?
+                AND expertise IS ? AND instructions IS ? AND behavior_json IS ?
+                AND evidence_priorities_json IS ? AND tts_provider IS ?
+                AND tts_voice IS ?"""
+            if expected_host is not None else ""
+        )
         with self.database.transaction() as db:
             cursor = db.execute(
                 """UPDATE hosts SET display_name=?,preset_origin=?,role=?,expertise=?,
                 instructions=?,behavior_json=?,evidence_priorities_json=?,tts_provider=?,tts_voice=?
-                WHERE id=? AND project_id=?""",
+                WHERE id=? AND project_id=?""" + compare,
                 (
                     host.display_name,
                     host.preset_origin,
@@ -114,9 +144,12 @@ class HostEpisodeRepository:
                     host.tts_voice,
                     host.id,
                     host.project_id,
+                    *previous_fields,
                 ),
             )
             if cursor.rowcount != 1:
+                if expected_host is not None:
+                    raise ValueError("host changed concurrently; reload before saving")
                 raise KeyError(host.id)
 
     def delete_host(self, host_id: str) -> None:

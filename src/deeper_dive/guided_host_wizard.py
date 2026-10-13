@@ -22,6 +22,7 @@ class GuidedHostWizard(GuidedSourceWizard):
         super().__init__(context, completion_probe)
         self._selected_host_ids: list[str] = []
         self._loaded_host_id: str | None = None
+        self._loaded_host_record: HostProfileRecord | None = None
         self._ignore_host_picker_value: str | None = None
         self._pending_host_form_values: tuple[str, str, str, str, object] | None = None
 
@@ -420,9 +421,16 @@ class GuidedHostWizard(GuidedSourceWizard):
             self.set_status("Choose a host to edit.")
             return False
         try:
-            host = HostProfile.from_record(record)
+            baseline = self._loaded_host_record
+            if baseline is None or baseline.id != record.id or baseline.project_id != project_id:
+                raise ValueError("Host profile is not loaded; reopen the host before saving.")
+            # Use the original form identity, not the newly read record, so a
+            # stale wizard cannot silently overwrite another editor's changes.
+            host = HostProfile.from_record(baseline)
             self._apply_host_form(host, clear_optional=True)
-            self.context.composition.service.hosts(project_id).update_host(host.to_record())
+            self.context.composition.service.hosts(project_id).update_host(
+                host.to_record(), expected_host=baseline
+            )
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
             self.set_error("Host save failed.", exc)
             return False
@@ -593,10 +601,13 @@ class GuidedHostWizard(GuidedSourceWizard):
         record = self._selected_host_record()
         details = self.query_one("#guided-host-details", Static)
         if record is None:
+            self._loaded_host_id = None
+            self._loaded_host_record = None
             details.update("No host selected.")
             return
         host = HostProfile.from_record(record)
         self._loaded_host_id = record.id
+        self._loaded_host_record = record
         self.query_one("#guided-host-name", Input).value = host.display_name
         self.query_one("#guided-host-role", Input).value = host.role
         self.query_one("#guided-host-expertise", Input).value = host.expertise
