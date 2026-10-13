@@ -235,3 +235,61 @@ def test_missing_configured_credential_env_reference_is_not_echoed(
         ProviderFactory(environ={}).build(config)
     assert private_env_name not in str(exc.value)
     assert "private-provider" not in str(exc.value)
+
+
+def test_readiness_factory_enforces_short_real_adapter_transport_budgets(
+    tmp_path,
+) -> None:
+    """Readiness builds use finite I/O timeouts without mutating generation adapters."""
+    from deeper_dive.provider_tui import ProviderController
+    from deeper_dive.user_config import UserConfigStore
+
+    adapter_types = (
+        "ollama",
+        "llama-server",
+        "openai",
+        "openai-tts",
+        "elevenlabs",
+        "openai-compatible-tts",
+    )
+    config = UserConfig(
+        providers={
+            kind: ProviderConfig(
+                provider_type=kind,
+                base_url="https://fixture.example.test/v1",
+                default_model="fake-model",
+                voices=("fake-voice",),
+                timeout_seconds=45.0,
+            )
+            for kind in adapter_types
+        }
+    )
+    store = UserConfigStore(tmp_path / "config.json")
+    store.save(config)
+    factory = ProviderFactory(
+        environ={"OPENAI_API_KEY": "fake-credential", "ELEVENLABS_API_KEY": "fake-credential"}
+    )
+    production = factory.build(config)
+    controller = ProviderController(
+        store,
+        production.llm_registry,
+        production.tts_providers,
+        provider_factory=factory,
+    )
+    readiness = controller.readiness_probe_controller(request_timeout_seconds=0.25)
+
+    for kind in adapter_types:
+        if kind in {"ollama", "llama-server", "openai"}:
+            production_adapter = production.llm_registry.get(kind)
+            readiness_adapter = readiness.llm(kind)
+        else:
+            production_adapter = production.tts_providers[kind]
+            readiness_adapter = readiness.tts(kind)
+        # The production wrappers preserve adapter identity while the
+        # readiness-only instances own the short transport deadline.
+        assert production_adapter._delegate._timeout == 45.0
+        assert readiness_adapter._delegate._timeout == 0.25
+        assert store.load().providers[kind].timeout_seconds == 45.0
+
+    assert production.llm_registry.get("openai")._delegate._max_retries == 2
+    assert readiness.llm("openai")._delegate._max_retries == 0
