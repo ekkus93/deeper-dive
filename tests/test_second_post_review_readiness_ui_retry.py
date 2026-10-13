@@ -74,9 +74,7 @@ async def _exercise(tmp_path, monkeypatch) -> None:
         )
 
     monkeypatch.setattr(guided_app_module, "FirstRunReadinessCoordinator", factory)
-    app = GuidedDeeperDiveApp(
-        DeeperDiveService(WorkspaceManager(tmp_path / "data"))
-    )
+    app = GuidedDeeperDiveApp(DeeperDiveService(WorkspaceManager(tmp_path / "data")))
     try:
         async with app.run_test(size=(100, 35)) as pilot:
             screen = app.screen
