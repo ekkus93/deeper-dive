@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from enum import StrEnum
 
 from textual import events
@@ -19,7 +19,6 @@ from deeper_dive.diagnostics import redact, sanitize_exception_message
 from deeper_dive.guided_draft import GuidedDraftStore
 from deeper_dive.guided_workflow import (
     CompletionProbe,
-    SetupMode,
     WizardContext,
     WizardKind,
     WizardNavigator,
@@ -432,7 +431,13 @@ class WizardShell(Screen[None]):
         # semantic projection lets save handlers/acceptance tests inspect
         # domain-normalized values without promoting unsaved edits to durable.
         semantics = tuple(
-            (field, value if field in {"guided-source-text", "guided-host-instructions"} or field.startswith("__") else value.strip())
+            (
+                field,
+                value
+                if field in {"guided-source-text", "guided-host-instructions"}
+                or field.startswith("__")
+                else value.strip(),
+            )
             for field, value in displayed
         )
         return WizardDirtyFormSnapshot(
