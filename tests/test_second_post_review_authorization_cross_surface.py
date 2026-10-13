@@ -62,5 +62,7 @@ def test_authorization_scheme_canaries_are_private_across_sinks(tmp_path, scheme
 
 @pytest.mark.parametrize("scheme", ["Basic", "Token", "Digest", "Bearer"])
 def test_unrelated_benign_diagnostic_text_remains_visible(scheme: str) -> None:
-    message = f"provider={scheme.lower()} status=200 request=completed"
+    # Keep the label as the final field: "bearer status=200" is
+    # intentionally treated as an ambiguous credential in free-form text.
+    message = f"status=200 request=completed provider={scheme.lower()}"
     assert redact(message) == message
