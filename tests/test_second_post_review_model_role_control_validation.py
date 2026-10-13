@@ -66,7 +66,7 @@ def test_settings_model_default_control_is_rejected_without_changing_bytes(tmp_p
     original = store.path.read_bytes()
     controller = SettingsController(ProviderController(store, LLMProviderRegistry(), {}))
     with pytest.raises(ValueError) as caught:
-        controller.save_model_default("host_generation", "local:model\\x1b[31msecret-canary")
+        controller.save_model_default("host_generation", "local:model\x1b[31msecret-canary")
     assert "secret-canary" not in str(caught.value)
     assert store.path.read_bytes() == original
     assert store.load().defaults["host_generation"] == "local:working-model"
@@ -80,8 +80,12 @@ def test_printable_model_identifiers_and_legacy_bare_model_remain_compatible(tmp
     assert store.load().defaults["host_generation"] == "local:models/version-one"
 
 
-@pytest.mark.parametrize("unsafe_value", ["local:good-model\\n", "local:good-model\\r", "local:good-model\\x1b[31m"])
-def test_settings_does_not_strip_terminal_controls_before_validating(tmp_path, unsafe_value: str) -> None:
+@pytest.mark.parametrize(
+    "unsafe_value", ["local:good-model\n", "local:good-model\r", "local:good-model\x1b[31m"]
+)
+def test_settings_does_not_strip_terminal_controls_before_validating(
+    tmp_path, unsafe_value: str
+) -> None:
     store = UserConfigStore(tmp_path / "config.json")
     store.save(
         UserConfig(
