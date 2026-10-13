@@ -1651,9 +1651,7 @@ async def _stale_host_order_requires_reload(tmp_path: Path) -> None:
         assert wizard._host_order_dirty()
         assert not wizard.action_save_host_order()
         assert wizard._selected_host_ids == [host_ids[0]]
-        assert external.load_configuration(episode_id).host_ids == tuple(
-            reversed(host_ids)
-        )
+        assert external.load_configuration(episode_id).host_ids == tuple(reversed(host_ids))
         assert "changed since this form was loaded" in str(
             wizard.query_one("#wizard-status", Static).render()
         )
