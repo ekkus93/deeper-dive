@@ -556,12 +556,8 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
 
     def action_save_roles(self) -> bool:
         raw_values = {
-            ModelRole.EPISODE_PLANNING: self.query_one(
-                "#setup-role-episode-planning", Input
-            ).value,
-            ModelRole.HOST_GENERATION: self.query_one(
-                "#setup-role-host-generation", Input
-            ).value,
+            ModelRole.EPISODE_PLANNING: self.query_one("#setup-role-episode-planning", Input).value,
+            ModelRole.HOST_GENERATION: self.query_one("#setup-role-host-generation", Input).value,
             ModelRole.DIRECTING: self.query_one("#setup-role-directing", Input).value,
             ModelRole.VERIFICATION: self.query_one("#setup-role-verification", Input).value,
         }
