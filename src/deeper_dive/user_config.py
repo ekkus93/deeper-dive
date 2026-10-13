@@ -249,6 +249,10 @@ class UserConfig(BaseModel):
 
         local_ids = normalized.get("local_provider_ids")
         if local_ids is not None:
+            # Local provider IDs reach CLI/TUI status and provider routing.
+            # Reject controls before strip() can erase leading/trailing CR/LF.
+            if any(ord(character) < 32 or ord(character) == 127 for character in local_ids):
+                raise ValueError("local_provider_ids must contain single-line identifiers")
             normalized["local_provider_ids"] = ",".join(
                 item.strip() for item in local_ids.split(",") if item.strip()
             )
@@ -268,6 +272,7 @@ class UserConfig(BaseModel):
                 if not separator:
                     if legacy_roles.get(key) == value and re.fullmatch(r"[A-Za-z0-9_.-]+", value):
                         normalized[key] = value
+
                         continue
                     raise ValueError(f"{key} must use non-empty provider:model")
                 if not provider.strip() or not model.strip():
