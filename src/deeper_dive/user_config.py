@@ -64,6 +64,7 @@ _NETWORK_POLICIES = frozenset(
 _DIAGNOSTIC_LOGGING = frozenset({"off", "normal", "verbose"})
 _SPEECH_SETUP = frozenset({"configured", "deferred"})
 _PATH_DEFAULTS = frozenset({"ffmpeg_executable", "kitten_model_dir"})
+_NORMALIZED_DEFAULTS = frozenset({"research_policy", "quick_deep_dive_research_policy", "quick_deep_dive_duration_minutes", "quick_deep_dive_host_presets", "local_only", "network_policy", "diagnostic_logging", "speech_setup"})
 
 
 class ProviderConfig(BaseModel):
@@ -200,6 +201,10 @@ class UserConfig(BaseModel):
         legacy_roles = context.get("legacy_model_role_defaults", {})
         if not isinstance(legacy_roles, dict):
             legacy_roles = {}
+        for key in _NORMALIZED_DEFAULTS:
+            raw = normalized.get(key)
+            if raw is not None and any(ord(ch) < 32 or ord(ch) == 127 for ch in raw):
+                raise ValueError(f"{key} must be a single-line setting")
         for key in ("research_policy", "quick_deep_dive_research_policy"):
             raw = normalized.get(key)
             if raw is None:
@@ -272,10 +277,9 @@ class UserConfig(BaseModel):
             raw = normalized.get(key)
             if raw is None:
                 continue
-            value = raw.strip()
-            if any(ord(character) < 32 or ord(character) == 127 for character in value):
+            if any(ord(character) < 32 or ord(character) == 127 for character in raw):
                 raise ValueError(f"{key} must be a single filesystem path or executable name")
-            normalized[key] = value
+            normalized[key] = raw.strip()
 
         local_ids = normalized.get("local_provider_ids")
         if local_ids is not None:
