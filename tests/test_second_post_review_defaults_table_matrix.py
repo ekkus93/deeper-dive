@@ -10,7 +10,6 @@ from deeper_dive.user_config import (
     UserConfigStore,
 )
 
-
 _DEFAULT_CASES = [
     ("research_policy", " Useful ", "useful", "dangerous"),
     ("quick_deep_dive_research_policy", " OFF ", "off", "dangerous"),
