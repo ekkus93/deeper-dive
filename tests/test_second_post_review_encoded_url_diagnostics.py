@@ -57,3 +57,22 @@ def test_complete_encoded_credential_urls_are_redacted_in_all_sinks(tmp_path, en
 def test_benign_encoded_url_is_preserved() -> None:
     url = "https%3A%2F%2Fexample.test%2Fdocs%23installation"
     assert redact(url) == url
+
+
+def test_multiple_plain_and_encoded_credential_urls_preserve_benign_context() -> None:
+    message = (
+        "first=https://example.test/v1#access_token=plain-url-canary "
+        "second=HTTPS%3A%2F%2Fexample.test%2Fv1%3Fsession.Token%3Dencoded-url-canary "
+        "reference=https://example.test/docs#installation status=401"
+    )
+    sanitized = str(redact(message))
+    assert "plain-url-canary" not in sanitized
+    assert "encoded-url-canary" not in sanitized
+    assert sanitized.count("[REDACTED]") >= 2
+    assert "reference=https://example.test/docs#installation" in sanitized
+    assert "status=401" in sanitized
+
+
+def test_uppercase_benign_encoded_url_is_preserved() -> None:
+    url = "HTTPS%3A%2F%2Fexample.test%2Fdocs%23installation"
+    assert redact(url) == url
