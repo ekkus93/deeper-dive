@@ -726,7 +726,8 @@ def test_provider_controller_rejects_raw_controls_before_normalization(
 
     with pytest.raises(ValueError, match="single-line") as error:
         controller.save_provider("remote", provider_type, **arguments)
-    assert control not in str(error.value)
+    submitted = provider_type if field == "provider_type" else arguments[field]
+    assert submitted not in str(error.value)
     assert store.path.read_bytes() == original
     assert "remote" not in store.load().providers
 
