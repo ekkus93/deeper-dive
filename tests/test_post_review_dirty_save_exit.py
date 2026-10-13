@@ -219,6 +219,8 @@ def test_delayed_baseline_cannot_swallow_form_edits() -> None:
     fake = SimpleNamespace(
         context=SimpleNamespace(state=SimpleNamespace(current_step="sources")),
         _form_baselines={},
+        _form_baseline_targets={},
+        _form_target_identity=lambda: ("project-1", "episode-1", "new-source"),
         _editable_snapshot=lambda: (("guided-source-text", entered[0]),),
         call_after_refresh=lambda callback: callbacks.append(callback),
     )
@@ -230,3 +232,8 @@ def test_delayed_baseline_cannot_swallow_form_edits() -> None:
     WizardShell._schedule_form_baseline(cast(WizardShell, fake))
     callbacks.pop()()
     assert fake._form_baselines["sources"] == (("guided-source-text", "new unsaved user input"),)
+    assert fake._form_baseline_targets["sources"] == (
+        "project-1",
+        "episode-1",
+        "new-source",
+    )
