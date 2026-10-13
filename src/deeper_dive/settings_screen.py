@@ -38,6 +38,11 @@ class SettingsController:
             name = key.strip()
             if not name:
                 raise ValueError("settings key is required")
+            # Reject controls before stripping: a trailing newline or escape
+            # could otherwise be silently accepted by the Settings UI even
+            # though durable model/voice/path identifiers forbid it.
+            if any(ord(character) < 32 or ord(character) == 127 for character in key + value):
+                raise ValueError("settings keys and values must be single-line")
             normalized[name] = value.strip()
         config = self.provider_controller.config()
         for name, value in normalized.items():

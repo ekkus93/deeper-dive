@@ -78,3 +78,19 @@ def test_printable_model_identifiers_and_legacy_bare_model_remain_compatible(tmp
     store = UserConfigStore(tmp_path / "config.json")
     store.save(config)
     assert store.load().defaults["host_generation"] == "local:models/version-one"
+
+
+@pytest.mark.parametrize("unsafe_value", ["local:good-model\\n", "local:good-model\\r", "local:good-model\\x1b[31m"])
+def test_settings_does_not_strip_terminal_controls_before_validating(tmp_path, unsafe_value: str) -> None:
+    store = UserConfigStore(tmp_path / "config.json")
+    store.save(
+        UserConfig(
+            providers={"local": ProviderConfig(provider_type="ollama")},
+            defaults={"host_generation": "local:working-model"},
+        )
+    )
+    original = store.path.read_bytes()
+    controller = SettingsController(ProviderController(store, LLMProviderRegistry(), {}))
+    with pytest.raises(ValueError, match="single-line"):
+        controller.save_model_default("host_generation", unsafe_value)
+    assert store.path.read_bytes() == original

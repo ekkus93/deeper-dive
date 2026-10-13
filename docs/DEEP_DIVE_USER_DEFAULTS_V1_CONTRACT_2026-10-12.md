@@ -21,7 +21,7 @@ and rejects a stale revision rather than silently clobbering a concurrent
 writer. Failed validation must preserve the previous file bytes. Config
 directory ownership/trust is a deployment precondition.
 
-`SettingsController.set_defaults()` trims keys and values; **blank input
+`SettingsController.set_defaults()` rejects terminal-control bytes before trimming keys and values; **blank input
 removes** a key in a composite Settings save. Direct V1 deserialization is more
 permissive: some recognized keys allow the empty string, which means
 unspecified, inherited, or configured elsewhere. Do not conflate an unset
