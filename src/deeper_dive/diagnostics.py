@@ -48,6 +48,10 @@ _CREDENTIAL_QUERY = re.compile(
     r"([^&#;\s]+)"
 )
 _URL_FRAGMENT = re.compile(r"(?i)(https?://[^\s#]+)#([^\s]+)")
+# Some SDKs percent-encode the entire endpoint in error and redirect fields.
+_ENCODED_HTTP_URL = re.compile(
+    r"(?i)https?%(?:25)*3a%(?:25)*2f%(?:25)*2f[^\s<>\"']+"
+)
 # Percent-encoded credential *keys* in URL queries are not matched by the
 # plain-text assignment pattern. Decode only the key and retain the URL shape.
 # Match raw punctuation in keys (api[key], api+key, api/key) as well as
@@ -129,6 +133,21 @@ def _redact_url_fragment(match: re.Match[str]) -> str:
     return match.group(0)
 
 
+def _redact_encoded_http_url(match: re.Match[str]) -> str:
+    """Inspect encoded endpoints without exposing their credential-bearing bytes."""
+    original = match.group(0)
+    decoded = original
+    # Handle ordinary and repeatedly percent-encoded URLs in SDK diagnostics.
+    for _ in range(5):
+        updated = unquote_plus(decoded)
+        if updated == decoded:
+            break
+        decoded = updated
+    if decoded.startswith(("http://", "https://")) and _redact_text(decoded) != decoded:
+        return "[REDACTED]"
+    return original
+
+
 def is_sensitive_url_query_key(key: str) -> bool:
     """Recognize credential query keys, including layered percent-encoding."""
     for _ in range(4):
@@ -182,7 +201,8 @@ def _redact_text(value: str) -> str:
     value = _URL_FRAGMENT.sub(_redact_url_fragment, value)
     value = _CREDENTIAL_QUERY.sub(r"\1[REDACTED]", value)
     value = _ENCODED_CREDENTIAL_QUERY.sub(_redact_encoded_query, value)
-    return _CREDENTIAL_URL.sub(r"\1[REDACTED]@", value)
+    value = _CREDENTIAL_URL.sub(r"\1[REDACTED]@", value)
+    return _ENCODED_HTTP_URL.sub(_redact_encoded_http_url, value)
 
 
 def redact(value: object, *, drop_secret_keys: bool = False) -> object:
