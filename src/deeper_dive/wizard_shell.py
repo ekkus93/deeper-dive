@@ -19,6 +19,7 @@ from deeper_dive.diagnostics import redact, sanitize_exception_message
 from deeper_dive.guided_draft import GuidedDraftStore
 from deeper_dive.guided_workflow import (
     CompletionProbe,
+    SetupMode,
     WizardContext,
     WizardKind,
     WizardNavigator,
