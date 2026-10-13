@@ -25,7 +25,9 @@ async def _check_model_discovery(tmp_path: Path) -> None:
     data_dir = tmp_path / "data"
     store = UserConfigStore(data_dir / "config.json")
     store.save(
-        UserConfig(providers={"local": ProviderConfig(provider_type="fake", default_model="stable")})
+        UserConfig(
+            providers={"local": ProviderConfig(provider_type="fake", default_model="stable")}
+        )
     )
     original = store.path.read_bytes()
     service = DeeperDiveService(WorkspaceManager(data_dir))
@@ -92,9 +94,11 @@ async def _check_model_discovery(tmp_path: Path) -> None:
             await pilot.pause()
             assert picker.value == Select.BLANK
             assert model_input.value == "stable"
-            assert "no longer available" in str(
-                wizard.query_one("#wizard-status", Static).render()
-            )
+            assert "no longer available" in str(wizard.query_one("#wizard-status", Static).render())
+
+            # Simulate a clean retry after the vanished-model warning, so an
+            # actual discovery exception (not just a dirty-form guard) is tested.
+            wizard._remember_current_form()
 
             def failed_discovery() -> None:
                 raise OSError("Authorization: Bearer model-discovery-canary")
@@ -102,6 +106,9 @@ async def _check_model_discovery(tmp_path: Path) -> None:
             with patch.object(provider, "models", side_effect=failed_discovery):
                 wizard.action_discover_models()
                 await pilot.pause()
+            assert "Model discovery failed" in str(
+                wizard.query_one("#wizard-status", Static).render()
+            )
             assert "model-discovery-canary" not in str(
                 wizard.query_one("#wizard-status", Static).render()
             )
