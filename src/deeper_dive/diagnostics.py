@@ -226,8 +226,8 @@ def _redact_quoted_secret_containers(value: str) -> str:
                 if not pending:
                     end = index + 1
                     break
-        pieces.append(value[position:match.start()])
-        pieces.append(value[match.start():opening] + "[REDACTED]")
+        pieces.append(value[position : match.start()])
+        pieces.append(value[match.start() : opening] + "[REDACTED]")
         position = end
     pieces.append(value[position:])
     return "".join(pieces)
