@@ -483,8 +483,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         if self.busy or self._exit_confirmation_pending:
             return
         if self.context.state.current_step == "provider-config" and self._current_form_dirty():
-            # Model discovery selects the first model and rehydrates the provider
-            # input. Preserve the existing edited model until Save/Discard/Cancel.
+            # Option replacement must not overwrite unsaved model/provider edits.
             self._request_dirty_transition("discover-models")
             return
         name = self._selected_llm_name()
@@ -496,12 +495,30 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
             self.set_error("Model discovery failed.", exc)
             return
+        current = self.query_one("#setup-provider-model", Input).value.strip()
+        available = {model.model for model in models}
         self._model_options = tuple((model.model, model.model) for model in models)
         picker = self.query_one("#setup-model-picker", Select)
         picker.set_options(self._model_options)
-        if models:
+        if current in available:
+            # Model identity, not provider-discovery ordering, determines the selection.
+            picker.value = current
+            configured = self.context.composition.provider_controller.config().providers.get(name)
+            if configured is not None and configured.default_model == current:
+                self._remember_current_form()
+        elif current:
+            # A vanished configured model must not silently become another model.
+            picker.value = Select.BLANK
+            self.set_status(
+                "Configured model is no longer available. Choose a replacement and save."
+            )
+            return
+        elif models:
             picker.value = models[0].model
             self.query_one("#setup-provider-model", Input).value = models[0].model
+        else:
+            self.set_status("No models discovered. Check the provider connection and retry.")
+            return
         self.set_status(f"Discovered {len(models)} model(s) from {name}.")
 
     def action_run_model_test(self) -> None:
