@@ -287,16 +287,13 @@ class UserConfig(BaseModel):
                 raise ValueError(f"{key} must be a single-line provider:model identifier")
             value = raw.strip()
             if value:
-
                 provider, separator, model = value.partition(":")
                 if not separator:
                     if legacy_roles.get(key) == value and re.fullmatch(r"[A-Za-z0-9_.-]+", value):
                         normalized[key] = value
-
                         continue
                     raise ValueError(f"{key} must use non-empty provider:model")
                 if not provider.strip() or not model.strip():
-
                     raise ValueError(f"{key} must use non-empty provider:model")
                 value = f"{provider.strip()}:{model.strip()}"
             normalized[key] = value
