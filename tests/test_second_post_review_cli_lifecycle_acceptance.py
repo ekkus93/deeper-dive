@@ -81,9 +81,7 @@ def test_cli_lifecycle_noop_changed_edit_status_plan_and_export_isolation(
         assert repository.get_episode(item.episode_id) == before_episode
         assert repository.get_plan(item.episode_id) == before_plan
 
-        code, payload, error = _invoke(
-            data_dir, capsys, "show", item.project_id, item.episode_id
-        )
+        code, payload, error = _invoke(data_dir, capsys, "show", item.project_id, item.episode_id)
         assert code == 0 and not error
         assert payload["episode"]["id"] == item.episode_id
         assert payload["configuration"]["focus"] != "would corrupt a completed historical episode"
@@ -94,9 +92,7 @@ def test_cli_lifecycle_noop_changed_edit_status_plan_and_export_isolation(
         assert code == 0 and not error
         assert payload["id"] == before_plan.id
 
-        code, payload, error = _invoke(
-            data_dir, capsys, "status", item.project_id, item.episode_id
-        )
+        code, payload, error = _invoke(data_dir, capsys, "status", item.project_id, item.episode_id)
         assert code == 0 and not error
         assert payload["run"]["id"] == item.run_id
         assert payload["run"]["state"] == "completed"
