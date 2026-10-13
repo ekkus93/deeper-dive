@@ -440,13 +440,23 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         adapter = self._selected_llm_adapter()
         raw_name = self.query_one("#setup-provider-name", Input).value
         raw_model = self.query_one("#setup-provider-model", Input).value
-        # Reject controls before stripping, just like provider config validation.
+        raw_values = (raw_name, raw_model) + tuple(
+            self.query_one(selector, Input).value
+            for selector in (
+                "#setup-provider-adapter",
+                "#setup-provider-base-url",
+                "#setup-provider-credential-env",
+                "#setup-provider-network",
+            )
+        )
+        # Reject controls before trimming any optional value; the production
+        # config validator must not be bypassed by first-run normalization.
         if any(
             ord(character) < 32 or ord(character) == 127
-            for value in (raw_name, raw_model)
+            for value in raw_values
             for character in value
         ):
-            self.set_status("Provider name and model must be single-line identifiers.")
+            self.set_status("Provider settings must contain only single-line identifiers.")
             return False
         name = raw_name.strip()
         model = raw_model.strip()
@@ -647,6 +657,25 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             self._request_runtime_readiness()
             return True
 
+        raw_speech = tuple(
+            self.query_one(selector, Input).value
+            for selector in (
+                "#setup-speech-name",
+                "#setup-speech-adapter",
+                "#setup-speech-base-url",
+                "#setup-speech-model",
+                "#setup-speech-credential-env",
+                "#setup-speech-network",
+                "#setup-speech-voices",
+            )
+        )
+        if any(
+            ord(character) < 32 or ord(character) == 127
+            for value in raw_speech
+            for character in value
+        ):
+            self.set_status("Speech provider and voice fields must be single-line.")
+            return False
         adapter = (
             self.query_one("#setup-speech-adapter", Input).value.strip()
             if choice == "advanced"
@@ -1102,7 +1131,10 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         return f"{name}:{config.default_model}"
 
     def _optional_input(self, selector: str) -> str | None:
-        value = self.query_one(selector, Input).value.strip()
+        raw = self.query_one(selector, Input).value
+        if any(ord(character) < 32 or ord(character) == 127 for character in raw):
+            raise ValueError("Optional provider settings must be single-line.")
+        value = raw.strip()
         return value or None
 
     def _select_value(self, selector: str) -> str | None:
