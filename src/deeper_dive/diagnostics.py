@@ -49,9 +49,7 @@ _CREDENTIAL_QUERY = re.compile(
 )
 _URL_FRAGMENT = re.compile(r"(?i)(https?://[^\s#]+)#([^\s]+)")
 # Some SDKs percent-encode the entire endpoint in error and redirect fields.
-_ENCODED_HTTP_URL = re.compile(
-    r"(?i)https?%(?:25)*3a%(?:25)*2f%(?:25)*2f[^\s<>\"']+"
-)
+_ENCODED_HTTP_URL = re.compile(r"(?i)https?%(?:25)*3a%(?:25)*2f%(?:25)*2f[^\s<>\"']+")
 # Percent-encoded credential *keys* in URL queries are not matched by the
 # plain-text assignment pattern. Decode only the key and retain the URL shape.
 # Match raw punctuation in keys (api[key], api+key, api/key) as well as
