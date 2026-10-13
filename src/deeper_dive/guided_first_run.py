@@ -423,8 +423,18 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
 
     def action_save_provider(self) -> bool:
         adapter = self._selected_llm_adapter()
-        name = self.query_one("#setup-provider-name", Input).value.strip()
-        model = self.query_one("#setup-provider-model", Input).value.strip()
+        raw_name = self.query_one("#setup-provider-name", Input).value
+        raw_model = self.query_one("#setup-provider-model", Input).value
+        # Reject controls before stripping, just like provider config validation.
+        if any(
+            ord(character) < 32 or ord(character) == 127
+            for value in (raw_name, raw_model)
+            for character in value
+        ):
+            self.set_status("Provider name and model must be single-line identifiers.")
+            return False
+        name = raw_name.strip()
+        model = raw_model.strip()
         if not name or not adapter or not model:
             self.set_status("Provider name, concrete adapter, and model are required.")
             return False
@@ -545,16 +555,24 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         self._persist_roles({role: identity for role in _REQUIRED_SETUP_ROLES})
 
     def action_save_roles(self) -> bool:
-        values = {
+        raw_values = {
             ModelRole.EPISODE_PLANNING: self.query_one(
                 "#setup-role-episode-planning", Input
-            ).value.strip(),
+            ).value,
             ModelRole.HOST_GENERATION: self.query_one(
                 "#setup-role-host-generation", Input
-            ).value.strip(),
-            ModelRole.DIRECTING: self.query_one("#setup-role-directing", Input).value.strip(),
-            ModelRole.VERIFICATION: self.query_one("#setup-role-verification", Input).value.strip(),
+            ).value,
+            ModelRole.DIRECTING: self.query_one("#setup-role-directing", Input).value,
+            ModelRole.VERIFICATION: self.query_one("#setup-role-verification", Input).value,
         }
+        if any(
+            ord(character) < 32 or ord(character) == 127
+            for value in raw_values.values()
+            for character in value
+        ):
+            self.set_status("Role assignments must be single-line identifiers.")
+            return False
+        values = {role: value.strip() for role, value in raw_values.items()}
         if any(not value for value in values.values()):
             self.set_status("All required model roles need provider:model assignments.")
             return False
