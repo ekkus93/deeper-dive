@@ -7,7 +7,9 @@ import pytest
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigError, UserConfigStore
 
 
-@pytest.mark.parametrize("field", ["tts_provider", "tts_voice", "tts_voice_host_1", "tts_voice_host_2"])
+@pytest.mark.parametrize(
+    "field", ["tts_provider", "tts_voice", "tts_voice_host_1", "tts_voice_host_2"]
+)
 @pytest.mark.parametrize("control", ["\\n", "\\r", "\\t", "\\x00", "\\x7f"])
 def test_voice_default_control_characters_rejected_without_echo(field: str, control: str) -> None:
     canary = "voice-default-canary"

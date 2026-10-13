@@ -86,9 +86,7 @@ class ProviderConfig(BaseModel):
         # Voice identifiers are displayed in terminals and passed to adapters.
         # Never persist control characters that could corrupt those surfaces.
         if any(
-            ord(character) < 32 or ord(character) == 127
-            for voice in values
-            for character in voice
+            ord(character) < 32 or ord(character) == 127 for voice in values for character in voice
         ):
             raise ValueError("voices must contain single-line identifiers")
         return values
