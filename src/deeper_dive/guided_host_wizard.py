@@ -683,6 +683,13 @@ class GuidedHostWizard(GuidedSourceWizard):
     def _voice_label(self, provider_id: str | None, voice_id: str | None) -> str:
         if not provider_id or not voice_id:
             return "No voice"
+        # Host list/detail rendering runs on Textual's UI thread. ElevenLabs
+        # voices() performs a remote GET and must only run for an explicit
+        # discovery/preview action, never during a synchronous display refresh.
+        config = self.context.composition.provider_controller.config()
+        configured = config.providers.get(provider_id)
+        if configured is not None and configured.provider_type == "elevenlabs":
+            return f"ElevenLabs voice ({voice_id})"
         try:
             provider = self.context.composition.provider_controller.tts(provider_id)
             voice = next((item for item in provider.voices() if item.id == voice_id), None)
