@@ -208,6 +208,14 @@ class UserConfig(BaseModel):
         info: ValidationInfo,
     ) -> dict[str, str]:
         normalized = dict(values)
+        # Extension keys reach CLI/TUI status and are persisted even when their
+        # values use legacy free-form syntax. Key names must be terminal-safe.
+        if any(
+            ord(character) < 32 or ord(character) == 127
+            for key in normalized
+            for character in key
+        ):
+            raise ValueError("settings keys must be single-line identifiers")
         context = info.context if isinstance(info.context, dict) else {}
         legacy_roles = context.get("legacy_model_role_defaults", {})
         if not isinstance(legacy_roles, dict):

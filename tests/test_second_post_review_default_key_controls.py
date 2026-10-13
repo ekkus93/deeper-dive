@@ -42,10 +42,6 @@ def test_legacy_extension_value_survives_store_restart(tmp_path) -> None:
     assert UserConfigStore(store.path).load().defaults["extension_custom"] == text
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="SPR-04/06: direct UserConfig validation does not check extension setting keys",
-)
 @pytest.mark.parametrize("codepoint", [10, 27, 127])
 def test_direct_extension_setting_keys_require_terminal_safe_validation(
     codepoint: int,

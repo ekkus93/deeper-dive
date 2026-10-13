@@ -42,6 +42,9 @@ async def _check_model_discovery(tmp_path: Path) -> None:
     provider = SimpleNamespace(models=discovered)
     async with app.run_test(size=(100, 35)) as pilot:
         app._first_run_readiness.close()
+        # Returning users start at Home by design; explicitly open Setup.
+        app.action_navigate("setup")
+        await pilot.pause()
         wizard = app.screen
         assert isinstance(wizard, GuidedFirstRunWizard)
         wizard.context.state = WizardState(WizardKind.FIRST_RUN, "provider-config")
