@@ -44,9 +44,7 @@ _QUOTED_MAPPING_ASSIGNMENT = re.compile(
 )
 # SDK exceptions sometimes stringify header mappings whose sensitive values
 # are nested lists or dictionaries rather than quoted strings.
-_QUOTED_CONTAINER_START = re.compile(
-    r"(?i)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*)([\[{])"
-)
+_QUOTED_CONTAINER_START = re.compile(r"(?i)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*)([\[{])")
 _CREDENTIAL_URL = re.compile(r"(?i)(https?://)([^/@\s:]+)(?::([^/@\s]+))?@")
 _CREDENTIAL_QUERY = re.compile(
     r"(?i)([?&;](?:api_key|apikey|key|token|access_token|auth|authorization|password|secret)=)"
