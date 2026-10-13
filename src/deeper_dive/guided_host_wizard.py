@@ -506,6 +506,25 @@ class GuidedHostWizard(GuidedSourceWizard):
                 self.context.episode_id = episode.id
             else:
                 current = service.load_configuration(self.context.episode_id)
+                # Compare against the durable order seen when this form was
+                # hydrated. Loading 'current' alone would allow a stale form to
+                # silently replace a different editor's membership changes.
+                baseline = dict(self._form_baselines.get("hosts", ())).get(
+                    "__episode_host_order__"
+                )
+                if baseline is None:
+                    raise ValueError("Host order has not been loaded; reopen the episode.")
+                current_identity = (
+                    f"{self.context.episode_id}:{','.join(current.host_ids)}"
+                )
+                if baseline != current_identity:
+                    raise ValueError(
+                        "Episode host order changed since this form was loaded; "
+                        "keep your edits and reload before saving."
+                    )
+                # EpisodeConfigurationRepository.update applies a separate
+                # atomic config-json compare-and-swap against races after
+                # this read, including the host membership snapshot.
                 service.edit(
                     self.context.episode_id,
                     replace(current, host_ids=tuple(self._selected_host_ids)),

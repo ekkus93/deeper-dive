@@ -1614,3 +1614,55 @@ async def _failed_episode_storage_write_keeps_form(
         monkeypatch.setattr(EpisodeConfigurationService, "edit", original_edit)
         assert wizard.action_save_episode()
         assert configs.load_configuration(episode_id).title == title.value
+
+
+def test_stale_guided_host_order_does_not_replace_other_editor_membership(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_stale_host_order_requires_reload(tmp_path))
+
+
+async def _stale_host_order_requires_reload(tmp_path: Path) -> None:
+    service, project_id, episode_id, host_ids = _episode_fixture(tmp_path)
+    external = EpisodeConfigurationService(
+        Database(service.workspaces.project_root(project_id) / "project.db")
+    )
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project_id
+        wizard.context.episode_id = episode_id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "hosts")
+        wizard._load_episode_host_order()
+        wizard._refresh_hosts(host_ids[0])
+        wizard._toggle()
+        wizard._remember_current_form()
+
+        # Another production client updates the membership after hydration.
+        externally_saved = external.load_configuration(episode_id)
+        external.edit(
+            episode_id,
+            replace(externally_saved, host_ids=tuple(reversed(host_ids))),
+        )
+        wizard._selected_host_ids = [host_ids[0]]
+        assert wizard._host_order_dirty()
+        assert not wizard.action_save_host_order()
+        assert wizard._selected_host_ids == [host_ids[0]]
+        assert external.load_configuration(episode_id).host_ids == tuple(
+            reversed(host_ids)
+        )
+        assert "changed since this form was loaded" in str(
+            wizard.query_one("#wizard-status", Static).render()
+        )
+
+        # Only an explicit refresh adopts the other writer's new baseline.
+        wizard._load_episode_host_order()
+        wizard._refresh_host_order()
+        wizard._remember_current_form()
+        assert wizard._selected_host_ids == list(reversed(host_ids))
+        wizard._selected_host_ids = list(host_ids)
+        assert wizard.action_save_host_order()
+        assert external.load_configuration(episode_id).host_ids == host_ids
