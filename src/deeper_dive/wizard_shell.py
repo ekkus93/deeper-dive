@@ -701,3 +701,168 @@ class WizardShell(Screen[None]):
         self._viewport_width = width
         self.query_one("#wizard-progress", Static).update(self._progress_text(self.navigator))
         too_small = width < MINIMUM_TERMINAL_WIDTH or height < MINIMUM_TERMINAL_HEIGHT
+        warning = self.query_one("#wizard-resize-message", Static)
+        content = self.query_one("#wizard-content", VerticalScroll)
+        actions = self.query_one("#wizard-actions", Horizontal)
+        if too_small:
+            warning.update(
+                "Terminal too small. Resize to at least "
+                f"{MINIMUM_TERMINAL_WIDTH}x{MINIMUM_TERMINAL_HEIGHT}. "
+                "Your workflow state is preserved."
+            )
+        warning.display = too_small
+        content.display = not too_small
+        actions.display = not too_small
+
+    def _heading_text(self, navigator: WizardNavigator) -> str:
+        return (
+            f"{self.title_text} — Step {navigator.current_index + 1} "
+            f"of {len(navigator.steps)}: {navigator.current_step.label}"
+        )
+
+    def _progress_text(self, navigator: WizardNavigator) -> str:
+        """Keep the progress rail on one line, including at 80 columns.
+
+        Prior/current/next context is included only when it fits the viewport.
+        Full step completion remains available from the derived navigator.
+        """
+        progress = navigator.progress()
+        index = navigator.current_index
+        current = progress[index]
+        prefix = f"{index + 1}/{len(progress)}"
+        current_label = f"{current.text_marker} {current.label} ({current.visual_state.value})"
+        complete = sum(item.visual_state.value == "complete" for item in progress)
+        needs_attention = sum(item.visual_state.value == "needs-attention" for item in progress)
+        summary = f"✓ {complete} done"
+        if needs_attention:
+            summary += f", ! {needs_attention} need attention"
+        result = f"{prefix} | {current_label} | {summary}"
+        budget = max(30, self._viewport_width - 4)
+        if index:
+            previous = progress[index - 1]
+            candidate = (
+                f"{prefix} | {previous.text_marker} {previous.label} "
+                f"({previous.visual_state.value}) | {current_label} | {summary}"
+            )
+            if len(candidate) <= budget:
+                result = candidate
+        # Prefer the next genuinely upcoming step, which may be farther
+        # ahead than an already-ready intermediate prerequisite.
+        upcoming = next(
+            (item for item in progress[index + 1 :] if item.visual_state.value == "upcoming"),
+            None,
+        )
+        following = upcoming or (progress[index + 1] if index + 1 < len(progress) else None)
+        if following is not None:
+            suffix = (
+                f" | {following.text_marker} {following.label} ({following.visual_state.value})"
+            )
+            if len(result) + len(suffix) <= budget:
+                result += suffix
+        return result
+
+    def _status_text(self, step_key: str) -> str:
+        if self.status_provider is not None:
+            return self.status_provider(step_key)
+        if self.completion_probe(step_key):
+            return "Status: Ready to continue."
+        return f"Status: {self.blocker_message(step_key)}"
+
+
+class FirstRunWizardShell(WizardShell):
+    """First-run specialization with a welcome and optional system check."""
+
+    def __init__(self, context: WizardContext, completion_probe: CompletionProbe) -> None:
+        super().__init__(context, completion_probe, title="First-run Setup")
+
+    def step_controls(self) -> tuple[Widget, ...]:
+        return (
+            Select(
+                [
+                    ("Quick Setup (recommended)", SetupMode.QUICK.value),
+                    ("Advanced Setup", SetupMode.ADVANCED.value),
+                ],
+                value=(self.context.state.setup_mode or SetupMode.QUICK).value,
+                allow_blank=False,
+                id="setup-mode",
+            ),
+            Button("Skip Setup", id="setup-skip", name="skip-setup"),
+            Button(
+                "System Check Details",
+                id="system-check-details",
+                name="system-check-details",
+            ),
+        )
+
+    def step_content(self, step_key: str) -> str:
+        if step_key == "welcome":
+            return (
+                "Welcome to Deeper Dive. Local AI models are supported; cloud is optional.\n"
+                "Quick Setup recommends defaults. Advanced Setup exposes more controls.\n"
+                "Skip Setup allows project inspection without completing setup."
+            )
+        if step_key == "system-check":
+            from deeper_dive.first_run import FirstRunController
+
+            check = FirstRunController(self.context.composition.provider_controller).system_check()
+            rows = list(check.summary())
+            if getattr(self, "_system_details_visible", False):
+                rows.extend(("", "Details:", *check.diagnostics))
+                rows.append(
+                    "Remediation: choose any healthy supported provider. "
+                    "Install FFmpeg before audio generation."
+                )
+            return "\n".join(rows)
+        return super().step_content(step_key)
+
+    def on_mount(self) -> None:
+        super().on_mount()
+        self._show_welcome_controls()
+
+    def action_continue(self) -> bool:
+        if not super().action_continue():
+            return False
+        self._show_welcome_controls()
+        self._schedule_form_baseline()
+        return True
+
+    def action_back(self) -> bool:
+        if not super().action_back():
+            return False
+        self._show_welcome_controls()
+        self._schedule_form_baseline()
+        return True
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        if event.select.id == "setup-mode" and isinstance(event.value, str):
+            self.context.state = replace(self.context.state, setup_mode=SetupMode(event.value))
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.name == "skip-setup":
+            self.on_save_exit()
+        elif event.button.name == "system-check-details":
+            self._system_details_visible = not getattr(self, "_system_details_visible", False)
+            self._sync_text()
+        else:
+            super().on_button_pressed(event)
+
+    def on_save_exit(self) -> None:
+        try:
+            self.app.get_screen("home")
+        except KeyError:
+            return
+        self.app.push_screen("home")
+
+    def _show_welcome_controls(self) -> None:
+        welcome = self.context.state.current_step == "welcome"
+        system_check = self.context.state.current_step == "system-check"
+        self.query_one("#setup-mode", Select).display = welcome
+        self.query_one("#setup-skip", Button).display = welcome
+        self.query_one("#system-check-details", Button).display = system_check
+
+
+class NewDeepDiveWizardShell(WizardShell):
+    """New Deep Dive specialization using the same shared shell contract."""
+
+    def __init__(self, context: WizardContext, completion_probe: CompletionProbe) -> None:
+        super().__init__(context, completion_probe, title="New Deep Dive")
