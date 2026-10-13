@@ -122,6 +122,8 @@ class ProviderConfig(BaseModel):
     @field_validator("response_format")
     @classmethod
     def validate_response_format(cls, value: str) -> str:
+        if any(ord(character) < 32 or ord(character) == 127 for character in value):
+            raise ValueError("response_format must be a single-line audio format")
         normalized = value.strip().lower()
         if normalized not in SUPPORTED_RESPONSE_FORMATS:
             raise ValueError("response_format must be a supported audio format")
@@ -132,6 +134,8 @@ class ProviderConfig(BaseModel):
     def validate_credential_env(cls, value: str | None) -> str | None:
         if value is None:
             return None
+        if any(ord(character) < 32 or ord(character) == 127 for character in value):
+            raise ValueError("credential_env must be a single-line environment-variable name")
         cleaned = value.strip()
         if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", cleaned):
             raise ValueError("credential_env must be an environment-variable name")

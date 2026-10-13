@@ -703,3 +703,44 @@ def test_provider_response_format_rejected_on_load_without_echo(tmp_path) -> Non
     with pytest.raises(UserConfigError, match="response_format") as error:
         store.load()
     assert canary not in str(error.value)
+
+
+@pytest.mark.parametrize("field", ("provider_type", "credential_env", "response_format"))
+@pytest.mark.parametrize("control", ("\n", "\r", "\x1b", "\x00"))
+def test_provider_controller_rejects_raw_controls_before_normalization(
+    tmp_path, field: str, control: str
+) -> None:
+    store = UserConfigStore(tmp_path / "config.json")
+    store.save(UserConfig(defaults={"research_policy": "off"}))
+    original = store.path.read_bytes()
+    controller = ProviderController(store, LLMProviderRegistry(), {})
+    provider_type = "openai"
+    arguments: dict[str, str] = {}
+    if field == "provider_type":
+        provider_type += control
+    elif field == "credential_env":
+        arguments["credential_env"] = "API_TOKEN" + control
+    else:
+        provider_type = "openai-compatible-tts"
+        arguments["response_format"] = "wav" + control
+
+    with pytest.raises(ValueError, match="single-line") as error:
+        controller.save_provider("remote", provider_type, **arguments)
+    assert control not in str(error.value)
+    assert store.path.read_bytes() == original
+    assert "remote" not in store.load().providers
+
+
+def test_provider_controller_preserves_printable_whitespace_normalization(tmp_path) -> None:
+    store = UserConfigStore(tmp_path / "config.json")
+    controller = ProviderController(store, LLMProviderRegistry(), {})
+    controller.save_provider(
+        "remote",
+        "  openai  ",
+        credential_env="  API_TOKEN  ",
+        response_format=" WAV ",
+    )
+    reopened = store.load().providers["remote"]
+    assert reopened.provider_type == "openai"
+    assert reopened.credential_env == "API_TOKEN"
+    assert reopened.response_format == "wav"

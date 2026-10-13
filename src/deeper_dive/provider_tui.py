@@ -148,6 +148,9 @@ class ProviderController:
         voices: tuple[str, ...] = (),
         default_updates: Mapping[str, str] | None = None,
     ) -> None:
+        # Reject raw control characters before strip/lower can conceal them.
+        if any(ord(character) < 32 or ord(character) == 127 for character in provider_type):
+            raise ValueError("provider_type must be a single-line adapter identifier")
         kind = provider_type.strip().lower().replace("_", "-")
         if self.capability(kind) == "unknown":
             supported = ", ".join(sorted(LLM_PROVIDER_TYPES | TTS_PROVIDER_TYPES))
