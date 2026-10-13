@@ -203,3 +203,52 @@ def test_all_authorization_schemes_are_scrubbed_before_log_or_export(
         assert secret not in text
         assert "status=401" in text
         assert "[REDACTED]" in text
+@pytest.mark.parametrize(
+    "key",
+    ("client.secret", "api[key]", "api/key", "refresh+token", "bearer.token", "client[secret]"),
+)
+def test_unquoted_punctuated_secret_keys_are_redacted_in_every_diagnostic_sink(
+    tmp_path, key: str
+) -> None:
+    secret = "unquoted-punctuation-canary"
+    message = f"provider rejected {key}={secret} status=401 retry=yes"
+    sanitized = str(redact(message))
+    assert secret not in sanitized
+    assert "[REDACTED]" in sanitized
+    assert "status=401 retry=yes" in sanitized
+
+    try:
+        try:
+            raise ValueError(message)
+        except ValueError as cause:
+            raise RuntimeError("provider setup failed") from cause
+    except RuntimeError as error:
+        exception_text = sanitize_exception_message(error)
+    assert secret not in exception_text
+    assert "status=401" in exception_text
+
+    log_path = tmp_path / "punctuated.jsonl"
+    StructuredDiagnosticLog(log_path).emit(
+        DiagnosticEvent(level="error", event="provider_error", message=message)
+    )
+    export_path = export_diagnostic_bundle(
+        tmp_path / "punctuated.json",
+        provider_diagnostics={"error": message},
+    )
+    for path in (log_path, export_path):
+        persisted = path.read_text(encoding="utf-8")
+        assert secret not in persisted
+        assert "status=401 retry=yes" in persisted
+        assert "[REDACTED]" in persisted
+
+
+@pytest.mark.parametrize(
+    "message",
+    (
+        "client.version=1.2.3 status=ok",
+        "api.example=available status=200",
+        "headers={'Accept': 'application/json'}",
+    ),
+)
+def test_unquoted_nonsensitive_keys_preserve_diagnostic_context(message: str) -> None:
+    assert redact(message) == message
