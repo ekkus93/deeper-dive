@@ -139,7 +139,6 @@ def test_tuple_header_chained_cli_exception_and_diagnostic_bundle(
     assert "[REDACTED]" in payload
 
 
-
 def test_textual_provider_error_redacts_tuple_header(tmp_path) -> None:
     import asyncio
 
