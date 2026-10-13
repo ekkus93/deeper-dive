@@ -10,6 +10,7 @@ import pytest
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.guided_app import GuidedDeeperDiveApp
 from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
+from deeper_dive.provider_tui import ProviderController
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.user_config import ProviderConfig
 
@@ -35,12 +36,12 @@ def test_rendering_host_voice_does_not_discover_remote_elevenlabs_voices(
 
             attempts: list[str] = []
 
-            def unexpected_network_adapter(provider_id: str) -> None:
+            def unexpected_network_adapter(self: ProviderController, provider_id: str) -> None:
                 attempts.append(provider_id)
                 raise AssertionError("host rendering must not request remote voices")
 
             monkeypatch.setattr(
-                app.composition.provider_controller, "tts", unexpected_network_adapter
+                ProviderController, "tts", unexpected_network_adapter
             )
             assert wizard._voice_label("elevenlabs-cloud", "voice-id") == (
                 "ElevenLabs voice (voice-id)"
