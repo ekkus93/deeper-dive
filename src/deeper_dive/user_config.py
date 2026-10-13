@@ -350,10 +350,14 @@ class UserConfigStore:
             # Only return error locations and types, never the submitted values.
             location = _validation_error_locations(exc)
             raise UserConfigError(
-                f"invalid user configuration at {self.path}: check {location}"
+                f"invalid user configuration at {self.path}: check {location}; "
+                "repair the file or restore a valid backup before retrying"
             ) from None
         except (OSError, UnicodeError, ValueError):
-            raise UserConfigError(f"invalid user configuration at {self.path}") from None
+            raise UserConfigError(
+                f"invalid user configuration at {self.path}; "
+                "repair the file or restore a valid backup before retrying"
+            ) from None
 
     @staticmethod
     def validate_candidate(config: UserConfig) -> UserConfig:
