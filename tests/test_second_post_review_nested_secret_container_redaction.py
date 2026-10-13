@@ -172,3 +172,35 @@ def test_textual_provider_error_redacts_tuple_header(tmp_path) -> None:
             assert secret not in (wizard._error_details or "")
 
     asyncio.run(exercise())
+
+
+
+@pytest.mark.parametrize("scheme", ("Basic", "Token", "Digest", "Bearer"))
+@pytest.mark.parametrize("separator", (":", "="))
+def test_all_authorization_schemes_are_scrubbed_before_log_or_export(
+    tmp_path, scheme: str, separator: str
+) -> None:
+    secret = "auth-scheme-canary"
+    payload = (
+        f'Authorization{separator} Digest username="{secret}", nonce="{secret}"; status=401'
+        if scheme == "Digest"
+        else f"Authorization{separator} {scheme} {secret}; status=401"
+    )
+    safe = str(redact(payload))
+    assert secret not in safe
+    assert "[REDACTED]" in safe
+    assert "status=401" in safe
+
+    log_path = tmp_path / "authorization.jsonl"
+    StructuredDiagnosticLog(log_path).emit(
+        DiagnosticEvent(level="error", event="authorization_failure", message=payload)
+    )
+    destination = export_diagnostic_bundle(
+        tmp_path / "authorization.json",
+        provider_diagnostics={"message": payload},
+    )
+    for path in (log_path, destination):
+        text = path.read_text(encoding="utf-8")
+        assert secret not in text
+        assert "status=401" in text
+        assert "[REDACTED]" in text
