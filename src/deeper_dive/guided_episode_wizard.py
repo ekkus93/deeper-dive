@@ -9,7 +9,7 @@ from textual.widget import Widget
 from textual.widgets import Button, Input, Select, Static
 
 from deeper_dive.diagnostics import sanitize_exception_message
-from deeper_dive.episode_config import EpisodeConfigurationService
+from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.episode_planner import EpisodePlan, EpisodePlannerService, PlannedSegment
 from deeper_dive.generation_start import GenerationStartService
 from deeper_dive.guided_generation import GuidedGenerationMonitorScreen
@@ -37,6 +37,9 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         self._ignore_plan_picker_value: str | None = None
         self._preflight: PreflightReport | None = None
         self._episode_advanced = False
+        # Guard against another writer changing durable settings while this form is open.
+        self._loaded_episode_id: str | None = None
+        self._loaded_episode_config: EpisodeConfiguration | None = None
 
     def _save_dirty_step(self) -> WizardSaveResult:
         step = self.context.state.current_step
@@ -333,7 +336,14 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             self.context.composition.database_for_project(project_id)
         )
         try:
+            if self._loaded_episode_id != episode_id or self._loaded_episode_config is None:
+                raise ValueError("Episode settings are not loaded; reopen the episode before saving.")
             current = service.load_configuration(episode_id)
+            if current.snapshot() != self._loaded_episode_config.snapshot():
+                raise ValueError(
+                    "Episode settings changed since this form was loaded. "
+                    "Keep your edits and reload the episode before saving."
+                )
             title = self.query_one("#guided-episode-title", Input).value.strip()
             focus = self.query_one("#guided-episode-focus", Input).value.strip()
             audience = self._select_value("#guided-episode-audience")
@@ -359,6 +369,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             )
             self.set_status("Episode settings need attention before continuing.")
             return False
+        self._loaded_episode_config = config
         self.query_one("#guided-episode-validation", Static).update("")
         self._sync_text()
         self._remember_current_form()
@@ -563,6 +574,8 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         )
 
     def _load_episode_form(self) -> None:
+        self._loaded_episode_id = None
+        self._loaded_episode_config = None
         project_id = self.context.project_id
         episode_id = self.context.episode_id
         if project_id is None or episode_id is None:
@@ -573,6 +586,8 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             ).load_configuration(episode_id)
         except (KeyError, ValueError):
             return
+        self._loaded_episode_id = episode_id
+        self._loaded_episode_config = config
         self.query_one("#guided-episode-title", Input).value = config.title
         self.query_one("#guided-episode-focus", Input).value = config.focus
         self.query_one("#guided-episode-audience", Select).value = config.audience

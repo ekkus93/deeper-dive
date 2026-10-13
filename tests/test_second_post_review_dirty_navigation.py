@@ -1379,3 +1379,66 @@ async def _escape_dirty_confirmation_cancels_transition(tmp_path: Path, first_ru
         assert wizard.query_one("#wizard-exit-confirmation").display
         assert input_widget.value == "Pending Escape edit"
         wizard.action_cancel_exit_confirmation()
+
+
+def test_concurrent_episode_update_cannot_be_overwritten_by_stale_guided_form(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_stale_guided_episode_save_is_rejected(tmp_path))
+
+
+async def _stale_guided_episode_save_is_rejected(tmp_path: Path) -> None:
+    service, project_id, episode_id, _host_ids = _episode_fixture(tmp_path)
+    external = EpisodeConfigurationService(
+        Database(service.workspaces.project_root(project_id) / "project.db")
+    )
+    sibling = external.create(project_id, EpisodeConfiguration(title="Independent episode"))
+    original_sibling = service.hosts(project_id).get_episode(sibling.id)
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project_id
+        wizard.context.episode_id = episode_id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "episode")
+        wizard._load_episode_host_order()
+        wizard._load_episode_form()
+        wizard._toggle()
+        wizard._remember_current_form()
+
+        # The user is editing a stale copy while a second production client saves.
+        title = wizard.query_one("#guided-episode-title", Input)
+        title.value = "Unsaved title from first writer"
+        externally_saved = external.load_configuration(episode_id)
+        external.edit(
+            episode_id,
+            EpisodeConfiguration(
+                **{**externally_saved.snapshot(), "focus": "Updated by other writer"}
+            ),
+        )
+        assert not wizard.action_save_episode()
+        assert "changed since this form was loaded" in str(
+            wizard.query_one("#guided-episode-validation", Static).render()
+        )
+        assert title.value == "Unsaved title from first writer"
+        assert wizard.context.state.current_step == "episode"
+        assert wizard._current_form_dirty()
+        latest = external.load_configuration(episode_id)
+        assert latest.title == "Durable title"
+        assert latest.focus == "Updated by other writer"
+        assert service.hosts(project_id).get_episode(sibling.id) == original_sibling
+
+        # An intentional fresh load acknowledges the remote edit; a subsequent
+        # production save must preserve the other writer's unrelated focus.
+        wizard._load_episode_form()
+        wizard._remember_current_form()
+        assert title.value == "Durable title"
+        assert wizard.query_one("#guided-episode-focus", Input).value == latest.focus
+        title.value = "New title after explicit reload"
+        assert wizard.action_save_episode()
+        saved = external.load_configuration(episode_id)
+        assert saved.title == "New title after explicit reload"
+        assert saved.focus == "Updated by other writer"
+        assert service.hosts(project_id).get_episode(sibling.id) == original_sibling
