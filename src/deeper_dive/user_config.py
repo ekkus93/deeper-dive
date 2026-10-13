@@ -64,7 +64,18 @@ _NETWORK_POLICIES = frozenset(
 _DIAGNOSTIC_LOGGING = frozenset({"off", "normal", "verbose"})
 _SPEECH_SETUP = frozenset({"configured", "deferred"})
 _PATH_DEFAULTS = frozenset({"ffmpeg_executable", "kitten_model_dir"})
-_NORMALIZED_DEFAULTS = frozenset({"research_policy", "quick_deep_dive_research_policy", "quick_deep_dive_duration_minutes", "quick_deep_dive_host_presets", "local_only", "network_policy", "diagnostic_logging", "speech_setup"})
+_NORMALIZED_DEFAULTS = frozenset(
+    {
+        "research_policy",
+        "quick_deep_dive_research_policy",
+        "quick_deep_dive_duration_minutes",
+        "quick_deep_dive_host_presets",
+        "local_only",
+        "network_policy",
+        "diagnostic_logging",
+        "speech_setup",
+    }
+)
 
 
 class ProviderConfig(BaseModel):
