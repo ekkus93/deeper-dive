@@ -199,10 +199,12 @@ wizard's Save changes action) succeeds. If a profile save succeeds but the host-
 save fails, the profile remains durable and only the still-unsaved host order remains
 dirty for retry or explicit discard; the wizard does not claim the whole form was saved.
 
-Provider/model/voice readiness checks have finite adapter I/O timeouts and a bounded
-background-worker budget. Repeated refreshes are coalesced or rejected when the budget
-is exhausted rather than creating an unbounded number of threads. A timed-out/stale
-probe cannot later overwrite readiness for a newer provider configuration.
+Provider/model/voice readiness probes use finite I/O deadlines where the adapter
+supports them, plus a bounded background-worker budget. Python cannot forcibly
+interrupt every blocking local provider call after a timeout: the old worker
+may still be running, but its late result cannot replace newer readiness.
+Repeated refreshes are coalesced or rejected when the worker budget is
+exhausted rather than creating an unbounded number of threads.
 
 Settings are validated as one candidate before a durable replacement. Invalid research
 modes, Quick Deep Dive presets/durations, network/diagnostic policy values, malformed
