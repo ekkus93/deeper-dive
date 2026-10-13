@@ -21,9 +21,7 @@ from deeper_dive.diagnostics import (
         "https%3A%2F%2Fexample.test%2Fv1%3Fsession.Token%3Dencoded-url-canary",
     ],
 )
-def test_complete_encoded_credential_urls_are_redacted_in_all_sinks(
-    tmp_path, encoded: str
-) -> None:
+def test_complete_encoded_credential_urls_are_redacted_in_all_sinks(tmp_path, encoded: str) -> None:
     message = f"endpoint={encoded} status=401"
     sanitized = str(redact(message))
     assert "encoded-url-canary" not in sanitized
