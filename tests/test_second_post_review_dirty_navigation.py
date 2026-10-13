@@ -1664,3 +1664,68 @@ async def _stale_host_order_requires_reload(tmp_path: Path) -> None:
         wizard._selected_host_ids = list(host_ids)
         assert wizard.action_save_host_order()
         assert external.load_configuration(episode_id).host_ids == host_ids
+
+
+def test_clean_first_run_back_continue_and_escape_do_not_request_discard(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_clean_first_run_navigation(tmp_path))
+
+
+async def _clean_first_run_navigation(tmp_path: Path) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app._first_run_readiness.close()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedFirstRunWizard)
+        assert wizard.context.state.current_step == "welcome"
+        assert wizard.action_continue()
+        assert wizard.context.state.current_step == "ai-choice"
+        assert not wizard.query_one("#wizard-exit-confirmation").display
+        assert wizard.action_back()
+        assert wizard.context.state.current_step == "welcome"
+        assert not wizard.query_one("#wizard-exit-confirmation").display
+        await pilot.press("escape")
+        await pilot.pause()
+        assert app.screen.id == "screen-home"
+        assert not wizard.query_one("#wizard-exit-confirmation").display
+
+
+def test_switching_source_details_never_replaces_unsaved_import_fields(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_source_picker_preserves_unsaved_import_fields(tmp_path))
+
+
+async def _source_picker_preserves_unsaved_import_fields(tmp_path: Path) -> None:
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    project = service.create_project("Independent source forms")
+    a = service.add_pasted_source(project.id, "A", "Evidence about the first source.")
+    b = service.add_pasted_source(project.id, "B", "Evidence about the second source.")
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project.id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "sources")
+        wizard._refresh_sources(a.id)
+        wizard._toggle()
+        wizard._remember_current_form()
+
+        title = wizard.query_one("#guided-source-title", Input)
+        body = wizard.query_one("#guided-source-text", Input)
+        title.value = "An unfinished source title"
+        body.value = "Unsaved source text that must not be replaced."
+        wizard.query_one("#guided-source-picker", Select).value = b.id
+        await pilot.pause()
+        assert title.value == "An unfinished source title"
+        assert body.value == "Unsaved source text that must not be replaced."
+        assert wizard._current_form_dirty()
+        assert not wizard.action_back()
+        assert wizard.query_one("#wizard-exit-confirmation").display
+        assert len(service.list_sources(project.id)) == 2
+        wizard.action_cancel_exit_confirmation()
+        assert body.value == "Unsaved source text that must not be replaced."
