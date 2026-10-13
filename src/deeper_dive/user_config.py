@@ -12,7 +12,7 @@ from hashlib import sha256
 from pathlib import Path
 from threading import Lock, RLock
 from typing import IO, Literal
-from urllib.parse import parse_qsl, urlsplit
+from urllib.parse import parse_qsl, unquote_plus, urlsplit
 
 from pydantic import (
     BaseModel,
@@ -24,7 +24,7 @@ from pydantic import (
     field_validator,
 )
 
-from deeper_dive.diagnostics import is_sensitive_url_query_key
+from deeper_dive.diagnostics import is_sensitive_url_query_key, redact
 from deeper_dive.hosts import preset_names
 from deeper_dive.openai_compatible_tts import SUPPORTED_RESPONSE_FORMATS
 from deeper_dive.research_policy import ResearchMode
@@ -152,6 +152,19 @@ class ProviderConfig(BaseModel):
             for key, _ in parse_qsl(parsed.query.replace(";", "&"), keep_blank_values=True)
         ):
             raise ValueError("base_url must not contain credential query parameters")
+        # Query values can carry encoded nested endpoints. Apply the same
+        # sanitization contract to each decoded destination before persistence.
+        for _, query_value in parse_qsl(
+            parsed.query.replace(";", "&"), keep_blank_values=True
+        ):
+            nested = query_value
+            for _ in range(5):
+                if nested.lower().startswith(("http://", "https://")) and redact(nested) != nested:
+                    raise ValueError("base_url contains a sensitive nested endpoint")
+                decoded = unquote_plus(nested)
+                if decoded == nested:
+                    break
+                nested = decoded
         endpoint, separator, query = value.partition("?")
         return endpoint.rstrip("/") + (separator + query if separator else "")
 
