@@ -19,8 +19,11 @@ The normal CLI entry point is `deeper-dive`.
 
 ## First-run setup: Quick versus Advanced
 
-An installation without sufficient durable provider/model-role/default readiness
-opens the eight-step First-run Setup wizard. **Quick Setup** offers
+A fresh installation with no saved provider/default configuration or projects
+automatically opens the eight-step First-run Setup wizard. Returning users open
+Home, even when existing provider readiness needs attention; reopen Setup from
+Home to repair settings without losing access to Projects or the Library.
+**Quick Setup** offers
 recommended choices and role assignments for a compatible provider; it does not
 silently override an explicit provider choice. **Advanced Setup** exposes more
 specific provider and role settings. **Skip Setup** takes you to Home without

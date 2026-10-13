@@ -64,7 +64,10 @@ uv run deeper-dive --json project list
 
 ## First-run flow
 
-The first-run readiness path is intentionally cloud-optional. It guides the user through:
+The first-run readiness path is intentionally cloud-optional. On a genuinely new
+installation, the guided setup wizard opens automatically. Returning users start on
+Home; reopen Setup there to repair providers or model roles without blocking the
+Library or Projects. Setup guides the user through:
 
 - FFmpeg detection for audio assembly.
 - KittenTTS Micro availability for local CPU speech.
