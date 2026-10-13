@@ -337,7 +337,9 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         )
         try:
             if self._loaded_episode_id != episode_id or self._loaded_episode_config is None:
-                raise ValueError("Episode settings are not loaded; reopen the episode before saving.")
+                raise ValueError(
+                    "Episode settings are not loaded; reopen the episode before saving."
+                )
             current = service.load_configuration(episode_id)
             if current.snapshot() != self._loaded_episode_config.snapshot():
                 raise ValueError(
