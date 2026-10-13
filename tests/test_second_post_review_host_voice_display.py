@@ -40,9 +40,7 @@ def test_rendering_host_voice_does_not_discover_remote_elevenlabs_voices(
                 attempts.append(provider_id)
                 raise AssertionError("host rendering must not request remote voices")
 
-            monkeypatch.setattr(
-                ProviderController, "tts", unexpected_network_adapter
-            )
+            monkeypatch.setattr(ProviderController, "tts", unexpected_network_adapter)
             assert wizard._voice_label("elevenlabs-cloud", "voice-id") == (
                 "ElevenLabs voice (voice-id)"
             )
