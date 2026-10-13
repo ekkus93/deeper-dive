@@ -69,14 +69,11 @@ def test_printable_voice_identifiers_and_optional_blank_values_remain_valid() ->
     assert config.defaults["tts_voice_host_1"] == ""
 
 
-
 def test_settings_and_provider_mutations_reject_voice_controls_atomically(tmp_path) -> None:
     store = UserConfigStore(tmp_path / "config.json")
     store.save(
         UserConfig(
-            providers={
-                "speech": ProviderConfig(provider_type="fake-tts", voices=("voice-a",))
-            },
+            providers={"speech": ProviderConfig(provider_type="fake-tts", voices=("voice-a",))},
             defaults={"tts_provider": "speech", "tts_voice": "voice-a"},
         )
     )
