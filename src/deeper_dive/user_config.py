@@ -80,6 +80,13 @@ class ProviderConfig(BaseModel):
     timeout_seconds: float = Field(default=60.0, gt=0, le=600)
     network_scope: Literal["local", "remote"] | None = None
 
+    @field_validator("provider_type")
+    @classmethod
+    def validate_provider_type(cls, value: str) -> str:
+        if any(ord(character) < 32 or ord(character) == 127 for character in value):
+            raise ValueError("provider_type must be a single-line adapter identifier")
+        return value
+
     @field_validator("default_model")
     @classmethod
     def validate_default_model(cls, value: str | None) -> str | None:
@@ -157,6 +164,20 @@ class UserConfig(BaseModel):
     schema_version: int = CURRENT_CONFIG_VERSION
     providers: dict[str, ProviderConfig] = Field(default_factory=dict)
     defaults: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("providers")
+    @classmethod
+    def validate_provider_ids(
+        cls, providers: dict[str, ProviderConfig]
+    ) -> dict[str, ProviderConfig]:
+        # Provider IDs are displayed in CLI/TUI and reused as registry keys.
+        if any(
+            ord(character) < 32 or ord(character) == 127
+            for name in providers
+            for character in name
+        ):
+            raise ValueError("provider IDs must be single-line identifiers")
+        return providers
 
     @field_validator("defaults")
     @classmethod
@@ -268,6 +289,7 @@ class UserConfig(BaseModel):
                 raise ValueError(f"{key} must be a single-line provider:model identifier")
             value = raw.strip()
             if value:
+
                 provider, separator, model = value.partition(":")
                 if not separator:
                     if legacy_roles.get(key) == value and re.fullmatch(r"[A-Za-z0-9_.-]+", value):
