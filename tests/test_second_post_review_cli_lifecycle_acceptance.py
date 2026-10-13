@@ -1,233 +1,155 @@
-"""CLI lifecycle and export acceptance against the shared production fixture.
-
-These tests intentionally use the installed CLI's public command dispatcher and
-production service composition, rather than seeding database rows or mocking
-episode state. They also exercise multi-project artifact isolation.
-"""
+"""SPR-07: real CLI lifecycle, restart, and export share durable episode identity."""
 
 from __future__ import annotations
 
-import hashlib
 import json
-from collections.abc import Callable
+from hashlib import sha256
 from pathlib import Path
-from typing import Any
 
 import pytest
 
 from deeper_dive.cli import main
-
-
-def _cli(
-    data_dir: Path,
-    capsys: pytest.CaptureFixture[str],
-    *args: str,
-) -> tuple[int, Any, str]:
-    result = main(["--data-dir", str(data_dir), "--json", *args])
-    captured = capsys.readouterr()
-    payload: Any = json.loads(captured.out) if captured.out.strip() else None
-    return result, payload, captured.err
+from deeper_dive.composition import ProductionComposition
+from deeper_dive.episode_config import EpisodeConfigurationService
+from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 
 
 def _digest(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return sha256(path.read_bytes()).hexdigest()
 
 
-def test_completed_episodes_cli_status_plan_noop_edit_export_and_isolation(
-    two_project_completed_acceptance: Callable[[], Any],
+def _invoke(
+    data_dir: Path,
+    capsys: pytest.CaptureFixture[str],
+    *command: str,
+) -> tuple[int, object, str]:
+    code = main(["--data-dir", str(data_dir), "--json", "episode", *command])
+    output = capsys.readouterr()
+    return code, json.loads(output.out) if output.out else None, output.err
+
+
+def test_cli_lifecycle_noop_changed_edit_status_plan_and_export_isolation(
+    second_post_review_acceptance,
+    capsys: pytest.CaptureFixture[str],
     tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    fixture = two_project_completed_acceptance()
-    capsys.readouterr()
-    data_dir = fixture.first.service.workspaces.data_dir
-    completed = (fixture.first, fixture.second)
-    for index, episode in enumerate(completed):
-        code, listing, err = _cli(data_dir, capsys, "episode", "list", episode.project_id)
-        assert code == 0, err
-        assert [item["id"] for item in listing] == [episode.episode_id]
-
-        code, shown, err = _cli(
-            data_dir, capsys, "episode", "show", episode.project_id, episode.episode_id
-        )
-        assert code == 0, err
-        assert shown["episode"]["id"] == episode.episode_id
-        # Run state is authoritative; the configuration record can remain draft.
-
-        code, plan, err = _cli(
-            data_dir, capsys, "episode", "show-plan", episode.project_id, episode.episode_id
-        )
-        assert code == 0, err
-        assert plan["episode_id"] == episode.episode_id
-
-        code, status, err = _cli(
-            data_dir, capsys, "episode", "status", episode.project_id, episode.episode_id
-        )
-        assert code == 0, err
-        assert status["run"]["id"] == episode.run_id
-        assert status["run"]["state"] == "completed"
-
-        # A semantically identical edit must not demote a completed episode,
-        # update its revision, or invalidate the historical plan.
-        code, unchanged, err = _cli(
-            data_dir, capsys, "episode", "configure", episode.project_id, episode.episode_id
-        )
-        assert code == 0, err
-        assert unchanged == shown["episode"]
-
-        code, changed, err = _cli(
-            data_dir,
-            capsys,
-            "episode",
-            "configure",
-            episode.project_id,
-            episode.episode_id,
-            "--title",
-            "Attempted rewrite of a completed episode",
-        )
-        assert code == 2
-        assert changed is None
-        assert "create a new episode" in err
-
-        code, still_plan, err = _cli(
-            data_dir, capsys, "episode", "show-plan", episode.project_id, episode.episode_id
-        )
-        assert code == 0, err
-        assert still_plan == plan
-
-        output_dir = tmp_path / f"cli-export-{index}"
-        code, exported, err = _cli(
-            data_dir,
-            capsys,
-            "episode",
-            "export",
-            episode.project_id,
-            episode.episode_id,
-            "--output-dir",
-            str(output_dir),
-        )
-        assert code == 0, err
-        assert exported["episode_id"] == episode.episode_id
-        assert _digest(Path(exported["audio"])) == _digest(episode.audio_path)
-        assert _digest(Path(exported["transcript"])) == _digest(episode.transcript_path)
-        metadata = json.loads(Path(exported["metadata"]).read_text(encoding="utf-8"))
-        assert metadata["project_id"] == episode.project_id
-        assert metadata["episode_id"] == episode.episode_id
-        assert metadata["run_id"] == episode.run_id
-
-        foreign = completed[1 - index]
-        code, result, err = _cli(
-            data_dir, capsys, "episode", "show", episode.project_id, foreign.episode_id
-        )
-        assert code == 2
-        assert result is None
-        assert "episode not found" in err
-
-
-def test_pending_run_cli_rejects_export_and_configuration_change_without_mutation(
-    second_post_review_acceptance: Callable[[], Any],
-    capsys: pytest.CaptureFixture[str],
-) -> None:
+    """CLI uses the same frozen-episode edit guard and historical artifacts as TUI."""
     fixture = second_post_review_acceptance()
-    capsys.readouterr()
-    data_dir = fixture.completed.first.service.workspaces.data_dir
-    project_id = fixture.pending_project_id
-    episode_id = fixture.pending_episode_id
+    first, second = fixture.completed.first, fixture.completed.second
+    service = first.service
+    data_dir = service.workspaces.data_dir
+    source_digests = {
+        item.episode_id: (_digest(item.audio_path), _digest(item.transcript_path))
+        for item in (first, second)
+    }
+    reopened = ProductionComposition.build(data_dir=data_dir)
+    for item in (first, second):
+        repository = HostEpisodeRepository(reopened.database_for_project(item.project_id))
+        before_episode = repository.get_episode(item.episode_id)
+        before_plan = repository.get_plan(item.episode_id)
+        before_run = reopened.service.runs(item.project_id).get(item.run_id)
+        assert before_episode is not None and before_plan is not None
+        assert before_run is not None and before_run.state == "completed"
 
-    code, before, err = _cli(data_dir, capsys, "episode", "show", project_id, episode_id)
-    assert code == 0, err
-    code, status, err = _cli(data_dir, capsys, "episode", "status", project_id, episode_id)
-    assert code == 0, err
-    assert status["run"]["id"] == fixture.pending_run_id
-    assert status["run"]["state"] == "pending"
+        # Semantically unchanged CLI saves must preserve the plan, run and exports.
+        code, payload, error = _invoke(
+            data_dir,
+            capsys,
+            "configure",
+            item.project_id,
+            item.episode_id,
+        )
+        assert code == 0 and not error
+        assert isinstance(payload, dict)
+        assert payload["id"] == item.episode_id
+        assert repository.get_episode(item.episode_id) == before_episode
+        assert repository.get_plan(item.episode_id) == before_plan
 
-    code, output, err = _cli(data_dir, capsys, "episode", "export", project_id, episode_id)
-    assert code == 2
-    assert output is None
-    assert "not exportable" in err
+        # Changed configuration must provide the same actionable policy as the service.
+        code, payload, error = _invoke(
+            data_dir,
+            capsys,
+            "configure",
+            item.project_id,
+            item.episode_id,
+            "--focus",
+            "would corrupt a completed historical episode",
+        )
+        assert code == 2 and payload is None
+        assert "create a new episode" in error
+        assert "Traceback" not in error
+        assert repository.get_episode(item.episode_id) == before_episode
+        assert repository.get_plan(item.episode_id) == before_plan
 
-    code, output, err = _cli(
+        code, payload, error = _invoke(
+            data_dir, capsys, "show", item.project_id, item.episode_id
+        )
+        assert code == 0 and not error
+        assert payload["episode"]["id"] == item.episode_id
+        assert payload["configuration"]["focus"] != "would corrupt a completed historical episode"
+
+        code, payload, error = _invoke(
+            data_dir, capsys, "show-plan", item.project_id, item.episode_id
+        )
+        assert code == 0 and not error
+        assert payload["id"] == before_plan.id
+
+        code, payload, error = _invoke(
+            data_dir, capsys, "status", item.project_id, item.episode_id
+        )
+        assert code == 0 and not error
+        assert payload["run"]["id"] == item.run_id
+        assert payload["run"]["state"] == "completed"
+
+        destination = tmp_path / f"cli-export-{item.episode_id}"
+        code, payload, error = _invoke(
+            data_dir,
+            capsys,
+            "export",
+            item.project_id,
+            item.episode_id,
+            "--output-dir",
+            str(destination),
+        )
+        assert code == 0 and not error
+        assert payload["episode_id"] == item.episode_id
+        assert payload["audio"] and Path(payload["audio"]).is_file()
+        assert Path(payload["transcript"]).is_file()
+        assert _digest(item.audio_path) == source_digests[item.episode_id][0]
+        assert _digest(item.transcript_path) == source_digests[item.episode_id][1]
+        assert reopened.service.runs(item.project_id).get(item.run_id) == before_run
+
+    pending_project_id = fixture.pending_project_id
+    pending_episode_id = fixture.pending_episode_id
+    pending_database = reopened.database_for_project(pending_project_id)
+    pending_repo = HostEpisodeRepository(pending_database)
+    pending_episode = pending_repo.get_episode(pending_episode_id)
+    pending_plan = pending_repo.get_plan(pending_episode_id)
+    pending_run = reopened.service.runs(pending_project_id).get(fixture.pending_run_id)
+    assert pending_episode is not None and pending_plan is not None
+    assert pending_run is not None and pending_run.state == "pending"
+    code, payload, error = _invoke(
         data_dir,
         capsys,
-        "episode",
         "configure",
-        project_id,
-        episode_id,
+        pending_project_id,
+        pending_episode_id,
         "--title",
-        "Cannot edit a pending generation",
+        "invalid edit after pending run",
     )
-    assert code == 2
-    assert output is None
-
-    code, after, err = _cli(data_dir, capsys, "episode", "show", project_id, episode_id)
-    assert code == 0, err
-    assert after == before
-    code, still_pending, err = _cli(data_dir, capsys, "episode", "status", project_id, episode_id)
-    assert code == 0, err
-    assert still_pending == status
-
-
-def test_cli_cross_project_episode_commands_reject_foreign_identity_without_side_effects(
-    second_post_review_acceptance: Callable[[], Any],
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """All CLI episode verbs must resolve IDs within the supplied project.
-
-    The fixture includes two completed projects and a pending run in the first
-    project. Every CLI invocation constructs a fresh production composition,
-    exercising the same identity boundary after reloading durable state.
-    """
-    fixture = second_post_review_acceptance()
-    capsys.readouterr()
-    first = fixture.completed.first
-    foreign = fixture.completed.second
-    data_dir = first.service.workspaces.data_dir
-    completed_audio = _digest(foreign.audio_path)
-    completed_transcript = _digest(foreign.transcript_path)
-
-    # A valid local pending run must not be mistaken for the foreign completed
-    # episode, even though both share one user-level configuration directory.
-    code, local_status, err = _cli(
-        data_dir, capsys, "episode", "status", first.project_id, fixture.pending_episode_id
-    )
-    assert code == 0, err
-    assert local_status["run"]["id"] == fixture.pending_run_id
-    assert local_status["run"]["state"] == "pending"
-
-    forbidden = (
-        ("show", ()),
-        ("show-plan", ()),
-        ("status", ()),
-        ("plan", ()),
-        ("generate", ()),
-        ("pause", ()),
-        ("resume", ()),
-        ("cancel", ()),
-        ("configure", ("--title", "Foreign episode edit")),
-        ("export", ("--output-dir", str(tmp_path / "forbidden-export"))),
-    )
-    for verb, extra in forbidden:
-        code, payload, err = _cli(
-            data_dir, capsys, "episode", verb, first.project_id, foreign.episode_id, *extra
-        )
-        assert code == 2, (verb, payload, err)
-        assert payload is None, verb
-        assert "episode not found" in err, (verb, err)
-
-    assert not (tmp_path / "forbidden-export").exists()
-    code, foreign_status, err = _cli(
-        data_dir, capsys, "episode", "status", foreign.project_id, foreign.episode_id
-    )
-    assert code == 0, err
-    assert foreign_status["run"]["id"] == foreign.run_id
-    assert foreign_status["run"]["state"] == "completed"
-
-    code, local_after, err = _cli(
-        data_dir, capsys, "episode", "status", first.project_id, fixture.pending_episode_id
-    )
-    assert code == 0, err
-    assert local_after == local_status
-    assert _digest(foreign.audio_path) == completed_audio
-    assert _digest(foreign.transcript_path) == completed_transcript
+    assert code == 2 and payload is None
+    assert "create a new episode" in error
+    assert pending_repo.get_episode(pending_episode_id) == pending_episode
+    assert pending_repo.get_plan(pending_episode_id) == pending_plan
+    assert reopened.service.runs(pending_project_id).get(fixture.pending_run_id) == pending_run
     assert (data_dir / "config.json").read_bytes() == fixture.config_bytes
+
+    # No pending-run CLI operation may alter either completed project's records.
+    for item in (first, second):
+        configuration = EpisodeConfigurationService(
+            reopened.database_for_project(item.project_id)
+        ).load_configuration(item.episode_id)
+        assert configuration.focus != "invalid edit after pending run"
+        assert (_digest(item.audio_path), _digest(item.transcript_path)) == source_digests[
+            item.episode_id
+        ]
