@@ -37,8 +37,12 @@ _ASSIGNMENT = re.compile(
     # Diagnose unquoted dotted/bracketed/slashed keys with the same shared
     # key classifier used for quoted SDK mappings. Never depend on a small
     # allowlist of spellings that misses e.g. client.secret or api[key].
-    r"(?i)(?<![A-Za-z0-9_.+/\[\]-])([A-Za-z0-9_.+/\[\]-]{1,128})"
-    r"(\s*[:=]\s*)([^\s,;]+)"
+    r"(?i)(?<![A-Za-z0-9_.+/\[\]-])"
+    # Avoid consuming noncredential wrapper fields surrounding nested secrets.
+    r"(?=[A-Za-z0-9_.+/\[\]-]{1,128}\s*[:=])"
+    r"([A-Za-z0-9_.+/\[\]-]*"
+    r"(?:authorization|token|secret|password|cookie|api[-_.+/\[\]]*key)"
+    r"[A-Za-z0-9_.+/\[\]-]*)(\s*[:=]\s*)([^\s,;]+)"
 )
 _QUOTED_MAPPING_ASSIGNMENT = re.compile(
     # Match a bounded, quoted mapping key and decide sensitivity with _is_secret_key.
