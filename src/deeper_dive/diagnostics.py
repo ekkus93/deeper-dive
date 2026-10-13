@@ -42,6 +42,11 @@ _QUOTED_MAPPING_ASSIGNMENT = re.compile(
     # Dots, slashes, brackets and plus signs must not bypass credential redaction.
     r"(?i)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*)(['\"])((?:\\.|(?!\4)[^\\\r\n])+)\4"
 )
+# SDK exceptions sometimes stringify header mappings whose sensitive values
+# are nested lists or dictionaries rather than quoted strings.
+_QUOTED_CONTAINER_START = re.compile(
+    r"(?i)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*)([\[{])"
+)
 _CREDENTIAL_URL = re.compile(r"(?i)(https?://)([^/@\s:]+)(?::([^/@\s]+))?@")
 _CREDENTIAL_QUERY = re.compile(
     r"(?i)([?&;](?:api_key|apikey|key|token|access_token|auth|authorization|password|secret)=)"
@@ -186,7 +191,52 @@ def _redact_encoded_query(match: re.Match[str]) -> str:
     return match.group(0)
 
 
+def _redact_quoted_secret_containers(value: str) -> str:
+    """Remove nested list/dict values of sensitive keys in stringified SDK errors.
+
+    Boundaries are matched while respecting quoted delimiters, so an embedded
+    ']' or '}' inside a quoted credential cannot truncate redaction. For
+    malformed/unclosed containers, conservatively remove the remaining text.
+    """
+    pieces: list[str] = []
+    position = 0
+    for match in _QUOTED_CONTAINER_START.finditer(value):
+        if match.start() < position or not _is_secret_key(match.group(2)):
+            continue
+        opening = match.end() - 1
+        pending = ["]" if value[opening] == "[" else "}"]
+        quote: str | None = None
+        escaped = False
+        end = len(value)
+        for index in range(opening + 1, len(value)):
+            char = value[index]
+            if quote is not None:
+                if escaped:
+                    escaped = False
+                elif char == "\\":
+                    escaped = True
+                elif char == quote:
+                    quote = None
+            elif char in {"'", '"'}:
+                quote = char
+            elif char in "[{(":
+                pending.append({"[": "]", "{": "}", "(": ")"}[char])
+            elif char in "]})":
+                if char != pending[-1]:
+                    break
+                pending.pop()
+                if not pending:
+                    end = index + 1
+                    break
+        pieces.append(value[position:match.start()])
+        pieces.append(value[match.start():opening] + "[REDACTED]")
+        position = end
+    pieces.append(value[position:])
+    return "".join(pieces)
+
+
 def _redact_text(value: str) -> str:
+    value = _redact_quoted_secret_containers(value)
     value = _AUTH_QUOTED.sub(
         lambda match: f"{match.group(1)}{match.group(3)}[REDACTED]{match.group(3)}",
         value,
