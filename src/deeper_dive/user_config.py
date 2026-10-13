@@ -80,6 +80,19 @@ class ProviderConfig(BaseModel):
     timeout_seconds: float = Field(default=60.0, gt=0, le=600)
     network_scope: Literal["local", "remote"] | None = None
 
+    @field_validator("voices")
+    @classmethod
+    def validate_voices(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        # Voice identifiers are displayed in terminals and passed to adapters.
+        # Never persist control characters that could corrupt those surfaces.
+        if any(
+            ord(character) < 32 or ord(character) == 127
+            for voice in values
+            for character in voice
+        ):
+            raise ValueError("voices must contain single-line identifiers")
+        return values
+
     @field_validator("response_format")
     @classmethod
     def validate_response_format(cls, value: str) -> str:
@@ -253,6 +266,8 @@ class UserConfig(BaseModel):
         for key in ("tts_provider", "tts_voice", "tts_voice_host_1", "tts_voice_host_2"):
             raw = normalized.get(key)
             if raw is not None:
+                if any(ord(character) < 32 or ord(character) == 127 for character in raw):
+                    raise ValueError(f"{key} must be a single-line identifier")
                 normalized[key] = raw.strip()
         return normalized
 
