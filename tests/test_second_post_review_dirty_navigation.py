@@ -1503,3 +1503,114 @@ async def _stale_guided_host_save_is_rejected(tmp_path: Path) -> None:
         assert saved.instructions == "New instructions after deliberate reload"
         assert external.get_host(host_ids[1]) is not None
         assert tuple(service.hosts(project_id).list_episode_host_ids(episode_id)) == host_ids
+
+
+def test_hidden_custom_duration_edits_are_guarded_across_back_and_explicit_discard(
+    tmp_path: Path,
+) -> None:
+    asyncio.run(_guard_hidden_custom_duration(tmp_path))
+
+
+async def _guard_hidden_custom_duration(tmp_path: Path) -> None:
+    service, project_id, episode_id, host_ids = _episode_fixture(tmp_path)
+    configs = EpisodeConfigurationService(
+        Database(service.workspaces.project_root(project_id) / "project.db")
+    )
+    configs.edit(
+        episode_id,
+        EpisodeConfiguration(
+            title="Durable title",
+            focus="Durable focus",
+            target_duration_seconds=1250,
+            host_ids=host_ids,
+        ),
+    )
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project_id
+        wizard.context.episode_id = episode_id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "episode")
+        wizard._load_episode_form()
+        wizard._toggle()
+        wizard._remember_current_form()
+
+        assert wizard.query_one("#guided-episode-duration", Select).value == "custom"
+        custom = wizard.query_one("#guided-episode-custom-duration", Input)
+        assert custom.value == "21"
+        custom.value = "25"
+        assert wizard._current_form_dirty()
+        assert not wizard.action_back()
+        await pilot.pause()
+        assert wizard.query_one("#wizard-exit-confirmation").display
+        assert custom.value == "25"
+        wizard.action_cancel_exit_confirmation()
+        assert custom.value == "25"
+        assert wizard._current_form_dirty()
+
+        assert not wizard.action_back()
+        wizard.action_confirm_discard_exit()
+        await pilot.pause()
+        assert wizard.context.state.current_step == "hosts"
+        assert configs.load_configuration(episode_id).target_duration_seconds == 1250
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "episode")
+        wizard._load_episode_form()
+        assert custom.value == "21"
+
+
+def test_failed_episode_storage_write_keeps_dirty_fields_and_current_target(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    asyncio.run(_failed_episode_storage_write_keeps_form(tmp_path, monkeypatch))
+
+
+async def _failed_episode_storage_write_keeps_form(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service, project_id, episode_id, _hosts = _episode_fixture(tmp_path)
+    configs = EpisodeConfigurationService(
+        Database(service.workspaces.project_root(project_id) / "project.db")
+    )
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = project_id
+        wizard.context.episode_id = episode_id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "episode")
+        wizard._load_episode_form()
+        wizard._toggle()
+        wizard._remember_current_form()
+
+        original_edit = EpisodeConfigurationService.edit
+
+        def storage_failure(
+            self: EpisodeConfigurationService, episode_id: str, config: EpisodeConfiguration
+        ) -> object:
+            raise OSError("simulated database filesystem failure")
+
+        monkeypatch.setattr(EpisodeConfigurationService, "edit", storage_failure)
+        title = wizard.query_one("#guided-episode-title", Input)
+        title.value = "Keep this title after simulated write failure"
+        assert not wizard.action_continue()
+        assert wizard.query_one("#wizard-exit-confirmation").display
+        wizard.action_confirm_save_exit()
+        await pilot.pause()
+
+        assert wizard.context.state.current_step == "episode"
+        assert wizard.context.episode_id == episode_id
+        assert title.value == "Keep this title after simulated write failure"
+        assert wizard._current_form_dirty()
+        assert configs.load_configuration(episode_id).title == "Durable title"
+        assert not wizard.query_one("#wizard-exit-confirmation").display
+
+        # A second deliberate save through the normal production service
+        # succeeds without losing the previous input.
+        monkeypatch.setattr(EpisodeConfigurationService, "edit", original_edit)
+        assert wizard.action_save_episode()
+        assert configs.load_configuration(episode_id).title == title.value
