@@ -141,7 +141,7 @@ def _redact_encoded_http_url(match: re.Match[str]) -> str:
         if updated == decoded:
             break
         decoded = updated
-    if decoded.startswith(("http://", "https://")) and _redact_text(decoded) != decoded:
+    if decoded.lower().startswith(("http://", "https://")) and _redact_text(decoded) != decoded:
         return "[REDACTED]"
     return original
 

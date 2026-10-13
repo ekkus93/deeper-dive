@@ -19,6 +19,8 @@ from deeper_dive.diagnostics import (
         "https%3A%2F%2Fexample.test%2Fv1%23access_token%3Dencoded-url-canary",
         "https%253A%252F%252Fexample.test%252Fv1%2523access_token%253Dencoded-url-canary",
         "https%3A%2F%2Fexample.test%2Fv1%3Fsession.Token%3Dencoded-url-canary",
+        "HTTPS%3A%2F%2Fexample.test%2Fv1%23access_token%3Dencoded-url-canary",
+        "HtTpS%253A%252F%252Fexample.test%252Fv1%2523access_token%253Dencoded-url-canary",
     ],
 )
 def test_complete_encoded_credential_urls_are_redacted_in_all_sinks(tmp_path, encoded: str) -> None:
