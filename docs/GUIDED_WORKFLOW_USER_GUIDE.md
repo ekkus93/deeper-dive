@@ -51,6 +51,12 @@ state and remain keyboard-responsive. A timeout or unreachable provider becomes
 a sanitized **Needs attention** result; a stale probe from older configuration
 is discarded instead of overwriting newer readiness.
 
+On System Check and later Setup steps, select **Retry Readiness** to start a
+new bounded check after fixing connectivity or configuration. Repeated presses
+while a check is active coalesce instead of spawning more workers. If timed-out
+adapter calls still occupy the worker budget, the Needs attention status explains
+when to retry; the button never bypasses the shared worker limit.
+
 ## Home, Projects, and advanced navigation
 
 Home promotes **New Deep Dive**, **Projects**, and **Library**, and presents
