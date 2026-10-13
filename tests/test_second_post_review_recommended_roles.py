@@ -35,7 +35,16 @@ async def _recommended_roles_require_explicit_decision(tmp_path: Path) -> None:
         wizard.query_one("#setup-provider-network", Input).value = "local"
         await pilot.pause()
         assert wizard.action_save_provider()
-        wizard.action_continue()
+        assert not wizard._current_form_dirty()
+        # Provider completion is derived from the asynchronous production
+        # readiness snapshot, not merely the synchronous config save.
+        for _ in range(100):
+            if wizard.navigator.completion_probe("provider-config"):
+                break
+            await pilot.pause()
+        else:
+            raise AssertionError("saved fake provider did not become ready")
+        assert wizard.action_continue()
         assert wizard.context.state.current_step == "model-test"
 
         role = wizard.query_one("#setup-role-directing", Input)
