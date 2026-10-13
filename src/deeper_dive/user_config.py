@@ -172,9 +172,7 @@ class UserConfig(BaseModel):
     ) -> dict[str, ProviderConfig]:
         # Provider IDs are displayed in CLI/TUI and reused as registry keys.
         if any(
-            ord(character) < 32 or ord(character) == 127
-            for name in providers
-            for character in name
+            ord(character) < 32 or ord(character) == 127 for name in providers for character in name
         ):
             raise ValueError("provider IDs must be single-line identifiers")
         return providers
@@ -298,6 +296,7 @@ class UserConfig(BaseModel):
                         continue
                     raise ValueError(f"{key} must use non-empty provider:model")
                 if not provider.strip() or not model.strip():
+
                     raise ValueError(f"{key} must use non-empty provider:model")
                 value = f"{provider.strip()}:{model.strip()}"
             normalized[key] = value
