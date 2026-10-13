@@ -8,6 +8,7 @@ from unittest.mock import patch
 import pytest
 
 from deeper_dive.llm import LLMProviderRegistry
+from deeper_dive.network_scope import ProviderNetworkPolicy
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.settings_screen import SettingsController
 from deeper_dive.user_config import ProviderConfig, UserConfig, UserConfigStore
@@ -139,3 +140,41 @@ def test_valid_composite_settings_batch_uses_one_durable_save(tmp_path: Path) ->
     assert loaded.defaults["local_only"] == "no"
     assert loaded.defaults["network_policy"] == "allow-remote"
     assert loaded.defaults["diagnostic_logging"] == "verbose"
+
+def test_network_locality_and_runtime_consumers_survive_restart(tmp_path: Path) -> None:
+    store, settings = _settings(tmp_path)
+    settings.provider_controller.save_provider(
+        "explicit-remote",
+        "openai",
+        network_scope="remote",
+    )
+    settings.set_defaults(
+        {
+            "local_only": " ON ",
+            "network_policy": " CONFIGURED_PROVIDERS ",
+            "local_provider_ids": " local, explicit-remote ",
+            "diagnostic_logging": " VERBOSE ",
+            "ffmpeg_executable": " /custom/bin/ffmpeg ",
+        }
+    )
+    reloaded = UserConfigStore(store.path).load()
+    assert ProviderNetworkPolicy.local_only(reloaded.defaults)
+    assert reloaded.defaults["network_policy"] == "configured-providers"
+    # A legacy local-ID hint cannot override a provider's explicit remote scope.
+    assert "local" in ProviderNetworkPolicy.local_provider_ids(reloaded)
+    assert "explicit-remote" not in ProviderNetworkPolicy.local_provider_ids(reloaded)
+    reopened_settings = SettingsController(
+        ProviderController(UserConfigStore(store.path), LLMProviderRegistry(), {})
+    )
+    with patch("deeper_dive.settings_screen.shutil.which", return_value="/usr/bin/ffmpeg") as find:
+        readiness = reopened_settings.readiness_summary()
+    find.assert_called_once_with("/custom/bin/ffmpeg")
+    assert any("FFmpeg: /usr/bin/ffmpeg" in row for row in readiness)
+    summary = "\n".join(reopened_settings.summary())
+    assert "diagnostic_logging: verbose" in summary
+    assert "network_policy: configured-providers" in summary
+
+    reopened_settings.set_defaults({"local_only": "off", "network_policy": "ALLOW_REMOTE"})
+    restarted = UserConfigStore(store.path).load()
+    assert not ProviderNetworkPolicy.local_only(restarted.defaults)
+    assert restarted.defaults["network_policy"] == "allow-remote"
