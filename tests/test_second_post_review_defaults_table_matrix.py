@@ -48,25 +48,24 @@ def test_v1_defaults_good_bad_blank_restart_and_single_write(
         return original_write(payload)
 
     monkeypatch.setattr(store, "_write_temporary", tracked_write)
-    if True:
-        store.save(candidate)
-        assert len(writes) == 1
+    store.save(candidate)
+    assert len(writes) == 1
 
-        persisted = store.load()
-        assert persisted.defaults[key] == expected
-        assert persisted.defaults["legacy_extension"] == " keep exact legacy whitespace "
-        original_bytes = store.path.read_bytes()
+    persisted = store.load()
+    assert persisted.defaults[key] == expected
+    assert persisted.defaults["legacy_extension"] == " keep exact legacy whitespace "
+    original_bytes = store.path.read_bytes()
 
-        persisted.defaults[key] = invalid
-        with pytest.raises(UserConfigError):
-            store.save(persisted)
-        assert len(writes) == 1
-        assert store.path.read_bytes() == original_bytes
+    persisted.defaults[key] = invalid
+    with pytest.raises(UserConfigError):
+        store.save(persisted)
+    assert len(writes) == 1
+    assert store.path.read_bytes() == original_bytes
 
-        unchanged = store.load()
-        unchanged.defaults[key] = ""
-        store.save(unchanged)
-        assert len(writes) == 2
+    unchanged = store.load()
+    unchanged.defaults[key] = ""
+    store.save(unchanged)
+    assert len(writes) == 2
     reopened = UserConfigStore(store.path).load()
     assert reopened.defaults[key] == ""
     assert reopened.defaults["legacy_extension"] == " keep exact legacy whitespace "
