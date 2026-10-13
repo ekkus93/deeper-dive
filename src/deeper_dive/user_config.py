@@ -234,7 +234,7 @@ class UserConfig(BaseModel):
             if raw is None:
                 continue
             value = raw.strip()
-            if "\x00" in value or "\n" in value or "\r" in value:
+            if any(ord(character) < 32 or ord(character) == 127 for character in value):
                 raise ValueError(f"{key} must be a single filesystem path or executable name")
             normalized[key] = value
 
