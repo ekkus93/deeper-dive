@@ -43,7 +43,11 @@ def _settings(tmp_path: Path) -> tuple[UserConfigStore, SettingsController]:
         ("research_policy", " CONSERVATIVE ", "conservative"),
         ("quick_deep_dive_research_policy", " AGGRESSIVE ", "aggressive"),
         ("quick_deep_dive_duration_minutes", " 30 ", "30"),
-        ("quick_deep_dive_host_presets", " curious_explainer, skeptic ", "curious_explainer,skeptic"),
+        (
+            "quick_deep_dive_host_presets",
+            " curious_explainer, skeptic ",
+            "curious_explainer,skeptic",
+        ),
         ("local_only", " YES ", "yes"),
         ("network_policy", " CONFIGURED_PROVIDERS ", "configured-providers"),
         ("diagnostic_logging", " VERBOSE ", "verbose"),
