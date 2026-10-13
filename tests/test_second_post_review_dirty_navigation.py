@@ -1453,7 +1453,9 @@ def test_concurrent_host_edit_rejects_stale_guided_profile_and_preserves_input(
 
 async def _stale_guided_host_save_is_rejected(tmp_path: Path) -> None:
     service, project_id, episode_id, host_ids = _episode_fixture(tmp_path)
-    external = HostEpisodeRepository(\n        Database(service.workspaces.project_root(project_id) / "project.db")\n    )
+    external = HostEpisodeRepository(
+        Database(service.workspaces.project_root(project_id) / "project.db")
+    )
     app = GuidedDeeperDiveApp(service)
     async with app.run_test(size=(100, 35)) as pilot:
         app.action_navigate("new")

@@ -125,7 +125,8 @@ class HostEpisodeRepository:
                 AND expertise IS ? AND instructions IS ? AND behavior_json IS ?
                 AND evidence_priorities_json IS ? AND tts_provider IS ?
                 AND tts_voice IS ?"""
-            if expected_host is not None else ""
+            if expected_host is not None
+            else ""
         )
         with self.database.transaction() as db:
             cursor = db.execute(
