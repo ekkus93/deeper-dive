@@ -108,9 +108,23 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             return "Readiness check needs attention: " + message
         return "Checking provider and local runtime readiness…"
 
+    def action_retry_readiness(self) -> None:
+        """Retry the shared bounded provider readiness probe."""
+        if self.busy or self._exit_confirmation_pending:
+            return
+        coordinator = self._runtime_readiness
+        if coordinator is None:
+            self.set_status("Provider readiness is unavailable.")
+            return
+        coordinator.request(self.app, self._runtime_readiness_updated)
+        self._sync_text()
+        if coordinator.snapshot is None:
+            self.set_status(self._checking_text())
+
     def step_controls(self) -> tuple[Widget, ...]:
         return (
             *super().step_controls(),
+            Button("Retry Readiness", id="setup-retry-readiness", name="retry-readiness"),
             Select(
                 [
                     ("Ollama — local", "ollama"),
@@ -401,6 +415,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         action = event.button.name
         handlers = {
+            "retry-readiness": self.action_retry_readiness,
             "discover-models": self.action_discover_models,
             "save-provider": self.action_save_provider,
             "test-provider": self.action_test_provider,
@@ -928,6 +943,16 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             },
             "ready": {"#setup-ready-new", "#setup-ready-home"},
         }
+        for readiness_step in (
+            "system-check",
+            "ai-provider",
+            "provider-config",
+            "model-test",
+            "speech",
+            "voice-defaults",
+            "ready",
+        ):
+            visible_ids.setdefault(readiness_step, set()).add("#setup-retry-readiness")
         all_ids = set().union(*visible_ids.values())
         shown = visible_ids.get(step, set())
         for selector in all_ids:
