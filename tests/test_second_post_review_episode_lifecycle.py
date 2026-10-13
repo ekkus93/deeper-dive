@@ -375,3 +375,69 @@ def test_concurrent_independent_episode_editors_preserve_winner_and_invalidate_p
     assert service.load_configuration(episode.id).focus == winner
     assert repository.get_plan(episode.id) is None
     assert database.path == tmp_path / "project.db"
+
+
+@pytest.mark.parametrize(
+    "run_state", ("pending", "running", "paused", "failed", "completed", "cancelled")
+)
+def test_restarted_historical_run_is_immutable_while_sibling_draft_remains_editable(
+    tmp_path, run_state: str
+) -> None:
+    """Reopened production SQLite clients preserve history without freezing siblings."""
+    database, service, repository, episode, config = _episode_with_plan(tmp_path)
+    sibling = service.create("project", EpisodeConfiguration(title="Editable sibling"))
+    repository.save_plan(
+        EpisodePlanRecord(
+            id="sibling-plan",
+            episode_id=sibling.id,
+            created_at="now",
+            modified_at="now",
+        ),
+        [],
+    )
+    GenerationRunRepository(database).create(
+        GenerationRunRecord(
+            id="historical-run",
+            episode_id=episode.id,
+            stage="sources",
+            state=run_state,
+            created_at="now",
+            modified_at="now",
+        )
+    )
+    historical_episode = repository.get_episode(episode.id)
+    historical_plan = repository.get_plan(episode.id)
+    historical_segments = repository.list_segments("plan-original")
+    historical_run = GenerationRunRepository(database).get("historical-run")
+    assert historical_episode is not None
+    assert historical_plan is not None
+    assert historical_run is not None
+    assert repository.get_plan(sibling.id) is not None
+
+    # A new database/service instance must enforce the persisted run-state guard,
+    # even when a legacy episode row still says "draft".
+    reopened_db = Database(tmp_path / "project.db")
+    reopened = EpisodeConfigurationService(reopened_db)
+    reopened_repo = HostEpisodeRepository(reopened_db)
+    reopened_runs = GenerationRunRepository(reopened_db)
+    assert reopened.edit(episode.id, config) == historical_episode
+    with pytest.raises(ValueError, match="frozen after generation starts"):
+        reopened.edit(episode.id, replace(config, focus="forbidden after restart"))
+
+    assert reopened_repo.get_episode(episode.id) == historical_episode
+    assert reopened_repo.get_plan(episode.id) == historical_plan
+    assert reopened_repo.list_segments("plan-original") == historical_segments
+    assert reopened_runs.get("historical-run") == historical_run
+    assert reopened.load_configuration(episode.id) == config
+
+    # An independent draft remains editable; its plan is invalidated without
+    # changing the frozen episode's plan, run, or configuration identity.
+    reopened.edit(
+        sibling.id,
+        EpisodeConfiguration(title="Editable sibling", focus="new draft focus"),
+    )
+    assert reopened_repo.get_plan(sibling.id) is None
+    assert reopened_repo.get_plan(episode.id) == historical_plan
+    assert reopened_repo.list_segments("plan-original") == historical_segments
+    assert reopened_repo.get_episode(episode.id) == historical_episode
+    assert reopened_runs.get("historical-run") == historical_run
