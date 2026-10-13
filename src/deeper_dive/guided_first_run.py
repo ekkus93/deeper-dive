@@ -391,6 +391,9 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
                 self._apply_speech_choice_defaults(force=True)
 
     def _execute_custom_transition(self, transition: str) -> None:
+        if transition == "recommended-roles":
+            self.action_recommended_roles()
+            return
         if transition == "discover-voices":
             self.action_discover_voices()
             return
@@ -590,6 +593,13 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         self.set_status(self._model_test_summary)
 
     def action_recommended_roles(self) -> None:
+        if self.busy or self._exit_confirmation_pending:
+            return
+        if self._current_form_dirty():
+            # The preset overwrites editable role fields; require an explicit
+            # Save/Discard/Cancel decision before replacing unsaved values.
+            self._request_dirty_transition("recommended-roles")
+            return
         identity = self._current_llm_identity()
         if identity is None:
             self.set_status("Choose and save a language model first.")
