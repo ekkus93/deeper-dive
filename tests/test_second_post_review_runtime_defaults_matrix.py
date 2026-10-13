@@ -141,6 +141,7 @@ def test_valid_composite_settings_batch_uses_one_durable_save(tmp_path: Path) ->
     assert loaded.defaults["network_policy"] == "allow-remote"
     assert loaded.defaults["diagnostic_logging"] == "verbose"
 
+
 def test_network_locality_and_runtime_consumers_survive_restart(tmp_path: Path) -> None:
     store, settings = _settings(tmp_path)
     settings.provider_controller.save_provider(
