@@ -372,6 +372,7 @@ class WizardShell(Screen[None]):
             "continue": "continue",
             "plan-build": "build the plan",
             "discover-models": "discover models",
+            "recommended-roles": "apply recommended model roles",
             "discover-voices": "discover voices",
             "create-host": "create a host",
             "plan-regenerate": "regenerate the plan",
@@ -593,6 +594,10 @@ class WizardShell(Screen[None]):
             "discover-models": (
                 "Save provider then discover models",
                 "Discard edits then discover models",
+            ),
+            "recommended-roles": (
+                "Save role edits then apply recommendations",
+                "Discard edits then apply recommendations",
             ),
             "create-host": (
                 "Save host then create a new host",
