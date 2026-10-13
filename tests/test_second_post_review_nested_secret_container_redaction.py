@@ -106,7 +106,9 @@ def test_benign_tuple_mapping_does_not_lose_context() -> None:
     assert redact(raw) == raw
 
 
-def test_tuple_header_chained_cli_exception_and_diagnostic_bundle(tmp_path, capsys, monkeypatch) -> None:
+def test_tuple_header_chained_cli_exception_and_diagnostic_bundle(
+    tmp_path, capsys, monkeypatch
+) -> None:
     from deeper_dive import cli as cli_module
 
     secret = "tuple-boundary-canary"
