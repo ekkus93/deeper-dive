@@ -313,7 +313,6 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             and not self._exit_confirmation_pending
             and not self._current_form_dirty()
         ):
-
             identity = self._current_llm_identity()
             if identity is None or self._model_test_identity != identity:
                 self.set_status("Run the synthetic model test successfully before continuing.")
@@ -614,7 +613,6 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             return False
         voices = tuple(
             item.strip()
-
             for item in self.query_one("#setup-speech-voices", Input).value.split(",")
             if item.strip()
         )
@@ -915,7 +913,6 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             fields = (
                 controller.configuration_fields(adapter)
                 if controller.capability(adapter) == "llm"
-
                 else frozenset()
             )
             for selector, field in (
