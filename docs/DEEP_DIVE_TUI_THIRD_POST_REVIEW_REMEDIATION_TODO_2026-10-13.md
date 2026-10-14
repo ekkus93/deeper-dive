@@ -213,4 +213,33 @@ This is the only completion checklist for the third post-review cycle. No item i
 
 ## Evidence ledger
 
-_No entries yet._
+Outcome per finding: **confirmed** = reproduced/verified and fixed with a test; **N/A** = disproved with evidence. "Mutation" = the fix was reverted locally and the new test confirmed to fail (otherwise "not run").
+
+| Item | Outcome | Commit(s) | Test file(s) | Mutation |
+|---|---|---|---|---|
+| TPR-01 voice vanish crash / guarded Select | confirmed | cfaa284, ad4eb1d | test_third_post_review_voice_discard, _guarded_select_restore | run (host picker) |
+| TPR-02 stale New Deep Dive | confirmed | 4938172, 5d4bc5a, fb7e35f | _new_after_save_exit, _dirty_prior_wizard, _resume_draft | run |
+| TPR-03 Episode Setup crash | confirmed | 1c2c1a6, 4ab74c7 | _setup_screen_errors, _guided_episode_errors | run (setup screen) |
+| TPR-04 stale plan approval | confirmed | fe022fe, 8cf5d72 | _plan_approval, _plan_config_digest | run (approval) |
+| TPR-05 silent Retry | confirmed | e696d0c, 74286b5 | _readiness_retry_saturation | run (retry) |
+| TPR-06 host discard scope | confirmed | 33350ad | _host_discard_scope | run |
+| TPR-07 host double submit | confirmed | a916c3e | _host_double_submit | run (create) |
+| TPR-08 AI preset dirty | confirmed (guarded-transition sub-item N/A: unreachable via UI) | 6f39bc9, a4bade9 | _ai_preset_dirty | not run |
+| TPR-09 fail-open discard | confirmed | f317bfb | _discard_without_baseline | not run |
+| TPR-10 transition labels | confirmed | b7399c2 | _transition_labels | not run |
+| TPR-11 project edits | confirmed | e877a1c | _project_edit_after_creation | run |
+| TPR-12 races | confirmed | 5f96163 | _plan_build_race, _generation_start_races, _guided_save_revision | run |
+| TPR-13 normalization | confirmed | 3b408e6 | _noop_normalization | run |
+| TPR-14 callbacks | confirmed | 7656b8a | _readiness_callbacks | run |
+| TPR-15 UI-thread lock | confirmed | 49b3905 | _readiness_lockfree_fingerprint | run |
+| TPR-16 probe robustness | confirmed (aggregate budget documented, not enforced) | 8c4da41 | _probe_robustness | not run |
+| TPR-17 dirty-form contract | partial | 7a0a41e | _form_fields_resolve | not run |
+| TPR-18 test hardening | partial | 6629ea5, 9f65174, 2cf7dda | _single_dispatch, _real_input_flow | run (single dispatch) |
+| TPR-19.1 ReDoS | confirmed | 9c2cb50 | _sanitizer_performance | run |
+| TPR-19.2 Quick echo | confirmed | e15da1a | _quick_research_override | run |
+| TPR-19.3 settings order | confirmed | 089aadd | _settings_normalization | not run |
+| TPR-19.4/19.5 sanitizer | confirmed | da4af71 | _sanitizer_matrix | not run |
+| TPR-19.5 follow-up: unbounded recursion regression in redact() | confirmed (introduced by da4af71, found by audit) | 8cd3958 | _sanitizer_recursion | run |
+| TPR-19.6 lock re-entrancy | confirmed | 417c531, 1c9af17 | _config_lock_reentrancy | not run |
+| TPR-19.7 minor items | confirmed | b397f03 | _config_minor | not run |
+| Handler double-dispatch (found via TPR-18) | confirmed | 6629ea5 | _single_dispatch | run |
