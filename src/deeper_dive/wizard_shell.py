@@ -312,6 +312,9 @@ class WizardShell(Screen[None]):
         # Transition being discarded while _restore_discarded_form runs; lets a
         # subclass limit the restore to the dirty scope that raised the prompt.
         self._discarding_transition: str | None = None
+        # Snapshot captured when a confirmation opens; Save/Discard act on that
+        # target and refuse to run if the live target drifted in the meantime.
+        self._pending_snapshot: WizardDirtyFormSnapshot | None = None
         self._last_form_status = ""
         self._form_baselines: dict[str, tuple[tuple[str, str], ...]] = {}
         self._form_baseline_targets: dict[str, tuple[str | None, str | None, str | None]] = {}
@@ -474,6 +477,7 @@ class WizardShell(Screen[None]):
 
     def _request_dirty_transition(self, transition: str) -> None:
         self._pending_transition = transition
+        self._pending_snapshot = self._dirty_form_snapshot()
         self._exit_confirmation_pending = True
         self._sync_exit_confirmation()
         destination = describe_transition(transition).action
@@ -633,8 +637,23 @@ class WizardShell(Screen[None]):
         self.set_status("Save this step using its production Save action before continuing.")
         return WizardSaveResult(WizardSaveOutcome.FAILED)
 
+    def _confirmation_target_drifted(self) -> bool:
+        """True (after cancelling the prompt) when the edited target changed under it."""
+
+        snapshot = self._pending_snapshot
+        if snapshot is None or self._form_target_identity() == snapshot.target_identity:
+            return False
+        self._clear_transition_confirmation()
+        self.set_status(
+            "The item being edited changed while the prompt was open, so nothing was "
+            "saved or discarded. Review the form and try again."
+        )
+        return True
+
     def action_confirm_save_exit(self) -> None:
         if not self._exit_confirmation_pending or self.busy:
+            return
+        if self._confirmation_target_drifted():
             return
         transition = self._pending_transition or "exit"
         self._clear_transition_confirmation()
@@ -704,6 +723,8 @@ class WizardShell(Screen[None]):
     def action_confirm_discard_exit(self) -> None:
         if not self._exit_confirmation_pending or self.busy:
             return
+        if self._confirmation_target_drifted():
+            return
         transition = self._pending_transition or "exit"
         self._clear_transition_confirmation()
         # Discard restores last durable values before attempting the destination.
@@ -761,6 +782,7 @@ class WizardShell(Screen[None]):
     def _clear_transition_confirmation(self) -> None:
         self._exit_confirmation_pending = False
         self._pending_transition = None
+        self._pending_snapshot = None
         self._sync_exit_confirmation()
 
     def _sync_exit_confirmation(self) -> None:
