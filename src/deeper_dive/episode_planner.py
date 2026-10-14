@@ -8,13 +8,14 @@ from typing import Any, Protocol
 from uuid import uuid4
 
 from deeper_dive.domain.clock import Clock, SystemClock, format_timestamp
-from deeper_dive.episode_config import EpisodeConfigurationService
+from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.plan_validity import PLAN_CONFIG_DIGEST_KEY, config_digest
 from deeper_dive.retrieval import LexicalIndex
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_plan_repository import EpisodePlanRepository
 from deeper_dive.storage.episode_repositories import (
     EpisodePlanRecord,
+    EpisodeRecord,
     HostEpisodeRepository,
     SegmentPlanRecord,
 )
@@ -74,8 +75,7 @@ class EpisodePlannerService:
         episode = self.repository.get_episode(episode_id)
         if episode is None:
             raise KeyError(episode_id)
-        config = self.configurations.configuration_from_record(episode)
-        episode_revision = episode.config_json
+        config, episode_revision = self._snapshot_of(episode)
         evidence = self.retrieval.search(episode.project_id, config.focus, limit=12)
         request = {
             "episode": config.snapshot(),
@@ -104,8 +104,8 @@ class EpisodePlannerService:
         current = self.load_plan(episode_id)
         if ordinal < 0 or ordinal >= len(current.segments):
             raise IndexError(ordinal)
-        config = self.configurations.load_configuration(episode_id)
-        episode_revision = self._episode_revision(episode_id)
+        config, episode_revision = self._snapshot(episode_id)
+        self._require_plan_matches_revision(episode_id, episode_revision)
         request = {
             "episode": config.snapshot(),
             "segment": {"ordinal": ordinal, **self._segment_payload(current.segments[ordinal])},
@@ -133,8 +133,8 @@ class EpisodePlannerService:
         current = self.load_plan(episode_id)
         if ordinal < 0 or ordinal >= len(current.segments):
             raise IndexError(ordinal)
-        config = self.configurations.load_configuration(episode_id)
-        episode_revision = self._episode_revision(episode_id)
+        config, episode_revision = self._snapshot(episode_id)
+        self._require_plan_matches_revision(episode_id, episode_revision)
         validated = self._validate_segments(
             {"segments": [self._segment_payload(segment)]},
             config.host_ids,
@@ -211,6 +211,30 @@ class EpisodePlannerService:
             segments,
             expected_episode_config_json=expected_episode_config_json,
         )
+
+    def _snapshot_of(self, episode: EpisodeRecord) -> tuple[EpisodeConfiguration, str]:
+        return self.configurations.configuration_from_record(episode), episode.config_json
+
+    def _snapshot(self, episode_id: str) -> tuple[EpisodeConfiguration, str]:
+        """Configuration and revision from one episode row (never two separate reads)."""
+
+        episode = self.repository.get_episode(episode_id)
+        if episode is None:
+            raise KeyError(episode_id)
+        return self._snapshot_of(episode)
+
+    def _require_plan_matches_revision(self, episode_id: str, revision: str) -> None:
+        record = self.repository.get_plan(episode_id)
+        if record is None:
+            return
+        try:
+            built_from = json.loads(record.plan_json).get(PLAN_CONFIG_DIGEST_KEY)
+        except (ValueError, AttributeError):
+            return
+        if built_from is not None and built_from != config_digest(revision):
+            raise ValueError(
+                "the plan was built from an older episode configuration; rebuild the plan"
+            )
 
     def _episode_revision(self, episode_id: str) -> str:
         episode = self.repository.get_episode(episode_id)

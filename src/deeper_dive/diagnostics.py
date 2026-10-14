@@ -36,6 +36,9 @@ _AUTH_FIELD = re.compile(
     r"|,\s+['\"]?[A-Za-z_][\w.-]*['\"]?\s*[:=]|[;}\]\r\n]).)+"
 )
 _BEARER = re.compile(r"(?i)bearer\s+[A-Za-z0-9._~+/=-]+")
+# Bare provider API keys (``sk-...``, ``sk-ant-...``, ``sk-proj-...``) outside any
+# ``key=value`` shape. The lookbehind keeps the scan linear on long runs.
+_BARE_API_KEY = re.compile(r"(?<![A-Za-z0-9_-])sk-[A-Za-z0-9_-]{16,}")
 _ASSIGNMENT = re.compile(
     # Diagnose unquoted dotted/bracketed/slashed keys with the same shared
     # key classifier used for quoted SDK mappings. Never depend on a small
@@ -71,7 +74,62 @@ _CREDENTIAL_QUERY = re.compile(
 # context, so surrounding JSON, Markdown and prose survive redaction.
 # Earlier passes may already have inserted the ``[REDACTED]`` marker, so it is
 # consumed as one unit rather than ending the fragment at its closing bracket.
-_URL_FRAGMENT = re.compile(r"(?i)(https?://[^\s#\"'<>]+)#((?:\[REDACTED\]|[^\s\"'<>)\]}])+)")
+_URL_SCHEME = re.compile(r"(?i)https?://")
+_FRAGMENT_BODY = re.compile(r"(?:\[REDACTED\]|[^\s\"'<>)\]}])+")
+
+
+class _FragmentMatch:
+    """A URL ``base#fragment`` occurrence, shaped like the ``re.Match`` it replaces."""
+
+    __slots__ = ("_base", "_fragment", "end", "start")
+
+    def __init__(self, start: int, end: int, base: str, fragment: str) -> None:
+        self.start = start
+        self.end = end
+        self._base = base
+        self._fragment = fragment
+
+    def group(self, index: int) -> str:
+        if index == 0:
+            return f"{self._base}#{self._fragment}"
+        return self._base if index == 1 else self._fragment
+
+
+def _iter_url_fragments(text: str) -> Iterator[_FragmentMatch]:
+    """Find ``http(s)://base#fragment`` spans in one linear pass.
+
+    Scanning whole URL tokens (instead of a regex anchored at every ``http://``)
+    keeps inputs such as ``"http://" * N`` linear; a per-start rescan was quadratic.
+    """
+
+    for token in _HTTP_URL_TOKEN.finditer(text):
+        raw = token.group(0)
+        hash_index = raw.find("#")
+        scheme = _URL_SCHEME.match(raw)
+        if hash_index == -1 or scheme is None or hash_index <= scheme.end():
+            continue
+        body = _FRAGMENT_BODY.match(raw, hash_index + 1)
+        if body is None:
+            continue
+        yield _FragmentMatch(
+            token.start(),
+            token.start() + body.end(),
+            raw[:hash_index],
+            body.group(0),
+        )
+
+
+def _sub_url_fragments(text: str) -> str:
+    out: list[str] = []
+    position = 0
+    for match in _iter_url_fragments(text):
+        out.append(text[position : match.start])
+        out.append(_redact_url_fragment(match))
+        position = match.end
+    out.append(text[position:])
+    return "".join(out)
+
+
 # Some SDKs percent-encode the entire endpoint in error and redirect fields.
 _ENCODED_HTTP_URL = re.compile(r"(?i)https?%(?:25)*3a%(?:25)*2f%(?:25)*2f[^\s<>\"']+")
 # Percent-encoded credential *keys* in URL queries are not matched by the
@@ -97,6 +155,18 @@ _SENSITIVE_URL_KEYS = frozenset(
         "signature",
         "x-amz-signature",
         "x-goog-signature",
+        "x-amz-credential",
+        "x-amz-security-token",
+        "session",
+        "sessionid",
+        "session_id",
+        "sid",
+        "jwt",
+        "credential",
+        "credentials",
+        "pass",
+        "passwd",
+        "pwd",
     }
 )
 _CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
@@ -153,7 +223,7 @@ def _decode_layers(text: str) -> Iterator[str]:
         yield text
 
 
-def _redact_url_fragment(match: re.Match[str]) -> str:
+def _redact_url_fragment(match: _FragmentMatch) -> str:
     # A diagnostic may contain a URL that was escaped multiple times by an SDK.
     # Bound decoding so layered percent-encoding cannot hide credential keys.
     for fragment in _decode_layers(match.group(2)):
@@ -225,8 +295,7 @@ def _redact_encoded_query(match: re.Match[str]) -> str:
         if "://" in nested and (
             _CREDENTIAL_URL.search(nested)
             or any(
-                _redact_url_fragment(item) != item.group(0)
-                for item in _URL_FRAGMENT.finditer(nested)
+                _redact_url_fragment(item) != item.group(0) for item in _iter_url_fragments(nested)
             )
             or any(
                 is_sensitive_url_query_key(item.group(2))
@@ -309,9 +378,10 @@ def _redact_text(value: str) -> str:
     value = _AUTH_DIGEST.sub(r"\1[REDACTED]", value)
     value = _AUTH_FIELD.sub(r"\1[REDACTED]", value)
     value = _BEARER.sub("Bearer [REDACTED]", value)
+    value = _BARE_API_KEY.sub("[REDACTED]", value)
     # Fragments run before the generic assignment pass, whose greedy value would
     # otherwise swallow the closing quote/bracket that delimits the URL.
-    value = _URL_FRAGMENT.sub(_redact_url_fragment, value)
+    value = _sub_url_fragments(value)
     value = _QUOTED_MAPPING_ASSIGNMENT.sub(_redact_quoted_mapping_assignment, value)
     value = _ASSIGNMENT.sub(_redact_assignment, value)
     value = _CREDENTIAL_QUERY.sub(r"\1[REDACTED]", value)

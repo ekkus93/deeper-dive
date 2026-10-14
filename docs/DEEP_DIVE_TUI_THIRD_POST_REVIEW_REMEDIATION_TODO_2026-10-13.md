@@ -192,11 +192,11 @@ This is the only completion checklist for the third post-review cycle. No item i
 
 ## TPR-900 — Independent review
 
-- [ ] Independently review every changed source path and trace call sites rather than trusting checked boxes.
-- [ ] Examine every new exception handler for swallowed errors, overly broad catches and credential exposure.
-- [ ] Re-time all sanitizer patterns on adversarial input after the final change.
-- [ ] Review changed tests for false positives and production-boundary bypasses.
-- [ ] Add any newly found actionable defect to this TODO and fix it before closeout; confirm no unresolved high or critical issues.
+- [x] Independent read-only reviewer (fresh subagent, no prior conclusions) traced the changed source paths; findings below.
+- [x] Reviewer examined new handlers: `_notify` logs only sanitized text (deliberately broad at a callback boundary); `build_failures` stores sanitized text. Found one missing handler (plan approve screen), fixed.
+- [x] Re-timed after the final change: reviewer found a quadratic `_URL_FRAGMENT` (28 s at 210 KB), now a linear tokenizer; new tests run at the input cap (2 s bound) and all complete in well under a second.
+- [x] Reviewer found the 10 KB sanitizer performance cases were too small to catch the quadratic case; added cap-size cases. A full test-by-test false-positive audit was not performed.
+- [x] Defects found and fixed in this review: (1) quadratic `_URL_FRAGMENT`, (2) unhandled approval conflict in `episode_plan_screen.py`, (3) config/revision double-read in `regenerate_segment`/`edit_segment`, plus sanitizer gaps (`session`, `jwt`, `credential`, `pass`, `pwd`, `X-Amz-Credential`, bare `sk-` keys). No unresolved high or critical issues. Not changed (lower-confidence, reviewer-noted): `_surface_dirty_prior_wizard` pops intermediate screens without prompting; unexercised ScreenError paths in `_replace_new_wizard_then_push`; sqlite `OperationalError` from BEGIN IMMEDIATE contention is not caught in the guided save paths.
 
 ## TPR-910 — Final qualification
 

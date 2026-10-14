@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from typing import TYPE_CHECKING, Protocol, cast
 
 from textual.app import ComposeResult
@@ -9,7 +10,7 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Checkbox, Footer, Header, Input, Label, Static
 
-from deeper_dive.diagnostics import redact
+from deeper_dive.diagnostics import redact, sanitize_exception_message
 from deeper_dive.episode_planner import EpisodePlan, PlannedSegment
 
 if TYPE_CHECKING:
@@ -166,7 +167,13 @@ class EpisodePlanScreen(Screen[None]):
         if context is None:
             return
         episode_id, controller = context
-        self.plan = controller.approve_plan(episode_id)
+        try:
+            self.plan = controller.approve_plan(episode_id)
+        except (KeyError, OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
+            # Includes EpisodeConfigurationConflict: the episode changed or the plan
+            # was replaced since it was loaded. Nothing was approved.
+            self._status(f"Plan not approved: {sanitize_exception_message(exc)}")
+            return
         auto = self.query_one("#auto-generate", Checkbox).value
         self._app.plan_approved = True
         self._app.auto_generate_after_approval = auto

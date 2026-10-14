@@ -125,3 +125,29 @@ async def _exercise_auto_generate(tmp_path: Path) -> None:
         assert app.plan_approved
         assert app.auto_generate_after_approval
         assert app.screen.id == "screen-generate"
+
+
+def test_plan_screen_reports_an_approval_conflict_instead_of_crashing(tmp_path: Path) -> None:
+    asyncio.run(_approval_conflict(tmp_path))
+
+
+async def _approval_conflict(tmp_path: Path) -> None:
+    from deeper_dive.episode_config import EpisodeConfigurationConflict
+
+    class ConflictingController(FakePlanController):
+        def approve_plan(self, episode_id: str) -> EpisodePlan:
+            raise EpisodeConfigurationConflict("episode configuration changed; reload the plan")
+
+    service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+    app = DeeperDiveApp(service, episode_plan_controller=ConflictingController())
+    async with app.run_test(size=(120, 50)) as pilot:
+        app.current_episode_id = "episode-1"
+        app.action_navigate("plan")
+        await pilot.pause()
+        screen = app.screen
+        assert isinstance(screen, EpisodePlanScreen)
+        screen.action_approve_generate()
+        await pilot.pause()
+        assert app.is_running
+        assert not app.plan_approved
+        assert app.screen is screen
