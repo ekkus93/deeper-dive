@@ -146,10 +146,16 @@ merely by navigating to the screen.
 
 ### Second post-review durability and concurrency contracts
 
-Guided edit state has two layers: a durable production baseline and the currently
-displayed semantic snapshot. `WizardShell` owns the destination-aware
-Save/Discard/Cancel transition contract, while concrete wizards contribute target
-identity and non-widget state such as ordered host IDs. Step-specific saves return a
+Guided edit state is represented by `WizardDirtyFormSnapshot`: wizard kind and step,
+project/episode/entity target identity, the identity and raw control values last
+hydrated from durable storage or accepted by a successful production save, current raw
+displayed values, a separate normalized semantic projection, and the pending original
+destination. Dirty detection compares raw displayed values with that durable baseline
+and also detects target-identity changes; semantic normalization never makes unsaved
+input appear clean. `WizardShell` owns the destination-aware Save/Discard/Cancel
+transition contract, while concrete wizards contribute target identity and non-widget
+state such as ordered host IDs. A pending transition stays bound to its original
+destination and target while the confirmation is open. Step-specific saves return a
 typed `WizardSaveResult` so partial success is explicit. A multi-operation save must
 either be transactional or leave the unsaved remainder dirty and retryable; UI status
 text is never parsed to infer success.

@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import replace
 from hashlib import sha256
 
 import pytest
+from textual.widgets import Input, Static
 
+from deeper_dive.cli import main as cli_main
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.episode_config import EpisodeConfigurationService
+from deeper_dive.guided_app import GuidedDeeperDiveApp
+from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
+from deeper_dive.guided_workflow import WizardKind, WizardState
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 
 
@@ -141,3 +147,88 @@ def test_reopened_composition_rejects_historical_episode_edits(
     assert (
         reopened.service.workspaces.data_dir / "config.json"
     ).read_bytes() == fixture.config_bytes
+
+
+def test_quick_cli_and_guided_surfaces_share_historical_episode_policy(
+    second_post_review_acceptance,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    asyncio.run(
+        _quick_cli_and_guided_surfaces_share_historical_episode_policy(
+            second_post_review_acceptance, capsys
+        )
+    )
+
+
+async def _quick_cli_and_guided_surfaces_share_historical_episode_policy(
+    second_post_review_acceptance,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fixture = second_post_review_acceptance()
+    completed = fixture.completed.first
+    service = completed.service
+    data_dir = service.workspaces.data_dir
+    database = ProductionComposition.build(service=service).database_for_project(
+        completed.project_id
+    )
+    repository = HostEpisodeRepository(database)
+    config_service = EpisodeConfigurationService(database)
+    original_episode = repository.get_episode(completed.episode_id)
+    original_plan = repository.get_plan(completed.episode_id)
+    original_run = service.runs(completed.project_id).get(completed.run_id)
+    original_audio = completed.audio_path.read_bytes()
+    original_transcript = completed.transcript_path.read_bytes()
+    original_config = config_service.load_configuration(completed.episode_id)
+    assert original_episode is not None and original_plan is not None
+    assert original_run is not None and original_run.state == "completed"
+
+    cli_result = cli_main(
+        [
+            "--data-dir",
+            str(data_dir),
+            "--json",
+            "episode",
+            "configure",
+            completed.project_id,
+            completed.episode_id,
+            "--focus",
+            "CLI must preserve completed history",
+        ]
+    )
+    cli_error = capsys.readouterr().err
+    assert cli_result == 2
+    assert "create a new episode" in cli_error
+
+    quick_episode = service.quick_deep_dive(completed.project_id)
+    quick_record = repository.get_episode(quick_episode.id)
+    assert quick_record is not None and quick_record.state == "draft"
+    assert quick_episode.id != completed.episode_id
+    assert repository.get_episode(completed.episode_id) == original_episode
+    assert repository.get_plan(completed.episode_id) == original_plan
+    assert service.runs(completed.project_id).get(completed.run_id) == original_run
+
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 35)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        wizard = app.screen
+        assert isinstance(wizard, GuidedEpisodeWizard)
+        wizard.context.project_id = completed.project_id
+        wizard.context.episode_id = completed.episode_id
+        wizard.context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "episode")
+        wizard._load_episode_form()
+        wizard._toggle()
+        wizard._remember_current_form()
+        title = wizard.query_one("#guided-episode-title", Input)
+        title.value = "Guided edits must preserve completed history"
+        assert not wizard.action_save_episode()
+        validation = str(wizard.query_one("#guided-episode-validation", Static).render())
+        assert "create a new episode" in validation
+        assert title.value == "Guided edits must preserve completed history"
+
+    assert repository.get_episode(completed.episode_id) == original_episode
+    assert repository.get_plan(completed.episode_id) == original_plan
+    assert config_service.load_configuration(completed.episode_id) == original_config
+    assert service.runs(completed.project_id).get(completed.run_id) == original_run
+    assert completed.audio_path.read_bytes() == original_audio
+    assert completed.transcript_path.read_bytes() == original_transcript
