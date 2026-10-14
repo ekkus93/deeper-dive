@@ -55,3 +55,34 @@ async def continue_step(pilot: Pilot[None], expected_step: str) -> None:
     await click(pilot, "#wizard-continue")
     current = pilot.app.screen.context.state.current_step  # type: ignore[attr-defined]
     assert current == expected_step, (current, expected_step)
+
+
+async def reach_hosts(pilot: Pilot[None]) -> None:
+    """Walk a new Deep Dive to the hosts step with real input only."""
+
+    pilot.app._first_run_readiness.close()  # type: ignore[attr-defined]
+    await pilot.pause()
+    pilot.app.action_navigate("new")  # type: ignore[attr-defined]
+    await pilot.pause()
+    await create_project(pilot, "Real input", "Does typing work")
+    await continue_step(pilot, "sources")
+    await add_pasted_source(pilot, "Notes", "Evidence for the real input flow.")
+    await continue_step(pilot, "research")
+    await click(pilot, "#guided-research-save")
+    await continue_step(pilot, "hosts")
+
+
+async def choose_option(pilot: Pilot[None], selector: str, steps_down: int = 1) -> None:
+    """Open a Select by focusing it and move ``steps_down`` options by keyboard."""
+
+    widget = pilot.app.screen.query_one(selector)
+    widget.scroll_visible(animate=False)
+    widget.focus()
+    await pilot.pause()
+    await pilot.press("enter")
+    await pilot.pause()
+    # The overlay opens on the current value; move down ``steps_down`` options.
+    for _ in range(steps_down):
+        await pilot.press("down")
+    await pilot.press("enter")
+    await pilot.pause()
