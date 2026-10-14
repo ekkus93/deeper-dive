@@ -45,8 +45,8 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [x] Introduce typed `EpisodeFrozenError` / `EpisodeConfigurationConflict` (subclassing `ValueError` for compatibility) in `episode_config.py`.
 - [x] Move `service.create()` / `service.edit()` in `EpisodeSetupScreen.action_build_plan` under error handling; show sanitized guidance and keep typed values and `current_episode_id`.
 - [x] Skip planning after a failed edit.
-- [ ] Update the guided wizard and CLI to render the typed errors consistently.
-- [ ] Pilot via both `tui.py` and `guided_app.py`: frozen episode and concurrent writer → app alive, durable data unchanged.
+- [x] Guided wizard and CLI already render the typed errors through the shared sanitizer (the typed errors subclass `ValueError`); verified by test, no production change needed.
+- [x] Pilot via both `tui.py` (`test_third_post_review_setup_screen_errors.py`) and `guided_app.py` (`test_third_post_review_guided_episode_errors.py`): frozen episode and concurrent writer → app alive, durable data unchanged.
 
 ### TPR-04 — Stale plan resurrected by approval
 - [x] Capture the episode config revision atomically with the plan load in `approve_plan` and pass it to the repository CAS.
