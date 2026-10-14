@@ -74,6 +74,11 @@ class ProviderController:
     def config(self) -> UserConfig:
         return self.config_store.load()
 
+    def config_snapshot(self) -> UserConfig:
+        """Lock-free read for UI-thread fingerprints; see ``UserConfigStore.load_published``."""
+
+        return self.config_store.load_published()
+
     @staticmethod
     def capability(provider_type: str) -> str:
         kind = provider_type.strip().lower().replace("_", "-")

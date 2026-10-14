@@ -503,7 +503,8 @@ class FirstRunReadinessCoordinator:
         )
 
     def _configuration_fingerprint(self) -> str:
-        config = self.context.composition.provider_controller.config()
+        # Runs on the UI thread: never wait on the config advisory lock.
+        config = self.context.composition.provider_controller.config_snapshot()
         return json.dumps(
             config.model_dump(mode="json"),
             sort_keys=True,

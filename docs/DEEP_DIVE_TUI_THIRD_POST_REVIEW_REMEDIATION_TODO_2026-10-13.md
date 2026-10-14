@@ -120,8 +120,8 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [x] Tests: two subscribers across supersession; a raising subscriber does not block the next.
 
 ### TPR-15 — Locked config I/O on the UI thread
-- [ ] Compute the readiness fingerprint from an in-memory snapshot published on config commit (or load off-thread).
-- [ ] Test: config lock held by another thread → `request()` returns promptly and a pilot key press is processed.
+- [x] Compute the readiness fingerprint without the config lock (`UserConfigStore.load_published`, lock-free read of the atomically replaced file; `ProviderController.config_snapshot`).
+- [x] Test: config lock held by another thread → `request()` returns promptly (coordinator-level; a Textual pilot key-press variant is still open).
 
 ### TPR-16 — Probe budget and robustness
 - [ ] Enforce an aggregate remaining-time budget across sequential probe calls, or document the exact bound in the user guide and architecture notes.

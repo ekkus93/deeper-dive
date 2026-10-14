@@ -416,6 +416,16 @@ class UserConfigStore:
         with self._locked():
             return self._load_unlocked()
 
+    def load_published(self) -> UserConfig:
+        """Read the last published config without taking the advisory lock.
+
+        Saves publish with an atomic ``os.replace``, so a lock-free reader sees
+        either the old or the new complete file. Use this on latency-sensitive
+        threads (the Textual UI) that must never wait on a writer holding the lock.
+        """
+
+        return self._load_unlocked()
+
     def _load_unlocked(self) -> UserConfig:
         if self.path.is_symlink():
             raise UserConfigError(f"invalid user configuration path at {self.path}")
