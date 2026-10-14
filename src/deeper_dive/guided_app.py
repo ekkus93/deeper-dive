@@ -143,6 +143,8 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
             return
         if isinstance(screen, WizardShell) and screen.request_external_navigation(destination):
             return
+        if destination in {"new", "resume"} and self._surface_dirty_prior_wizard(destination):
+            return
         # Guard the navigation boundary, not just one Home button: global nav,
         # shortcuts, and bubbled button events must not replace a saved flow.
         if destination == "new":
@@ -229,6 +231,38 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
             self.call_after_refresh(lambda: refresh_goal_home(self))
         else:
             super().action_navigate(destination)
+
+    def _surface_dirty_prior_wizard(self, destination: str) -> bool:
+        """Never silently reset a New Deep Dive wizard that holds unsaved edits.
+
+        When the mounted wizard is buried under another screen and still dirty,
+        bring it back and let its own Save / Discard / Cancel prompt (naming the
+        project being edited) decide before the context is replaced.
+        """
+
+        candidate = self.get_screen("new")
+        if not isinstance(candidate, WizardShell):
+            return False
+        wizard: WizardShell = candidate
+        if (
+            wizard is self.screen
+            or not wizard.is_attached
+            or wizard not in self.screen_stack
+            or not wizard._current_form_dirty()
+        ):
+            return False
+        while self.screen is not wizard and len(self.screen_stack) > 1:
+            self.pop_screen()
+
+        def prompt() -> None:
+            if wizard.request_external_navigation(destination):
+                project_id = self._new_context.project_id
+                project = self.service.open_project(project_id) if project_id else None
+                target = f"project '{project.name}'" if project else "a project not yet created"
+                wizard.set_status(f"{wizard._last_form_status} Unsaved edits are for {target}.")
+
+        self.call_after_refresh(prompt)
+        return True
 
     def _launch_quick_deep_dive(self) -> None:
         screen = self.screen
