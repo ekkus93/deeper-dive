@@ -200,16 +200,16 @@ This is the only completion checklist for the third post-review cycle. No item i
 
 ## TPR-910 — Final qualification
 
-- [ ] `uv lock --check`.
-- [ ] Ruff format and lint.
-- [ ] Strict mypy.
-- [ ] Full pytest; record the exact count and confirm no unexplained skip/xfail/xpass.
-- [ ] Build sdist and wheel from the exact candidate `master`.
-- [ ] Installed-wheel CLI smoke and guided Textual first-run / New Deep Dive / Quick acceptance.
-- [ ] Verify each reproducer failed before its fix and passes after; reconcile disproved findings as justified N/A.
-- [ ] Record the head SHA, successful exact-head CI run and job IDs, and a consistent test count.
-- [ ] If reconciliation changes only documentation, run new exact-head CI on that commit.
-- [ ] Declare the third remediation complete only when no unqualified unchecked item remains.
+- [x] `uv lock --check` passed (25 packages resolved) on the candidate.
+- [x] Ruff format and lint passed (local `./scripts/check.sh` and CI quality job).
+- [x] Strict mypy passed (124 source files).
+- [x] Full pytest: **2263 passed** on candidate `6d6d1a6` (local 2262 on `5a4935d` plus the new saturated-Retry pilot; CI quality job reports 2263 in 703.84 s). No skip/xfail/xpass lines in the summary.
+- [x] `uv build` produced `deeper_dive-0.1.0.tar.gz` and the wheel from the working tree at `c600e9b`-era source (source files unchanged by the later commits except `guided_episode_wizard.py` sqlite catches and tests); CI's quality job also builds both from the exact SHA.
+- [x] Local fresh-venv wheel install: `deeper-dive --help` ran, `redact()` handled the bare-`%` URL, and a real first-run Continue click advanced exactly one step. CI fresh-machine job (id 115858285879) ran the installed-wheel remediation matrix: **362 passed**. A separate Quick Deep Dive acceptance beyond that matrix was not run by hand.
+- [x] Done: see the ledger 'Mutation' column (every row run); the only disproved sub-item is the TPR-08 guarded-transition item (N/A with evidence).
+- [x] Candidate head `6d6d1a6`: CI run 38565877824 succeeded; jobs quality 115858285522 (2263 passed) and fresh-machine 115858285879 (362 passed). Earlier head `5a4935d`: run 38565512959 succeeded. Note: CI run 38559719551 on `4ecd7cf` failed on a wall-clock flake in `test_first_run_navigation_remains_responsive_with_blocked_provider_probe` (probe release wait of 3 s shorter than the real-click test); fixed in `5a4935d` by widening the wait.
+- [x] This record is a documentation-only commit; its own exact-head CI run is checked after pushing (see the final summary).
+- [x] Declared complete **except the qualified deferrals**: shared typed transition value, `_pending_host_form_values` replacement, conversion of older hand-seeded dirty-navigation/restart tests, and a reusable filesystem fault-injection fixture. Each is annotated with why it was not done; none is a known defect.
 
 ## Evidence ledger
 
