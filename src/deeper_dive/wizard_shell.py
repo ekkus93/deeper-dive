@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from enum import StrEnum
@@ -14,6 +15,7 @@ from textual.css.query import NoMatches
 from textual.screen import Screen
 from textual.widget import Widget
 from textual.widgets import Button, Footer, Header, Input, Label, Select, Static
+from textual.widgets._select import InvalidSelectValueError
 
 from deeper_dive.diagnostics import redact, sanitize_exception_message
 from deeper_dive.guided_draft import GuidedDraftStore
@@ -199,6 +201,7 @@ class WizardShell(Screen[None]):
         self.help_requested = False
         self._error_details: str | None = None
         self._exit_confirmation_pending = False
+        self._discard_unavailable: tuple[str, ...] = ()
         self._pending_transition: str | None = None
         self._last_form_status = ""
         self._form_baselines: dict[str, tuple[tuple[str, str], ...]] = {}
@@ -544,8 +547,17 @@ class WizardShell(Screen[None]):
                 with widget.prevent(Input.Changed):
                     widget.value = value
             elif isinstance(widget, Select):
+                restored = Select.BLANK if value == str(Select.BLANK) else value
                 with widget.prevent(Select.Changed):
-                    widget.value = Select.BLANK if value == str(Select.BLANK) else value
+                    try:
+                        widget.value = restored
+                    except InvalidSelectValueError:
+                        # The durable choice is no longer offered (for example a
+                        # voice that vanished during rediscovery). Durable config
+                        # is untouched; the control shows blank and the user must
+                        # reselect before continuing.
+                        widget.value = Select.BLANK
+                        self._discard_unavailable = (*self._discard_unavailable, key)
         self._remember_current_form()
 
     def action_confirm_discard_exit(self) -> None:
@@ -555,8 +567,19 @@ class WizardShell(Screen[None]):
         self._clear_transition_confirmation()
         # Discard restores last durable values before attempting the destination.
         # A blocked transition cannot silently promote unsaved input to clean.
+        self._discard_unavailable = ()
         self._restore_discarded_form()
+        unavailable = self._discard_unavailable
+        self._discard_unavailable = ()
         self._execute_pending_transition(transition)
+        if unavailable:
+            # Published after the transition so its own status cannot hide it.
+            with contextlib.suppress(NoMatches):
+                self.set_status(
+                    "A saved selection is no longer available ("
+                    + ", ".join(unavailable)
+                    + "). Choose a replacement before continuing."
+                )
 
     def action_cancel_exit_confirmation(self) -> None:
         if not self._exit_confirmation_pending:
