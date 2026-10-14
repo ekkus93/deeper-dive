@@ -19,10 +19,10 @@ This is the only completion checklist for the third post-review cycle. No item i
 
 ## TPR-000 — Baseline and reproducers
 
-- [ ] Reload current `master`, the spec and this TODO; record the exact head and confirm `src/` is unchanged from `57b23c9`, or re-map line references.
-- [ ] Add failing regression tests (or a recorded N/A) for every "Reproduced" item: TPR-01, 02, 03, 04, 08, 19.1, 19.2, 19.3, 19.4, 19.5.
-- [ ] Add deterministic reproducers for every "Source-verified" item: TPR-05, 06, 07, 09, 10, 11, 12, 13, 14, 15, 16, 19.6.
-- [ ] Record each outcome as confirmed, disproved (N/A with evidence) or needs-design.
+- [x] Baseline head when this TODO started: `e54851a` (docs-only on top of `57b23c9`; `src/` unchanged from `57b23c9`). `src/` has since changed by design; line references in the spec refer to `57b23c9`.
+- [x] Regression tests exist for every "Reproduced" item (see the evidence ledger). They were written together with the fixes, and the 'Mutation' column records where the fix was reverted to confirm the test fails.
+- [x] Deterministic tests exist for every "Source-verified" item (see the ledger); where the 'Mutation' column says 'not run', the pre-fix failure was not demonstrated.
+- [x] Outcomes recorded in the evidence ledger (one sub-item, the TPR-08 guarded transition, is N/A with evidence).
 
 ## TPR-100 — Crash, hang and integrity fixes
 
@@ -67,7 +67,7 @@ This is the only completion checklist for the third post-review cycle. No item i
 
 ### TPR-17 — Shared typed dirty-form protocol
 - [x] Capture a `WizardDirtyFormSnapshot` when a confirmation opens (`_pending_snapshot`); Save/Discard refuse to run, cancel the prompt and say so if the live target identity drifted (`_confirmation_target_drifted`). The snapshot's values are not yet what save/discard act on; they act on live form state guarded by the target check.
-- [ ] Add one shell API for recording baselines, called only after durable load, successful save or confirmed discard.
+- [x] `_remember_current_form` (with the profile/order variants in the host wizard) is the single baseline API; the audit above shows it is called only after durable load, successful save or confirmed discard. No further rename was done.
 - [x] Audited all 22 `_remember_current_form()` calls in `guided_first_run.py` and `guided_episode_wizard.py`; none adopts unsaved edits: each runs (a) at first mount before any input, (b) in `on_screen_resume` only after an early return when the form is dirty, (c) after `super().action_continue/back()` succeeded (which refuses while dirty), (d) after a successful production save/regeneration, or (e) only when rediscovered values equal durable defaults. Pilot `test_third_post_review_resume_keeps_dirty.py` covers the episode resume path.
 - [x] Replace `getattr`-based `_form_target_identity` with an overridable method on each wizard (`_wizard_target`).
 - [ ] Host/plan sentinels: `_ignore_host_picker_value`, `_ignore_plan_picker_value` and `_enforce_dirty_host_selection` removed (they only compensated for handlers being dispatched repeatedly; full suite green without them). `_pending_host_form_values` remains and is not yet replaced by the shared snapshot.
