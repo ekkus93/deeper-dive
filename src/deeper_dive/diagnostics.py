@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -133,11 +133,29 @@ def _redact_quoted_mapping_assignment(match: re.Match[str]) -> str:
     )
 
 
+_MAX_DECODE_LAYERS = 5
+
+
+def _decode_layers(text: str) -> Iterator[str]:
+    """Yield text, then each further percent-decoding of it, until stable or bounded.
+
+    One shared bound for every layered-encoding check so SDK diagnostics that
+    escape a URL repeatedly cannot hide credential keys from some passes only.
+    """
+
+    yield text
+    for _ in range(_MAX_DECODE_LAYERS):
+        decoded = unquote_plus(text)
+        if decoded == text:
+            return
+        text = decoded
+        yield text
+
+
 def _redact_url_fragment(match: re.Match[str]) -> str:
     # A diagnostic may contain a URL that was escaped multiple times by an SDK.
     # Bound decoding so layered percent-encoding cannot hide credential keys.
-    fragment = match.group(2)
-    for _ in range(4):
+    for fragment in _decode_layers(match.group(2)):
         try:
             pairs = parse_qsl(fragment.replace(";", "&"), keep_blank_values=True)
         except ValueError:
@@ -152,23 +170,14 @@ def _redact_url_fragment(match: re.Match[str]) -> str:
             for part in re.split(r"[&;]", fragment)
         ):
             return f"{match.group(1)}#[REDACTED]"
-        decoded = unquote_plus(fragment)
-        if decoded == fragment:
-            break
-        fragment = decoded
     return match.group(0)
 
 
 def _redact_encoded_http_url(match: re.Match[str]) -> str:
     """Inspect encoded endpoints without exposing their credential-bearing bytes."""
     original = match.group(0)
-    decoded = original
     # Handle ordinary and repeatedly percent-encoded URLs in SDK diagnostics.
-    for _ in range(5):
-        updated = unquote_plus(decoded)
-        if updated == decoded:
-            break
-        decoded = updated
+    decoded = list(_decode_layers(original))[-1]
     if decoded.lower().startswith(("http://", "https://")) and _redact_text(decoded) != decoded:
         return "[REDACTED]"
     return original
@@ -182,20 +191,15 @@ def _redact_partly_encoded_http_url(match: re.Match[str]) -> str:
 
 def is_sensitive_url_query_key(key: str) -> bool:
     """Recognize credential query keys, including layered percent-encoding."""
-    for _ in range(4):
-        if key.lower() in _SENSITIVE_URL_KEYS or _is_secret_key(key):
-            return True
-        decoded = unquote_plus(key)
-        if decoded == key:
-            break
-        key = decoded
-    return key.lower() in _SENSITIVE_URL_KEYS or _is_secret_key(key)
+    return any(
+        layer.lower() in _SENSITIVE_URL_KEYS or _is_secret_key(layer)
+        for layer in _decode_layers(key)
+    )
 
 
 def _redact_encoded_query(match: re.Match[str]) -> str:
     sensitive = is_sensitive_url_query_key(match.group(2))
-    nested = match.group(4)
-    for _ in range(5):
+    for nested in _decode_layers(match.group(4)):
         # Nested redirects may conceal credentials in userinfo or fragments,
         # not only in their query parameters. Preserve benign destinations.
         if "://" in nested and (
@@ -211,10 +215,6 @@ def _redact_encoded_query(match: re.Match[str]) -> str:
         ):
             sensitive = True
             break
-        decoded = unquote_plus(nested)
-        if decoded == nested:
-            break
-        nested = decoded
     if sensitive:
         return f"{match.group(1)}{match.group(2)}{match.group(3)}[REDACTED]"
     return match.group(0)
@@ -271,6 +271,14 @@ _TRUNCATION_MARKER = "...[TRUNCATED]"
 
 
 def _redact_text(value: str) -> str:
+    """Apply every redaction pass in a fixed order.
+
+    Order matters: quoted containers and auth headers first (they own their
+    quotes), then URL fragments (before the greedy generic assignment pass),
+    then assignments, plain and encoded credential queries, URL userinfo, and
+    finally encoded/partly-encoded http(s) tokens, which re-enter this function.
+    """
+
     if len(value) > MAX_REDACTED_TEXT_CHARS:
         value = value[:MAX_REDACTED_TEXT_CHARS] + _TRUNCATION_MARKER
     value = _redact_quoted_secret_containers(value)

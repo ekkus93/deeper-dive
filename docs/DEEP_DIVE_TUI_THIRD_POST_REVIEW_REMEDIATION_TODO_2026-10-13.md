@@ -167,11 +167,11 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [x] Test under a timeout: nested acquisition succeeds or fails fast, never hangs.
 
 ### TPR-19.7 — Minor validation and quality items
-- [ ] Accept uppercase URL schemes and normalize them to lowercase.
-- [ ] Extract one control-character helper in `UserConfig.validate_defaults`; behavior unchanged.
-- [ ] Consolidate the `_redact_text` decode loops and document the pass order.
-- [ ] Remove the redundant `os.fchmod` in `_write_temporary` or document why it stays.
-- [ ] Existing config and diagnostics suites green after the refactors.
+- [x] Accept uppercase URL schemes and normalize them to lowercase.
+- [x] Extract one control-character helper in `UserConfig.validate_defaults`; behavior unchanged.
+- [x] Consolidate the `_redact_text` decode loops and document the pass order.
+- [x] Remove the redundant `os.fchmod` in `_write_temporary` or document why it stays.
+- [x] Existing config and diagnostics suites green after the refactors.
 
 ## TPR-600 — Test hardening (TPR-18)
 

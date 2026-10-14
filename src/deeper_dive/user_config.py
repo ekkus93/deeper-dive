@@ -35,6 +35,14 @@ except ImportError:  # pragma: no cover - non-POSIX fallback
     fcntl = None  # type: ignore[assignment]
 
 CURRENT_CONFIG_VERSION = 1
+
+
+def _has_control(text: str) -> bool:
+    """Return True when text contains C0 controls or DEL (terminal-unsafe characters)."""
+
+    return any(ord(character) < 32 or ord(character) == 127 for character in text)
+
+
 # SQLite stores episode.target_duration_seconds as a signed 64-bit integer.
 # Reject durations that cannot be safely converted to seconds before any write.
 MAX_QUICK_DURATION_MINUTES = ((1 << 63) - 1) // 60
@@ -108,16 +116,14 @@ class ProviderConfig(BaseModel):
     @field_validator("provider_type")
     @classmethod
     def validate_provider_type(cls, value: str) -> str:
-        if any(ord(character) < 32 or ord(character) == 127 for character in value):
+        if _has_control(value):
             raise ValueError("provider_type must be a single-line adapter identifier")
         return value
 
     @field_validator("default_model")
     @classmethod
     def validate_default_model(cls, value: str | None) -> str | None:
-        if value is not None and any(
-            ord(character) < 32 or ord(character) == 127 for character in value
-        ):
+        if value is not None and _has_control(value):
             raise ValueError("default_model must be a single-line identifier")
         return value
 
@@ -126,16 +132,14 @@ class ProviderConfig(BaseModel):
     def validate_voices(cls, values: tuple[str, ...]) -> tuple[str, ...]:
         # Voice identifiers are displayed in terminals and passed to adapters.
         # Never persist control characters that could corrupt those surfaces.
-        if any(
-            ord(character) < 32 or ord(character) == 127 for voice in values for character in voice
-        ):
+        if any(_has_control(voice) for voice in values):
             raise ValueError("voices must contain single-line identifiers")
         return values
 
     @field_validator("response_format")
     @classmethod
     def validate_response_format(cls, value: str) -> str:
-        if any(ord(character) < 32 or ord(character) == 127 for character in value):
+        if _has_control(value):
             raise ValueError("response_format must be a single-line audio format")
         normalized = value.strip().lower()
         if normalized not in SUPPORTED_RESPONSE_FORMATS:
@@ -147,7 +151,7 @@ class ProviderConfig(BaseModel):
     def validate_credential_env(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        if any(ord(character) < 32 or ord(character) == 127 for character in value):
+        if _has_control(value):
             raise ValueError("credential_env must be a single-line environment-variable name")
         cleaned = value.strip()
         if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", cleaned):
@@ -159,7 +163,7 @@ class ProviderConfig(BaseModel):
     def validate_base_url(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        if not value.startswith(("http://", "https://")):
+        if not value.lower().startswith(("http://", "https://")):
             raise ValueError("base_url must use http:// or https://")
         try:
             parsed = urlsplit(value)
@@ -193,6 +197,8 @@ class ProviderConfig(BaseModel):
                     break
                 nested = decoded
         endpoint, separator, query = value.partition("?")
+        # Scheme is case-insensitive (RFC 3986); persist it lowercase.
+        endpoint = parsed.scheme.lower() + endpoint[len(parsed.scheme) :]
         return endpoint.rstrip("/") + (separator + query if separator else "")
 
 
@@ -211,9 +217,7 @@ class UserConfig(BaseModel):
         cls, providers: dict[str, ProviderConfig]
     ) -> dict[str, ProviderConfig]:
         # Provider IDs are displayed in CLI/TUI and reused as registry keys.
-        if any(
-            ord(character) < 32 or ord(character) == 127 for name in providers for character in name
-        ):
+        if any(_has_control(name) for name in providers):
             raise ValueError("provider IDs must be single-line identifiers")
         return providers
 
@@ -227,9 +231,7 @@ class UserConfig(BaseModel):
         normalized = dict(values)
         # Extension keys reach CLI/TUI status and are persisted even when their
         # values use legacy free-form syntax. Key names must be terminal-safe.
-        if any(
-            ord(character) < 32 or ord(character) == 127 for key in normalized for character in key
-        ):
+        if any(_has_control(key) for key in normalized):
             raise ValueError("settings keys must be single-line identifiers")
         context = info.context if isinstance(info.context, dict) else {}
         legacy_roles = context.get("legacy_model_role_defaults", {})
@@ -237,7 +239,7 @@ class UserConfig(BaseModel):
             legacy_roles = {}
         for key in _NORMALIZED_DEFAULTS:
             raw = normalized.get(key)
-            if raw is not None and any(ord(ch) < 32 or ord(ch) == 127 for ch in raw):
+            if raw is not None and _has_control(raw):
                 raise ValueError(f"{key} must be a single-line setting")
         for key in ("research_policy", "quick_deep_dive_research_policy"):
             raw = normalized.get(key)
@@ -311,7 +313,7 @@ class UserConfig(BaseModel):
             raw = normalized.get(key)
             if raw is None:
                 continue
-            if any(ord(character) < 32 or ord(character) == 127 for character in raw):
+            if _has_control(raw):
                 raise ValueError(f"{key} must be a single filesystem path or executable name")
             normalized[key] = raw.strip()
 
@@ -319,7 +321,7 @@ class UserConfig(BaseModel):
         if local_ids is not None:
             # Local provider IDs reach CLI/TUI status and provider routing.
             # Reject controls before strip() can erase leading/trailing CR/LF.
-            if any(ord(character) < 32 or ord(character) == 127 for character in local_ids):
+            if _has_control(local_ids):
                 raise ValueError("local_provider_ids must contain single-line identifiers")
             normalized["local_provider_ids"] = ",".join(
                 item.strip() for item in local_ids.split(",") if item.strip()
@@ -332,7 +334,7 @@ class UserConfig(BaseModel):
             # Reject terminal-control bytes before stripping. Otherwise CR/LF
             # at the edges is silently accepted and embedded ANSI/control text
             # can survive as a model or provider identifier on CLI/TUI surfaces.
-            if any(ord(character) < 32 or ord(character) == 127 for character in raw):
+            if _has_control(raw):
                 raise ValueError(f"{key} must be a single-line provider:model identifier")
             value = raw.strip()
             if value:
@@ -350,7 +352,7 @@ class UserConfig(BaseModel):
         for key in ("tts_provider", "tts_voice", "tts_voice_host_1", "tts_voice_host_2"):
             raw = normalized.get(key)
             if raw is not None:
-                if any(ord(character) < 32 or ord(character) == 127 for character in raw):
+                if _has_control(raw):
                     raise ValueError(f"{key} must be a single-line identifier")
                 normalized[key] = raw.strip()
         return normalized
@@ -501,6 +503,8 @@ class UserConfigStore:
                 delete=False,
             ) as handle:
                 temporary = Path(handle.name)
+                # mkstemp (used by NamedTemporaryFile) already creates the file 0600
+                # independent of umask; the explicit fchmod is kept as defense in depth.
                 if os.name == "posix":
                     os.fchmod(handle.fileno(), 0o600)
                 handle.write(payload)
