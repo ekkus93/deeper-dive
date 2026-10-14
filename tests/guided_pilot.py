@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import json
+
 from textual.pilot import Pilot
 from textual.widgets import Input
+
+from deeper_dive.llm import FakeLLMProvider, LLMRequest
 
 # Textual ignores a second press on a Button while the first one's 0.2 s
 # "active" animation is running, so every click waits a bit longer than that.
@@ -86,3 +90,69 @@ async def choose_option(pilot: Pilot[None], selector: str, steps_down: int = 1) 
         await pilot.press("down")
     await pilot.press("enter")
     await pilot.pause()
+
+
+def _plan_json(titles: tuple[str, ...]) -> str:
+    return json.dumps(
+        {
+            "segments": [
+                {
+                    "title": title,
+                    "purpose": f"Purpose of {title}",
+                    "target_duration_seconds": 600,
+                    "questions": [],
+                    "evidence_ids": [],
+                    "lead_host_ids": [],
+                }
+                for title in titles
+            ]
+        }
+    )
+
+
+class PlanningLLM(FakeLLMProvider):
+    """Fake planning model: a full plan normally, one replacement segment on request."""
+
+    def __init__(self) -> None:
+        super().__init__(response=_plan_json(("Opening", "Analysis")))
+        self.plan_requests = 0
+
+    def _response_for(self, request: LLMRequest) -> str:
+        self.plan_requests += 1
+        text = "\n".join(message.content for message in request.messages)
+        if "regenerate_segment" in text:
+            return _plan_json(("Regenerated opening",))
+        return self.response
+
+
+async def reach_plan(pilot: Pilot[None]) -> PlanningLLM:
+    """Walk a new Deep Dive to a built two-segment plan using only real input.
+
+    Configures a fake provider as the episode-planning model through the
+    production provider controller, then drives every step by click and typing.
+    """
+
+    app = pilot.app
+    controller = app.provider_controller  # type: ignore[attr-defined]
+    controller.save_provider(
+        "fake",
+        "fake",
+        default_model="fake-v1",
+        network_scope="local",
+        default_updates={"episode_planning": "fake:fake-v1"},
+    )
+    llm = PlanningLLM()
+    controller.llm_registry.register(llm)
+    await reach_hosts(pilot)
+    await click(pilot, "#guided-host-recommended")
+    await click(pilot, "#guided-host-order-save")
+    await continue_step(pilot, "episode")
+    await type_into(pilot, "#guided-episode-title", "Real title")
+    await type_into(pilot, "#guided-episode-focus", "Real focus question")
+    await click(pilot, "#guided-episode-save")
+    await continue_step(pilot, "plan")
+    await click(pilot, "#guided-plan-build")
+    await pilot.pause(0.5)
+    wizard = app.screen
+    assert wizard._plan is not None and len(wizard._plan.segments) == 2  # type: ignore[attr-defined]
+    return llm
