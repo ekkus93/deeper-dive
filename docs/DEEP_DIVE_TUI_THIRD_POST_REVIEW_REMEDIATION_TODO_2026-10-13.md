@@ -74,10 +74,10 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [ ] Make `_editable_snapshot` fail loudly in tests for missing widgets; add a test that every `_FORM_FIELDS` ID resolves on its step.
 
 ### TPR-06 — Host-profile discard drops membership
-- [ ] Scope discard to the dirty area that triggered the prompt (profile, membership or both) and state the scope in the prompt.
-- [ ] Use the step-entry in-memory membership baseline when no episode exists.
-- [ ] Replace silent `KeyError`/`ValueError` swallowing in `_load_episode_host_order` with a sanitized status that keeps the current order.
-- [ ] Pilots: profile-only discard keeps order edits; no-episode variant keeps selections; leave-step discard reverts both; load failure shows status.
+- [x] Scope discard to the dirty area that triggered the prompt (profile, membership or both) and state the scope in the prompt.
+- [x] Use the step-entry in-memory membership baseline when no episode exists.
+- [x] Replace silent `KeyError`/`ValueError` swallowing in `_load_episode_host_order` with a sanitized status that keeps the current order.
+- [x] Pilots (state seeded by direct calls, not real key presses): profile-only discard keeps order edits; no-episode variant keeps selections; leave-step discard reverts both; load failure shows status.
 
 ### TPR-07 — Host action double-submit
 - [ ] Disable and guard all mutating host actions while a confirmation is pending.

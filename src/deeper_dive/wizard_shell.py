@@ -308,6 +308,9 @@ class WizardShell(Screen[None]):
         self._discard_unavailable: tuple[str, ...] = ()
         self._discard_baseline_missing = False
         self._pending_transition: str | None = None
+        # Transition being discarded while _restore_discarded_form runs; lets a
+        # subclass limit the restore to the dirty scope that raised the prompt.
+        self._discarding_transition: str | None = None
         self._last_form_status = ""
         self._form_baselines: dict[str, tuple[tuple[str, str], ...]] = {}
         self._form_baseline_targets: dict[str, tuple[str | None, str | None, str | None]] = {}
@@ -678,7 +681,11 @@ class WizardShell(Screen[None]):
         # A blocked transition cannot silently promote unsaved input to clean.
         self._discard_unavailable = ()
         self._discard_baseline_missing = False
-        self._restore_discarded_form()
+        self._discarding_transition = transition
+        try:
+            self._restore_discarded_form()
+        finally:
+            self._discarding_transition = None
         unavailable = self._discard_unavailable
         baseline_missing = self._discard_baseline_missing
         self._discard_unavailable = ()

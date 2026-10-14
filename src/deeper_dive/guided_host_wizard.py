@@ -7,6 +7,7 @@ from dataclasses import replace
 from textual.widget import Widget
 from textual.widgets import Button, Input, Select, Static
 
+from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.guided_source_wizard import GuidedSourceWizard
 from deeper_dive.guided_workflow import CompletionProbe, WizardContext
@@ -267,17 +268,76 @@ class GuidedHostWizard(GuidedSourceWizard):
         self._form_baseline_targets["hosts"] = self._form_target_identity()
         self._pending_host_form_values = self._host_form_values()
 
-    def _restore_discarded_form(self) -> None:
-        super()._restore_discarded_form()
+    @staticmethod
+    def _transition_is_profile_scoped(transition: str | None) -> bool:
+        """Host picker reselect and Create Host/Pair only concern the host profile."""
+
+        return transition is not None and (
+            transition.startswith("host-select:")
+            or transition in {"create-host", "create-recommended-hosts"}
+        )
+
+    def _request_dirty_transition(self, transition: str) -> None:
+        super()._request_dirty_transition(transition)
         if self.context.state.current_step != "hosts":
             return
-        # Episode membership/order lives outside the Input/Select widget values.
-        # An explicit discard must restore the production-backed ordered IDs.
-        self._selected_host_ids = []
-        self._load_episode_host_order()
+        profile = self._host_profile_dirty()
+        order = self._host_order_dirty()
+        if self._transition_is_profile_scoped(transition):
+            scope = (
+                "Discard reverts the host profile only; unsaved episode host order edits "
+                "stay pending."
+                if order
+                else "Discard reverts the host profile."
+            )
+        elif profile and order:
+            scope = "Discard reverts both the host profile and the episode host order."
+        elif order:
+            scope = "Discard reverts the episode host order."
+        else:
+            scope = "Discard reverts the host profile."
+        self.set_status(f"{self._last_form_status} {scope}")
+
+    def _restore_discarded_form(self) -> None:
+        step_is_hosts = self.context.state.current_step == "hosts"
+        previous_order = tuple(
+            item
+            for item in self._form_baselines.get("hosts", ())
+            if item[0] == "__episode_host_order__"
+        )
+        super()._restore_discarded_form()
+        if not step_is_hosts:
+            return
+        if self._transition_is_profile_scoped(self._discarding_transition):
+            # Profile-only prompt: membership/order edits (and their dirty
+            # baseline) must survive. The shared restore re-baselined the order
+            # from the live list, so put the original baseline back.
+            profile = tuple(
+                item
+                for item in self._form_baselines.get("hosts", ())
+                if item[0] != "__episode_host_order__"
+            )
+            self._form_baselines["hosts"] = (*profile, *previous_order)
+            self._pending_host_form_values = self._host_form_values()
+            return
+        # Leaving the step discards both scopes. Membership lives outside the
+        # widget values, so restore it from the step-entry baseline (which also
+        # covers the no-episode case) before falling back to the durable store.
+        restored = self._order_from_baseline(previous_order)
+        if restored is not None:
+            self._selected_host_ids = restored
+        else:
+            self._selected_host_ids = []
+            self._load_episode_host_order()
         self._refresh_host_order()
         self._pending_host_form_values = self._host_form_values()
         self._remember_current_form()
+
+    def _order_from_baseline(self, order_entry: tuple[tuple[str, str], ...]) -> list[str] | None:
+        if not order_entry:
+            return None
+        _, _, ids = order_entry[0][1].partition(":")
+        return [item for item in ids.split(",") if item]
 
     def _host_order_dirty(self) -> bool:
         if self.context.state.current_step != "hosts":
@@ -320,7 +380,8 @@ class GuidedHostWizard(GuidedSourceWizard):
             with picker.prevent(Select.Changed):
                 picker.value = host_id
             self._load_selected_host()
-            self._remember_current_form()
+            # Re-baseline only the profile: pending membership edits stay dirty.
+            self._remember_host_profile_baseline()
             return
         super()._execute_custom_transition(transition)
 
@@ -561,7 +622,13 @@ class GuidedHostWizard(GuidedSourceWizard):
             config = EpisodeConfigurationService(
                 self.context.composition.database_for_project(project_id)
             ).load_configuration(episode_id)
-        except (KeyError, ValueError):
+        except (KeyError, ValueError) as exc:
+            # Keep the current in-memory order; never present a silent empty list.
+            self.set_status(
+                "Could not load the saved episode host order: "
+                + sanitize_exception_message(exc)
+                + " The current order was kept."
+            )
             return
         self._selected_host_ids = list(config.host_ids)
 
