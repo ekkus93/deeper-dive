@@ -175,7 +175,7 @@ This is the only completion checklist for the third post-review cycle. No item i
 
 ## TPR-600 — Test hardening (TPR-18)
 
-- [ ] Add a shared pilot helper that reaches steps and navigates only through real key presses/clicks.
+- [x] Add a shared pilot helper that reaches steps and navigates only through real key presses/clicks (`tests/guided_pilot.py`, used by `test_third_post_review_real_input_flow.py`).
 - [ ] Convert dirty-navigation and host-membership tests that set `context.state` or baselines by hand to the helper where they claim end-to-end coverage.
 - [ ] Add service- and filesystem-boundary fault-injection fixtures; replace wizard-method monkeypatches (e.g. `test_second_post_review_host_membership.py:242`).
 - [ ] Rewrite "restart" tests to use `GuidedDraftStore` and a fresh app instance.
