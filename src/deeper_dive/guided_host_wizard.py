@@ -145,8 +145,7 @@ class GuidedHostWizard(GuidedSourceWizard):
             original = self._loaded_host_id
             if original is not None and event.select.value != original:
                 self._ignore_host_picker_value = original
-                with event.select.prevent(Select.Changed):
-                    event.select.value = original  # type: ignore[assignment]
+                self._assign_select(event.select, original)
             if self._pending_host_form_values is not None:
                 self._restore_host_form_values(self._pending_host_form_values)
             return
@@ -171,8 +170,7 @@ class GuidedHostWizard(GuidedSourceWizard):
             )
             self._ignore_host_picker_value = self._loaded_host_id
             original_host_id = self._loaded_host_id
-            with event.select.prevent(Select.Changed):
-                event.select.value = original_host_id  # type: ignore[assignment]
+            self._assign_select(event.select, original_host_id)
             self._restore_host_form_values(preserved)
             self._pending_host_form_values = preserved
             self._request_dirty_transition(f"host-select:{destination}")
@@ -200,8 +198,7 @@ class GuidedHostWizard(GuidedSourceWizard):
         picker = self.query_one("#guided-host-picker", Select)
         if picker.value != original_host_id:
             self._ignore_host_picker_value = original_host_id
-            with picker.prevent(Select.Changed):
-                picker.value = original_host_id
+            self._assign_select(picker, original_host_id)
         self._loaded_host_id = original_host_id
         self._restore_host_form_values(preserved)
         self._pending_host_form_values = preserved

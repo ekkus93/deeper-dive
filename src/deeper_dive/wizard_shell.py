@@ -6,6 +6,7 @@ import contextlib
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from enum import StrEnum
+from typing import Any
 
 from textual import events
 from textual.app import ComposeResult
@@ -505,6 +506,23 @@ class WizardShell(Screen[None]):
     # Tests set this so a _FORM_FIELDS entry that no longer resolves to a widget
     # fails loudly instead of silently dropping out of dirty detection.
     strict_form_fields = False
+
+    def _assign_select(self, select: Select[Any], value: object) -> bool:
+        """Set a Select without events; an option that no longer exists never crashes.
+
+        Returns False (and shows the blank choice when blanks are allowed) when
+        ``value`` is not currently offered, e.g. a host, segment or voice that
+        vanished while the user was editing.
+        """
+
+        with select.prevent(Select.Changed):
+            try:
+                select.value = value
+                return True
+            except InvalidSelectValueError:
+                with contextlib.suppress(InvalidSelectValueError):
+                    select.value = Select.BLANK
+                return False
 
     def _wizard_target(self, step: str) -> str | None:
         """Override to name the production record a step's form currently edits.

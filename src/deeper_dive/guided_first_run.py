@@ -394,8 +394,9 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
                     ):
                         previous = self._last_speech_choice
                         if previous is not None:
-                            with event.select.prevent(Select.Changed):
-                                self.query_one("#setup-speech-choice", Select).value = previous
+                            self._assign_select(
+                                self.query_one("#setup-speech-choice", Select), previous
+                            )
                         if not self._exit_confirmation_pending:
                             self._request_dirty_transition(f"speech-choice:{choice}")
                         return

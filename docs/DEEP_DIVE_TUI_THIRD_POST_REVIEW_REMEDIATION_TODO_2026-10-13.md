@@ -28,10 +28,10 @@ This is the only completion checklist for the third post-review cycle. No item i
 
 ### TPR-01 — Discard after a vanished voice crashes the app
 - [x] Guard every `Select` restore in `WizardShell._restore_discarded_form` against values absent from current options; fall back to `BLANK` with a field-specific status.
-- [ ] Apply the same guarded restore to the host picker, plan segment picker and provider/model selects.
+- [x] Apply the same guarded restore (`_assign_select`) to the host picker, plan segment picker and speech-choice select (provider/model selects already rebuild options with membership checks; no separate test).
 - [x] Define and document the dirty semantics for "durable value no longer offered" without a prompt loop.
 - [x] Pilot: save voices → rediscover with one removed → Back → Discard → app alive, config bytes unchanged, clear status.
-- [ ] Pilot variants: provider error during rediscovery; reordered voices.
+- [x] Pilot variants: provider error during rediscovery; reordered voices; vanished host-picker original (plan picker covered by the shared helper but not separately piloted).
 
 ### TPR-02 — New Deep Dive after Save-and-Exit
 - [x] Reset form state, baselines, baseline targets, selected hosts, loaded episode/plan and pending transitions before dirty evaluation when the app starts a fresh New Deep Dive (fresh screen instance or an explicit reset API).
