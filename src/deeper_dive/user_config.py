@@ -42,6 +42,19 @@ MAX_QUICK_DURATION_MINUTES = ((1 << 63) - 1) // 60
 _PATH_LOCKS_GUARD = Lock()
 _PATH_LOCKS: dict[str, RLock] = {}
 
+
+class _HeldAdvisoryLock:
+    """Re-entrancy bookkeeping for one config path's advisory ``flock`` descriptor."""
+
+    __slots__ = ("depth", "handle")
+
+    def __init__(self) -> None:
+        self.depth = 0
+        self.handle: IO[bytes] | None = None
+
+
+_PATH_LOCK_STATE: dict[str, _HeldAdvisoryLock] = {}
+
 # Derive accepted semantic values from the same production enums/factories
 # that Quick Deep Dive and the research-policy stores actually consume.
 _RESEARCH_MODES = frozenset(mode.value for mode in ResearchMode)
@@ -537,18 +550,31 @@ class UserConfigStore:
 
     @contextmanager
     def _locked(self) -> Iterator[None]:
+        """Hold the per-path process lock and cross-process advisory lock.
+
+        Re-entrant on one thread: ``flock`` is per open file description, so a
+        nested acquisition must reuse the descriptor already held (tracked by a
+        depth counter) rather than open a second one and block on itself.
+        """
         key = str(self.path.absolute())
         with _PATH_LOCKS_GUARD:
             process_lock = _PATH_LOCKS.setdefault(key, RLock())
+            state = _PATH_LOCK_STATE.setdefault(key, _HeldAdvisoryLock())
         with process_lock:
-            lock_handle = self._open_advisory_lock()
+            # Only the thread owning process_lock reads or mutates ``state``.
+            if state.depth == 0:
+                state.handle = self._open_advisory_lock()
+            state.depth += 1
             try:
                 yield
             finally:
-                if lock_handle is not None:
-                    if fcntl is not None:
-                        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
-                    lock_handle.close()
+                state.depth -= 1
+                if state.depth == 0:
+                    handle, state.handle = state.handle, None
+                    if handle is not None:
+                        if fcntl is not None:
+                            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+                        handle.close()
 
     def _open_advisory_lock(self) -> IO[bytes] | None:
         if fcntl is None:

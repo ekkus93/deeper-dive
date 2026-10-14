@@ -163,8 +163,8 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [x] Canary matrix test for each case; benign URLs unchanged.
 
 ### TPR-19.6 — Lock re-entrancy
-- [ ] Make `UserConfigStore._locked` truly re-entrant (depth counter, reuse the held descriptor) or a plain `Lock` with a non-nesting assertion.
-- [ ] Test under a timeout: nested acquisition succeeds or fails fast, never hangs.
+- [x] Make `UserConfigStore._locked` truly re-entrant (depth counter, reuse the held descriptor) or a plain `Lock` with a non-nesting assertion.
+- [x] Test under a timeout: nested acquisition succeeds or fails fast, never hangs.
 
 ### TPR-19.7 — Minor validation and quality items
 - [ ] Accept uppercase URL schemes and normalize them to lowercase.
