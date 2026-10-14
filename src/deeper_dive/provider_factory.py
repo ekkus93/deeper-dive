@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterator, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from math import isfinite
 
+from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.elevenlabs_tts import ElevenLabsTTSProvider
 from deeper_dive.kitten_tts import KittenTTSMicroProvider
 from deeper_dive.llama_server_llm import LlamaServerLLMProvider
@@ -63,6 +64,9 @@ class ProviderBuildResult:
     tts_registry: TTSProviderRegistry
     tts_providers: dict[str, TTSProvider]
     network_scopes: dict[str, str]
+    # Provider name -> sanitized reason it could not be built. Only populated for
+    # readiness probes, which degrade per provider instead of failing wholesale.
+    build_failures: dict[str, str] = field(default_factory=dict)
 
 
 class _AliasedLLMProvider:
@@ -122,6 +126,11 @@ class _AliasedTTSProvider:
 class ProviderFactory:
     """Build configured provider adapters without persisting credentials."""
 
+    # Explicit capability: ``build`` accepts ``probe_timeout_seconds`` and bounds
+    # every readiness request. Subclasses inherit it; factories that do not
+    # implement it (test doubles) are used as-is.
+    supports_probe_timeouts = True
+
     def __init__(self, *, environ: Mapping[str, str] | None = None) -> None:
         self.environ = os.environ if environ is None else environ
 
@@ -140,8 +149,8 @@ class ProviderFactory:
         tts_registry = TTSProviderRegistry()
         tts_providers: dict[str, TTSProvider] = {}
         network_scopes: dict[str, str] = {}
+        build_failures: dict[str, str] = {}
         for name, provider_config in sorted(config.providers.items()):
-            kind = self._normalized_type(provider_config.provider_type)
             if probe_timeout_seconds is not None:
                 provider_config = provider_config.model_copy(
                     update={
@@ -150,32 +159,42 @@ class ProviderFactory:
                         )
                     }
                 )
-            network_scopes[name] = ProviderNetworkPolicy.scope_for_config(provider_config)
-            if kind in LLM_PROVIDER_TYPES:
-                llm_registry.register(
-                    _AliasedLLMProvider(
-                        name,
-                        self._llm(kind, provider_config)
-                        if probe_timeout_seconds is None
-                        else self._llm(kind, provider_config, readiness_probe=True),
+            try:
+                kind = self._normalized_type(provider_config.provider_type)
+                network_scopes[name] = ProviderNetworkPolicy.scope_for_config(provider_config)
+                if kind in LLM_PROVIDER_TYPES:
+                    llm_registry.register(
+                        _AliasedLLMProvider(
+                            name,
+                            self._llm(kind, provider_config)
+                            if probe_timeout_seconds is None
+                            else self._llm(kind, provider_config, readiness_probe=True),
+                        )
                     )
-                )
-            elif kind in TTS_PROVIDER_TYPES:
-                provider = _AliasedTTSProvider(
-                    name,
-                    self._tts(name, kind, provider_config),
-                )
-                tts_registry.register(provider)
-                tts_providers[name] = provider
-            else:
-                # Provider names and types originate in imported user configuration.
-                # Never echo potentially credential-bearing input in UI/CLI errors.
-                raise ProviderConfigurationError("provider has unsupported provider_type")
+                elif kind in TTS_PROVIDER_TYPES:
+                    provider = _AliasedTTSProvider(
+                        name,
+                        self._tts(name, kind, provider_config),
+                    )
+                    tts_registry.register(provider)
+                    tts_providers[name] = provider
+                else:
+                    # Provider names and types originate in imported user configuration.
+                    # Never echo potentially credential-bearing input in UI/CLI errors.
+                    raise ProviderConfigurationError("provider has unsupported provider_type")
+            except ProviderConfigurationError as exc:
+                if probe_timeout_seconds is None:
+                    raise
+                # Readiness degrades per provider: report this one as needing
+                # attention and keep building the others.
+                network_scopes.pop(name, None)
+                build_failures[name] = sanitize_exception_message(exc)
         return ProviderBuildResult(
             llm_registry,
             tts_registry,
             tts_providers,
             network_scopes,
+            build_failures,
         )
 
     @staticmethod

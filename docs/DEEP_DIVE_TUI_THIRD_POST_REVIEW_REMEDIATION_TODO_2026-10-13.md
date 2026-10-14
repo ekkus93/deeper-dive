@@ -124,10 +124,10 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [x] Test: config lock held by another thread → `request()` returns promptly (coordinator-level; a Textual pilot key-press variant is still open).
 
 ### TPR-16 — Probe budget and robustness
-- [ ] Enforce an aggregate remaining-time budget across sequential probe calls, or document the exact bound in the user guide and architecture notes.
-- [ ] Replace the `type(factory) is ProviderFactory` check in `readiness_probe_controller` with an explicit capability.
-- [ ] Report adapter build/probe failures per provider instead of failing the whole snapshot.
-- [ ] Tests: many unreachable fakes finish within the aggregate deadline; a factory subclass gets bounded probes; one unbuildable provider does not hide others' readiness.
+- [x] Document the exact bound in the architecture notes (`docs/ARCHITECTURE.md`, "Readiness probe time bound"); an aggregate remaining-time budget was not implemented, and the user guide is not yet updated.
+- [x] Replace the `type(factory) is ProviderFactory` check in `readiness_probe_controller` with an explicit capability.
+- [x] Report adapter build failures per provider (`ProviderBuildResult.build_failures`; probe-call failures were already per provider) instead of failing the whole snapshot.
+- [ ] Tests (open: many unreachable fakes within an aggregate deadline, since no aggregate budget exists): a factory subclass gets bounded probes; one unbuildable provider does not hide others' readiness.
 
 ## TPR-400 — Episode lifecycle races and normalization
 

@@ -269,3 +269,22 @@ Before merging an architectural change, verify:
 - long-running work is checkpointed or explicitly bounded;
 - fake-provider CI remains deterministic;
 - documentation and provider/privacy guidance stay current.
+
+## Readiness probe time bound
+
+First-run readiness runs on worker threads and is shown through a UI deadline
+(`FirstRunReadinessCoordinator.timeout_seconds`, default 8 s). Each real HTTP
+request made by a probe uses a socket timeout of `min(timeout_seconds / 4, 1.0)`
+seconds, and the calls inside one probe run sequentially. The worst-case probe
+duration is therefore `(number of provider calls) x (per-request timeout)`, which
+can exceed the UI deadline when many providers are unreachable. The UI never waits
+past the deadline: it reports a timeout and the worker finishes in the background,
+occupying one of the bounded worker slots (`max_workers`) until it returns. An
+explicit Retry while all slots are busy shows a "workers are still finishing"
+message rather than starting another probe.
+
+Factories advertise bounded probes with `supports_probe_timeouts` (inherited by
+`ProviderFactory` subclasses). A provider that cannot be built for a probe (for
+example a missing credential variable) is recorded in
+`ProviderBuildResult.build_failures` and reported as not ready; other providers
+are still probed.

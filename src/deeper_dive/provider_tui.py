@@ -228,9 +228,13 @@ class ProviderController:
         """Use isolated, bounded I/O adapters for UI readiness only.
 
         Never mutate live generation provider timeouts or published registries.
-        Custom/injected factories retain their existing deterministic test boundary.
+        Factories advertise bounded probes via ``supports_probe_timeouts`` (inherited
+        by ``ProviderFactory`` subclasses); others retain their deterministic boundary.
+        Providers that cannot be built degrade individually (``build_failures``).
         """
-        if self.provider_factory is None or type(self.provider_factory) is not ProviderFactory:
+        if self.provider_factory is None or not getattr(
+            self.provider_factory, "supports_probe_timeouts", False
+        ):
             return self
         configured = self.config()
         isolated = self.provider_factory.build(
