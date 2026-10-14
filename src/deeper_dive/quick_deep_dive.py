@@ -124,7 +124,12 @@ class QuickDeepDiveService:
                 raise ValueError("Quick Deep Dive requires exactly two valid host presets")
             fallback_presets = parsed
         if research:
-            research_mode = ResearchMode(research)
+            # Same normalization as UserConfig (strip + lowercase). The raw project
+            # instruction is never echoed in the error.
+            try:
+                research_mode = ResearchMode(research.strip().lower())
+            except ValueError:
+                raise ValueError("Quick Deep Dive research mode is not supported") from None
         return replace(
             defaults,
             target_duration_seconds=target_duration_seconds,

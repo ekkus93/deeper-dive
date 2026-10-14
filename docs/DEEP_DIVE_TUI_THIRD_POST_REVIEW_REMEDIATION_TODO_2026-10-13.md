@@ -145,8 +145,8 @@ This is the only completion checklist for the third post-review cycle. No item i
 ## TPR-500 — Configuration and security
 
 ### TPR-19.2 — Quick echoes a rejected research value
-- [ ] Parse the Quick research override through the shared `UserConfig` normalizer (case and alias handling) and raise a generic error `from None`.
-- [ ] Canary test across Quick CLI and TUI; mixed-case valid value accepted consistently with Settings.
+- [x] Parse the Quick research override with the same strip + lowercase rule as `UserConfig` and raise a generic error `from None`.
+- [x] Canary test at the shared `_apply_overrides` boundary used by Quick CLI and TUI; mixed-case valid value accepted consistently with Settings.
 
 ### TPR-19.3 — Settings normalization order
 - [ ] Route Settings default saves through `validate_candidate` (normalize then reference-check), matching `provider_tui.py`.

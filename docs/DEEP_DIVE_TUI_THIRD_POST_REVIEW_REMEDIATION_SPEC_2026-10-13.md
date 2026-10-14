@@ -296,7 +296,7 @@ The SPR-500 persistence contract was found sound: a stable `.config.json.lock` h
 
 ### TPR-19.2 — Quick Deep Dive echoes a rejected research value — Low–Medium, reproduced
 
-`quick_deep_dive.py:127` calls `ResearchMode(research)` on the project-instructions override without catching its `ValueError`, so `{"quick_deep_dive_research_policy": "sk-CANARY"}` surfaces `'sk-CANARY' is not a valid ResearchMode`. This contradicts the comment at line 111 ("never echo arbitrary project instructions"). The override is also not case-normalized, so `Standard` fails here while user config accepts it.
+`quick_deep_dive.py:127` calls `ResearchMode(research)` on the project-instructions override without catching its `ValueError`, so `{"quick_deep_dive_research_policy": "sk-CANARY"}` surfaces `'sk-CANARY' is not a valid ResearchMode`. This contradicts the comment at line 111 ("never echo arbitrary project instructions"). The override is also not case-normalized, so `Useful` fails here while user config accepts it.
 
 **Required:** parse through the same normalizer that `UserConfig` uses (case and alias handling), and raise a generic message `from None`.
 **Acceptance:** canary test across Quick CLI and TUI surfaces; a mixed-case valid value is accepted consistently with Settings.
