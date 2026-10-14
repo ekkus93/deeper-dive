@@ -58,10 +58,10 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [ ] Correct `docs/ARCHITECTURE.md` lines 189-191 to match the final mechanism.
 
 ### TPR-19.1 — Sanitizer ReDoS
-- [ ] Rewrite `_AUTH_QUOTED` (`diagnostics.py:27`) so backslash matches only one alternative.
+- [x] Rewrite `_AUTH_QUOTED` (`diagnostics.py:27`) so backslash matches only one alternative.
 - [ ] Audit every `diagnostics.py` pattern for ambiguous alternation and nested quantifiers; fix any found.
-- [ ] Cap the input length processed by `redact()` with a truncation marker.
-- [ ] Performance regression test: every sanitizer pattern on 10k-character adversarial input within a tight bound.
+- [x] Cap the input length processed by `redact()` with a truncation marker.
+- [x] Performance regression test: every sanitizer pattern on 10k-character adversarial input within a tight bound.
 
 ## TPR-200 — Wizard dirty-form contract
 

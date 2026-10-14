@@ -24,7 +24,9 @@ _SECRET_PAIRS = frozenset(
 # The delimiter preserves adjacent diagnostic fields (e.g. status=401).
 # Digest can contain a comma-separated collection of credential components.
 _AUTH_DIGEST = re.compile(r"(?i)(\bauthorization\s*[:=]\s*)digest\b[^;\r\n}\]]*")
-_AUTH_QUOTED = re.compile(r"(?i)((['\"])authorization\2\s*:\s*)(['\"])(?:\\.|(?!\3).)*?\3")
+# The two body alternatives must not overlap: a backslash is consumed only by the
+# escape alternative, otherwise an unterminated quote backtracks exponentially.
+_AUTH_QUOTED = re.compile(r"(?i)((['\"])authorization\2\s*:\s*)(['\"])(?:\\.|(?!\3)[^\\\r\n])*?\3")
 _AUTH_FIELD = re.compile(
     r"(?i)(\bauthorization\s*[:=]\s*)"
     # Opaque non-Digest credentials may include commas. Stop only at an
@@ -240,7 +242,15 @@ def _redact_quoted_secret_containers(value: str) -> str:
     return "".join(pieces)
 
 
+# Defense in depth against pathological inputs: redaction work grows with input
+# size, so oversized strings are truncated (safely) before any pattern runs.
+MAX_REDACTED_TEXT_CHARS = 262_144
+_TRUNCATION_MARKER = "...[TRUNCATED]"
+
+
 def _redact_text(value: str) -> str:
+    if len(value) > MAX_REDACTED_TEXT_CHARS:
+        value = value[:MAX_REDACTED_TEXT_CHARS] + _TRUNCATION_MARKER
     value = _redact_quoted_secret_containers(value)
     value = _AUTH_QUOTED.sub(
         lambda match: f"{match.group(1)}{match.group(3)}[REDACTED]{match.group(3)}",
