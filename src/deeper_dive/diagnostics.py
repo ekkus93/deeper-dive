@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Iterator, Mapping
+from contextvars import ContextVar
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -173,14 +174,33 @@ def _redact_url_fragment(match: re.Match[str]) -> str:
     return match.group(0)
 
 
+_MAX_NESTED_URL_DEPTH = 3
+_nested_url_depth: ContextVar[int] = ContextVar("deeper_dive_nested_url_depth", default=0)
+
+
 def _redact_encoded_http_url(match: re.Match[str]) -> str:
     """Inspect encoded endpoints without exposing their credential-bearing bytes."""
     original = match.group(0)
     # Handle ordinary and repeatedly percent-encoded URLs in SDK diagnostics.
     decoded = list(_decode_layers(original))[-1]
-    if decoded.lower().startswith(("http://", "https://")) and _redact_text(decoded) != decoded:
+    if decoded == original:
+        # Nothing was hidden by encoding (e.g. a bare ``%`` in a path): the other
+        # passes already scanned this text, and re-scanning identical input would
+        # recurse forever.
+        return original
+    if not decoded.lower().startswith(("http://", "https://")):
+        return original
+    depth = _nested_url_depth.get()
+    if depth >= _MAX_NESTED_URL_DEPTH:
+        # Deeply nested encodings cannot be inspected within a bounded budget;
+        # fail closed rather than recurse without limit.
         return "[REDACTED]"
-    return original
+    token = _nested_url_depth.set(depth + 1)
+    try:
+        changed = _redact_text(decoded) != decoded
+    finally:
+        _nested_url_depth.reset(token)
+    return "[REDACTED]" if changed else original
 
 
 def _redact_partly_encoded_http_url(match: re.Match[str]) -> str:

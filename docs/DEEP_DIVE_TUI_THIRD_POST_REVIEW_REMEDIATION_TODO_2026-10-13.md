@@ -59,7 +59,7 @@ This is the only completion checklist for the third post-review cycle. No item i
 
 ### TPR-19.1 — Sanitizer ReDoS
 - [x] Rewrite `_AUTH_QUOTED` (`diagnostics.py:27`) so backslash matches only one alternative.
-- [ ] Audit every `diagnostics.py` pattern for ambiguous alternation and nested quantifiers; fix any found.
+- [x] Audit every `diagnostics.py` pattern (all 15 compiled patterns timed at 2k/4k/8k repeated seeds plus randomized 60k-char mixes). Found and fixed a different defect: unbounded recursion in `redact()` for http(s) URLs containing a bare `%` (introduced by TPR-19.5), now bounded and tested.
 - [x] Cap the input length processed by `redact()` with a truncation marker.
 - [x] Performance regression test: every sanitizer pattern on 10k-character adversarial input within a tight bound.
 
