@@ -66,6 +66,7 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
             WizardState(WizardKind.NEW_DEEP_DIVE, "project"),
         )
         self._new_context = new_context
+        self._new_wizard_swap_pending = False
         self.install_screen(
             GuidedEpisodeWizard(
                 new_context,
@@ -85,6 +86,33 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
         )
         if not returning_user:
             self.push_screen("setup")
+
+    async def _replace_new_wizard_then_push(self) -> None:
+        """Replace the mounted New Deep Dive wizard with a freshly built one."""
+        try:
+            old = self.get_screen("new")
+            pops = []
+            # Save-and-Exit pushes Home over the wizard, so the old instance may
+            # still be buried in the stack; Textual refuses to uninstall such screens.
+            for _ in range(len(self.screen_stack)):
+                if old not in self.screen_stack:
+                    break
+                pops.append(self.pop_screen())
+            self.uninstall_screen("new")
+            for pop in pops:
+                await pop
+            if old.is_attached:
+                await old.remove()
+            self.install_screen(
+                GuidedEpisodeWizard(
+                    self._new_context,
+                    ProductionWizardCompletion(self._new_context),
+                ),
+                name="new",
+            )
+            self.push_screen("new")
+        finally:
+            self._new_wizard_swap_pending = False
 
     def on_first_run_readiness_dispatch(self, event: FirstRunReadinessDispatch) -> None:
         try:
@@ -138,12 +166,42 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
                     self._new_context.run_id = restored.run_id
                 else:
                     destination = "new"
+            if (
+                destination == "new"
+                and screen is self.get_screen("new")
+                and self._new_context.project_id is None
+                and self._new_context.episode_id is None
+                and self._new_context.state.current_step == "project"
+            ):
+                # Duplicate delivery of the same button press: the pristine new
+                # wizard is already showing, so there is nothing to restart.
+                return
+            previous = self.get_screen("new")
+            untouched = (
+                self._new_context.project_id is None
+                and self._new_context.episode_id is None
+                and self._new_context.state.current_step == "project"
+                and not (
+                    isinstance(previous, WizardShell)
+                    and previous.is_attached
+                    and previous._current_form_dirty()
+                )
+            )
             if destination == "new":
                 self._new_context.state = WizardState(WizardKind.NEW_DEEP_DIVE, "project")
                 self._new_context.project_id = None
                 self._new_context.episode_id = None
                 self._new_context.run_id = None
-            self.push_screen("new")
+            # The context was just replaced by the app, not edited by the user.
+            # A previously mounted wizard would carry the old project's widget
+            # values, baselines, host order and confirmations, so it is replaced
+            # by a freshly built instance once the old one has been removed.
+            if previous.is_attached and not (destination == "new" and untouched):
+                if not self._new_wizard_swap_pending:
+                    self._new_wizard_swap_pending = True
+                    self.call_later(self._replace_new_wizard_then_push)
+            else:
+                self.push_screen("new")
         elif destination == "quick":
             # Reuse the normal QuickDeepDiveService -> planner -> shared
             # preflight route; do not introduce a guided-only generation engine.

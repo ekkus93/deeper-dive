@@ -720,6 +720,7 @@ async def _two_guided_episodes_within_one_project_keep_artifacts_isolated(
                 wizard._selected_host_ids.clear()
                 wizard._toggle()
                 wizard._sync_text()
+                wizard._remember_current_form()
                 wizard.action_create_recommended_hosts()
                 wizard.action_save_host_order()
                 wizard.action_continue()

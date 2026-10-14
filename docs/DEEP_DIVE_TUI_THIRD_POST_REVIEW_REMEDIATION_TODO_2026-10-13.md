@@ -34,11 +34,11 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [ ] Pilot variants: provider error during rediscovery; reordered voices.
 
 ### TPR-02 — New Deep Dive after Save-and-Exit
-- [ ] Reset form state, baselines, baseline targets, selected hosts, loaded episode/plan and pending transitions before dirty evaluation when the app starts a fresh New Deep Dive (fresh screen instance or an explicit reset API).
-- [ ] Ensure app-initiated context switches never count as user edits.
+- [x] Reset form state, baselines, baseline targets, selected hosts, loaded episode/plan and pending transitions before dirty evaluation when the app starts a fresh New Deep Dive (fresh screen instance or an explicit reset API).
+- [x] Ensure app-initiated context switches never count as user edits.
 - [ ] Prompt Save/Discard/Cancel before resetting a genuinely dirty prior context, naming the old target.
 - [ ] Ensure resume-draft loads the draft's durable state, not stale widget contents.
-- [ ] Pilot: Save-and-Exit → Home → New Deep Dive → empty form, no false prompt, project count unchanged.
+- [x] Pilot: Save-and-Exit → Home → New Deep Dive → empty form, no false prompt, project count unchanged.
 - [ ] Pilot variants: abandon flow; dirty prior context prompts first; resume-draft loads the correct project.
 
 ### TPR-03 — Legacy Episode Setup crash
