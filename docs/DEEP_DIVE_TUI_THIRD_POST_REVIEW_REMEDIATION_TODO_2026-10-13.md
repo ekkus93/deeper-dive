@@ -68,7 +68,7 @@ This is the only completion checklist for the third post-review cycle. No item i
 ### TPR-17 — Shared typed dirty-form protocol
 - [ ] Capture a `WizardDirtyFormSnapshot` when a confirmation opens; carry it through save/discard; refuse execution if the live target drifted.
 - [ ] Add one shell API for recording baselines, called only after durable load, successful save or confirmed discard.
-- [ ] Remove unconditional `_remember_current_form()` calls in `guided_first_run.py` and `guided_episode_wizard.py`, or prove each runs only on clean durable state.
+- [x] Audited all 22 `_remember_current_form()` calls in `guided_first_run.py` and `guided_episode_wizard.py`; none adopts unsaved edits: each runs (a) at first mount before any input, (b) in `on_screen_resume` only after an early return when the form is dirty, (c) after `super().action_continue/back()` succeeded (which refuses while dirty), (d) after a successful production save/regeneration, or (e) only when rediscovered values equal durable defaults. Pilot `test_third_post_review_resume_keeps_dirty.py` covers the episode resume path.
 - [x] Replace `getattr`-based `_form_target_identity` with an overridable method on each wizard (`_wizard_target`).
 - [ ] Host/plan sentinels: `_ignore_host_picker_value`, `_ignore_plan_picker_value` and `_enforce_dirty_host_selection` removed (they only compensated for handlers being dispatched repeatedly; full suite green without them). `_pending_host_form_values` remains and is not yet replaced by the shared snapshot.
 - [x] `_editable_snapshot` has an opt-in `strict_form_fields` mode (enabled only in the new test, not suite-wide); a test checks every `_FORM_FIELDS` ID resolves on its wizard.

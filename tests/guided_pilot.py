@@ -13,6 +13,8 @@ BUTTON_SETTLE_SECONDS = 0.3
 async def click(pilot: Pilot[None], selector: str) -> None:
     """Click a widget the way a user would and let the UI settle."""
 
+    pilot.app.screen.query_one(selector).scroll_visible(animate=False)
+    await pilot.pause()
     assert await pilot.click(selector), f"click on {selector} did not hit a widget"
     await pilot.pause(BUTTON_SETTLE_SECONDS)
 
@@ -22,6 +24,8 @@ async def type_into(pilot: Pilot[None], selector: str, text: str) -> None:
 
     widget = pilot.app.screen.query_one(selector, Input)
     widget.value = ""
+    widget.scroll_visible(animate=False)
+    await pilot.pause()
     assert await pilot.click(selector), f"click on {selector} did not hit a widget"
     await pilot.press(*text)
     await pilot.pause()
