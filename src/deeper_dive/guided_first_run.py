@@ -119,7 +119,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         if coordinator is None:
             self.set_status("Provider readiness is unavailable.")
             return
-        coordinator.request(self.app, self._runtime_readiness_updated)
+        coordinator.request(self.app, self._runtime_readiness_updated, user_initiated=True)
         self._sync_text()
         if coordinator.snapshot is None:
             self.set_status(self._checking_text())

@@ -175,7 +175,17 @@ class FirstRunReadinessCoordinator:
         self,
         app: ThreadDispatchApp,
         callback: Callable[[], object] | None = None,
+        *,
+        user_initiated: bool = False,
     ) -> bool:
+        """Start (or coalesce) a readiness probe; ``True`` means a probe started.
+
+        Automatic refreshes are quiet when a failed check cannot be retried because
+        every worker is still blocked. An explicit user Retry (``user_initiated``)
+        instead publishes a visible "workers are still finishing" status and wakes
+        subscribers, so the button never appears to do nothing. Policy: no queued or
+        automatic retry; the user retries again once a slot frees.
+        """
         # Once the screen/app has closed, do not read mutable or disk-backed
         # configuration merely to reject another readiness request.
         with self._lock:
@@ -197,7 +207,8 @@ class FirstRunReadinessCoordinator:
                     self._callbacks.append(callback)
                 return False
             if (
-                self._view.state == "failed"
+                not user_initiated
+                and self._view.state == "failed"
                 and self._view.fingerprint == fingerprint
                 and len(self._active_workers) >= self.max_workers
             ):

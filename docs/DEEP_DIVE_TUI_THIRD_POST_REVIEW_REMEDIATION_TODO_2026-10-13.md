@@ -109,8 +109,8 @@ This is the only completion checklist for the third post-review cycle. No item i
 
 ### TPR-05 — Silent Retry under saturation
 - [ ] Return a typed outcome from `FirstRunReadinessCoordinator.request` (started / coalesced / saturated / closed).
-- [ ] Publish a visible saturated message and fire callbacks when Retry cannot start.
-- [ ] Implement and document one policy: a single bounded auto-retry when a slot frees, or Retry disabled with a reason until re-enabled.
+- [x] Publish a visible saturated message and fire callbacks when Retry cannot start.
+- [x] Implement and document one policy (chosen: no queue or auto-retry; an explicit Retry publishes a visible "workers are still finishing" status and the user retries once a slot frees; documented in `FirstRunReadinessCoordinator.request`).
 - [ ] Coordinator test and Textual pilot: two blocking timeouts → Retry → visible message; slot frees → Retry (or auto-retry) runs exactly once.
 - [ ] Extend the existing 20-no-op-request test to assert the rendered message.
 
