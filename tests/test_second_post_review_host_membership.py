@@ -203,15 +203,11 @@ async def _guided_host_order_move_undo_returns_to_clean(tmp_path) -> None:
         )
 
 
-def test_guided_partial_profile_save_preserves_unsaved_order_for_retry(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    asyncio.run(_guided_partial_profile_save_preserves_order(tmp_path, monkeypatch))
+def test_guided_partial_profile_save_preserves_unsaved_order_for_retry(tmp_path) -> None:
+    asyncio.run(_guided_partial_profile_save_preserves_order(tmp_path))
 
 
-async def _guided_partial_profile_save_preserves_order(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def _guided_partial_profile_save_preserves_order(tmp_path) -> None:
     from textual.widgets import Input
 
     service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
@@ -244,12 +240,15 @@ async def _guided_partial_profile_save_preserves_order(
         assert wizard._host_profile_dirty()
         assert wizard._host_order_dirty()
 
-        original_save_order = wizard.action_save_host_order
-        monkeypatch.setattr(wizard, "action_save_host_order", lambda: False)
+        # Fault injected at the service boundary (a storage failure while the
+        # episode order is written), not by replacing a wizard method.
         wizard.action_save_exit()
         assert wizard.query_one("#wizard-exit-confirmation").display
-        wizard.action_confirm_save_exit()
-        await pilot.pause()
+        with patch.object(
+            EpisodeConfigurationService, "edit", side_effect=OSError("simulated disk failure")
+        ):
+            wizard.action_confirm_save_exit()
+            await pilot.pause()
 
         saved_host = repository.get_host("first")
         assert saved_host is not None
@@ -259,7 +258,6 @@ async def _guided_partial_profile_save_preserves_order(
         assert wizard._host_order_dirty()
         assert not wizard.save_exit_requested
 
-        monkeypatch.setattr(wizard, "action_save_host_order", original_save_order)
         assert wizard.action_save_host_order()
         assert configs.load_configuration(episode.id).host_ids == ("second", "first")
         assert not wizard._host_order_dirty()

@@ -177,7 +177,7 @@ This is the only completion checklist for the third post-review cycle. No item i
 
 - [x] Add a shared pilot helper that reaches steps and navigates only through real key presses/clicks (`tests/guided_pilot.py`, used by `test_third_post_review_real_input_flow.py`).
 - [ ] Convert dirty-navigation and host-membership tests that set `context.state` or baselines by hand to the helper where they claim end-to-end coverage.
-- [ ] Add service- and filesystem-boundary fault-injection fixtures; replace wizard-method monkeypatches (e.g. `test_second_post_review_host_membership.py:242`).
+- [ ] Service-boundary fault injection replaced the wizard-method monkeypatch in `test_second_post_review_host_membership.py` (done); a reusable fixture and filesystem-level injection are still open.
 - [ ] Rewrite "restart" tests to use `GuidedDraftStore` and a fresh app instance.
 - [x] Convert the readiness responsiveness test to real clicks for Continue/Back and the `h` key for Home. This found a real bug: one Continue click advanced three first-run steps because wizard handlers called `super()` while Textual also dispatches base-class handlers; fixed for button and select handlers (`on_mount`/`on_input_changed` chains still double-dispatch; left unchanged for ordering-risk reasons).
 - [x] Replace wall-clock sleeps racing tiny timeouts with event waits in the worker/async readiness tests (remaining short sleeps are bounded polling loops with deadlines).
