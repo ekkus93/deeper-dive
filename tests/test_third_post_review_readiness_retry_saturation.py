@@ -89,3 +89,54 @@ def test_user_retry_with_saturated_budget_is_visible_and_recovers_when_slot_free
     finally:
         release.set()
         coordinator.close()
+
+
+def test_request_reports_a_typed_outcome_for_every_path() -> None:
+    from deeper_dive.guided_async_readiness import ReadinessRequestOutcome
+
+    app = _RecordingApp()
+    started = Event()
+    release = Event()
+    fingerprints = ["same"]
+
+    def blocking_probe() -> FirstRunRuntimeSnapshot:
+        started.set()
+        assert release.wait(5), "probe release was never signaled"
+        return _snapshot()
+
+    coordinator = FirstRunReadinessCoordinator(
+        cast(WizardContext, object()),
+        probe=blocking_probe,
+        fingerprint=lambda: fingerprints[-1],
+        timeout_seconds=0.05,
+        max_workers=1,
+    )
+    try:
+        assert coordinator.request(app) is ReadinessRequestOutcome.STARTED
+        assert started.wait(3)
+        assert coordinator.request(app) is ReadinessRequestOutcome.COALESCED
+        app.deliver()  # timeout publication: failed, the one worker still blocked
+        assert coordinator.request(app) is ReadinessRequestOutcome.SATURATED
+        assert coordinator.request(app, user_initiated=True) is ReadinessRequestOutcome.SATURATED
+        assert not ReadinessRequestOutcome.SATURATED
+        assert ReadinessRequestOutcome.STARTED
+    finally:
+        release.set()
+        coordinator.close()
+    assert coordinator.request(app) is ReadinessRequestOutcome.CLOSED
+
+
+def test_unreadable_configuration_reports_config_unreadable() -> None:
+    from deeper_dive.guided_async_readiness import ReadinessRequestOutcome
+
+    def broken() -> str:
+        raise ValueError("bad config")
+
+    coordinator = FirstRunReadinessCoordinator(
+        cast(WizardContext, object()),
+        probe=lambda: _snapshot(),
+        fingerprint=broken,
+        timeout_seconds=1,
+    )
+    assert coordinator.request(_RecordingApp()) is ReadinessRequestOutcome.CONFIG_UNREADABLE
+    coordinator.close()

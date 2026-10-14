@@ -6,6 +6,7 @@ import json
 import logging
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from enum import Enum
 from math import isfinite
 from threading import Lock, Thread, Timer
 from typing import Literal, Protocol
@@ -71,6 +72,20 @@ class FirstRunReadinessView:
     fingerprint: str | None
     snapshot: FirstRunRuntimeSnapshot | None = None
     message: str | None = None
+
+
+class ReadinessRequestOutcome(Enum):
+    """What ``FirstRunReadinessCoordinator.request`` did; truthy only when a probe started."""
+
+    STARTED = "started"
+    COALESCED = "coalesced"
+    SATURATED = "saturated"
+    CLOSED = "closed"
+    CONFIG_UNREADABLE = "config-unreadable"
+    START_FAILED = "start-failed"
+
+    def __bool__(self) -> bool:
+        return self is ReadinessRequestOutcome.STARTED
 
 
 class FirstRunReadinessCoordinator:
@@ -191,8 +206,8 @@ class FirstRunReadinessCoordinator:
         callback: Callable[[], object] | None = None,
         *,
         user_initiated: bool = False,
-    ) -> bool:
-        """Start (or coalesce) a readiness probe; ``True`` means a probe started.
+    ) -> ReadinessRequestOutcome:
+        """Start (or coalesce) a readiness probe; the outcome is truthy only when one started.
 
         Automatic refreshes are quiet when a failed check cannot be retried because
         every worker is still blocked. An explicit user Retry (``user_initiated``)
@@ -204,29 +219,29 @@ class FirstRunReadinessCoordinator:
         # configuration merely to reject another readiness request.
         with self._lock:
             if self._closed:
-                return False
+                return ReadinessRequestOutcome.CLOSED
         try:
             fingerprint = self._fingerprint_provider()
         except (OSError, RuntimeError, TypeError, ValueError) as exc:
             self._fingerprint_failed(exc, callback)
-            return False
+            return ReadinessRequestOutcome.CONFIG_UNREADABLE
         rejected = False
         rejected_callbacks: tuple[Callable[[], object], ...] = ()
         stale_timers: tuple[Timer, ...] = ()
         with self._lock:
             if self._closed:
-                return False
+                return ReadinessRequestOutcome.CLOSED
             if self._view.state == "checking" and self._view.fingerprint == fingerprint:
                 if callback is not None and callback not in self._callbacks:
                     self._callbacks.append(callback)
-                return False
+                return ReadinessRequestOutcome.COALESCED
             if (
                 not user_initiated
                 and self._view.state == "failed"
                 and self._view.fingerprint == fingerprint
                 and len(self._active_workers) >= self.max_workers
             ):
-                return False
+                return ReadinessRequestOutcome.SATURATED
             generation = self._view.generation + 1
             # Superseded generations cannot publish; cancel their deadlines so
             # rapid refreshes cannot accumulate abandoned timeout timers.
@@ -261,7 +276,7 @@ class FirstRunReadinessCoordinator:
             stale_timer.cancel()
         if rejected:
             _notify(rejected_callbacks)
-            return False
+            return ReadinessRequestOutcome.SATURATED
         # Timer installation below owns the reserved worker slot. A separate
         # unlocked view check could abandon a superseded slot without a worker.
         timer = Timer(
@@ -277,13 +292,13 @@ class FirstRunReadinessCoordinator:
                 or self._view.generation != generation
             ):
                 self._active_workers.discard(generation)
-                return False
+                return ReadinessRequestOutcome.CLOSED
             self._timers[generation] = timer
         try:
             timer.start()
         except (OSError, RuntimeError):
             self._start_failed(generation, timer)
-            return False
+            return ReadinessRequestOutcome.START_FAILED
 
         worker = Thread(
             target=self._run_probe,
@@ -295,8 +310,8 @@ class FirstRunReadinessCoordinator:
             worker.start()
         except (OSError, RuntimeError):
             self._start_failed(generation, timer)
-            return False
-        return True
+            return ReadinessRequestOutcome.START_FAILED
+        return ReadinessRequestOutcome.STARTED
 
     def _fingerprint_failed(
         self,
