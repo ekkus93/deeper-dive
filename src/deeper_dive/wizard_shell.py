@@ -493,29 +493,40 @@ class WizardShell(Screen[None]):
                 widget = self.query_one(f"#{key}")
             except NoMatches:
                 # The abstract shared shell does not mount concrete wizard fields.
+                if self.strict_form_fields:
+                    raise
                 continue
             if isinstance(widget, (Input, Select)):
                 values.append((key, str(widget.value)))
+            elif self.strict_form_fields:
+                raise TypeError(f"form field #{key} is not an Input or Select")
         return tuple(values)
+
+    # Tests set this so a _FORM_FIELDS entry that no longer resolves to a widget
+    # fails loudly instead of silently dropping out of dirty detection.
+    strict_form_fields = False
+
+    def _wizard_target(self, step: str) -> str | None:
+        """Override to name the production record a step's form currently edits.
+
+        Concrete wizards return the loaded record's identity (host id, segment
+        ordinal, provider name) for the steps they own; ``None`` means the step
+        edits no selectable record.
+        """
+
+        return None
 
     def _form_target_identity(self) -> tuple[str | None, str | None, str | None]:
         """Identify the production record behind the currently displayed edit."""
 
         step = self.context.state.current_step
-        target: str | None = None
-        if step == "hosts":
-            target = getattr(self, "_loaded_host_id", None)
-        elif step == "plan":
-            ordinal = getattr(self, "_loaded_segment_ordinal", None)
-            target = str(ordinal) if ordinal is not None else None
-        elif step == "provider-config":
-            target = getattr(self, "_llm_provider_name", None)
-        elif step == "speech":
-            target = getattr(self, "_tts_provider_name", None)
-        elif step in {"episode", "project", "research"}:
+        target: str | None
+        if step in {"episode", "project", "research"}:
             target = self.context.episode_id if step == "episode" else self.context.project_id
         elif step == "sources":
             target = "new-source"
+        else:
+            target = self._wizard_target(step)
         return (self.context.project_id, self.context.episode_id, target)
 
     def _dirty_form_snapshot(self) -> WizardDirtyFormSnapshot:

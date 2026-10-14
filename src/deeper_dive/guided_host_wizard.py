@@ -30,6 +30,11 @@ class GuidedHostWizard(GuidedSourceWizard):
         # request (double Enter/click) must not create a second identical host.
         self._last_created_host_signature: tuple[str, str, str, str, object] | None = None
 
+    def _wizard_target(self, step: str) -> str | None:
+        if step == "hosts":
+            return self._loaded_host_id
+        return super()._wizard_target(step)
+
     def _editable_snapshot(self, step: str | None = None) -> tuple[tuple[str, str], ...]:
         step = step or self.context.state.current_step
         values = list(super()._editable_snapshot(step))

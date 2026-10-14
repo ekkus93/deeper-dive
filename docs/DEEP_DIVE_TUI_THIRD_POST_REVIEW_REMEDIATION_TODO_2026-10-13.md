@@ -69,9 +69,9 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [ ] Capture a `WizardDirtyFormSnapshot` when a confirmation opens; carry it through save/discard; refuse execution if the live target drifted.
 - [ ] Add one shell API for recording baselines, called only after durable load, successful save or confirmed discard.
 - [ ] Remove unconditional `_remember_current_form()` calls in `guided_first_run.py` and `guided_episode_wizard.py`, or prove each runs only on clean durable state.
-- [ ] Replace `getattr`-based `_form_target_identity` with an overridable method on each wizard.
+- [x] Replace `getattr`-based `_form_target_identity` with an overridable method on each wizard (`_wizard_target`).
 - [ ] Replace host/plan sentinels (`_ignore_host_picker_value`, `_pending_host_form_values`, `_enforce_dirty_host_selection`) with the shared snapshot mechanism.
-- [ ] Make `_editable_snapshot` fail loudly in tests for missing widgets; add a test that every `_FORM_FIELDS` ID resolves on its step.
+- [x] `_editable_snapshot` has an opt-in `strict_form_fields` mode (enabled only in the new test, not suite-wide); a test checks every `_FORM_FIELDS` ID resolves on its wizard.
 
 ### TPR-06 — Host-profile discard drops membership
 - [x] Scope discard to the dirty area that triggered the prompt (profile, membership or both) and state the scope in the prompt.

@@ -42,6 +42,12 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         self._loaded_episode_config: EpisodeConfiguration | None = None
         self._loaded_episode_revision: str | None = None
 
+    def _wizard_target(self, step: str) -> str | None:
+        if step == "plan":
+            ordinal = self._loaded_segment_ordinal
+            return str(ordinal) if ordinal is not None else None
+        return super()._wizard_target(step)
+
     def _save_dirty_step(self) -> WizardSaveResult:
         step = self.context.state.current_step
         self._last_form_status = ""

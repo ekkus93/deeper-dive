@@ -53,6 +53,13 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         self._last_llm_choice: str | None = None
         self._last_speech_choice: str | None = None
 
+    def _wizard_target(self, step: str) -> str | None:
+        if step == "provider-config":
+            return self._llm_provider_name
+        if step == "speech":
+            return self._tts_provider_name
+        return super()._wizard_target(step)
+
     def _save_dirty_step(self) -> WizardSaveResult:
         step = self.context.state.current_step
         self._last_form_status = ""
