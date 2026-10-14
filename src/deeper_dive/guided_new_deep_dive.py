@@ -32,6 +32,39 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
             Button("Create Project", id="guided-project-create", name="create-project"),
         )
 
+    def on_mount(self) -> None:
+        # Resuming (or remounting) with an existing project must show that
+        # project's durable values, not blank controls that Save would then
+        # write back over the project.
+        self._load_project_form()
+        super().on_mount()
+
+    def _load_project_form(self) -> None:
+        project_id = self.context.project_id
+        if project_id is None:
+            return
+        try:
+            project = self.context.composition.service.open_project(project_id)
+        except (OSError, KeyError, RuntimeError, ValueError):
+            return
+        if project is None:
+            return
+        topic = audience = description = ""
+        for line in project.instructions.splitlines():
+            label, _, value = line.partition(":")
+            value = value.strip()
+            if label == "Main curiosity":
+                topic = value
+            elif label == "Audience":
+                audience = value
+            elif label == "Description":
+                description = value
+        self.query_one("#guided-project-name", Input).value = project.name
+        self.query_one("#guided-project-topic", Input).value = topic
+        self.query_one("#guided-project-description", Input).value = description
+        if audience in {"general", "technical", "expert"}:
+            self.query_one("#guided-project-audience", Select).value = audience
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.name == "create-project":
             event.stop()

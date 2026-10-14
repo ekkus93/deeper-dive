@@ -37,9 +37,9 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [x] Reset form state, baselines, baseline targets, selected hosts, loaded episode/plan and pending transitions before dirty evaluation when the app starts a fresh New Deep Dive (fresh screen instance or an explicit reset API).
 - [x] Ensure app-initiated context switches never count as user edits.
 - [x] Prompt Save/Discard/Cancel before resetting a genuinely dirty prior context, naming the old target (`_surface_dirty_prior_wizard`).
-- [ ] Ensure resume-draft loads the draft's durable state, not stale widget contents.
+- [x] Ensure resume-draft loads the draft's durable state (project step now hydrates from the saved project on mount; found blank in a fresh-app resume).
 - [x] Pilot: Save-and-Exit → Home → New Deep Dive → empty form, no false prompt, project count unchanged.
-- [ ] Pilot variants: dirty prior context prompts first is done (`test_third_post_review_dirty_prior_wizard.py`); abandon flow and resume-draft loading the correct project are still open.
+- [ ] Pilot variants: dirty prior context prompts first is done (`test_third_post_review_dirty_prior_wizard.py`); resume-draft loading the correct project is done (`test_third_post_review_resume_draft.py`); the abandon flow pilot is still open.
 
 ### TPR-03 — Legacy Episode Setup crash
 - [x] Introduce typed `EpisodeFrozenError` / `EpisodeConfigurationConflict` (subclassing `ValueError` for compatibility) in `episode_config.py`.
