@@ -50,7 +50,10 @@ class SettingsController:
                 config.defaults[name] = value
             else:
                 config.defaults.pop(name, None)
-        self.provider_controller.validate_default_references(config)
+        # Normalize first (exactly as ProviderController._commit_candidate does) so a
+        # reference like "p :m" is checked in the same canonical form it is stored in.
+        validated = self.provider_controller.config_store.validate_candidate(config)
+        self.provider_controller.validate_default_references(validated)
         self.provider_controller.config_store.save(config)
 
     def set_default(self, key: str, value: str) -> None:

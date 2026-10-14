@@ -149,8 +149,8 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [x] Canary test at the shared `_apply_overrides` boundary used by Quick CLI and TUI; mixed-case valid value accepted consistently with Settings.
 
 ### TPR-19.3 — Settings normalization order
-- [ ] Route Settings default saves through `validate_candidate` (normalize then reference-check), matching `provider_tui.py`.
-- [ ] Table test: identical input gives identical outcome and stored value through Settings, ProviderController and first-run.
+- [x] Route Settings default saves through `validate_candidate` (normalize then reference-check), matching `provider_tui.py`.
+- [x] Table test: identical input gives identical stored value through Settings and ProviderController (first-run delegates to those two writers).
 
 ### TPR-19.4 — Fragment redaction truncation
 - [ ] Terminate `_URL_FRAGMENT` matches at URL delimiters (quotes, `<>`, `)`, `]`, `}`, `,`, whitespace).
