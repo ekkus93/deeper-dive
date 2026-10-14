@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from typing import Any
 
 from deeper_dive.domain.clock import Clock, SystemClock, format_timestamp
@@ -50,9 +50,36 @@ class EpisodeConfiguration:
         if len(set(self.host_ids)) != len(self.host_ids):
             raise ValueError("episode host order cannot contain duplicate hosts")
 
+    def normalized(self) -> EpisodeConfiguration:
+        """Canonical form used for storage and comparison on every surface.
+
+        Text is stripped, host/list fields become tuples of stripped non-blank
+        entries, durations are integers, and ``None``/blank research override
+        values are dropped (unset and empty mean the same thing).
+        """
+
+        return replace(
+            self,
+            title=self.title.strip(),
+            focus=self.focus.strip(),
+            audience=self.audience.strip(),
+            technical_depth=self.technical_depth.strip(),
+            style=self.style.strip(),
+            target_duration_seconds=int(self.target_duration_seconds),
+            host_ids=tuple(item.strip() for item in self.host_ids),
+            must_cover=tuple(item.strip() for item in self.must_cover if item.strip()),
+            avoid_topics=tuple(item.strip() for item in self.avoid_topics if item.strip()),
+            research_overrides={
+                key: value
+                for key, value in self.research_overrides.items()
+                if value is not None and not (isinstance(value, str) and not value.strip())
+            },
+        )
+
     def snapshot(self) -> dict[str, Any]:
-        self.validate()
-        return asdict(self)
+        normalized = self.normalized()
+        normalized.validate()
+        return asdict(normalized)
 
 
 class EpisodeConfigurationService:
@@ -65,6 +92,7 @@ class EpisodeConfigurationService:
         self.configuration = EpisodeConfigurationRepository(database)
 
     def create(self, project_id: str, config: EpisodeConfiguration) -> EpisodeRecord:
+        config = config.normalized()
         self._validate_hosts(project_id, config)
         timestamp = format_timestamp(self.clock.now())
         record = self._record(str(new_episode_id()), project_id, timestamp, timestamp, config)
@@ -86,6 +114,7 @@ class EpisodeConfigurationService:
         still raises ``EpisodeConfigurationConflict`` instead of being overwritten.
         """
 
+        config = config.normalized()
         existing = self.episodes.get_episode(episode_id)
         if existing is None:
             raise KeyError("episode not found")

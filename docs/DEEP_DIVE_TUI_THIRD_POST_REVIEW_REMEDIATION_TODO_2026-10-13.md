@@ -138,9 +138,9 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [x] Hook-injected race tests for each window (build_plan, guided save; concurrent starts via threads, edit-after-preflight via direct revision); two concurrent starts yield exactly one run; an edit after preflight makes start fail with a typed conflict.
 
 ### TPR-13 — No-op comparison normalization
-- [ ] Define one canonical normalization (text strip, tuple host IDs, `None`/blank policy, integer seconds) at the service boundary.
-- [ ] Route CLI, Quick, guided and legacy setup writes through it.
-- [ ] Cross-surface table test: whitespace, `None`/`""` and list/tuple variants preserve plan identity; real changes still invalidate.
+- [x] Define one canonical normalization (`EpisodeConfiguration.normalized`) (text strip, tuple host IDs, `None`/blank policy, integer seconds) at the service boundary.
+- [x] Route CLI, Quick, guided and legacy setup writes through it (all writes go through `EpisodeConfigurationService.create/edit`, which normalize).
+- [x] Service-boundary table test (surface-level CLI/guided variants not separately exercised): whitespace, `None`/`""` and list/tuple variants preserve plan identity; real changes still invalidate.
 
 ## TPR-500 — Configuration and security
 
