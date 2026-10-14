@@ -26,6 +26,9 @@ class GuidedHostWizard(GuidedSourceWizard):
         self._loaded_host_record: HostProfileRecord | None = None
         self._ignore_host_picker_value: str | None = None
         self._pending_host_form_values: tuple[str, str, str, str, object] | None = None
+        # Form signature of the last successful Create Host: repeating the same
+        # request (double Enter/click) must not create a second identical host.
+        self._last_created_host_signature: tuple[str, str, str, str, object] | None = None
 
     def _editable_snapshot(self, step: str | None = None) -> tuple[tuple[str, str], ...]:
         step = step or self.context.state.current_step
@@ -404,6 +407,36 @@ class GuidedHostWizard(GuidedSourceWizard):
             return
         super().on_button_pressed(event)
 
+    _MUTATING_HOST_BUTTONS = frozenset(
+        {
+            "recommended-hosts",
+            "create-host",
+            "save-host",
+            "select-host",
+            "host-up",
+            "host-down",
+            "remove-selected-host",
+            "save-host-order",
+        }
+    )
+
+    def _host_actions_blocked(self) -> bool:
+        """Mutating host actions are inert while busy or a prompt is open."""
+
+        if self.busy:
+            return True
+        if self._exit_confirmation_pending:
+            self.set_status("Resolve the unsaved-changes prompt (Save, Discard or Cancel) first.")
+            return True
+        return False
+
+    def _sync_actions(self) -> None:
+        super()._sync_actions()
+        disabled = self.busy or self._exit_confirmation_pending
+        for button in self.query(Button):
+            if button.name in self._MUTATING_HOST_BUTTONS:
+                button.disabled = disabled
+
     def action_create_recommended_hosts(self) -> None:
         if self.busy or self._exit_confirmation_pending:
             return
@@ -443,6 +476,13 @@ class GuidedHostWizard(GuidedSourceWizard):
     def action_create_host(self) -> bool:
         if self.busy or self._exit_confirmation_pending:
             return False
+        if (
+            self._loaded_host_id is not None
+            and self._last_created_host_signature is not None
+            and self._host_form_values() == self._last_created_host_signature
+        ):
+            self.set_status("That host was just created. Change the form to create another.")
+            return False
         # Creating a host selects a newly persisted profile and reloads these
         # controls. Do not replace edits to the selected durable host.
         if (
@@ -475,10 +515,13 @@ class GuidedHostWizard(GuidedSourceWizard):
             return False
         self._refresh_hosts(host.id, preserve_dirty=False)
         self._remember_host_profile_baseline()
+        self._last_created_host_signature = self._host_form_values()
         self.set_status(f"Created host {host.display_name}.")
         return True
 
     def action_save_host(self) -> bool:
+        if self._host_actions_blocked():
+            return False
         project_id = self.context.project_id
         record = self._selected_host_record()
         if project_id is None or record is None:
@@ -504,6 +547,8 @@ class GuidedHostWizard(GuidedSourceWizard):
         return True
 
     def action_select_host(self) -> None:
+        if self._host_actions_blocked():
+            return
         record = self._selected_host_record()
         if record is None:
             self.set_status("Choose a host to add.")
@@ -514,6 +559,8 @@ class GuidedHostWizard(GuidedSourceWizard):
         self.set_status(f"Selected {record.display_name} for this episode.")
 
     def action_remove_selected_host(self) -> None:
+        if self._host_actions_blocked():
+            return
         record = self._selected_host_record()
         if record is None or record.id not in self._selected_host_ids:
             self.set_status("Choose a selected host to remove from the episode.")
@@ -547,6 +594,8 @@ class GuidedHostWizard(GuidedSourceWizard):
         self.set_status(f"Previewed {voice.name}: {path.name}")
 
     def action_save_host_order(self) -> bool:
+        if self._host_actions_blocked():
+            return False
         project_id = self.context.project_id
         if project_id is None or not self._selected_host_ids:
             self.set_status("Select at least one host before continuing.")
@@ -600,6 +649,8 @@ class GuidedHostWizard(GuidedSourceWizard):
         return True
 
     def _move_selected_host(self, delta: int) -> None:
+        if self._host_actions_blocked():
+            return
         record = self._selected_host_record()
         if record is None or record.id not in self._selected_host_ids:
             self.set_status("Choose a selected episode host to reorder.")

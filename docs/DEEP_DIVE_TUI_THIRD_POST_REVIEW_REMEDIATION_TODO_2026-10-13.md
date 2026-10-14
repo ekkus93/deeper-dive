@@ -80,9 +80,9 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [x] Pilots (state seeded by direct calls, not real key presses): profile-only discard keeps order edits; no-episode variant keeps selections; leave-step discard reverts both; load failure shows status.
 
 ### TPR-07 — Host action double-submit
-- [ ] Disable and guard all mutating host actions while a confirmation is pending.
-- [ ] Add in-flight single-shot guards for create/save/order actions; make create idempotent per interaction.
-- [ ] Pilot with repeated key presses/clicks: exactly one host created; membership unchanged under an open prompt; normal operation after Cancel.
+- [x] Disable and guard all mutating host actions while a confirmation is pending.
+- [x] Create is idempotent per form state (identical repeat rejected); the handlers are synchronous so no separate in-flight flag was needed for save/order.
+- [x] Pilot (direct action calls, not real key presses): exactly one host created; membership unchanged under an open prompt; normal operation after Cancel.
 
 ### TPR-08 — AI preset silently becomes the baseline
 - [x] Preset-overwritten provider fields are compared against the stored provider values (baseline captured before the preset is applied; `_capture_preset_baseline`). `setup-ai-choice` itself is intentionally not a dirty field.
