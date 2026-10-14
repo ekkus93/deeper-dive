@@ -96,9 +96,9 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [x] Tests: baseline removed before Discard → source body and sensitive fields not retained.
 
 ### TPR-10 — Destination labels
-- [ ] Replace string-encoded transitions with a typed transition value and one label function; delete the duplicate map.
-- [ ] Add explicit labels for `host-select`, `plan-select` and `create-recommended-hosts`.
-- [ ] Parameterized exhaustiveness test over every transition kind; pilot prompt checks for host-select and plan-select.
+- [ ] Replace string-encoded transitions with a typed transition value (open: transitions are still encoded strings). One label table/function (`describe_transition`) now replaces the duplicate maps: done.
+- [x] Add explicit labels for `host-select`, `plan-select` and `create-recommended-hosts`.
+- [x] Parameterized exhaustiveness test over every transition kind scanned from production call sites (pilot prompt checks for host-select and plan-select still open).
 
 ### TPR-11 — Project edits after creation
 - [x] Decision: support updating project name/topic/audience through the production project service (`DeeperDiveService.update_project`).

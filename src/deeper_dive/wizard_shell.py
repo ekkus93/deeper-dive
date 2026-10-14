@@ -36,6 +36,110 @@ RECOMMENDED_TERMINAL_WIDTH = 100
 RECOMMENDED_TERMINAL_HEIGHT = 30
 
 
+@dataclass(frozen=True, slots=True)
+class TransitionLabels:
+    """User-facing wording for one pending dirty-form transition."""
+
+    action: str
+    save: str
+    discard: str
+
+
+# Single source of truth for every transition kind. Parameterized kinds carry
+# their argument after a colon ("navigate:home", "host-select:<id>").
+_TRANSITION_LABELS: dict[str, TransitionLabels] = {
+    "exit": TransitionLabels("exit", "Save changes and exit", "Exit without changes"),
+    "back": TransitionLabels("go back", "Save changes and go back", "Discard changes and go back"),
+    "continue": TransitionLabels(
+        "continue", "Save changes and continue", "Discard changes and continue"
+    ),
+    "plan-build": TransitionLabels(
+        "build the plan", "Save segment then build plan", "Discard edits then build plan"
+    ),
+    "discover-models": TransitionLabels(
+        "discover models",
+        "Save provider then discover models",
+        "Discard edits then discover models",
+    ),
+    "recommended-roles": TransitionLabels(
+        "apply recommended model roles",
+        "Save role edits then apply recommendations",
+        "Discard edits then apply recommendations",
+    ),
+    "discover-voices": TransitionLabels(
+        "discover voices",
+        "Save defaults then discover voices",
+        "Discard edits then discover voices",
+    ),
+    "create-host": TransitionLabels(
+        "create a host",
+        "Save host then create a new host",
+        "Discard edits then create a new host",
+    ),
+    "create-recommended-hosts": TransitionLabels(
+        "create the recommended hosts",
+        "Save host then create recommended hosts",
+        "Discard edits then create recommended hosts",
+    ),
+    "plan-regenerate": TransitionLabels(
+        "regenerate the plan",
+        "Save segment then regenerate plan",
+        "Discard edits then regenerate plan",
+    ),
+    "plan-regenerate-segment": TransitionLabels(
+        "regenerate the selected segment",
+        "Save segment then regenerate",
+        "Discard edits then regenerate",
+    ),
+    "preflight-fix": TransitionLabels(
+        "repair the preflight blocker", "Save edits then repair", "Discard edits then repair"
+    ),
+    "generation-start": TransitionLabels(
+        "start generation",
+        "Save edits then start generation",
+        "Discard edits then start generation",
+    ),
+    "host-select": TransitionLabels(
+        "select another host",
+        "Save host then select the other host",
+        "Discard edits then select the other host",
+    ),
+    "plan-select": TransitionLabels(
+        "select another plan",
+        "Save plan edits then select the other plan",
+        "Discard plan edits then select the other plan",
+    ),
+    "speech-choice": TransitionLabels(
+        "switch speech providers",
+        "Save speech settings then switch",
+        "Discard speech edits then switch",
+    ),
+}
+_FALLBACK_TRANSITION_LABELS = TransitionLabels(
+    "leave this screen", "Save changes and leave", "Discard changes and leave"
+)
+
+
+def transition_kinds() -> frozenset[str]:
+    """Every labelled transition kind (including parameterized kinds and navigate)."""
+
+    return frozenset(_TRANSITION_LABELS) | {"navigate"}
+
+
+def describe_transition(transition: str) -> TransitionLabels:
+    """Return wording for an encoded transition; unknown kinds get a safe fallback."""
+
+    kind, _, argument = transition.partition(":")
+    if kind == "navigate":
+        target = argument.replace("-", " ")
+        return TransitionLabels(
+            "go to " + target,
+            f"Save changes and go to {target.title()}",
+            f"Discard changes and go to {target.title()}",
+        )
+    return _TRANSITION_LABELS.get(kind, _FALLBACK_TRANSITION_LABELS)
+
+
 class WizardSaveOutcome(StrEnum):
     SAVED = "saved"
     NOOP = "noop"
@@ -368,26 +472,7 @@ class WizardShell(Screen[None]):
         self._pending_transition = transition
         self._exit_confirmation_pending = True
         self._sync_exit_confirmation()
-        labels = {
-            "exit": "exit",
-            "back": "go back",
-            "continue": "continue",
-            "plan-build": "build the plan",
-            "discover-models": "discover models",
-            "recommended-roles": "apply recommended model roles",
-            "discover-voices": "discover voices",
-            "create-host": "create a host",
-            "plan-regenerate": "regenerate the plan",
-            "plan-regenerate-segment": "regenerate the selected segment",
-            "preflight-fix": "repair the preflight blocker",
-            "generation-start": "start generation",
-        }
-        if transition.startswith("navigate:"):
-            destination = "go to " + transition.split(":", 1)[1].replace("-", " ")
-        elif transition.startswith("speech-choice:"):
-            destination = "switch speech providers"
-        else:
-            destination = labels.get(transition, "leave this screen")
+        destination = describe_transition(transition).action
         self.set_status(
             "Unsaved changes. Save changes and "
             f"{destination}, explicitly discard them, or continue editing."
@@ -645,52 +730,8 @@ class WizardShell(Screen[None]):
     def _sync_exit_confirmation(self) -> None:
         pending = self._exit_confirmation_pending
         transition = self._pending_transition or "exit"
-        labels = {
-            "exit": ("Save changes and exit", "Exit without changes"),
-            "back": ("Save changes and go back", "Discard changes and go back"),
-            "continue": ("Save changes and continue", "Discard changes and continue"),
-            "plan-build": ("Save segment then build plan", "Discard edits then build plan"),
-            "discover-models": (
-                "Save provider then discover models",
-                "Discard edits then discover models",
-            ),
-            "recommended-roles": (
-                "Save role edits then apply recommendations",
-                "Discard edits then apply recommendations",
-            ),
-            "create-host": (
-                "Save host then create a new host",
-                "Discard edits then create a new host",
-            ),
-            "discover-voices": (
-                "Save defaults then discover voices",
-                "Discard edits then discover voices",
-            ),
-            "plan-regenerate": (
-                "Save segment then regenerate plan",
-                "Discard edits then regenerate plan",
-            ),
-            "plan-regenerate-segment": (
-                "Save segment then regenerate",
-                "Discard edits then regenerate",
-            ),
-            "preflight-fix": ("Save edits then repair", "Discard edits then repair"),
-            "generation-start": (
-                "Save edits then start generation",
-                "Discard edits then start generation",
-            ),
-        }
-        save_label, discard_label = labels.get(
-            transition,
-            ("Save changes and leave", "Discard changes and leave"),
-        )
-        if transition.startswith("speech-choice:"):
-            save_label = "Save speech settings then switch"
-            discard_label = "Discard speech edits then switch"
-        elif transition.startswith("navigate:"):
-            target = transition.split(":", 1)[1].replace("-", " ").title()
-            save_label = f"Save changes and go to {target}"
-            discard_label = f"Discard changes and go to {target}"
+        labels = describe_transition(transition)
+        save_label, discard_label = labels.save, labels.discard
         self.query_one("#wizard-confirm-save", Button).label = save_label
         self.query_one("#wizard-confirm-discard", Button).label = discard_label
         self.query_one("#wizard-exit-confirmation", Horizontal).display = pending
