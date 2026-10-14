@@ -115,9 +115,9 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [ ] Extend the existing 20-no-op-request test to assert the rendered message.
 
 ### TPR-14 — Callback contract
-- [ ] Notify every subscriber of a superseded generation exactly once (stop replacing the list at `guided_async_readiness.py:230`).
-- [ ] Isolate each callback invocation with sanitized logging in `_start_failed`, `_complete` and `_timeout`.
-- [ ] Tests: two subscribers across supersession; a raising subscriber does not block the next.
+- [x] Notify every subscriber of a superseded generation exactly once (stop replacing the list at `guided_async_readiness.py:230`).
+- [x] Isolate each callback invocation with sanitized logging in `_start_failed`, `_complete` and `_timeout`.
+- [x] Tests: two subscribers across supersession; a raising subscriber does not block the next.
 
 ### TPR-15 — Locked config I/O on the UI thread
 - [ ] Compute the readiness fingerprint from an in-memory snapshot published on config commit (or load off-thread).

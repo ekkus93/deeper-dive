@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+import logging
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from math import isfinite
 from threading import Lock, Thread, Timer
@@ -15,6 +16,19 @@ from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.first_run import FirstRunController, FirstRunSystemCheck
 from deeper_dive.guided_readiness import FirstRunDerivedReadiness, first_run_readiness
 from deeper_dive.guided_workflow import WizardContext
+
+_LOGGER = logging.getLogger(__name__)
+
+
+def _notify(callbacks: Iterable[Callable[[], object]]) -> None:
+    """Invoke each subscriber in isolation; one failure must not starve the rest."""
+
+    for callback in callbacks:
+        try:
+            callback()
+        except Exception as exc:  # subscriber boundary: UI callbacks are foreign code
+            _LOGGER.warning("readiness subscriber failed: %s", sanitize_exception_message(exc))
+
 
 _FIRST_RUN_STEPS = (
     "welcome",
@@ -238,13 +252,15 @@ class FirstRunReadinessCoordinator:
                 self._callbacks.clear()
             else:
                 self._view = FirstRunReadinessView("checking", generation, fingerprint)
-                self._callbacks = [callback] if callback is not None else []
+                # A superseded pending generation's subscribers move to the new
+                # generation, so each is notified exactly once when it settles.
+                if callback is not None and callback not in self._callbacks:
+                    self._callbacks.append(callback)
                 self._active_workers.add(generation)
         for stale_timer in stale_timers:
             stale_timer.cancel()
         if rejected:
-            for pending_callback in rejected_callbacks:
-                pending_callback()
+            _notify(rejected_callbacks)
             return False
         # Timer installation below owns the reserved worker slot. A separate
         # unlocked view check could abandon a superseded slot without a worker.
@@ -311,8 +327,7 @@ class FirstRunReadinessCoordinator:
             )
         for timer in timers:
             timer.cancel()
-        for pending_callback in callbacks:
-            pending_callback()
+        _notify(callbacks)
 
     def _start_failed(self, generation: int, timer: Timer) -> None:
         """Release a reserved slot if the OS cannot start a timer or worker."""
@@ -330,8 +345,7 @@ class FirstRunReadinessCoordinator:
             )
             callbacks = tuple(self._callbacks)
             self._callbacks.clear()
-        for callback in callbacks:
-            callback()
+        _notify(callbacks)
 
     def _run_probe(
         self,
@@ -449,8 +463,7 @@ class FirstRunReadinessCoordinator:
                 )
             callbacks = tuple(self._callbacks)
             self._callbacks.clear()
-        for callback in callbacks:
-            callback()
+        _notify(callbacks)
 
     def _timeout(
         self,
@@ -475,8 +488,7 @@ class FirstRunReadinessCoordinator:
             )
             callbacks = tuple(self._callbacks)
             self._callbacks.clear()
-        for callback in callbacks:
-            callback()
+        _notify(callbacks)
 
     def _probe_runtime(self) -> FirstRunRuntimeSnapshot:
         # The visible UI timeout cannot interrupt blocked provider threads.

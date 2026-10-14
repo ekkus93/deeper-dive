@@ -89,7 +89,9 @@ def test_superseded_probe_result_cannot_overwrite_newer_snapshot() -> None:
         release_old.set()
         app.deliver()
         assert coordinator.snapshot is new_snapshot
-        assert callbacks == ["new"]
+        # TPR-14: the superseded generation's subscriber is carried forward and
+        # notified exactly once when the newer generation settles.
+        assert callbacks == ["old", "new"]
     finally:
         release_old.set()
         coordinator.close()
