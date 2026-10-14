@@ -154,9 +154,10 @@ destination. Dirty detection compares raw displayed values with that durable bas
 and also detects target-identity changes; semantic normalization never makes unsaved
 input appear clean. `WizardShell` owns the destination-aware Save/Discard/Cancel
 transition contract, while concrete wizards contribute target identity and non-widget
-state such as ordered host IDs. A pending transition stays bound to its original
-destination and target while the confirmation is open. Step-specific saves return a
-typed `WizardSaveResult` so partial success is explicit. A multi-operation save must
+state such as ordered host IDs. A pending transition retains its requested destination;
+the snapshot detects target drift from the durable baseline, and record-selection
+handlers preserve the original selection while its save/discard confirmation is open.
+Step-specific saves return a typed `WizardSaveResult` so partial success is explicit. A multi-operation save must
 either be transactional or leave the unsaved remainder dirty and retryable; UI status
 text is never parsed to infer success.
 
