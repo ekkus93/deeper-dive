@@ -40,6 +40,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         # Guard against another writer changing durable settings while this form is open.
         self._loaded_episode_id: str | None = None
         self._loaded_episode_config: EpisodeConfiguration | None = None
+        self._loaded_episode_revision: str | None = None
 
     def _save_dirty_step(self) -> WizardSaveResult:
         step = self.context.state.current_step
@@ -363,7 +364,9 @@ class GuidedEpisodeWizard(GuidedHostWizard):
                 avoid_topics=self._csv("#guided-episode-avoid"),
             )
             config.validate()
-            service.edit(episode_id, config)
+            saved = service.edit(
+                episode_id, config, expected_revision=self._loaded_episode_revision
+            )
         except (KeyError, OSError, RuntimeError, ValueError) as exc:
             safe = sanitize_exception_message(exc)
             self.query_one("#guided-episode-validation", Static).update(
@@ -372,6 +375,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             self.set_status("Episode settings need attention before continuing.")
             return False
         self._loaded_episode_config = config
+        self._loaded_episode_revision = saved.config_json
         self.query_one("#guided-episode-validation", Static).update("")
         self._sync_text()
         self._remember_current_form()
@@ -578,18 +582,20 @@ class GuidedEpisodeWizard(GuidedHostWizard):
     def _load_episode_form(self) -> None:
         self._loaded_episode_id = None
         self._loaded_episode_config = None
+        self._loaded_episode_revision = None
         project_id = self.context.project_id
         episode_id = self.context.episode_id
         if project_id is None or episode_id is None:
             return
         try:
-            config = EpisodeConfigurationService(
+            config, revision = EpisodeConfigurationService(
                 self.context.composition.database_for_project(project_id)
-            ).load_configuration(episode_id)
+            ).load_with_revision(episode_id)
         except (KeyError, ValueError):
             return
         self._loaded_episode_id = episode_id
         self._loaded_episode_config = config
+        self._loaded_episode_revision = revision
         self.query_one("#guided-episode-title", Input).value = config.title
         self.query_one("#guided-episode-focus", Input).value = config.focus
         self.query_one("#guided-episode-audience", Select).value = config.audience

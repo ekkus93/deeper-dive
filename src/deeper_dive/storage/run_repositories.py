@@ -6,6 +6,7 @@ from dataclasses import dataclass, replace
 
 from deeper_dive.diagnostics import redact
 from deeper_dive.storage.database import Database
+from deeper_dive.storage.episode_errors import EpisodeConfigurationConflict
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,6 +48,55 @@ class GenerationRunRepository:
                 ) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
                 self._values(run),
             )
+
+    def select_or_create(
+        self,
+        run: GenerationRunRecord,
+        *,
+        active_states: frozenset[str],
+        terminal_states: frozenset[str],
+        expected_episode_config_json: str | None = None,
+    ) -> tuple[GenerationRunRecord, bool]:
+        """Atomically return the active run or insert ``run`` (``created`` is True).
+
+        Runs under ``BEGIN IMMEDIATE`` so two concurrent starts serialize: the
+        second sees the first's pending run instead of inserting another. When
+        ``expected_episode_config_json`` is given, the episode revision seen at
+        preflight is rechecked inside the same transaction.
+        """
+
+        with self.database.transaction(immediate=True) as db:
+            if expected_episode_config_json is not None:
+                episode = db.execute(
+                    "SELECT config_json FROM episodes WHERE id=?", (run.episode_id,)
+                ).fetchone()
+                if episode is None:
+                    raise KeyError(run.episode_id)
+                if episode["config_json"] != expected_episode_config_json:
+                    raise EpisodeConfigurationConflict(
+                        "episode configuration changed after preflight; "
+                        "review the episode and start again"
+                    )
+            row = db.execute(
+                """SELECT * FROM generation_runs WHERE episode_id=?
+                ORDER BY modified_at DESC,id DESC LIMIT 1""",
+                (run.episode_id,),
+            ).fetchone()
+            latest = None if row is None else self._from_row(dict(row))
+            if latest is not None and latest.state in active_states and not latest.cancel_requested:
+                return latest, False
+            if latest is not None and latest.state not in terminal_states | active_states:
+                raise ValueError(
+                    f"cannot start generation from unsupported run state: {latest.state}"
+                )
+            db.execute(
+                """INSERT INTO generation_runs(
+                    id,episode_id,stage,state,retry_count,failure_code,failure_message,
+                    pause_requested,cancel_requested,created_at,modified_at
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                self._values(run),
+            )
+        return run, True
 
     def get(self, run_id: str) -> GenerationRunRecord | None:
         with self.database.connection() as db:

@@ -67,10 +67,13 @@ class EpisodePlannerService:
 
     def build_plan(self, episode_id: str) -> EpisodePlan:
         self.plan_repository.require_editable(episode_id)
-        config = self.configurations.load_configuration(episode_id)
+        # One row read: the configuration and the revision it is persisted against
+        # must come from the same snapshot, or a plan could be stored for an old
+        # configuration under a newer revision.
         episode = self.repository.get_episode(episode_id)
         if episode is None:
             raise KeyError(episode_id)
+        config = self.configurations.configuration_from_record(episode)
         episode_revision = episode.config_json
         evidence = self.retrieval.search(episode.project_id, config.focus, limit=12)
         request = {

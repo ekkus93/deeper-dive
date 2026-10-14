@@ -107,12 +107,16 @@ class GenerationStartService:
     def start(self, project_id: str, episode_id: str) -> GenerationStartResult:
         """Preflight and select the duplicate-safe durable run for generation."""
 
+        # Capture the revision first: preflight describes this exact configuration.
+        episode = self.composition.service.hosts(project_id).get_episode(episode_id)
+        revision = None if episode is None else episode.config_json
         report = self.preflight(project_id, episode_id)
         report.require_ready()
         result = select_or_create_generation_run(
             self.composition.service,
             project_id,
             episode_id,
+            expected_episode_config_json=revision,
         )
         return GenerationStartResult(result.run, result.created, report)
 
@@ -166,22 +170,19 @@ def select_or_create_generation_run(
     service: DeeperDiveService,
     project_id: str,
     episode_id: str,
+    *,
+    expected_episode_config_json: str | None = None,
 ) -> GenerationStartResult:
     """Return the active episode run or durably create one pending run.
 
     Repeated Generate actions are idempotent while a run remains active. Terminal
     runs do not block a later explicit generation attempt from creating a new run.
+    Selection and insertion are one ``BEGIN IMMEDIATE`` transaction; pass the
+    episode revision observed at preflight to refuse a start after an edit.
     """
 
-    repository = service.runs(project_id)
-    latest = repository.latest_for_episode(episode_id)
-    if latest is not None and latest.state in _ACTIVE_STATES and not latest.cancel_requested:
-        return GenerationStartResult(latest, False)
-    if latest is not None and latest.state not in _TERMINAL_STATES | _ACTIVE_STATES:
-        raise ValueError(f"cannot start generation from unsupported run state: {latest.state}")
-
     now = format_timestamp(service.clock.now())
-    run = GenerationRunRecord(
+    candidate = GenerationRunRecord(
         id=str(new_run_id()),
         episode_id=episode_id,
         stage="sources",
@@ -189,5 +190,10 @@ def select_or_create_generation_run(
         created_at=now,
         modified_at=now,
     )
-    repository.create(run)
-    return GenerationStartResult(run, True)
+    run, created = service.runs(project_id).select_or_create(
+        candidate,
+        active_states=_ACTIVE_STATES,
+        terminal_states=_TERMINAL_STATES,
+        expected_episode_config_json=expected_episode_config_json,
+    )
+    return GenerationStartResult(run, created)

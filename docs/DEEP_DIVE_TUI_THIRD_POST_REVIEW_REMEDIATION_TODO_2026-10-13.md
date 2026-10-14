@@ -132,10 +132,10 @@ This is the only completion checklist for the third post-review cycle. No item i
 ## TPR-400 — Episode lifecycle races and normalization
 
 ### TPR-12 — Races
-- [ ] Read config and revision atomically in `EpisodePlannerService.build_plan`.
-- [ ] Create generation runs under `BEGIN IMMEDIATE` with a config-revision recheck and a no-second-pending/running-run guard.
-- [ ] Pass the guided wizard's loaded revision into `EpisodeConfigurationService.edit` and enforce it inside the update transaction.
-- [ ] Hook-injected race tests for each window; two concurrent starts yield exactly one run; an edit after preflight makes start fail with a typed conflict.
+- [x] Read config and revision atomically in `EpisodePlannerService.build_plan` (one episode row; `configuration_from_record`).
+- [x] Create generation runs under `BEGIN IMMEDIATE` with a config-revision recheck and a no-second-pending/running-run guard (`GenerationRunRepository.select_or_create`).
+- [x] Pass the guided wizard's loaded revision into `EpisodeConfigurationService.edit` and enforce it inside the update transaction.
+- [x] Hook-injected race tests for each window (build_plan, guided save; concurrent starts via threads, edit-after-preflight via direct revision); two concurrent starts yield exactly one run; an edit after preflight makes start fail with a typed conflict.
 
 ### TPR-13 — No-op comparison normalization
 - [ ] Define one canonical normalization (text strip, tuple host IDs, `None`/blank policy, integer seconds) at the service boundary.

@@ -71,10 +71,28 @@ class EpisodeConfigurationService:
         self.episodes.create_episode(record, list(config.host_ids))
         return record
 
-    def edit(self, episode_id: str, config: EpisodeConfiguration) -> EpisodeRecord:
+    def edit(
+        self,
+        episode_id: str,
+        config: EpisodeConfiguration,
+        *,
+        expected_revision: str | None = None,
+    ) -> EpisodeRecord:
+        """Edit a draft episode.
+
+        ``expected_revision`` is the revision (``EpisodeRecord.config_json``) the
+        caller's form was loaded from. It is enforced by the update's
+        compare-and-swap, so an edit that lands after the caller's own pre-checks
+        still raises ``EpisodeConfigurationConflict`` instead of being overwritten.
+        """
+
         existing = self.episodes.get_episode(episode_id)
         if existing is None:
             raise KeyError("episode not found")
+        if expected_revision is not None and existing.config_json != expected_revision:
+            raise EpisodeConfigurationConflict(
+                "episode configuration changed since it was loaded; reload and retry"
+            )
         self._validate_hosts(existing.project_id, config)
         current = self.load_configuration(episode_id)
         if current.snapshot() == config.snapshot():
@@ -95,15 +113,38 @@ class EpisodeConfigurationService:
         self.configuration.update(
             record,
             list(config.host_ids),
-            expected_config_json=existing.config_json,
+            expected_config_json=(
+                existing.config_json if expected_revision is None else expected_revision
+            ),
         )
         return record
+
+    def load_with_revision(self, episode_id: str) -> tuple[EpisodeConfiguration, str]:
+        """Return the configuration and the revision it was derived from (one read)."""
+
+        record = self.episodes.get_episode(episode_id)
+        if record is None:
+            raise KeyError("episode not found")
+        return self.configuration_from_record(record), record.config_json
 
     def load_configuration(self, episode_id: str) -> EpisodeConfiguration:
         record = self.episodes.get_episode(episode_id)
         if record is None:
             raise KeyError("episode not found")
+        return self.configuration_from_record(record)
+
+    def configuration_from_record(self, record: EpisodeRecord) -> EpisodeConfiguration:
+        """Derive the configuration from one episode row (its revision is ``config_json``).
+
+        Host order comes from the same snapshot, so config and revision cannot
+        disagree even if an edit lands after the row was read.
+        """
+
         payload = json.loads(record.config_json)
+        if "host_ids" in payload:
+            host_ids = tuple(payload["host_ids"])
+        else:
+            host_ids = tuple(self.episodes.list_episode_host_ids(record.id))
         return EpisodeConfiguration(
             title=record.title,
             focus=record.focus,
@@ -111,7 +152,7 @@ class EpisodeConfigurationService:
             technical_depth=record.technical_depth,
             target_duration_seconds=record.target_duration_seconds,
             style=record.style,
-            host_ids=tuple(self.episodes.list_episode_host_ids(record.id)),
+            host_ids=host_ids,
             must_cover=tuple(payload.get("must_cover", ())),
             avoid_topics=tuple(payload.get("avoid_topics", ())),
             source_overrides=dict(payload.get("source_overrides", {})),

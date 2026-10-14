@@ -1590,7 +1590,10 @@ async def _failed_episode_storage_write_keeps_form(
         original_edit = EpisodeConfigurationService.edit
 
         def storage_failure(
-            self: EpisodeConfigurationService, episode_id: str, config: EpisodeConfiguration
+            self: EpisodeConfigurationService,
+            episode_id: str,
+            config: EpisodeConfiguration,
+            **_: object,
         ) -> object:
             raise OSError("simulated database filesystem failure")
 
