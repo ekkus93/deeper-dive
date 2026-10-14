@@ -86,9 +86,9 @@ This is the only completion checklist for the third post-review cycle. No item i
 
 ### TPR-08 — AI preset silently becomes the baseline
 - [x] Preset-overwritten provider fields are compared against the stored provider values (baseline captured before the preset is applied; `_capture_preset_baseline`). `setup-ai-choice` itself is intentionally not a dirty field.
-- [ ] Make applying a preset over dirty typed values a guarded transition.
+- [x] N/A with evidence: `setup-ai-choice` is only shown on the `ai-provider` step while the typed provider fields live on `provider-config`; leaving `provider-config` dirty already forces Save/Discard/Cancel, so a preset cannot be applied over dirty typed values through the UI.
 - [x] Pilot: durable Ollama → choose OpenAI → Continue → Back → prompt; Discard restores Ollama and leaves durable config bytes unchanged.
-- [ ] Pilot: the same flow with Save persists the OpenAI provider (not yet covered).
+- [x] Pilot: the same flow with Save persists the OpenAI provider (needs `OPENAI_API_KEY`; without it the save fails visibly).
 
 ### TPR-09 — Fail-open discard without a baseline
 - [x] Make `_restore_discarded_form` fail closed when no baseline exists: reload durable state or clear editable/sensitive fields; never adopt current values.
