@@ -25,7 +25,6 @@ class GuidedHostWizard(GuidedSourceWizard):
         self._selected_host_ids: list[str] = []
         self._loaded_host_id: str | None = None
         self._loaded_host_record: HostProfileRecord | None = None
-        self._pending_host_form_values: tuple[str, str, str, str, object] | None = None
         # Form signature of the last successful Create Host: repeating the same
         # request (double Enter/click) must not create a second identical host.
         self._last_created_host_signature: tuple[str, str, str, str, object] | None = None
@@ -129,9 +128,6 @@ class GuidedHostWizard(GuidedSourceWizard):
 
     def on_select_changed(self, event: Select.Changed) -> None:
         # Base-class handlers are dispatched by Textual itself (no super() call).
-        if event.select.id == "guided-host-preset":
-            self._pending_host_form_values = self._host_form_values()
-            return
         if event.select.id != "guided-host-picker":
             return
         value = event.value if isinstance(event.value, str) else None
@@ -145,8 +141,6 @@ class GuidedHostWizard(GuidedSourceWizard):
             original = self._loaded_host_id
             if original is not None and event.select.value != original:
                 self._assign_select(event.select, original)
-            if self._pending_host_form_values is not None:
-                self._restore_host_form_values(self._pending_host_form_values)
             return
         # A queued event for the already-loaded target must never rehydrate its
         # durable record over current edits. The direct refresh/load path already
@@ -158,29 +152,14 @@ class GuidedHostWizard(GuidedSourceWizard):
             return
         if self._loaded_host_id is not None and self._host_profile_dirty():
             destination = value
-            live_values = self._host_form_values()
-            preserved = (
-                live_values
-                if self._host_profile_values_dirty(live_values)
-                else self._pending_host_form_values or live_values
-            )
+            preserved = self._host_form_values()
             original_host_id = self._loaded_host_id
             self._assign_select(event.select, original_host_id)
             self._restore_host_form_values(preserved)
-            self._pending_host_form_values = preserved
             self._request_dirty_transition(Transition(TransitionKind.HOST_SELECT, destination))
             return
         self._load_selected_host()
         self._remember_host_profile_baseline()
-
-    def on_input_changed(self, event: Input.Changed) -> None:
-        if self.context.state.current_step == "hosts" and event.input.id in {
-            "guided-host-name",
-            "guided-host-role",
-            "guided-host-expertise",
-            "guided-host-instructions",
-        }:
-            self._pending_host_form_values = self._host_form_values()
 
     def _host_form_values(self) -> tuple[str, str, str, str, object]:
         return (
@@ -227,11 +206,7 @@ class GuidedHostWizard(GuidedSourceWizard):
     def _host_profile_dirty(self) -> bool:
         if self.context.state.current_step != "hosts":
             return False
-        live_values = self._host_form_values()
-        if self._host_profile_values_dirty(live_values):
-            return True
-        pending = self._pending_host_form_values
-        return pending is not None and self._host_profile_values_dirty(pending)
+        return self._host_profile_values_dirty(self._host_form_values())
 
     def _remember_host_profile_baseline(self) -> None:
         if self.context.state.current_step != "hosts":
@@ -241,7 +216,6 @@ class GuidedHostWizard(GuidedSourceWizard):
         order = tuple(item for item in previous if item[0] == "__episode_host_order__")
         self._form_baselines["hosts"] = (*current_profile, *order)
         self._form_baseline_targets["hosts"] = self._form_target_identity()
-        self._pending_host_form_values = self._host_form_values()
 
     @staticmethod
     def _transition_is_profile_scoped(transition: Transition | None) -> bool:
@@ -294,7 +268,6 @@ class GuidedHostWizard(GuidedSourceWizard):
                 if item[0] != "__episode_host_order__"
             )
             self._form_baselines["hosts"] = (*profile, *previous_order)
-            self._pending_host_form_values = self._host_form_values()
             return
         # Leaving the step discards both scopes. Membership lives outside the
         # widget values, so restore it from the step-entry baseline (which also
@@ -306,7 +279,6 @@ class GuidedHostWizard(GuidedSourceWizard):
             self._selected_host_ids = []
             self._load_episode_host_order()
         self._refresh_host_order()
-        self._pending_host_form_values = self._host_form_values()
         self._remember_current_form()
 
     def _order_from_baseline(self, order_entry: tuple[tuple[str, str], ...]) -> list[str] | None:
@@ -697,7 +669,6 @@ class GuidedHostWizard(GuidedSourceWizard):
                     "explicitly discard before choosing another host."
                 )
             self._restore_host_form_values(pending)
-            self._pending_host_form_values = pending
             self._refresh_host_order()
             return
         if preferred_host_id in ids:
@@ -724,7 +695,6 @@ class GuidedHostWizard(GuidedSourceWizard):
         self.query_one("#guided-host-instructions", Input).value = host.instructions
         if host.preset_origin in preset_names():
             self.query_one("#guided-host-preset", Select).value = host.preset_origin
-        self._pending_host_form_values = self._host_form_values()
         details.update(
             "\n".join(
                 (

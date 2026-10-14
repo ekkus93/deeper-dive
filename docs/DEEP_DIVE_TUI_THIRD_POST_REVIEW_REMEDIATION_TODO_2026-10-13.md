@@ -70,7 +70,7 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [x] `_remember_current_form` (with the profile/order variants in the host wizard) is the single baseline API; the audit above shows it is called only after durable load, successful save or confirmed discard. No further rename was done.
 - [x] Audited all 22 `_remember_current_form()` calls in `guided_first_run.py` and `guided_episode_wizard.py`; none adopts unsaved edits: each runs (a) at first mount before any input, (b) in `on_screen_resume` only after an early return when the form is dirty, (c) after `super().action_continue/back()` succeeded (which refuses while dirty), (d) after a successful production save/regeneration, or (e) only when rediscovered values equal durable defaults. Pilot `test_third_post_review_resume_keeps_dirty.py` covers the episode resume path.
 - [x] Replace `getattr`-based `_form_target_identity` with an overridable method on each wizard (`_wizard_target`).
-- [ ] (Deferred, qualified) Host/plan sentinels: `_ignore_host_picker_value`, `_ignore_plan_picker_value` and `_enforce_dirty_host_selection` removed (they only compensated for handlers being dispatched repeatedly; full suite green without them). `_pending_host_form_values` remains and is not yet replaced by the shared snapshot.
+- [x] Host/plan sentinels: `_ignore_host_picker_value`, `_ignore_plan_picker_value` and `_enforce_dirty_host_selection` removed (they only compensated for repeated handler dispatch). The `_pending_host_form_values` shadow copy (and its `on_input_changed` tracking) is also removed: a profile-dirty check reads the live widgets against the durable baseline, and a reselect restores the live values it captured; pending state is now only the typed `Transition` plus `WizardDirtyFormSnapshot`.
 - [x] `_editable_snapshot` has an opt-in `strict_form_fields` mode (enabled only in the new test, not suite-wide); a test checks every `_FORM_FIELDS` ID resolves on its wizard.
 
 ### TPR-06 — Host-profile discard drops membership
@@ -209,7 +209,7 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [x] Done: see the ledger 'Mutation' column (every row run); the only disproved sub-item is the TPR-08 guarded-transition item (N/A with evidence).
 - [x] Candidate head `6d6d1a6`: CI run 38565877824 succeeded; jobs quality 115858285522 (2263 passed) and fresh-machine 115858285879 (362 passed). Earlier head `5a4935d`: run 38565512959 succeeded. Note: CI run 38559719551 on `4ecd7cf` failed on a wall-clock flake in `test_first_run_navigation_remains_responsive_with_blocked_provider_probe` (probe release wait of 3 s shorter than the real-click test); fixed in `5a4935d` by widening the wait.
 - [x] This record is a documentation-only commit; its own exact-head CI run is checked after pushing (see the final summary).
-- [x] Declared complete **except the qualified deferrals**: shared typed transition value, `_pending_host_form_values` replacement, conversion of older hand-seeded dirty-navigation/restart tests, and a reusable filesystem fault-injection fixture. Each is annotated with why it was not done; none is a known defect.
+- [x] Declared complete **except the qualified deferrals**: conversion of older hand-seeded dirty-navigation/restart tests, and a reusable filesystem fault-injection fixture. Each is annotated with why it was not done; none is a known defect.
 
 ## Evidence ledger
 
