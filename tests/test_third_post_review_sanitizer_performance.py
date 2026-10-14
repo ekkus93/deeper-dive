@@ -33,6 +33,10 @@ _CASES = {
     "digest": "authorization: digest " + "a," * (_N // 2),
     "bearer": "bearer " + "a" * _N,
     "plain": "x" * _N,
+    "alnum_run_no_scheme": "a1" * (_N // 2),
+    "repeated_scheme_prefix": "http://" * (_N // 7),
+    "percent_encoded_url": "https://h/" + "%23" * (_N // 3),
+    "long_partly_encoded_urls": "https://h/a%23b " * (_N // 16),
 }
 
 

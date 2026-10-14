@@ -153,14 +153,14 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [x] Table test: identical input gives identical stored value through Settings and ProviderController (first-run delegates to those two writers).
 
 ### TPR-19.4 — Fragment redaction truncation
-- [ ] Terminate `_URL_FRAGMENT` matches at URL delimiters (quotes, `<>`, `)`, `]`, `}`, `,`, whitespace).
-- [ ] Tests on JSON, prose, Markdown links and multiple URLs per line: canary absent, context intact.
+- [x] Terminate `_URL_FRAGMENT` matches at URL delimiters (quotes, `<>`, `)`, `]`, `}`, `,`, whitespace).
+- [x] Tests on JSON, prose, Markdown links and multiple URLs per line: canary absent, context intact.
 
 ### TPR-19.5 — Sanitizer coverage gaps
-- [ ] Redact userinfo for any `scheme://user:pass@host`.
-- [ ] Extend sensitive keys (`code`, `sig`, `signature`, `x-amz-signature`, `x-goog-signature`, `id_token`, `refresh_token`) for query and fragment forms, including hybrid fragments.
-- [ ] Decode `%23` / `%3D` inside the bounded decode loop before fragment/query matching.
-- [ ] Canary matrix test for each case; benign URLs unchanged.
+- [x] Redact userinfo for any `scheme://user:pass@host`.
+- [x] Extend sensitive keys (`code`, `sig`, `signature`, `x-amz-signature`, `x-goog-signature`, `id_token`, `refresh_token`) for query and fragment forms, including hybrid fragments.
+- [x] Decode `%23` / `%3D` inside the bounded decode loop before fragment/query matching.
+- [x] Canary matrix test for each case; benign URLs unchanged.
 
 ### TPR-19.6 — Lock re-entrancy
 - [ ] Make `UserConfigStore._locked` truly re-entrant (depth counter, reuse the held descriptor) or a plain `Lock` with a non-nesting assertion.

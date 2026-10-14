@@ -54,12 +54,23 @@ _QUOTED_MAPPING_ASSIGNMENT = re.compile(
 # SDK exceptions sometimes stringify header mappings whose sensitive values
 # are nested lists, tuples, or dictionaries rather than quoted strings.
 _QUOTED_CONTAINER_START = re.compile(r"(?i)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*)([\[({])")
-_CREDENTIAL_URL = re.compile(r"(?i)(https?://)([^/@\s:]+)(?::([^/@\s]+))?@")
+# The lookbehind lets a scheme start only at a token boundary; without it every
+# position inside a long alphanumeric run is retried, which is quadratic.
+_CREDENTIAL_URL = re.compile(
+    r"(?i)(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*://)([^/@\s:]+)(?::([^/@\s]+))?@"
+)
+# Linear-time tokenizer for http(s) URLs that were only partly percent-encoded
+# (for example ``%23`` for ``#``); decoding is bounded in _redact_encoded_http_url.
+_HTTP_URL_TOKEN = re.compile(r"(?i)https?://[^\s<>\"']+")
 _CREDENTIAL_QUERY = re.compile(
     r"(?i)([?&;](?:api_key|apikey|key|token|access_token|auth|authorization|password|secret)=)"
     r"([^&#;\s]+)"
 )
-_URL_FRAGMENT = re.compile(r"(?i)(https?://[^\s#]+)#([^\s]+)")
+# A fragment ends at whitespace or a delimiter that closes a quoted/bracketed
+# context, so surrounding JSON, Markdown and prose survive redaction.
+# Earlier passes may already have inserted the ``[REDACTED]`` marker, so it is
+# consumed as one unit rather than ending the fragment at its closing bracket.
+_URL_FRAGMENT = re.compile(r"(?i)(https?://[^\s#\"'<>]+)#((?:\[REDACTED\]|[^\s\"'<>)\]}])+)")
 # Some SDKs percent-encode the entire endpoint in error and redirect fields.
 _ENCODED_HTTP_URL = re.compile(r"(?i)https?%(?:25)*3a%(?:25)*2f%(?:25)*2f[^\s<>\"']+")
 # Percent-encoded credential *keys* in URL queries are not matched by the
@@ -80,6 +91,11 @@ _SENSITIVE_URL_KEYS = frozenset(
         "authorization",
         "password",
         "secret",
+        "code",
+        "sig",
+        "signature",
+        "x-amz-signature",
+        "x-goog-signature",
     }
 )
 _CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
@@ -156,6 +172,12 @@ def _redact_encoded_http_url(match: re.Match[str]) -> str:
     if decoded.lower().startswith(("http://", "https://")) and _redact_text(decoded) != decoded:
         return "[REDACTED]"
     return original
+
+
+def _redact_partly_encoded_http_url(match: re.Match[str]) -> str:
+    if "%" not in match.group(0):
+        return match.group(0)
+    return _redact_encoded_http_url(match)
 
 
 def is_sensitive_url_query_key(key: str) -> bool:
@@ -259,13 +281,16 @@ def _redact_text(value: str) -> str:
     value = _AUTH_DIGEST.sub(r"\1[REDACTED]", value)
     value = _AUTH_FIELD.sub(r"\1[REDACTED]", value)
     value = _BEARER.sub("Bearer [REDACTED]", value)
+    # Fragments run before the generic assignment pass, whose greedy value would
+    # otherwise swallow the closing quote/bracket that delimits the URL.
+    value = _URL_FRAGMENT.sub(_redact_url_fragment, value)
     value = _QUOTED_MAPPING_ASSIGNMENT.sub(_redact_quoted_mapping_assignment, value)
     value = _ASSIGNMENT.sub(_redact_assignment, value)
-    value = _URL_FRAGMENT.sub(_redact_url_fragment, value)
     value = _CREDENTIAL_QUERY.sub(r"\1[REDACTED]", value)
     value = _ENCODED_CREDENTIAL_QUERY.sub(_redact_encoded_query, value)
     value = _CREDENTIAL_URL.sub(r"\1[REDACTED]@", value)
-    return _ENCODED_HTTP_URL.sub(_redact_encoded_http_url, value)
+    value = _ENCODED_HTTP_URL.sub(_redact_encoded_http_url, value)
+    return _HTTP_URL_TOKEN.sub(_redact_partly_encoded_http_url, value)
 
 
 def redact(value: object, *, drop_secret_keys: bool = False) -> object:
