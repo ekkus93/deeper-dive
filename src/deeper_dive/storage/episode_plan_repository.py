@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 
 from deeper_dive.storage.database import Database
-from deeper_dive.storage.episode_errors import EpisodeFrozenError
+from deeper_dive.storage.episode_errors import EpisodeConfigurationConflict, EpisodeFrozenError
 from deeper_dive.storage.episode_repositories import EpisodePlanRecord, SegmentPlanRecord
 
 
@@ -54,6 +54,41 @@ class EpisodePlanRepository:
             ):
                 return True
         return False
+
+    def approve(
+        self,
+        plan_id: str,
+        episode_id: str,
+        modified_at: str,
+        *,
+        expected_episode_config_json: str,
+    ) -> None:
+        """Mark a plan approved in place, only while the episode revision is unchanged.
+
+        Approval is metadata-only: plan and segment identities are preserved, and a
+        concurrent episode edit (which invalidates the plan) can never be followed
+        by an approval that re-publishes the stale plan.
+        """
+        with self.database.transaction(immediate=True) as db:
+            episode = db.execute(
+                "SELECT config_json FROM episodes WHERE id=?", (episode_id,)
+            ).fetchone()
+            if episode is None:
+                raise KeyError(episode_id)
+            if episode["config_json"] != expected_episode_config_json:
+                raise EpisodeConfigurationConflict(
+                    "episode configuration changed while the plan was being approved; "
+                    "reload the plan and retry"
+                )
+            cursor = db.execute(
+                "UPDATE episode_plans SET status='approved',modified_at=? "
+                "WHERE id=? AND episode_id=?",
+                (modified_at, plan_id, episode_id),
+            )
+            if cursor.rowcount != 1:
+                raise EpisodeConfigurationConflict(
+                    "the plan was replaced or removed before approval; reload the plan and retry"
+                )
 
     def replace(
         self,

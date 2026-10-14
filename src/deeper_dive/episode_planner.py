@@ -146,8 +146,17 @@ class EpisodePlannerService:
     def approve_plan(self, episode_id: str) -> EpisodePlan:
         """Mark the reviewed plan approved without starting dialogue or TTS."""
 
+        # Capture the episode revision before reading the plan: approval is
+        # compare-and-swapped against it so a concurrent edit cannot be followed
+        # by re-publishing the plan that edit just invalidated.
+        revision = self._episode_revision(episode_id)
         plan = self.load_plan(episode_id)
-        self._persist(plan, status="approved")
+        self.plan_repository.approve(
+            plan.id,
+            episode_id,
+            format_timestamp(self.clock.now()),
+            expected_episode_config_json=revision,
+        )
         return plan
 
     def load_plan(self, episode_id: str) -> EpisodePlan:

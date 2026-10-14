@@ -49,11 +49,11 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [ ] Pilot via both `tui.py` and `guided_app.py`: frozen episode and concurrent writer → app alive, durable data unchanged.
 
 ### TPR-04 — Stale plan resurrected by approval
-- [ ] Capture the episode config revision atomically with the plan load in `approve_plan` and pass it to the repository CAS.
-- [ ] Implement approval as an in-place status update (`WHERE id=? AND status='draft'`) that preserves plan and segment IDs.
+- [x] Capture the episode config revision atomically with the plan load in `approve_plan` and pass it to the repository CAS.
+- [x] Implement approval as an in-place status update (`WHERE id=? AND status='draft'`) that preserves plan and segment IDs.
 - [ ] Persist a config revision/hash with each plan; make `plan_validity` detect any stale-input plan.
-- [ ] SQLite test with a deterministic hook: concurrent edit between load and persist → approval fails, no plan row.
-- [ ] Identity test: plan and segment IDs unchanged after approval.
+- [x] SQLite test with a deterministic hook: concurrent edit between load and persist → approval fails, no plan row.
+- [x] Identity test: plan and segment IDs unchanged after approval.
 - [ ] Validity test: duration-only edit marks the old plan stale.
 - [ ] Correct `docs/ARCHITECTURE.md` lines 189-191 to match the final mechanism.
 
