@@ -26,9 +26,10 @@ class GuidedHostWizard(GuidedSourceWizard):
         self._ignore_host_picker_value: str | None = None
         self._pending_host_form_values: tuple[str, str, str, str, object] | None = None
 
-    def _editable_snapshot(self) -> tuple[tuple[str, str], ...]:
-        values = list(super()._editable_snapshot())
-        if self.context.state.current_step == "hosts":
+    def _editable_snapshot(self, step: str | None = None) -> tuple[tuple[str, str], ...]:
+        step = step or self.context.state.current_step
+        values = list(super()._editable_snapshot(step))
+        if step == "hosts":
             values.append(
                 (
                     "__episode_host_order__",

@@ -396,8 +396,9 @@ class WizardShell(Screen[None]):
         cancel.focus()
         self.call_after_refresh(cancel.focus)
 
-    def _editable_snapshot(self) -> tuple[tuple[str, str], ...]:
-        keys = _FORM_FIELDS.get((self.context.state.kind, self.context.state.current_step), ())
+    def _editable_snapshot(self, step: str | None = None) -> tuple[tuple[str, str], ...]:
+        step = step or self.context.state.current_step
+        keys = _FORM_FIELDS.get((self.context.state.kind, step), ())
         values: list[tuple[str, str]] = []
         for key in keys:
             try:

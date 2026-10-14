@@ -40,6 +40,9 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
     def __init__(self, context: WizardContext, completion_probe: CompletionProbe) -> None:
         super().__init__(context, completion_probe)
         self._llm_provider_name: str | None = None
+        # Steps whose baseline was captured from durable values before a preset
+        # overwrote the controls; arriving at the step must not re-baseline them.
+        self._preset_baseline_steps: set[str] = set()
         self._tts_provider_name: str | None = None
         self._model_test_identity: str | None = None
         self._model_test_summary = "Run a synthetic model test before continuing."
@@ -334,7 +337,8 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         if not super().action_continue():
             return False
         self._sync_setup_controls()
-        self._remember_current_form()
+        if self.context.state.current_step not in self._preset_baseline_steps:
+            self._remember_current_form()
         return True
 
     def action_back(self) -> bool:
@@ -357,6 +361,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
                 and choice != self._last_llm_choice
             ):
                 self._last_llm_choice = choice
+                self._capture_preset_baseline("provider-config")
                 self._apply_llm_choice_defaults(force=True)
         elif event.select.id == "setup-model-picker" and isinstance(event.value, str):
             if event.value:
@@ -1062,6 +1067,31 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
                 ("#setup-speech-voices", "voices"),
             ):
                 self.query_one(selector, Input).display = not deferred and field in fields
+
+    def _capture_preset_baseline(self, step: str) -> None:
+        """Record the durable (pre-preset) values of ``step`` as its clean baseline.
+
+        A preset the user picks overwrites the provider controls. Those values are
+        unsaved edits relative to the stored provider, so they must not become the
+        baseline when the wizard later arrives at ``step``.
+        """
+        if step in self._preset_baseline_steps:
+            return
+        current = self._editable_snapshot(step)
+        stored = self._form_baselines.get(step)
+        if stored is not None and stored != current:
+            return  # The user already edited this step; keep that baseline.
+        self._form_baselines[step] = current
+        self._form_baseline_targets[step] = (
+            self.context.project_id,
+            self.context.episode_id,
+            self._llm_provider_name,
+        )
+        self._preset_baseline_steps.add(step)
+
+    def _remember_current_form(self) -> None:
+        self._preset_baseline_steps.discard(self.context.state.current_step)
+        super()._remember_current_form()
 
     def _apply_llm_choice_defaults(self, *, force: bool) -> None:
         choice = self._select_value("#setup-ai-choice") or "ollama"

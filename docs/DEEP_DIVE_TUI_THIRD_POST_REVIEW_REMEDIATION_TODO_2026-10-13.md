@@ -85,9 +85,10 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [ ] Pilot with repeated key presses/clicks: exactly one host created; membership unchanged under an open prompt; normal operation after Cancel.
 
 ### TPR-08 — AI preset silently becomes the baseline
-- [ ] Add `setup-ai-choice` and every preset-overwritten field to the first-run dirty snapshot.
+- [x] Preset-overwritten provider fields are compared against the stored provider values (baseline captured before the preset is applied; `_capture_preset_baseline`). `setup-ai-choice` itself is intentionally not a dirty field.
 - [ ] Make applying a preset over dirty typed values a guarded transition.
-- [ ] Pilot: durable Ollama → choose OpenAI → Continue → Back → prompt; Discard restores Ollama; Save persists OpenAI.
+- [x] Pilot: durable Ollama → choose OpenAI → Continue → Back → prompt; Discard restores Ollama and leaves durable config bytes unchanged.
+- [ ] Pilot: the same flow with Save persists the OpenAI provider (not yet covered).
 
 ### TPR-09 — Fail-open discard without a baseline
 - [x] Make `_restore_discarded_form` fail closed when no baseline exists: reload durable state or clear editable/sensitive fields; never adopt current values.
