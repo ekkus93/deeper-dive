@@ -289,11 +289,15 @@ First-run readiness runs on worker threads and is shown through a UI deadline
 request made by a probe uses a socket timeout of `min(timeout_seconds / 4, 1.0)`
 seconds, and the calls inside one probe run sequentially. The worst-case probe
 duration is therefore `(number of provider calls) x (per-request timeout)`, which
-can exceed the UI deadline when many providers are unreachable. The UI never waits
-past the deadline: it reports a timeout and the worker finishes in the background,
-occupying one of the bounded worker slots (`max_workers`) until it returns. An
-explicit Retry while all slots are busy shows a "workers are still finishing"
-message rather than starting another probe.
+is also capped by an aggregate budget: the isolated probe controller carries a
+monotonic deadline (`probe_deadline`, equal to the UI deadline) and, once it has
+passed, adapter lookups (`llm()`/`tts()`) raise `TimeoutError`, so providers not yet
+probed are reported not ready instead of starting new requests. A single in-flight
+request can still run for its own socket timeout past the deadline. The UI never
+waits past the deadline: it reports a timeout and the worker finishes in the
+background, occupying one of the bounded worker slots (`max_workers`) until it
+returns. An explicit Retry while all slots are busy shows a "workers are still
+finishing" message rather than starting another probe.
 
 Factories advertise bounded probes with `supports_probe_timeouts` (inherited by
 `ProviderFactory` subclasses). A provider that cannot be built for a probe (for

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
@@ -70,6 +71,9 @@ class ProviderController:
     tts_providers: dict[str, TTSProvider]
     provider_factory: ProviderFactory | None = None
     on_reload: Callable[[ProviderBuildResult], None] | None = None
+    # Monotonic deadline of an isolated readiness-probe controller; ``None`` for
+    # the live controller. Past it, adapter lookups fail fast (aggregate budget).
+    probe_deadline: float | None = None
 
     def config(self) -> UserConfig:
         return self.config_store.load()
@@ -222,8 +226,15 @@ class ProviderController:
         self._publish(providers)
         return providers
 
+    def _check_probe_budget(self) -> None:
+        if self.probe_deadline is not None and time.monotonic() >= self.probe_deadline:
+            raise TimeoutError("readiness probe time budget exhausted")
+
     def readiness_probe_controller(
-        self, *, request_timeout_seconds: float = 1.0
+        self,
+        *,
+        request_timeout_seconds: float = 1.0,
+        total_timeout_seconds: float | None = None,
     ) -> ProviderController:
         """Use isolated, bounded I/O adapters for UI readiness only.
 
@@ -244,12 +255,17 @@ class ProviderController:
             self.config_store,
             isolated.llm_registry,
             isolated.tts_providers,
+            probe_deadline=(
+                None if total_timeout_seconds is None else time.monotonic() + total_timeout_seconds
+            ),
         )
 
     def llm(self, name: str) -> LLMProvider:
+        self._check_probe_budget()
         return self.llm_registry.get(name)
 
     def tts(self, name: str) -> TTSProvider:
+        self._check_probe_budget()
         try:
             return self.tts_providers[name]
         except KeyError:

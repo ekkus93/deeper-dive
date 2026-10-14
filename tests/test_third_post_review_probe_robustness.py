@@ -54,3 +54,27 @@ def test_factory_subclass_still_receives_bounded_probes(tmp_path: Path) -> None:
     isolated = controller.readiness_probe_controller(request_timeout_seconds=0.25)
     assert isolated is not controller
     assert seen == [0.25]
+
+
+def test_aggregate_probe_budget_fails_remaining_providers_fast(tmp_path: Path) -> None:
+    import pytest
+
+    store = UserConfigStore(tmp_path / "config.json")
+    store.save(_config(good=ProviderConfig(provider_type="fake", default_model="m")))
+    controller = ProviderController(
+        store, LLMProviderRegistry(), {}, provider_factory=ProviderFactory(environ={})
+    )
+    within = controller.readiness_probe_controller(
+        request_timeout_seconds=0.25, total_timeout_seconds=60
+    )
+    assert within.llm("good") is not None
+
+    expired = controller.readiness_probe_controller(
+        request_timeout_seconds=0.25, total_timeout_seconds=1e-9
+    )
+    with pytest.raises(TimeoutError):
+        expired.llm("good")
+    with pytest.raises(TimeoutError):
+        expired.tts("good")
+    # The live controller has no deadline.
+    assert controller.llm_registry is not None and controller.probe_deadline is None

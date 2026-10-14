@@ -504,7 +504,8 @@ class FirstRunReadinessCoordinator:
         # Give each real HTTP readiness request a separate short socket budget,
         # keeping long generation/synthesis timeouts entirely unchanged.
         controller = self.context.composition.provider_controller.readiness_probe_controller(
-            request_timeout_seconds=min(self.timeout_seconds / 4, 1.0)
+            request_timeout_seconds=min(self.timeout_seconds / 4, 1.0),
+            total_timeout_seconds=self.timeout_seconds,
         )
         return FirstRunRuntimeSnapshot(
             readiness=first_run_readiness(self.context, runtime_controller=controller),
