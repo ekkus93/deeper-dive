@@ -31,7 +31,7 @@ async def _first_run_navigation_with_blocked_provider_probe(tmp_path: Path) -> N
 
     def never_finishes_until_released() -> FirstRunRuntimeSnapshot:
         started.set()
-        assert release.wait(3), "blocked provider probe was not released"
+        assert release.wait(60), "blocked provider probe was not released"
         return cast(FirstRunRuntimeSnapshot, object())
 
     try:

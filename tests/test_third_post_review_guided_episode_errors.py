@@ -69,3 +69,33 @@ async def _scenario(tmp_path: Path, *, frozen: bool) -> None:
         assert wizard.query_one("#guided-episode-title", Input).value == "Edited title"
         assert service.hosts(project_id).get_episode(episode_id) == before
         assert configs.load_configuration(episode_id).title == before.title
+
+
+def test_guided_save_reports_a_locked_database_instead_of_crashing(tmp_path: Path) -> None:
+    import sqlite3
+
+    async def scenario() -> None:
+        service = _service_and_config(tmp_path)
+        app = GuidedDeeperDiveApp(service)
+        async with app.run_test(size=(100, 30)) as pilot:
+            app.action_navigate("new")
+            await pilot.pause()
+            wizard = app.screen
+            await _prepare_to_plan(wizard, pilot)
+            wizard.context.state = wizard.context.state.moved_to("episode")
+            wizard._toggle()
+            wizard._load_episode_form()
+            wizard.query_one("#guided-episode-title", Input).value = "Edited title"
+            wizard.query_one("#guided-episode-focus", Input).value = "Edited focus"
+            with patch.object(
+                EpisodeConfigurationService,
+                "edit",
+                side_effect=sqlite3.OperationalError("database is locked"),
+            ):
+                assert wizard.action_save_episode() is False
+            assert app.is_running
+            message = str(wizard.query_one("#guided-episode-validation", Static).render())
+            assert message.startswith("Fix episode settings:")
+            assert wizard.query_one("#guided-episode-title", Input).value == "Edited title"
+
+    asyncio.run(scenario())

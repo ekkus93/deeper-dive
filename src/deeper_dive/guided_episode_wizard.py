@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from dataclasses import replace
 from typing import Protocol, cast
 
@@ -368,7 +369,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             saved = service.edit(
                 episode_id, config, expected_revision=self._loaded_episode_revision
             )
-        except (KeyError, OSError, RuntimeError, ValueError) as exc:
+        except (KeyError, OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
             safe = sanitize_exception_message(exc)
             self.query_one("#guided-episode-validation", Static).update(
                 f"Fix episode settings: {safe}"
@@ -411,7 +412,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
                 self._selected_segment_ordinal,
                 revised,
             )
-        except (IndexError, KeyError, OSError, RuntimeError, ValueError) as exc:
+        except (IndexError, KeyError, OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
             self.set_error("Plan edit failed.", exc)
             return False
         self._render_plan()
@@ -434,7 +435,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
                 self.context.episode_id,
                 self._selected_segment_ordinal,
             )
-        except (IndexError, KeyError, OSError, RuntimeError, ValueError) as exc:
+        except (IndexError, KeyError, OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
             self.set_error("Segment regeneration failed.", exc)
             return
         self._render_plan()
@@ -453,7 +454,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
                 project_id,
                 episode_id,
             )
-        except (KeyError, OSError, RuntimeError, ValueError) as exc:
+        except (KeyError, OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
             self.set_error("Preflight failed.", exc)
             return
         self._render_preflight()
@@ -502,7 +503,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
                 project_id,
                 episode_id,
             )
-        except (KeyError, OSError, RuntimeError, ValueError) as exc:
+        except (KeyError, OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
             self.set_error("Generation could not start.", exc)
             return
         self.context.run_id = result.run.id
@@ -546,7 +547,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
                 else planner.build_plan(episode_id)
             )
             self._selected_segment_ordinal = 0
-        except (KeyError, OSError, RuntimeError, ValueError) as exc:
+        except (KeyError, OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
             self.set_busy(False)
             self.set_error("Episode planning failed.", exc)
             return
