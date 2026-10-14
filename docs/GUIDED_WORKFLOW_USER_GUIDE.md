@@ -242,3 +242,9 @@ transcript, audio, export, or plan identity.
 ## Shared services, provenance, and privacy
 
 Guided TUI and CLI workflows use shared production project/source services,
+
+## Behavior notes (third post-review)
+
+- **Retry while checks are still finishing:** if earlier provider checks timed out and are still running, Retry shows "workers are still finishing" instead of doing nothing. Retry again once they finish.
+- **Editing the project after creating it:** going Back to Project Setup and changing the name, topic or audience saves those changes to the same project when you Continue and choose Save.
+- **Discard on the hosts step:** choosing another host or Create Host with unsaved profile edits offers Save/Discard/Cancel. The prompt says which scope Discard reverts; a profile-only Discard keeps unsaved episode host order edits. Leaving the step reverts both.

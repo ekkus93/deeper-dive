@@ -191,6 +191,17 @@ generation and checks it again when persisting, so a concurrent episode edit can
 publish a plan for stale inputs. Existing historical run/plan/transcript/audio/export
 identities are not rewritten by later configuration operations.
 
+Plan approval is a metadata-only compare-and-swap (`EpisodePlanRepository.approve`): it
+updates the plan's status in place only while the episode revision is unchanged, so a
+concurrent edit can never be followed by an approval that re-publishes a stale plan.
+Plans do not yet persist the configuration revision they were built from (TPR-04
+remainder), so `plan_validity` cannot detect a stale-input plan by revision alone.
+Run creation is one `BEGIN IMMEDIATE` selection that rechecks the episode revision seen
+at preflight and refuses a second active run. The readiness fingerprint is read without
+the config lock (`UserConfigStore.load_published`) so the UI thread never waits on a
+writer. The typed dirty-form snapshot is still a computed view; making it the shared
+contract is TPR-17 and remains open.
+
 ## Checkpointing and resume
 
 Long-running generation uses durable run records and completed work-unit checkpoints. The pipeline has ordered stages such as sources, research, planning, conversation, verification, TTS, composition, and export.

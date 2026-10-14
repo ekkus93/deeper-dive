@@ -186,9 +186,9 @@ This is the only completion checklist for the third post-review cycle. No item i
 
 ## TPR-700 — Documentation and reconciliation (TPR-20)
 
-- [ ] Add a dated "Post-closeout review 2026-10-13" note to the second-cycle TODO listing each contradicted item with a pointer to this spec; checked state unchanged.
-- [ ] Update `docs/GUIDED_WORKFLOW_USER_GUIDE.md` for the saturated-retry behavior, project editing policy and scoped host discard.
-- [ ] Update `docs/ARCHITECTURE.md` for plan revision/CAS approval, run-creation guard, the dirty-form snapshot contract and the readiness fingerprint source.
+- [x] Add a dated "Post-closeout review 2026-10-13" note to the second-cycle TODO listing each contradicted item with a pointer to this spec; checked state unchanged.
+- [x] Update `docs/GUIDED_WORKFLOW_USER_GUIDE.md` for the saturated-retry behavior, project editing policy and scoped host discard.
+- [x] Update `docs/ARCHITECTURE.md` for CAS approval, run-creation guard and the readiness fingerprint source; it states honestly that plan revision persistence (TPR-04 remainder) and the shared dirty-form contract (TPR-17) remain open.
 
 ## TPR-900 — Independent review
 
