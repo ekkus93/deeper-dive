@@ -356,7 +356,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         return True
 
     def on_select_changed(self, event: Select.Changed) -> None:
-        super().on_select_changed(event)
+        # Base-class handlers are dispatched by Textual itself (no super() call).
         if event.select.id == "setup-ai-choice":
             # Ignore queued initial/programmatic events; only a real change to
             # the current selection should replace the provider preset fields.
@@ -450,7 +450,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             event.stop()
             handler()
             return
-        super().on_button_pressed(event)
+        # Textual dispatches the base-class handlers itself; no super() call.
 
     def action_save_provider(self) -> bool:
         adapter = self._selected_llm_adapter()

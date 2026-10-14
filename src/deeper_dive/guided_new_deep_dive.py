@@ -69,8 +69,7 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
         if event.button.name == "create-project":
             event.stop()
             self.action_create_project()
-        else:
-            super().on_button_pressed(event)
+        # Textual dispatches the base-class handlers itself; no super() call.
 
     def action_create_project(self) -> bool:
         name = self.query_one("#guided-project-name", Input).value.strip()

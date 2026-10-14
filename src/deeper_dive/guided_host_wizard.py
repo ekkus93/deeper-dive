@@ -128,7 +128,7 @@ class GuidedHostWizard(GuidedSourceWizard):
         return True
 
     def on_select_changed(self, event: Select.Changed) -> None:
-        super().on_select_changed(event)
+        # Base-class handlers are dispatched by Textual itself (no super() call).
         if event.select.id == "guided-host-preset":
             self._pending_host_form_values = self._host_form_values()
             return
@@ -407,7 +407,7 @@ class GuidedHostWizard(GuidedSourceWizard):
             event.stop()
             handler()
             return
-        super().on_button_pressed(event)
+        # Textual dispatches the base-class handlers itself; no super() call.
 
     _MUTATING_HOST_BUTTONS = frozenset(
         {

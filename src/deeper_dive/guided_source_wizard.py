@@ -142,7 +142,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
             event.stop()
             handler()
             return
-        super().on_button_pressed(event)
+        # Textual dispatches the base-class handlers itself; no super() call.
 
     def action_add_pasted_source(self) -> bool:
         project_id = self.context.project_id

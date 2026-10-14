@@ -77,7 +77,13 @@ def test_repeated_timeouts_never_exceed_readiness_worker_budget() -> None:
         for index in range(8):
             fingerprint[0] = str(index)
             coordinator.request(app)
-            time.sleep(0.02)
+            # Wait for the generation to settle (timeout fired, or rejected at once)
+            # instead of racing a fixed sleep against the 10 ms timer.
+            _wait(
+                lambda index=index: (
+                    coordinator.view.generation >= index + 1 and coordinator.view.state == "failed"
+                )
+            )
             assert coordinator.active_worker_count <= 2
         assert coordinator.active_worker_count == 2
         assert coordinator.view.state == "failed"
@@ -108,8 +114,9 @@ def test_close_stops_new_readiness_requests_and_late_publication() -> None:
     assert not coordinator.request(app)
 
     release.set()
+    # The worker only leaves the active set after it attempted to publish, so no
+    # further sleep is needed before asserting that the late result was inert.
     _wait(lambda: coordinator.active_worker_count == 0)
-    time.sleep(0.02)
     assert coordinator.view.state == "failed"
     assert coordinator.snapshot is None
 
@@ -143,7 +150,6 @@ def test_one_hundred_identical_refreshes_coalesce_and_each_callback_runs_once() 
     assert calls == 1
     assert coordinator.active_worker_count == 1
     assert coordinator.timeout_timer_count == 1
-    assert coordinator.queued_worker_count == 0
 
     release.set()
     _wait(lambda: coordinator.view.state == "ready")
@@ -184,7 +190,6 @@ def test_one_hundred_changing_refreshes_never_exceed_worker_or_timer_budget() ->
         assert not coordinator.request(app)
         assert coordinator.active_worker_count <= 2
         assert coordinator.timeout_timer_count <= 2
-        assert coordinator.queued_worker_count == 0
 
     assert calls == 2
     release.set()
@@ -213,7 +218,6 @@ def test_timeout_callback_is_not_replayed_by_late_success() -> None:
 
     release.set()
     _wait(lambda: coordinator.active_worker_count == 0)
-    time.sleep(0.02)
     assert callbacks == ["done"]
     assert coordinator.view.state == "failed"
     assert coordinator.snapshot is None

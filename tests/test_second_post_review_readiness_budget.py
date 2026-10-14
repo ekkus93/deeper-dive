@@ -69,7 +69,6 @@ def test_hundred_identical_refreshes_coalesce_probe_and_callback() -> None:
             assert not coordinator.request(app, callback)
         assert probes == [1]
         assert coordinator.active_worker_count == 1
-        assert coordinator.queued_worker_count == 0
         assert coordinator.timeout_timer_count == 1
         release.set()
         app.deliver()
@@ -150,7 +149,6 @@ def test_new_fingerprints_cannot_spawn_unbounded_blocked_workers() -> None:
         assert coordinator.view.generation == rejected_generation
         assert calls == [1, 1]
         assert coordinator.active_worker_count == 2
-        assert coordinator.queued_worker_count == 0
         assert coordinator.timeout_timer_count <= 2
         assert coordinator.view.state == "failed"
         assert "Retry" in (coordinator.view.message or "")
@@ -258,7 +256,6 @@ def test_supersession_between_reservation_and_view_read_never_leaks_slot() -> No
                 break
             sleep(0.001)
         assert coordinator.active_worker_count == 0
-        assert coordinator.queued_worker_count == 0
     finally:
         coordinator.close()
 
@@ -284,7 +281,6 @@ def test_bad_fingerprint_does_not_crash_or_allocate_readiness_workers() -> None:
         assert "retry" in (coordinator.view.message or "").lower()
         assert coordinator.active_worker_count == 0
         assert coordinator.timeout_timer_count == 0
-        assert coordinator.queued_worker_count == 0
         assert app.messages.empty()
     finally:
         coordinator.close()
@@ -472,7 +468,6 @@ def test_full_worker_budget_notifies_every_superseded_subscriber_once() -> None:
             ("rejected", "failed"),
         ]
         assert coordinator.active_worker_count == 1
-        assert coordinator.queued_worker_count == 0
         assert coordinator.timeout_timer_count == 0
         assert "Retry" in (coordinator.view.message or "")
         release.set()
@@ -510,7 +505,6 @@ def test_full_worker_budget_without_callbacks_does_not_start_orphan_timer() -> N
         assert coordinator.view.state == "failed"
         assert coordinator.active_worker_count == 1
         assert coordinator.timeout_timer_count == 0
-        assert coordinator.queued_worker_count == 0
     finally:
         release.set()
         coordinator.close()

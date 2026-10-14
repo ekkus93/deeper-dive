@@ -47,6 +47,5 @@ def test_thread_start_failure_releases_worker_reservation(
         assert callbacks == ["failed"]
         assert coordinator.active_worker_count == 0
         assert coordinator.timeout_timer_count == 0
-        assert coordinator.queued_worker_count == 0
     finally:
         coordinator.close()

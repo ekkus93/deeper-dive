@@ -154,7 +154,8 @@ def test_newer_configuration_wins_over_stale_slow_result() -> None:
     assert coordinator.snapshot is not None
     assert coordinator.snapshot.readiness.setup_ready
     first_release.set()
-    time.sleep(0.03)
+    # The stale worker leaves the active set only after its (ignored) publication.
+    _wait(lambda: coordinator.active_worker_count == 0)
     assert coordinator.snapshot is not None
     assert coordinator.snapshot.readiness.setup_ready
     assert coordinator.view.generation == 2

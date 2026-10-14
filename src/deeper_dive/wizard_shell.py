@@ -976,8 +976,7 @@ class FirstRunWizardShell(WizardShell):
         elif event.button.name == "system-check-details":
             self._system_details_visible = not getattr(self, "_system_details_visible", False)
             self._sync_text()
-        else:
-            super().on_button_pressed(event)
+        # Textual dispatches WizardShell.on_button_pressed itself; no super() call.
 
     def on_save_exit(self) -> None:
         try:

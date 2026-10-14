@@ -251,7 +251,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         return True
 
     def on_select_changed(self, event: Select.Changed) -> None:
-        super().on_select_changed(event)
+        # Base-class handlers are dispatched by Textual itself (no super() call).
         if event.select.id == "guided-plan-segment-picker":
             value = event.value
             if not isinstance(value, str) or not value.isdigit():
@@ -321,7 +321,8 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             event.stop()
             handler()
             return
-        super().on_button_pressed(event)
+        # Base-class handlers (WizardShell navigation buttons) are dispatched by
+        # Textual itself; calling super() here would run them twice.
 
     def action_toggle_episode_advanced(self) -> None:
         self._episode_advanced = not self._episode_advanced

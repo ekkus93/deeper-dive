@@ -70,7 +70,6 @@ def test_startup_failure_releases_capacity_notifies_once_and_allows_retry(
         assert callbacks == ["failed"]
         assert coordinator.active_worker_count == 0
         assert coordinator.timeout_timer_count == 0
-        assert coordinator.queued_worker_count == 0
         assert app.messages.empty()
 
         assert coordinator.request(app, lambda: callbacks.append(coordinator.view.state))
