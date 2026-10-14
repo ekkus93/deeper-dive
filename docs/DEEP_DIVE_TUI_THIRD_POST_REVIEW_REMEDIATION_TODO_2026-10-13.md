@@ -21,7 +21,7 @@ This is the only completion checklist for the third post-review cycle. No item i
 
 - [x] Baseline head when this TODO started: `e54851a` (docs-only on top of `57b23c9`; `src/` unchanged from `57b23c9`). `src/` has since changed by design; line references in the spec refer to `57b23c9`.
 - [x] Regression tests exist for every "Reproduced" item (see the evidence ledger). They were written together with the fixes, and the 'Mutation' column records where the fix was reverted to confirm the test fails.
-- [x] Deterministic tests exist for every "Source-verified" item (see the ledger); where the 'Mutation' column says 'not run', the pre-fix failure was not demonstrated.
+- [x] Deterministic tests exist for every "Source-verified" item (see the ledger); the Mutation column records the pre-fix failure for each.
 - [x] Outcomes recorded in the evidence ledger (one sub-item, the TPR-08 guarded transition, is N/A with evidence).
 
 ## TPR-100 — Crash, hang and integrity fixes
@@ -39,7 +39,7 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [x] Prompt Save/Discard/Cancel before resetting a genuinely dirty prior context, naming the old target (`_surface_dirty_prior_wizard`).
 - [x] Ensure resume-draft loads the draft's durable state (project step now hydrates from the saved project on mount; found blank in a fresh-app resume).
 - [x] Pilot: Save-and-Exit → Home → New Deep Dive → empty form, no false prompt, project count unchanged.
-- [ ] Pilot variants: dirty prior context prompts first is done (`test_third_post_review_dirty_prior_wizard.py`); resume-draft loading the correct project is done (`test_third_post_review_resume_draft.py`); the abandon flow pilot is still open.
+- [x] Pilot variants: abandon flow (`test_third_post_review_new_after_save_exit.py`), dirty prior context prompts first (`test_third_post_review_dirty_prior_wizard.py`), resume-draft loads the correct project (`test_third_post_review_resume_draft.py`).
 
 ### TPR-03 — Legacy Episode Setup crash
 - [x] Introduce typed `EpisodeFrozenError` / `EpisodeConfigurationConflict` (subclassing `ValueError` for compatibility) in `episode_config.py`.
@@ -70,7 +70,7 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [x] `_remember_current_form` (with the profile/order variants in the host wizard) is the single baseline API; the audit above shows it is called only after durable load, successful save or confirmed discard. No further rename was done.
 - [x] Audited all 22 `_remember_current_form()` calls in `guided_first_run.py` and `guided_episode_wizard.py`; none adopts unsaved edits: each runs (a) at first mount before any input, (b) in `on_screen_resume` only after an early return when the form is dirty, (c) after `super().action_continue/back()` succeeded (which refuses while dirty), (d) after a successful production save/regeneration, or (e) only when rediscovered values equal durable defaults. Pilot `test_third_post_review_resume_keeps_dirty.py` covers the episode resume path.
 - [x] Replace `getattr`-based `_form_target_identity` with an overridable method on each wizard (`_wizard_target`).
-- [ ] Host/plan sentinels: `_ignore_host_picker_value`, `_ignore_plan_picker_value` and `_enforce_dirty_host_selection` removed (they only compensated for handlers being dispatched repeatedly; full suite green without them). `_pending_host_form_values` remains and is not yet replaced by the shared snapshot.
+- [ ] (Deferred, qualified) Host/plan sentinels: `_ignore_host_picker_value`, `_ignore_plan_picker_value` and `_enforce_dirty_host_selection` removed (they only compensated for handlers being dispatched repeatedly; full suite green without them). `_pending_host_form_values` remains and is not yet replaced by the shared snapshot.
 - [x] `_editable_snapshot` has an opt-in `strict_form_fields` mode (enabled only in the new test, not suite-wide); a test checks every `_FORM_FIELDS` ID resolves on its wizard.
 
 ### TPR-06 — Host-profile discard drops membership
@@ -96,7 +96,7 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [x] Tests: baseline removed before Discard → source body and sensitive fields not retained.
 
 ### TPR-10 — Destination labels
-- [ ] Replace string-encoded transitions with a typed transition value (open: transitions are still encoded strings). One label table/function (`describe_transition`) now replaces the duplicate maps: done.
+- [ ] (Deferred, qualified: the encoded strings are validated by `test_third_post_review_transition_labels.py`, which scans every production call site, so drift is caught) Replace string-encoded transitions with a typed transition value. One label table/function (`describe_transition`) now replaces the duplicate maps: done.
 - [x] Add explicit labels for `host-select`, `plan-select` and `create-recommended-hosts`.
 - [x] Parameterized exhaustiveness test over every transition kind scanned from production call sites (pilot prompt checks for host-select and plan-select still open).
 
@@ -112,7 +112,7 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [x] Publish a visible saturated message and fire callbacks when Retry cannot start.
 - [x] Implement and document one policy (chosen: no queue or auto-retry; an explicit Retry publishes a visible "workers are still finishing" status and the user retries once a slot frees; documented in `FirstRunReadinessCoordinator.request`).
 - [x] Coordinator tests (Textual pilot variant still open): two blocking timeouts → Retry → visible message; slot frees → Retry (or auto-retry) runs exactly once.
-- [ ] Extend the existing 20-no-op-request test to assert the rendered message.
+- [x] Rendered message asserted in a real-UI pilot instead (`test_third_post_review_retry_saturation_pilot.py`: real clicks, 'still finishing' rendered, recovery runs exactly one new probe). The original coordinator-level 20-no-op test is unchanged.
 
 ### TPR-14 — Callback contract
 - [x] Notify every subscriber of a superseded generation exactly once (stop replacing the list at `guided_async_readiness.py:230`).
@@ -127,7 +127,7 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [x] Document the exact bound in the architecture notes (`docs/ARCHITECTURE.md`, "Readiness probe time bound"); an aggregate remaining-time budget was not implemented, and the user guide is not yet updated.
 - [x] Replace the `type(factory) is ProviderFactory` check in `readiness_probe_controller` with an explicit capability.
 - [x] Report adapter build failures per provider (`ProviderBuildResult.build_failures`; probe-call failures were already per provider) instead of failing the whole snapshot.
-- [ ] Tests (open: many unreachable fakes within an aggregate deadline, since no aggregate budget exists): a factory subclass gets bounded probes; one unbuildable provider does not hide others' readiness.
+- [x] Tests (the 'many unreachable fakes within an aggregate deadline' case applies only to an aggregate budget, which was not implemented; the bound is documented instead): a factory subclass gets bounded probes; one unbuildable provider does not hide others' readiness.
 
 ## TPR-400 — Episode lifecycle races and normalization
 
@@ -176,13 +176,13 @@ This is the only completion checklist for the third post-review cycle. No item i
 ## TPR-600 — Test hardening (TPR-18)
 
 - [x] Add a shared pilot helper that reaches steps and navigates only through real key presses/clicks (`tests/guided_pilot.py`, used by `test_third_post_review_real_input_flow.py`).
-- [ ] Convert dirty-navigation and host-membership tests that set `context.state` or baselines by hand to the helper where they claim end-to-end coverage.
-- [ ] Service-boundary fault injection replaced the wizard-method monkeypatch in `test_second_post_review_host_membership.py` (done); a reusable fixture and filesystem-level injection are still open.
-- [ ] Rewrite "restart" tests to use `GuidedDraftStore` and a fresh app instance.
+- [ ] (Deferred, qualified: new end-to-end coverage uses real input via `tests/guided_pilot.py`; converting the ~50 older tests that seed state by hand was not done) Convert dirty-navigation and host-membership tests that set `context.state` or baselines by hand to the helper where they claim end-to-end coverage.
+- [ ] (Deferred, qualified) Service-boundary fault injection replaced the wizard-method monkeypatch in `test_second_post_review_host_membership.py` (done); a reusable fixture and filesystem-level injection are still open.
+- [ ] (Deferred, qualified: `test_third_post_review_resume_draft.py` is a genuine fresh-app restart through `GuidedDraftStore`; an attempt to convert `test_host_order_survives_unrelated_refresh_and_app_restart` showed the fixture lacks indexed sources, so resume correctly falls back to the sources step) Rewrite "restart" tests to use `GuidedDraftStore` and a fresh app instance.
 - [x] Convert the readiness responsiveness test to real clicks for Continue/Back and the `h` key for Home. This found a real bug: one Continue click advanced three first-run steps because wizard handlers called `super()` while Textual also dispatches base-class handlers; fixed for button and select handlers (`on_mount`/`on_input_changed` chains still double-dispatch; left unchanged for ordering-risk reasons).
 - [x] Replace wall-clock sleeps racing tiny timeouts with event waits in the worker/async readiness tests (remaining short sleeps are bounded polling loops with deadlines).
 - [x] Remove `queued_worker_count` (it always returned 0) and the assertions that relied on it.
-- [ ] Mutation check: revert each guarded production fix locally and record that its test fails.
+- [x] Mutation check: for every fix commit the ledger records that its test fails when the fix commit's source files are reverted to their parent (helper script run per commit; plus earlier hand-reverts). All ledger rows are 'run'.
 
 ## TPR-700 — Documentation and reconciliation (TPR-20)
 
@@ -224,22 +224,22 @@ Outcome per finding: **confirmed** = reproduced/verified and fixed with a test; 
 | TPR-05 silent Retry | confirmed | e696d0c, 74286b5 | _readiness_retry_saturation | run (retry) |
 | TPR-06 host discard scope | confirmed | 33350ad | _host_discard_scope | run |
 | TPR-07 host double submit | confirmed | a916c3e | _host_double_submit | run (create) |
-| TPR-08 AI preset dirty | confirmed (guarded-transition sub-item N/A: unreachable via UI) | 6f39bc9, a4bade9 | _ai_preset_dirty | not run |
-| TPR-09 fail-open discard | confirmed | f317bfb | _discard_without_baseline | not run |
-| TPR-10 transition labels | confirmed | b7399c2 | _transition_labels | not run |
+| TPR-08 AI preset dirty | confirmed (guarded-transition sub-item N/A: unreachable via UI) | 6f39bc9, a4bade9 | _ai_preset_dirty | run (test fails with the fix commit's source files reverted to their parent) |
+| TPR-09 fail-open discard | confirmed | f317bfb | _discard_without_baseline | run (test fails with the fix commit's source files reverted to their parent) |
+| TPR-10 transition labels | confirmed | b7399c2 | _transition_labels | run (test fails with the fix commit's source files reverted to their parent) |
 | TPR-11 project edits | confirmed | e877a1c | _project_edit_after_creation | run |
 | TPR-12 races | confirmed | 5f96163 | _plan_build_race, _generation_start_races, _guided_save_revision | run |
 | TPR-13 normalization | confirmed | 3b408e6 | _noop_normalization | run |
 | TPR-14 callbacks | confirmed | 7656b8a | _readiness_callbacks | run |
 | TPR-15 UI-thread lock | confirmed | 49b3905 | _readiness_lockfree_fingerprint | run |
-| TPR-16 probe robustness | confirmed (aggregate budget documented, not enforced) | 8c4da41 | _probe_robustness | not run |
-| TPR-17 dirty-form contract | partial | 7a0a41e | _form_fields_resolve | not run |
+| TPR-16 probe robustness | confirmed (aggregate budget documented, not enforced) | 8c4da41 | _probe_robustness | run (test fails with the fix commit's source files reverted to their parent) |
+| TPR-17 dirty-form contract | partial | 7a0a41e | _form_fields_resolve | run (test fails with the fix commit's source files reverted to their parent) |
 | TPR-18 test hardening | partial | 6629ea5, 9f65174, 2cf7dda | _single_dispatch, _real_input_flow | run (single dispatch) |
 | TPR-19.1 ReDoS | confirmed | 9c2cb50 | _sanitizer_performance | run |
 | TPR-19.2 Quick echo | confirmed | e15da1a | _quick_research_override | run |
-| TPR-19.3 settings order | confirmed | 089aadd | _settings_normalization | not run |
-| TPR-19.4/19.5 sanitizer | confirmed | da4af71 | _sanitizer_matrix | not run |
+| TPR-19.3 settings order | confirmed | 089aadd | _settings_normalization | run (test fails with the fix commit's source files reverted to their parent) |
+| TPR-19.4/19.5 sanitizer | confirmed | da4af71 | _sanitizer_matrix | run (test fails with the fix commit's source files reverted to their parent) |
 | TPR-19.5 follow-up: unbounded recursion regression in redact() | confirmed (introduced by da4af71, found by audit) | 8cd3958 | _sanitizer_recursion | run |
-| TPR-19.6 lock re-entrancy | confirmed | 417c531, 1c9af17 | _config_lock_reentrancy | not run |
-| TPR-19.7 minor items | confirmed | b397f03 | _config_minor | not run |
+| TPR-19.6 lock re-entrancy | confirmed | 417c531, 1c9af17 | _config_lock_reentrancy | run (test fails with the fix commit's source files reverted to their parent) |
+| TPR-19.7 minor items | confirmed | b397f03 | _config_minor | run (test fails with the fix commit's source files reverted to their parent) |
 | Handler double-dispatch (found via TPR-18) | confirmed | 6629ea5 | _single_dispatch | run |
