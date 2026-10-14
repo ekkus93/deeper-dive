@@ -34,7 +34,6 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         self._plan: EpisodePlan | None = None
         self._selected_segment_ordinal = 0
         self._loaded_segment_ordinal: int | None = None
-        self._ignore_plan_picker_value: str | None = None
         self._preflight: PreflightReport | None = None
         self._episode_advanced = False
         # Guard against another writer changing durable settings while this form is open.
@@ -260,9 +259,6 @@ class GuidedEpisodeWizard(GuidedHostWizard):
                 # Ignore stale queued events, including option-rebuild blank events,
                 # rather than rehydrating over newer plan selection or edits.
                 return
-            if value == self._ignore_plan_picker_value:
-                self._ignore_plan_picker_value = None
-                return
             ordinal = int(value)
             if (
                 self._loaded_segment_ordinal is not None
@@ -270,7 +266,6 @@ class GuidedEpisodeWizard(GuidedHostWizard):
                 and self._current_form_dirty()
             ):
                 destination = ordinal
-                self._ignore_plan_picker_value = str(self._loaded_segment_ordinal)
                 self._assign_select(event.select, str(self._loaded_segment_ordinal))
                 self._request_dirty_transition(f"plan-select:{destination}")
                 return

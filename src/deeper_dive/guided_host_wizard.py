@@ -24,7 +24,6 @@ class GuidedHostWizard(GuidedSourceWizard):
         self._selected_host_ids: list[str] = []
         self._loaded_host_id: str | None = None
         self._loaded_host_record: HostProfileRecord | None = None
-        self._ignore_host_picker_value: str | None = None
         self._pending_host_form_values: tuple[str, str, str, str, object] | None = None
         # Form signature of the last successful Create Host: repeating the same
         # request (double Enter/click) must not create a second identical host.
@@ -144,13 +143,9 @@ class GuidedHostWizard(GuidedSourceWizard):
         ):
             original = self._loaded_host_id
             if original is not None and event.select.value != original:
-                self._ignore_host_picker_value = original
                 self._assign_select(event.select, original)
             if self._pending_host_form_values is not None:
                 self._restore_host_form_values(self._pending_host_form_values)
-            return
-        if value == self._ignore_host_picker_value:
-            self._ignore_host_picker_value = None
             return
         # A queued event for the already-loaded target must never rehydrate its
         # durable record over current edits. The direct refresh/load path already
@@ -168,40 +163,14 @@ class GuidedHostWizard(GuidedSourceWizard):
                 if self._host_profile_values_dirty(live_values)
                 else self._pending_host_form_values or live_values
             )
-            self._ignore_host_picker_value = self._loaded_host_id
             original_host_id = self._loaded_host_id
             self._assign_select(event.select, original_host_id)
             self._restore_host_form_values(preserved)
             self._pending_host_form_values = preserved
             self._request_dirty_transition(f"host-select:{destination}")
-            self.call_after_refresh(
-                self._enforce_dirty_host_selection,
-                original_host_id,
-                destination,
-                preserved,
-            )
             return
         self._load_selected_host()
         self._remember_host_profile_baseline()
-
-    def _enforce_dirty_host_selection(
-        self,
-        original_host_id: str,
-        destination: str,
-        preserved: tuple[str, str, str, str, object],
-    ) -> None:
-        if (
-            not self._exit_confirmation_pending
-            or self._pending_transition != f"host-select:{destination}"
-        ):
-            return
-        picker = self.query_one("#guided-host-picker", Select)
-        if picker.value != original_host_id:
-            self._ignore_host_picker_value = original_host_id
-            self._assign_select(picker, original_host_id)
-        self._loaded_host_id = original_host_id
-        self._restore_host_form_values(preserved)
-        self._pending_host_form_values = preserved
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if self.context.state.current_step == "hosts" and event.input.id in {
@@ -380,7 +349,6 @@ class GuidedHostWizard(GuidedSourceWizard):
             return
         if transition.startswith("host-select:"):
             host_id = transition.split(":", 1)[1]
-            self._ignore_host_picker_value = None
             picker = self.query_one("#guided-host-picker", Select)
             with picker.prevent(Select.Changed):
                 picker.value = host_id
