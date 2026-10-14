@@ -16,6 +16,13 @@ from deeper_dive.storage.episode_repositories import (
 from deeper_dive.storage.repositories import CorpusRepository
 
 ALLOWED_GENERATION_PLAN_STATUSES = frozenset({"draft", "approved"})
+PLAN_CONFIG_DIGEST_KEY = "episode_config_sha256"
+
+
+def config_digest(config_json: str) -> str:
+    """Stable fingerprint of an episode configuration revision."""
+
+    return hashlib.sha256(config_json.encode("utf-8")).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,6 +58,11 @@ def evaluate_episode_plan(database: Database, episode_id: str) -> PlanValidity:
     else:
         if not isinstance(plan_payload, Mapping):
             issues.append("plan JSON payload must be an object")
+        else:
+            built_from = plan_payload.get(PLAN_CONFIG_DIGEST_KEY)
+            # Plans created before the digest existed carry none and stay usable.
+            if built_from is not None and built_from != config_digest(episode.config_json):
+                issues.append("plan was built from a different episode configuration")
 
     segments = tuple(repository.list_segments(plan.id))
     if not segments:

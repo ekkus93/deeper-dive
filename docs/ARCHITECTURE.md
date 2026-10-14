@@ -194,8 +194,9 @@ identities are not rewritten by later configuration operations.
 Plan approval is a metadata-only compare-and-swap (`EpisodePlanRepository.approve`): it
 updates the plan's status in place only while the episode revision is unchanged, so a
 concurrent edit can never be followed by an approval that re-publishes a stale plan.
-Plans do not yet persist the configuration revision they were built from (TPR-04
-remainder), so `plan_validity` cannot detect a stale-input plan by revision alone.
+Each plan records a SHA-256 digest of the episode configuration it was built from
+(`episode_config_sha256` in `plan_json`), and `plan_validity` rejects a plan whose digest
+no longer matches (plans saved before the digest existed stay usable).
 Run creation is one `BEGIN IMMEDIATE` selection that rechecks the episode revision seen
 at preflight and refuses a second active run. The readiness fingerprint is read without
 the config lock (`UserConfigStore.load_published`) so the UI thread never waits on a

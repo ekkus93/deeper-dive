@@ -51,11 +51,11 @@ This is the only completion checklist for the third post-review cycle. No item i
 ### TPR-04 — Stale plan resurrected by approval
 - [x] Capture the episode config revision atomically with the plan load in `approve_plan` and pass it to the repository CAS.
 - [x] Implement approval as an in-place status update (`WHERE id=? AND status='draft'`) that preserves plan and segment IDs.
-- [ ] Persist a config revision/hash with each plan; make `plan_validity` detect any stale-input plan.
+- [x] Persist a config digest in each plan's `plan_json` (`episode_config_sha256`); `plan_validity` rejects a mismatch (legacy plans without a digest stay usable).
 - [x] SQLite test with a deterministic hook: concurrent edit between load and persist → approval fails, no plan row.
 - [x] Identity test: plan and segment IDs unchanged after approval.
-- [ ] Validity test: duration-only edit marks the old plan stale.
-- [ ] Correct `docs/ARCHITECTURE.md` lines 189-191 to match the final mechanism.
+- [x] Validity tests: digest mismatch is unusable; a duration-only edit removes the old plan.
+- [x] Correct `docs/ARCHITECTURE.md` to match the final mechanism.
 
 ### TPR-19.1 — Sanitizer ReDoS
 - [x] Rewrite `_AUTH_QUOTED` (`diagnostics.py:27`) so backslash matches only one alternative.

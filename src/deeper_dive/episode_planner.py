@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from deeper_dive.domain.clock import Clock, SystemClock, format_timestamp
 from deeper_dive.episode_config import EpisodeConfigurationService
+from deeper_dive.plan_validity import PLAN_CONFIG_DIGEST_KEY, config_digest
 from deeper_dive.retrieval import LexicalIndex
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_plan_repository import EpisodePlanRepository
@@ -180,11 +181,16 @@ class EpisodePlannerService:
         expected_episode_config_json: str | None = None,
     ) -> None:
         timestamp = format_timestamp(self.clock.now())
+        plan_payload: dict[str, object] = {"target_duration_seconds": plan.target_duration_seconds}
+        if expected_episode_config_json is not None:
+            # Fingerprint of the exact configuration this plan was built from, so
+            # plan validity can reject a plan whose inputs have since changed.
+            plan_payload[PLAN_CONFIG_DIGEST_KEY] = config_digest(expected_episode_config_json)
         record = EpisodePlanRecord(
             id=plan.id,
             episode_id=plan.episode_id,
             status=status,
-            plan_json=json.dumps({"target_duration_seconds": plan.target_duration_seconds}),
+            plan_json=json.dumps(plan_payload),
             created_at=timestamp,
             modified_at=timestamp,
         )
