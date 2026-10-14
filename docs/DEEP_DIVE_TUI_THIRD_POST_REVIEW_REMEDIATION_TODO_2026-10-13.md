@@ -101,9 +101,9 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [ ] Parameterized exhaustiveness test over every transition kind; pilot prompt checks for host-select and plan-select.
 
 ### TPR-11 — Project edits after creation
-- [ ] Decide: support updating project name/topic/audience through the production project service, or make the fields read-only after creation with an explanation.
-- [ ] Implement the decision in `guided_new_deep_dive.py`.
-- [ ] Pilot: create project → Back → edit → Continue → Save persists (or no prompt for read-only fields).
+- [x] Decision: support updating project name/topic/audience through the production project service (`DeeperDiveService.update_project`).
+- [x] Implement the decision in `guided_new_deep_dive.py`.
+- [x] Pilot: create project → Continue → Back → edit → Continue → Save persists.
 
 ## TPR-300 — Readiness
 

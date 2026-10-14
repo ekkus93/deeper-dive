@@ -119,6 +119,24 @@ class DeeperDiveService:
         repository.update_project(updated)
         return updated
 
+    def update_project(self, project_id: str, name: str, *, instructions: str) -> ProjectRecord:
+        """Replace a project's name and instructions (guided project step edits)."""
+
+        workspace = self._workspace(project_id)
+        repository = self._corpus(workspace)
+        project = repository.get_project(project_id)
+        if project is None:
+            raise KeyError(project_id)
+        updated = replace(
+            project,
+            name=name,
+            instructions=instructions,
+            modified_at=format_timestamp(self.clock.now()),
+        )
+        repository.update_project(updated)
+        self._emit("project.update", "completed", str(project_id))
+        return updated
+
     def delete_project(self, project_id: str) -> None:
         workspace = self._workspace(project_id)
         repository = self._corpus(workspace)

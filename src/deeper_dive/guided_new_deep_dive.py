@@ -66,9 +66,6 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
                     self.query_one(f"#guided-project-{field}").focus()
                     break
             return False
-        if self.context.project_id is not None:
-            self.set_status("Project already created.")
-            return False
         instructions = "\n".join(
             (
                 f"Main curiosity: {topic}",
@@ -76,13 +73,25 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
                 *(("Description: " + description,) if description else ()),
             )
         )
+        existing_project_id = self.context.project_id
         try:
-            project = self.context.composition.service.create_project(
-                name,
-                instructions=instructions,
-            )
+            if existing_project_id is None:
+                project = self.context.composition.service.create_project(
+                    name,
+                    instructions=instructions,
+                )
+            else:
+                # Edits after creation persist through the production project service.
+                project = self.context.composition.service.update_project(
+                    existing_project_id, name, instructions=instructions
+                )
         except (OSError, KeyError, RuntimeError, ValueError) as exc:
-            self.set_error("Project creation failed.", exc)
+            self.set_error(
+                "Project creation failed."
+                if existing_project_id is None
+                else "Project update failed.",
+                exc,
+            )
             return False
         self.query_one("#guided-project-validation", Static).update("")
         for field in ("name", "topic", "audience"):
@@ -90,7 +99,11 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
         self.context.project_id = project.id
         self._sync_text()
         self._remember_current_form()
-        self.set_status(f"Created project {project.name}. Continue to Sources.")
+        self.set_status(
+            f"Created project {project.name}. Continue to Sources."
+            if existing_project_id is None
+            else f"Updated project {project.name}. Continue to Sources."
+        )
         return True
 
     def on_save_exit(self) -> None:
