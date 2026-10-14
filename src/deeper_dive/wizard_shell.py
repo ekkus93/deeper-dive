@@ -46,99 +46,134 @@ class TransitionLabels:
     discard: str
 
 
+class TransitionKind(StrEnum):
+    """Every dirty-form transition a guided wizard can defer behind a prompt."""
+
+    NAVIGATE = "navigate"
+    EXIT = "exit"
+    BACK = "back"
+    CONTINUE = "continue"
+    PLAN_BUILD = "plan-build"
+    DISCOVER_MODELS = "discover-models"
+    RECOMMENDED_ROLES = "recommended-roles"
+    DISCOVER_VOICES = "discover-voices"
+    CREATE_HOST = "create-host"
+    CREATE_RECOMMENDED_HOSTS = "create-recommended-hosts"
+    PLAN_REGENERATE = "plan-regenerate"
+    PLAN_REGENERATE_SEGMENT = "plan-regenerate-segment"
+    PREFLIGHT_FIX = "preflight-fix"
+    GENERATION_START = "generation-start"
+    HOST_SELECT = "host-select"
+    PLAN_SELECT = "plan-select"
+    SPEECH_CHOICE = "speech-choice"
+
+
+@dataclass(frozen=True, slots=True)
+class Transition:
+    """A pending dirty-form transition: a kind plus its destination, if it has one."""
+
+    kind: TransitionKind
+    argument: str | None = None
+
+    @property
+    def encoded(self) -> str:
+        return self.kind.value if self.argument is None else f"{self.kind.value}:{self.argument}"
+
+    def __str__(self) -> str:
+        return self.encoded
+
+
 # Single source of truth for every transition kind. Parameterized kinds carry
 # their argument after a colon ("navigate:home", "host-select:<id>").
-_TRANSITION_LABELS: dict[str, TransitionLabels] = {
-    "exit": TransitionLabels("exit", "Save changes and exit", "Exit without changes"),
-    "back": TransitionLabels("go back", "Save changes and go back", "Discard changes and go back"),
-    "continue": TransitionLabels(
+_TRANSITION_LABELS: dict[TransitionKind, TransitionLabels] = {
+    TransitionKind.EXIT: TransitionLabels("exit", "Save changes and exit", "Exit without changes"),
+    TransitionKind.BACK: TransitionLabels(
+        "go back", "Save changes and go back", "Discard changes and go back"
+    ),
+    TransitionKind.CONTINUE: TransitionLabels(
         "continue", "Save changes and continue", "Discard changes and continue"
     ),
-    "plan-build": TransitionLabels(
+    TransitionKind.PLAN_BUILD: TransitionLabels(
         "build the plan", "Save segment then build plan", "Discard edits then build plan"
     ),
-    "discover-models": TransitionLabels(
+    TransitionKind.DISCOVER_MODELS: TransitionLabels(
         "discover models",
         "Save provider then discover models",
         "Discard edits then discover models",
     ),
-    "recommended-roles": TransitionLabels(
+    TransitionKind.RECOMMENDED_ROLES: TransitionLabels(
         "apply recommended model roles",
         "Save role edits then apply recommendations",
         "Discard edits then apply recommendations",
     ),
-    "discover-voices": TransitionLabels(
+    TransitionKind.DISCOVER_VOICES: TransitionLabels(
         "discover voices",
         "Save defaults then discover voices",
         "Discard edits then discover voices",
     ),
-    "create-host": TransitionLabels(
+    TransitionKind.CREATE_HOST: TransitionLabels(
         "create a host",
         "Save host then create a new host",
         "Discard edits then create a new host",
     ),
-    "create-recommended-hosts": TransitionLabels(
+    TransitionKind.CREATE_RECOMMENDED_HOSTS: TransitionLabels(
         "create the recommended hosts",
         "Save host then create recommended hosts",
         "Discard edits then create recommended hosts",
     ),
-    "plan-regenerate": TransitionLabels(
+    TransitionKind.PLAN_REGENERATE: TransitionLabels(
         "regenerate the plan",
         "Save segment then regenerate plan",
         "Discard edits then regenerate plan",
     ),
-    "plan-regenerate-segment": TransitionLabels(
+    TransitionKind.PLAN_REGENERATE_SEGMENT: TransitionLabels(
         "regenerate the selected segment",
         "Save segment then regenerate",
         "Discard edits then regenerate",
     ),
-    "preflight-fix": TransitionLabels(
+    TransitionKind.PREFLIGHT_FIX: TransitionLabels(
         "repair the preflight blocker", "Save edits then repair", "Discard edits then repair"
     ),
-    "generation-start": TransitionLabels(
+    TransitionKind.GENERATION_START: TransitionLabels(
         "start generation",
         "Save edits then start generation",
         "Discard edits then start generation",
     ),
-    "host-select": TransitionLabels(
+    TransitionKind.HOST_SELECT: TransitionLabels(
         "select another host",
         "Save host then select the other host",
         "Discard edits then select the other host",
     ),
-    "plan-select": TransitionLabels(
+    TransitionKind.PLAN_SELECT: TransitionLabels(
         "select another plan",
         "Save plan edits then select the other plan",
         "Discard plan edits then select the other plan",
     ),
-    "speech-choice": TransitionLabels(
+    TransitionKind.SPEECH_CHOICE: TransitionLabels(
         "switch speech providers",
         "Save speech settings then switch",
         "Discard speech edits then switch",
     ),
 }
-_FALLBACK_TRANSITION_LABELS = TransitionLabels(
-    "leave this screen", "Save changes and leave", "Discard changes and leave"
-)
 
 
-def transition_kinds() -> frozenset[str]:
+def transition_kinds() -> frozenset[TransitionKind]:
     """Every labelled transition kind (including parameterized kinds and navigate)."""
 
-    return frozenset(_TRANSITION_LABELS) | {"navigate"}
+    return frozenset(_TRANSITION_LABELS) | {TransitionKind.NAVIGATE}
 
 
-def describe_transition(transition: str) -> TransitionLabels:
-    """Return wording for an encoded transition; unknown kinds get a safe fallback."""
+def describe_transition(transition: Transition) -> TransitionLabels:
+    """Return the wording for a typed transition."""
 
-    kind, _, argument = transition.partition(":")
-    if kind == "navigate":
-        target = argument.replace("-", " ")
+    if transition.kind is TransitionKind.NAVIGATE:
+        target = (transition.argument or "").replace("-", " ")
         return TransitionLabels(
             "go to " + target,
             f"Save changes and go to {target.title()}",
             f"Discard changes and go to {target.title()}",
         )
-    return _TRANSITION_LABELS.get(kind, _FALLBACK_TRANSITION_LABELS)
+    return _TRANSITION_LABELS[transition.kind]
 
 
 class WizardSaveOutcome(StrEnum):
@@ -179,7 +214,7 @@ class WizardDirtyFormSnapshot:
     durable_baseline: tuple[tuple[str, str], ...] | None
     displayed_values: tuple[tuple[str, str], ...]
     semantic_snapshot: tuple[tuple[str, str], ...]
-    original_destination: str | None
+    original_destination: Transition | None
 
     @property
     def dirty(self) -> bool:
@@ -308,10 +343,10 @@ class WizardShell(Screen[None]):
         self._exit_confirmation_pending = False
         self._discard_unavailable: tuple[str, ...] = ()
         self._discard_baseline_missing = False
-        self._pending_transition: str | None = None
+        self._pending_transition: Transition | None = None
         # Transition being discarded while _restore_discarded_form runs; lets a
         # subclass limit the restore to the dirty scope that raised the prompt.
-        self._discarding_transition: str | None = None
+        self._discarding_transition: Transition | None = None
         # Snapshot captured when a confirmation opens; Save/Discard act on that
         # target and refuse to run if the live target drifted in the meantime.
         self._pending_snapshot: WizardDirtyFormSnapshot | None = None
@@ -432,7 +467,7 @@ class WizardShell(Screen[None]):
         if self.busy or self._exit_confirmation_pending:
             return False
         if self._current_form_dirty():
-            self._request_dirty_transition("back")
+            self._request_dirty_transition(Transition(TransitionKind.BACK))
             return False
         previous = self.context.state
         self.context.state = self.navigator.back()
@@ -446,7 +481,7 @@ class WizardShell(Screen[None]):
         if self.busy or self._exit_confirmation_pending:
             return False
         if self._current_form_dirty():
-            self._request_dirty_transition("continue")
+            self._request_dirty_transition(Transition(TransitionKind.CONTINUE))
             return False
         previous = self.context.state
         try:
@@ -472,10 +507,10 @@ class WizardShell(Screen[None]):
             return True
         if not self._current_form_dirty():
             return False
-        self._request_dirty_transition(f"navigate:{destination}")
+        self._request_dirty_transition(Transition(TransitionKind.NAVIGATE, destination))
         return True
 
-    def _request_dirty_transition(self, transition: str) -> None:
+    def _request_dirty_transition(self, transition: Transition) -> None:
         self._pending_transition = transition
         self._pending_snapshot = self._dirty_form_snapshot()
         self._exit_confirmation_pending = True
@@ -616,7 +651,7 @@ class WizardShell(Screen[None]):
             self.action_cancel_exit_confirmation()
             return
         if self._current_form_dirty():
-            self._request_dirty_transition("exit")
+            self._request_dirty_transition(Transition(TransitionKind.EXIT))
             return
         self._checkpoint_and_exit()
 
@@ -655,7 +690,7 @@ class WizardShell(Screen[None]):
             return
         if self._confirmation_target_drifted():
             return
-        transition = self._pending_transition or "exit"
+        transition = self._pending_transition or Transition(TransitionKind.EXIT)
         self._clear_transition_confirmation()
         try:
             result = self._save_dirty_step()
@@ -725,7 +760,7 @@ class WizardShell(Screen[None]):
             return
         if self._confirmation_target_drifted():
             return
-        transition = self._pending_transition or "exit"
+        transition = self._pending_transition or Transition(TransitionKind.EXIT)
         self._clear_transition_confirmation()
         # Discard restores last durable values before attempting the destination.
         # A blocked transition cannot silently promote unsaved input to clean.
@@ -761,23 +796,23 @@ class WizardShell(Screen[None]):
         self._clear_transition_confirmation()
         self.set_status("Continuing to edit; unsaved changes are still present.")
 
-    def _execute_pending_transition(self, transition: str) -> None:
-        if transition == "exit":
+    def _execute_pending_transition(self, transition: Transition) -> None:
+        if transition.kind is TransitionKind.EXIT:
             self._checkpoint_and_exit()
-        elif transition == "back":
+        elif transition.kind is TransitionKind.BACK:
             self.action_back()
-        elif transition == "continue":
+        elif transition.kind is TransitionKind.CONTINUE:
             self.action_continue()
-        elif transition.startswith("navigate:"):
+        elif transition.kind is TransitionKind.NAVIGATE:
             navigate = getattr(self.app, "action_navigate", None)
             if not callable(navigate):
                 raise RuntimeError("wizard app does not support navigation")
-            navigate(transition.split(":", 1)[1])
+            navigate(transition.argument)
         else:
             self._execute_custom_transition(transition)
 
-    def _execute_custom_transition(self, transition: str) -> None:
-        raise ValueError(f"unsupported wizard transition {transition!r}")
+    def _execute_custom_transition(self, transition: Transition) -> None:
+        raise ValueError(f"unsupported wizard transition {transition.encoded!r}")
 
     def _clear_transition_confirmation(self) -> None:
         self._exit_confirmation_pending = False
@@ -787,7 +822,7 @@ class WizardShell(Screen[None]):
 
     def _sync_exit_confirmation(self) -> None:
         pending = self._exit_confirmation_pending
-        transition = self._pending_transition or "exit"
+        transition = self._pending_transition or Transition(TransitionKind.EXIT)
         labels = describe_transition(transition)
         save_label, discard_label = labels.save, labels.discard
         self.query_one("#wizard-confirm-save", Button).label = save_label

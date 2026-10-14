@@ -96,7 +96,7 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [x] Tests: baseline removed before Discard → source body and sensitive fields not retained.
 
 ### TPR-10 — Destination labels
-- [ ] (Deferred, qualified: the encoded strings are validated by `test_third_post_review_transition_labels.py`, which scans every production call site, so drift is caught) Replace string-encoded transitions with a typed transition value. One label table/function (`describe_transition`) now replaces the duplicate maps: done.
+- [x] Replace string-encoded transitions with a typed `Transition(kind: TransitionKind, argument)` value (`wizard_shell.py`); `_request_dirty_transition`, `_pending_transition`, `original_destination` and every `_execute_custom_transition` use it, and a test forbids string call sites. One label table/function (`describe_transition`) now replaces the duplicate maps: done.
 - [x] Add explicit labels for `host-select`, `plan-select` and `create-recommended-hosts`.
 - [x] Parameterized exhaustiveness test over every transition kind scanned from production call sites (pilot prompt checks for host-select and plan-select still open).
 

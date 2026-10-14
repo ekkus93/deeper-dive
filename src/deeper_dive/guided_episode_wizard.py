@@ -20,7 +20,12 @@ from deeper_dive.model_roles import ModelRole
 from deeper_dive.plan_validity import evaluate_episode_plan
 from deeper_dive.preflight import PreflightReport
 from deeper_dive.research_policy import ResearchPolicyStore
-from deeper_dive.wizard_shell import WizardSaveOutcome, WizardSaveResult
+from deeper_dive.wizard_shell import (
+    Transition,
+    TransitionKind,
+    WizardSaveOutcome,
+    WizardSaveResult,
+)
 
 
 class _NavigationApp(Protocol):
@@ -268,7 +273,9 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             ):
                 destination = ordinal
                 self._assign_select(event.select, str(self._loaded_segment_ordinal))
-                self._request_dirty_transition(f"plan-select:{destination}")
+                self._request_dirty_transition(
+                    Transition(TransitionKind.PLAN_SELECT, str(destination))
+                )
                 return
             self._selected_segment_ordinal = ordinal
             self._load_selected_segment()
@@ -276,21 +283,28 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         elif event.select.id == "guided-episode-duration":
             self._toggle_custom_duration()
 
-    def _execute_custom_transition(self, transition: str) -> None:
-        if transition == "preflight-fix":
+    def _execute_custom_transition(self, transition: Transition) -> None:
+        kind = transition.kind
+        if kind is TransitionKind.PREFLIGHT_FIX:
             self.action_fix_preflight()
             return
-        if transition == "generation-start":
+        if kind is TransitionKind.GENERATION_START:
             self.action_generate_deep_dive()
             return
-        if transition in {"plan-build", "plan-regenerate", "plan-regenerate-segment"}:
-            if transition == "plan-regenerate-segment":
+        if kind in {
+            TransitionKind.PLAN_BUILD,
+            TransitionKind.PLAN_REGENERATE,
+            TransitionKind.PLAN_REGENERATE_SEGMENT,
+        }:
+            if kind is TransitionKind.PLAN_REGENERATE_SEGMENT:
                 self.action_regenerate_plan_segment()
             else:
-                self._run_plan_operation("build" if transition == "plan-build" else "regenerate")
+                self._run_plan_operation(
+                    "build" if kind is TransitionKind.PLAN_BUILD else "regenerate"
+                )
             return
-        if transition.startswith("plan-select:"):
-            ordinal = int(transition.split(":", 1)[1])
+        if kind is TransitionKind.PLAN_SELECT:
+            ordinal = int(transition.argument or "")
             self._selected_segment_ordinal = ordinal
             picker = self.query_one("#guided-plan-segment-picker", Select)
             with picker.prevent(Select.Changed):
@@ -425,7 +439,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         if self.busy or self._exit_confirmation_pending:
             return
         if self.context.state.current_step == "plan" and self._current_form_dirty():
-            self._request_dirty_transition("plan-regenerate-segment")
+            self._request_dirty_transition(Transition(TransitionKind.PLAN_REGENERATE_SEGMENT))
             return
         if self.context.episode_id is None:
             self.set_status("Build a plan before regenerating a segment.")
@@ -468,7 +482,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         if self.busy or self._exit_confirmation_pending:
             return
         if self._current_form_dirty():
-            self._request_dirty_transition("preflight-fix")
+            self._request_dirty_transition(Transition(TransitionKind.PREFLIGHT_FIX))
             return
         if self._preflight is None or not self._preflight.blockers:
             self.set_status("No blocking preflight issue is currently available.")
@@ -491,7 +505,7 @@ class GuidedEpisodeWizard(GuidedHostWizard):
         if self.busy or self._exit_confirmation_pending:
             return
         if self._current_form_dirty():
-            self._request_dirty_transition("generation-start")
+            self._request_dirty_transition(Transition(TransitionKind.GENERATION_START))
             return
         project_id = self.context.project_id
         episode_id = self.context.episode_id
@@ -531,7 +545,11 @@ class GuidedEpisodeWizard(GuidedHostWizard):
             return
         if self.context.state.current_step == "plan" and self._current_form_dirty():
             self._request_dirty_transition(
-                "plan-build" if operation == "build" else "plan-regenerate"
+                Transition(
+                    TransitionKind.PLAN_BUILD
+                    if operation == "build"
+                    else TransitionKind.PLAN_REGENERATE
+                )
             )
             return
         episode_id = self.context.episode_id

@@ -14,6 +14,7 @@ from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
 from deeper_dive.guided_workflow import WizardKind, WizardState
 from deeper_dive.hosts import HostProfile
 from deeper_dive.storage.workspace import WorkspaceManager
+from deeper_dive.wizard_shell import Transition, TransitionKind
 
 
 @pytest.mark.parametrize("resolution", ("cancel", "discard", "save"))
@@ -48,7 +49,7 @@ async def _create_host_requires_explicit_decision(tmp_path: Path, resolution: st
         assert wizard._host_profile_dirty()
         assert not wizard.action_create_host()
         await pilot.pause()
-        assert wizard._pending_transition == "create-host"
+        assert wizard._pending_transition == Transition(TransitionKind.CREATE_HOST)
         assert wizard.query_one("#wizard-exit-confirmation").display
         assert wizard.focused is wizard.query_one("#wizard-confirm-cancel")
         assert len(repository.list_hosts(project.id)) == 1

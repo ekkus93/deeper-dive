@@ -14,6 +14,7 @@ from deeper_dive.guided_workflow import CompletionProbe, WizardContext
 from deeper_dive.hosts import HostProfile, create_host_from_preset, preset_names
 from deeper_dive.storage.episode_repositories import HostProfileRecord
 from deeper_dive.voice_preview import VoicePreviewService
+from deeper_dive.wizard_shell import Transition, TransitionKind
 
 
 class GuidedHostWizard(GuidedSourceWizard):
@@ -139,7 +140,7 @@ class GuidedHostWizard(GuidedSourceWizard):
         if (
             self._exit_confirmation_pending
             and self._pending_transition is not None
-            and self._pending_transition.startswith("host-select:")
+            and self._pending_transition.kind is TransitionKind.HOST_SELECT
         ):
             original = self._loaded_host_id
             if original is not None and event.select.value != original:
@@ -167,7 +168,7 @@ class GuidedHostWizard(GuidedSourceWizard):
             self._assign_select(event.select, original_host_id)
             self._restore_host_form_values(preserved)
             self._pending_host_form_values = preserved
-            self._request_dirty_transition(f"host-select:{destination}")
+            self._request_dirty_transition(Transition(TransitionKind.HOST_SELECT, destination))
             return
         self._load_selected_host()
         self._remember_host_profile_baseline()
@@ -243,15 +244,16 @@ class GuidedHostWizard(GuidedSourceWizard):
         self._pending_host_form_values = self._host_form_values()
 
     @staticmethod
-    def _transition_is_profile_scoped(transition: str | None) -> bool:
+    def _transition_is_profile_scoped(transition: Transition | None) -> bool:
         """Host picker reselect and Create Host/Pair only concern the host profile."""
 
-        return transition is not None and (
-            transition.startswith("host-select:")
-            or transition in {"create-host", "create-recommended-hosts"}
-        )
+        return transition is not None and transition.kind in {
+            TransitionKind.HOST_SELECT,
+            TransitionKind.CREATE_HOST,
+            TransitionKind.CREATE_RECOMMENDED_HOSTS,
+        }
 
-    def _request_dirty_transition(self, transition: str) -> None:
+    def _request_dirty_transition(self, transition: Transition) -> None:
         super()._request_dirty_transition(transition)
         if self.context.state.current_step != "hosts":
             return
@@ -340,15 +342,15 @@ class GuidedHostWizard(GuidedSourceWizard):
         self._form_baselines["hosts"] = (*profile, *order)
         self._form_baseline_targets["hosts"] = self._form_target_identity()
 
-    def _execute_custom_transition(self, transition: str) -> None:
-        if transition == "create-host":
+    def _execute_custom_transition(self, transition: Transition) -> None:
+        if transition.kind is TransitionKind.CREATE_HOST:
             self.action_create_host()
             return
-        if transition == "create-recommended-hosts":
+        if transition.kind is TransitionKind.CREATE_RECOMMENDED_HOSTS:
             self.action_create_recommended_hosts()
             return
-        if transition.startswith("host-select:"):
-            host_id = transition.split(":", 1)[1]
+        if transition.kind is TransitionKind.HOST_SELECT:
+            host_id = transition.argument or ""
             picker = self.query_one("#guided-host-picker", Select)
             with picker.prevent(Select.Changed):
                 picker.value = host_id
@@ -413,7 +415,7 @@ class GuidedHostWizard(GuidedSourceWizard):
         # Creating the pair selects a new profile and rehydrates the form.
         # Preserve unsaved edits through the shared Save / Discard / Cancel flow.
         if self.context.state.current_step == "hosts" and self._host_profile_dirty():
-            self._request_dirty_transition("create-recommended-hosts")
+            self._request_dirty_transition(Transition(TransitionKind.CREATE_RECOMMENDED_HOSTS))
             return
         project_id = self.context.project_id
         if project_id is None:
@@ -460,7 +462,7 @@ class GuidedHostWizard(GuidedSourceWizard):
             and self._loaded_host_id is not None
             and self._host_profile_dirty()
         ):
-            self._request_dirty_transition("create-host")
+            self._request_dirty_transition(Transition(TransitionKind.CREATE_HOST))
             return False
         project_id = self.context.project_id
         if project_id is None:

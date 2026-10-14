@@ -331,7 +331,8 @@ async def _guided_mixed_host_save_exit_is_single_shot_and_project_isolated(
             else:
                 assert wizard.action_continue() is False
             assert wizard.query_one("#wizard-exit-confirmation").display
-            assert wizard._pending_transition == transition
+            assert wizard._pending_transition is not None
+            assert wizard._pending_transition.encoded == transition
             wizard.action_confirm_save_exit()
             # A repeated confirmation must not run either durable transaction again.
             wizard.action_confirm_save_exit()

@@ -19,6 +19,7 @@ from deeper_dive.preflight import PreflightEstimate, PreflightIssue, PreflightRe
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import EpisodePlanRecord, HostEpisodeRepository
 from deeper_dive.storage.workspace import WorkspaceManager
+from deeper_dive.wizard_shell import Transition, TransitionKind
 
 
 class _TwoSegmentGenerator:
@@ -1769,7 +1770,7 @@ async def _typed_dirty_snapshot_preserves_target(tmp_path: Path) -> None:
         assert ("guided-episode-title", "Unsaved episode title") in pending.semantic_snapshot
         assert not wizard.action_back()
         pending = wizard._dirty_form_snapshot()
-        assert pending.original_destination == "back"
+        assert pending.original_destination == Transition(TransitionKind.BACK)
         assert pending.target_identity == clean.target_identity
         assert pending.durable_baseline == clean.durable_baseline
         wizard.action_cancel_exit_confirmation()

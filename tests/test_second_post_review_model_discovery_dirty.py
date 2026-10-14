@@ -14,6 +14,7 @@ from deeper_dive.guided_app import GuidedDeeperDiveApp
 from deeper_dive.guided_first_run import GuidedFirstRunWizard
 from deeper_dive.guided_workflow import WizardKind, WizardState
 from deeper_dive.storage.workspace import WorkspaceManager
+from deeper_dive.wizard_shell import Transition, TransitionKind
 
 
 def test_discovery_requires_save_discard_or_cancel_for_dirty_provider(tmp_path: Path) -> None:
@@ -51,7 +52,7 @@ async def _discovery_requires_explicit_choice(tmp_path: Path) -> None:
             wizard.action_discover_models()
             await pilot.pause()
             assert wizard.query_one("#wizard-exit-confirmation").display
-            assert wizard._pending_transition == "discover-models"
+            assert wizard._pending_transition == Transition(TransitionKind.DISCOVER_MODELS)
             assert wizard.focused is wizard.query_one("#wizard-confirm-cancel")
             assert "discover models" in str(wizard.query_one("#wizard-status", Static).render())
             assert models_calls == []

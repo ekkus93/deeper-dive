@@ -20,7 +20,12 @@ from deeper_dive.llm import LLMMessage, LLMRequest
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.settings_screen import SettingsController
 from deeper_dive.voice_preview import VoicePreviewService
-from deeper_dive.wizard_shell import FirstRunWizardShell, WizardSaveResult
+from deeper_dive.wizard_shell import (
+    FirstRunWizardShell,
+    Transition,
+    TransitionKind,
+    WizardSaveResult,
+)
 
 _REQUIRED_SETUP_ROLES = (
     ModelRole.EPISODE_PLANNING,
@@ -398,23 +403,25 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
                                 self.query_one("#setup-speech-choice", Select), previous
                             )
                         if not self._exit_confirmation_pending:
-                            self._request_dirty_transition(f"speech-choice:{choice}")
+                            self._request_dirty_transition(
+                                Transition(TransitionKind.SPEECH_CHOICE, choice)
+                            )
                         return
                 self._last_speech_choice = choice
                 self._apply_speech_choice_defaults(force=True)
 
-    def _execute_custom_transition(self, transition: str) -> None:
-        if transition == "recommended-roles":
+    def _execute_custom_transition(self, transition: Transition) -> None:
+        if transition.kind is TransitionKind.RECOMMENDED_ROLES:
             self.action_recommended_roles()
             return
-        if transition == "discover-voices":
+        if transition.kind is TransitionKind.DISCOVER_VOICES:
             self.action_discover_voices()
             return
-        if transition == "discover-models":
+        if transition.kind is TransitionKind.DISCOVER_MODELS:
             self.action_discover_models()
             return
-        if transition.startswith("speech-choice:"):
-            choice = transition.split(":", 1)[1]
+        if transition.kind is TransitionKind.SPEECH_CHOICE:
+            choice = transition.argument or ""
             picker = self.query_one("#setup-speech-choice", Select)
             with picker.prevent(Select.Changed):
                 picker.value = choice
@@ -525,7 +532,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
             return
         if self.context.state.current_step == "provider-config" and self._current_form_dirty():
             # Option replacement must not overwrite unsaved model/provider edits.
-            self._request_dirty_transition("discover-models")
+            self._request_dirty_transition(Transition(TransitionKind.DISCOVER_MODELS))
             return
         name = self._selected_llm_name()
         if name is None:
@@ -611,7 +618,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         if self._current_form_dirty():
             # The preset overwrites editable role fields; require an explicit
             # Save/Discard/Cancel decision before replacing unsaved values.
-            self._request_dirty_transition("recommended-roles")
+            self._request_dirty_transition(Transition(TransitionKind.RECOMMENDED_ROLES))
             return
         identity = self._current_llm_identity()
         if identity is None:
@@ -745,7 +752,7 @@ class GuidedFirstRunWizard(FirstRunWizardShell):
         if self.context.state.current_step == "voice-defaults" and self._current_form_dirty():
             # A discovery refresh replaces Select options. The user must decide
             # what happens to unsaved voice/duration/research defaults first.
-            self._request_dirty_transition("discover-voices")
+            self._request_dirty_transition(Transition(TransitionKind.DISCOVER_VOICES))
             return
         name = self._selected_tts_name()
         if name is None:

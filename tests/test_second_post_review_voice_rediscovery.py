@@ -14,6 +14,7 @@ from deeper_dive.guided_app import GuidedDeeperDiveApp
 from deeper_dive.guided_first_run import GuidedFirstRunWizard
 from deeper_dive.guided_workflow import WizardKind, WizardState
 from deeper_dive.storage.workspace import WorkspaceManager
+from deeper_dive.wizard_shell import Transition, TransitionKind
 
 
 def test_voice_rediscovery_guards_dirty_edits_and_preserves_saved_ids(
@@ -60,7 +61,7 @@ async def _check_voice_discovery(tmp_path: Path) -> None:
             wizard.action_discover_voices()
             await pilot.pause()
             assert wizard.query_one("#wizard-exit-confirmation").display
-            assert wizard._pending_transition == "discover-voices"
+            assert wizard._pending_transition == Transition(TransitionKind.DISCOVER_VOICES)
             assert wizard.focused is wizard.query_one("#wizard-confirm-cancel")
             assert calls == [("alpha", "beta", "gamma")]
             assert first.value == "gamma"

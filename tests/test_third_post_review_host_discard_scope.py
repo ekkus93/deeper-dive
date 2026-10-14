@@ -18,6 +18,7 @@ from deeper_dive.guided_workflow import WizardKind, WizardState
 from deeper_dive.hosts import HostProfile
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.workspace import WorkspaceManager
+from deeper_dive.wizard_shell import TransitionKind
 
 Scenario = Callable[[GuidedEpisodeWizard, Pilot, DeeperDiveService, str], Awaitable[None]]
 
@@ -72,7 +73,8 @@ async def _profile_discard_keeps_order(
     wizard.query_one("#guided-host-picker", Select).value = "second"
     await pilot.pause()
     assert wizard._exit_confirmation_pending
-    assert (wizard._pending_transition or "").startswith("host-select:")
+    assert wizard._pending_transition is not None
+    assert wizard._pending_transition.kind is TransitionKind.HOST_SELECT
     assert "host profile only" in _status(wizard)
 
     wizard.action_confirm_discard_exit()
