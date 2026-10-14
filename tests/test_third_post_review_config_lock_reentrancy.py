@@ -20,9 +20,8 @@ def test_nested_lock_acquisition_completes(tmp_path: Path) -> None:
     store = UserConfigStore(tmp_path / "config.json")
 
     def nested() -> None:
-        with store._locked():
-            with store._locked():
-                pass
+        with store._locked(), store._locked():
+            pass
 
     assert _finishes(nested), "nested _locked() deadlocked"
 
@@ -44,9 +43,8 @@ def test_lock_is_released_after_nested_exit(tmp_path: Path) -> None:
     other = UserConfigStore(tmp_path / "config.json")
 
     def sequence() -> None:
-        with store._locked():
-            with store._locked():
-                pass
+        with store._locked(), store._locked():
+            pass
         # A different store instance (and thread-independent flock) must now be free.
         with other._locked():
             pass
