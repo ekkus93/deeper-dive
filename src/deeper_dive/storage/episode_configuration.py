@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 from deeper_dive.storage.database import Database
+from deeper_dive.storage.episode_errors import (
+    EpisodeConfigurationConflict,
+    EpisodeFrozenError,
+)
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 
 
@@ -32,7 +36,7 @@ class EpisodeConfigurationRepository:
                         (episode.id,),
                     ).fetchone()
                 ):
-                    raise ValueError(
+                    raise EpisodeFrozenError(
                         "episode configuration is frozen after generation starts; "
                         "create a new episode"
                     )
@@ -62,7 +66,7 @@ class EpisodeConfigurationRepository:
                 ).fetchone()
                 if current is None:
                     raise KeyError(episode.id)
-                raise ValueError(
+                raise EpisodeConfigurationConflict(
                     "episode configuration changed concurrently or is no longer editable; retry"
                 )
             db.execute("DELETE FROM episode_hosts WHERE episode_id=?", (episode.id,))

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from typing import TYPE_CHECKING, cast
 
 from textual.app import ComposeResult
@@ -10,7 +11,7 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
 from deeper_dive.composition import ProductionComposition
-from deeper_dive.diagnostics import redact, sanitize_provider_error
+from deeper_dive.diagnostics import redact, sanitize_exception_message, sanitize_provider_error
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.model_roles import ModelAssignment, ModelRole, preflight_model_roles
 from deeper_dive.storage.database import Database
@@ -123,13 +124,21 @@ class EpisodeSetupScreen(Screen[None]):
             self._status(assignment)
             return
         service = self._configuration_service(project_id)
-        if self.current_episode_id is None:
-            episode = service.create(project_id, config)
-            self.current_episode_id = episode.id
-            self._app.current_episode_id = episode.id
-        else:
-            episode = service.edit(self.current_episode_id, config)
-            self._app.current_episode_id = episode.id
+        try:
+            if self.current_episode_id is None:
+                episode = service.create(project_id, config)
+                self.current_episode_id = episode.id
+            else:
+                episode = service.edit(self.current_episode_id, config)
+        except KeyError:
+            self._status("Episode not found; reopen the episode before saving.")
+            return
+        except (ValueError, OSError, sqlite3.Error) as exc:
+            # Frozen/concurrent edits are expected outcomes, not crashes: keep the
+            # typed form values and current episode, and do not plan.
+            self._status(f"Episode not saved: {sanitize_exception_message(exc)}")
+            return
+        self._app.current_episode_id = episode.id
         try:
             planner = self._composition().configured_planning_service(
                 project_id,

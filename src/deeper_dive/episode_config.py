@@ -10,8 +10,21 @@ from deeper_dive.domain.clock import Clock, SystemClock, format_timestamp
 from deeper_dive.domain.ids import new_episode_id
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_configuration import EpisodeConfigurationRepository
+from deeper_dive.storage.episode_errors import (
+    EpisodeConfigurationConflict,
+    EpisodeConfigurationError,
+    EpisodeFrozenError,
+)
 from deeper_dive.storage.episode_plan_repository import EpisodePlanRepository
 from deeper_dive.storage.episode_repositories import EpisodeRecord, HostEpisodeRepository
+
+__all__ = [
+    "EpisodeConfiguration",
+    "EpisodeConfigurationConflict",
+    "EpisodeConfigurationError",
+    "EpisodeConfigurationService",
+    "EpisodeFrozenError",
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,7 +80,7 @@ class EpisodeConfigurationService:
         if current.snapshot() == config.snapshot():
             return existing
         if existing.state != "draft":
-            raise ValueError(
+            raise EpisodeFrozenError(
                 "episode configuration is frozen after generation starts; create a new episode"
             )
         EpisodePlanRepository(self.database).require_configuration_editable(episode_id)

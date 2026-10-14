@@ -42,9 +42,9 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [ ] Pilot variants: abandon flow; dirty prior context prompts first; resume-draft loads the correct project.
 
 ### TPR-03 — Legacy Episode Setup crash
-- [ ] Introduce typed `EpisodeFrozenError` / `EpisodeConfigurationConflict` (subclassing `ValueError` for compatibility) in `episode_config.py`.
-- [ ] Move `service.create()` / `service.edit()` in `EpisodeSetupScreen.action_build_plan` under error handling; show sanitized guidance and keep typed values and `current_episode_id`.
-- [ ] Skip planning after a failed edit.
+- [x] Introduce typed `EpisodeFrozenError` / `EpisodeConfigurationConflict` (subclassing `ValueError` for compatibility) in `episode_config.py`.
+- [x] Move `service.create()` / `service.edit()` in `EpisodeSetupScreen.action_build_plan` under error handling; show sanitized guidance and keep typed values and `current_episode_id`.
+- [x] Skip planning after a failed edit.
 - [ ] Update the guided wizard and CLI to render the typed errors consistently.
 - [ ] Pilot via both `tui.py` and `guided_app.py`: frozen episode and concurrent writer → app alive, durable data unchanged.
 

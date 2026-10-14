@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 
 from deeper_dive.storage.database import Database
+from deeper_dive.storage.episode_errors import EpisodeFrozenError
 from deeper_dive.storage.episode_repositories import EpisodePlanRecord, SegmentPlanRecord
 
 
@@ -35,7 +36,7 @@ class EpisodePlanRepository:
         """
         with self.database.connection() as db:
             if self._started(db, episode_id):
-                raise ValueError(
+                raise EpisodeFrozenError(
                     "episode configuration is frozen after generation starts; create a new episode"
                 )
 
