@@ -202,6 +202,7 @@ class WizardShell(Screen[None]):
         self._error_details: str | None = None
         self._exit_confirmation_pending = False
         self._discard_unavailable: tuple[str, ...] = ()
+        self._discard_baseline_missing = False
         self._pending_transition: str | None = None
         self._last_form_status = ""
         self._form_baselines: dict[str, tuple[tuple[str, str], ...]] = {}
@@ -534,7 +535,15 @@ class WizardShell(Screen[None]):
     def _restore_discarded_form(self) -> None:
         """Restore the durable form snapshot, never adopt unsaved edits as baseline."""
         step = self.context.state.current_step
-        baseline = self._form_baselines.get(step, ())
+        baseline = self._form_baselines.get(step)
+        if baseline is None:
+            # Fail closed: with no recorded durable copy there is nothing safe to
+            # restore, and the typed values (possibly pasted source text or a
+            # credential) must not become the new clean baseline.
+            self._clear_editable_fields()
+            self._discard_baseline_missing = True
+            self._remember_current_form()
+            return
         for key, value in baseline:
             if key.startswith("__"):
                 # Subclass snapshots may contain non-widget business state.
@@ -560,6 +569,20 @@ class WizardShell(Screen[None]):
                         self._discard_unavailable = (*self._discard_unavailable, key)
         self._remember_current_form()
 
+    def _clear_editable_fields(self) -> None:
+        keys = _FORM_FIELDS.get((self.context.state.kind, self.context.state.current_step), ())
+        for key in keys:
+            try:
+                widget = self.query_one(f"#{key}")
+            except NoMatches:
+                continue
+            if isinstance(widget, Input):
+                with widget.prevent(Input.Changed):
+                    widget.value = ""
+            elif isinstance(widget, Select):
+                with widget.prevent(Select.Changed):
+                    widget.value = Select.BLANK
+
     def action_confirm_discard_exit(self) -> None:
         if not self._exit_confirmation_pending or self.busy:
             return
@@ -568,11 +591,19 @@ class WizardShell(Screen[None]):
         # Discard restores last durable values before attempting the destination.
         # A blocked transition cannot silently promote unsaved input to clean.
         self._discard_unavailable = ()
+        self._discard_baseline_missing = False
         self._restore_discarded_form()
         unavailable = self._discard_unavailable
+        baseline_missing = self._discard_baseline_missing
         self._discard_unavailable = ()
+        self._discard_baseline_missing = False
         self._execute_pending_transition(transition)
-        if unavailable:
+        if baseline_missing:
+            with contextlib.suppress(NoMatches):
+                self.set_status(
+                    "No saved copy of this step was available; unsaved input was cleared."
+                )
+        elif unavailable:
             # Published after the transition so its own status cannot hide it.
             with contextlib.suppress(NoMatches):
                 self.set_status(

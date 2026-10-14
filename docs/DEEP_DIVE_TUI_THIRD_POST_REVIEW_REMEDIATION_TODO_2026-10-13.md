@@ -90,9 +90,9 @@ This is the only completion checklist for the third post-review cycle. No item i
 - [ ] Pilot: durable Ollama → choose OpenAI → Continue → Back → prompt; Discard restores Ollama; Save persists OpenAI.
 
 ### TPR-09 — Fail-open discard without a baseline
-- [ ] Make `_restore_discarded_form` fail closed when no baseline exists: reload durable state or clear editable/sensitive fields; never adopt current values.
-- [ ] Emit a non-sensitive diagnostic for the missing-baseline condition.
-- [ ] Tests: baseline removed before Discard → source body and sensitive fields not retained.
+- [x] Make `_restore_discarded_form` fail closed when no baseline exists: reload durable state or clear editable/sensitive fields; never adopt current values.
+- [x] Emit a non-sensitive diagnostic for the missing-baseline condition.
+- [x] Tests: baseline removed before Discard → source body and sensitive fields not retained.
 
 ### TPR-10 — Destination labels
 - [ ] Replace string-encoded transitions with a typed transition value and one label function; delete the duplicate map.
