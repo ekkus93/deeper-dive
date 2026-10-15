@@ -284,10 +284,12 @@ class GuidedEpisodeWizard(EpisodeFormHelpers):
             return
         if kind is TransitionKind.PLAN_SELECT:
             ordinal = int(transition.argument or "")
-            self._selected_segment_ordinal = ordinal
             picker = self.query_one("#guided-plan-segment-picker", Select)
-            with picker.prevent(Select.Changed):
-                picker.value = str(ordinal)
+            if not self._assign_select(picker, str(ordinal)):
+                self._assign_select(picker, str(self._selected_segment_ordinal))
+                self.set_status("The selected segment is no longer available.")
+                return
+            self._selected_segment_ordinal = ordinal
             self._load_selected_segment()
             self._remember_current_form()
             return

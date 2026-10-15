@@ -265,8 +265,14 @@ class GuidedHostWizard(HostWizardSupport):
         if transition.kind is TransitionKind.HOST_SELECT:
             host_id = transition.argument or ""
             picker = self.query_one("#guided-host-picker", Select)
-            with picker.prevent(Select.Changed):
-                picker.value = host_id
+            if not self._assign_select(picker, host_id):
+                # The chosen host vanished while the prompt was open. Anything the
+                # prompt saved is already durable; re-sync the picker and say so.
+                self._refresh_hosts()
+                self.set_status(
+                    "The selected host is no longer available; the host list was refreshed."
+                )
+                return
             self._load_selected_host()
             # Re-baseline only the profile: pending membership edits stay dirty.
             self._remember_host_profile_baseline()

@@ -349,8 +349,10 @@ class GuidedFirstRunWizard(FirstRunSpeechActions):
         if transition.kind is TransitionKind.SPEECH_CHOICE:
             choice = transition.argument or ""
             picker = self.query_one("#setup-speech-choice", Select)
-            with picker.prevent(Select.Changed):
-                picker.value = choice
+            if not self._assign_select(picker, choice):
+                self._assign_select(picker, self._last_speech_choice)
+                self.set_status("The selected speech option is no longer available.")
+                return
             self._last_speech_choice = choice
             self._apply_speech_choice_defaults(force=True)
             self._sync_setup_controls()
