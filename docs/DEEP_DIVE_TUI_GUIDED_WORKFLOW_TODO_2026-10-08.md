@@ -1,5 +1,7 @@
 # Deeper Dive TUI Guided Workflow TODO
 
+> **Path note (2026-10-14):** `tests/test_guided_episode_wizard.py` was split into `tests/test_guided_episode_wizard_part1.py` and `..._part2.py`, and `tests/test_second_post_review_dirty_navigation.py` into `..._part1.py`, `..._part2.py` and `..._part3.py` (commit `4ede40e`). Test function names are unchanged; find one with `grep -l "def test_name" tests/`.
+
 **Created:** 2026-10-08
 **Status:** Qualified; all guided-workflow items reconciled on master
 **Authority:** docs/DEEP_DIVE_TUI_GUIDED_WORKFLOW_SPEC_2026-10-08.md

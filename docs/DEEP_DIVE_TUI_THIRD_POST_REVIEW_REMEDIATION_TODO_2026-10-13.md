@@ -1,7 +1,7 @@
 # Deeper Dive TUI — Third Post-Review Remediation TODO
 
 **Created:** 2026-10-13 (America/Los_Angeles)  
-**Status:** Not started  
+**Status:** Closed 2026-10-13; reopened items are tracked in `docs/DEEP_DIVE_TUI_FOURTH_POST_REVIEW_REMEDIATION_TODO_2026-10-14.md` (see the post-closeout review at the end of this file)  
 **Authority:** `docs/DEEP_DIVE_TUI_THIRD_POST_REVIEW_REMEDIATION_SPEC_2026-10-13.md`  
 **Reviewed baseline:** `57b23c9` (`origin/master`; production `src/` identical to `c7ba241`)  
 **Predecessor historical checklist:** `docs/DEEP_DIVE_TUI_SECOND_POST_REVIEW_REMEDIATION_TODO_2026-10-09.md`
@@ -226,15 +226,15 @@ Outcome per finding: **confirmed** = reproduced/verified and fixed with a test; 
 | TPR-07 host double submit | confirmed | a916c3e | _host_double_submit | run (create) |
 | TPR-08 AI preset dirty | confirmed (guarded-transition sub-item N/A: unreachable via UI) | 6f39bc9, a4bade9 | _ai_preset_dirty | run (test fails with the fix commit's source files reverted to their parent) |
 | TPR-09 fail-open discard | confirmed | f317bfb | _discard_without_baseline | run (test fails with the fix commit's source files reverted to their parent) |
-| TPR-10 transition labels | confirmed | b7399c2 | _transition_labels | run (test fails with the fix commit's source files reverted to their parent) |
+| TPR-10 transition labels | confirmed (typed `Transition` added by 50eeef5) | b7399c2, 50eeef5 | _transition_labels | run (test fails with the fix commit's source files reverted to their parent) |
 | TPR-11 project edits | confirmed | e877a1c | _project_edit_after_creation | run |
 | TPR-12 races | confirmed | 5f96163 | _plan_build_race, _generation_start_races, _guided_save_revision | run |
 | TPR-13 normalization | confirmed | 3b408e6 | _noop_normalization | run |
 | TPR-14 callbacks | confirmed | 7656b8a | _readiness_callbacks | run |
 | TPR-15 UI-thread lock | confirmed | 49b3905 | _readiness_lockfree_fingerprint | run |
-| TPR-16 probe robustness | confirmed (aggregate budget documented, not enforced) | 8c4da41 | _probe_robustness | run (test fails with the fix commit's source files reverted to their parent) |
-| TPR-17 dirty-form contract | partial | 7a0a41e | _form_fields_resolve | run (test fails with the fix commit's source files reverted to their parent) |
-| TPR-18 test hardening | partial | 6629ea5, 9f65174, 2cf7dda | _single_dispatch, _real_input_flow | run (single dispatch) |
+| TPR-16 probe robustness | confirmed (aggregate budget enforced by 3bc5929 after 8c4da41 documented it; build failures surfaced by FPR-15) | 8c4da41, 3bc5929 | _probe_robustness | run (test fails with the fix commit's source files reverted to their parent) |
+| TPR-17 dirty-form contract | complete (shadow state removed by e7364d1; earlier steps fad174b, b89c9a3, 4ecd7cf) | 7a0a41e, fad174b, b89c9a3, 4ecd7cf, e7364d1 | _form_fields_resolve | run (test fails with the fix commit's source files reverted to their parent) |
+| TPR-18 test hardening | complete for host, first-run, plan and restart flows (see FPR-18 for the remaining direct-call helpers) | 6629ea5, 9f65174, 2cf7dda, 6c80ed0, eaecdc2, d29524d | _single_dispatch, _real_input_flow | run (single dispatch) |
 | TPR-19.1 ReDoS | confirmed | 9c2cb50 | _sanitizer_performance | run |
 | TPR-19.2 Quick echo | confirmed | e15da1a | _quick_research_override | run |
 | TPR-19.3 settings order | confirmed | 089aadd | _settings_normalization | run (test fails with the fix commit's source files reverted to their parent) |
@@ -243,3 +243,23 @@ Outcome per finding: **confirmed** = reproduced/verified and fixed with a test; 
 | TPR-19.6 lock re-entrancy | confirmed | 417c531, 1c9af17 | _config_lock_reentrancy | run (test fails with the fix commit's source files reverted to their parent) |
 | TPR-19.7 minor items | confirmed | b397f03 | _config_minor | run (test fails with the fix commit's source files reverted to their parent) |
 | Handler double-dispatch (found via TPR-18) | confirmed | 6629ea5 | _single_dispatch | run |
+
+## Post-closeout review 2026-10-14
+
+A fresh read-only review of this closed cycle (three independent reviewers) found items whose ticked state is contradicted or overstated. Checked state above is unchanged; every point is tracked in `docs/DEEP_DIVE_TUI_FOURTH_POST_REVIEW_REMEDIATION_SPEC_2026-10-14.md`.
+
+| Item | What the review found | Fourth-cycle item |
+|---|---|---|
+| TPR-01 | Select restore guarded on revert paths only; the paths that execute a transition assigned raw | FPR-05 |
+| TPR-02 | A dirty-prior prompt resolved for Resume swallowed the Resume | FPR-11 |
+| TPR-03 | Sibling legacy plan screen still crashed; setup planning step missed `sqlite3.Error` | FPR-02, FPR-13 |
+| TPR-04 | Approval is keyed on plan id and episode id, not `status='draft'` (the claim on the `WHERE` clause above is inaccurate); approval could approve an unreviewed plan; the race test was not discriminating | FPR-07, FPR-18 |
+| TPR-08 | Discard left the AI choice stale and Save Provider could then persist the wrong adapter | FPR-01 |
+| TPR-09 | Fail-closed discard crashed on `allow_blank=False` Selects | FPR-04 |
+| TPR-12 | The "no second active run" guard ignored cancel-requested runs and older rows | FPR-06 |
+| TPR-16 | `build_failures` was never surfaced; capability flag did not check the `build()` signature | FPR-15 |
+| TPR-19.4/19.5 | Comma not a fragment delimiter; empty-user, `@`/`/` passwords, non-http schemes, unterminated quoted authorization leaked | FPR-08 |
+| TPR-19.6 | Lock keyed on an unresolved path deadlocked on aliases | FPR-16 |
+| TPR-600 | "Navigates only through real key presses/clicks" is overstated: `guided_pilot.reach_hosts`, the restart test and the responsiveness test still call `action_navigate` (documented in FPR-18) | FPR-18 |
+| TPR-700 | `docs/ARCHITECTURE.md` still said TPR-17 "remains open", and the TODO line above describing what ARCHITECTURE states about TPR-04/TPR-17 was stale | FPR-900 |
+| TPR-910 | Qualified `6d6d1a6`; four later production-changing commits (`3bc5929`, `50eeef5`, `e7364d1`, `4ede40e`) were not re-qualified, and `4ede40e`'s CI failed on a stale test path | FPR-100, FPR-910 |

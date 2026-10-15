@@ -1,5 +1,7 @@
 # Deeper Dive second post-review consumer inventory
 
+> **Path note (2026-10-14):** `tests/test_guided_episode_wizard.py` was split into `tests/test_guided_episode_wizard_part1.py` and `..._part2.py`, and `tests/test_second_post_review_dirty_navigation.py` into `..._part1.py`, `..._part2.py` and `..._part3.py` (commit `4ede40e`). Test function names are unchanged; find one with `grep -l "def test_name" tests/`.
+
 **Baseline:** `master` at `493b1a76b02719f9973dbdcc3f86931c90624bd1`, 2026-10-12.
 **Purpose:** Source inventory for the unchecked SPR-000 consumer-audit item of
 `DEEP_DIVE_TUI_SECOND_POST_REVIEW_REMEDIATION_TODO_2026-10-09.md`.

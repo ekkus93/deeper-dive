@@ -157,6 +157,28 @@ transition contract, while concrete wizards contribute target identity and non-w
 state such as ordered host IDs. A pending transition retains its requested destination;
 the snapshot detects target drift from the durable baseline, and record-selection
 handlers preserve the original selection while its save/discard confirmation is open.
+Baseline bookkeeping follows five rules (FPR-19). (1) `_form_baselines[step]` holds the
+raw widget values last hydrated from durable storage or accepted by a successful
+production save, and `_form_baseline_targets[step]` the record identity they belong to.
+(2) Only these writers may change a baseline: `_remember_current_form()` (synchronous,
+after hydration, a successful save, or a Discard restore); `_schedule_form_baseline()`
+(deferred to after the next refresh, used on step arrival and Back, and a no-op when the
+user has edited the form or a different baseline already exists);
+`_remember_host_profile_baseline()` / `_remember_host_order_baseline()` (scope-limited to
+the profile or the membership/order, so a profile-scoped Save or Discard cannot adopt the
+other scope's edits); `_capture_preset_baseline()` (records the durable provider values
+before an AI preset overwrites the controls, and pins the step in
+`_preset_baseline_steps` so arrival never re-baselines the preset); and
+`_rebaseline_steps()` (after app-initiated re-hydration such as screen resume, only for
+steps that were clean beforehand). (3) User-typed values never become a baseline, and
+Discard with no baseline fails closed by clearing the step's fields. (4) Forward
+navigation baselines synchronously except for pinned preset steps. Back baselines on the
+deferred path in the first-run wizard and the shared shell; the episode wizard re-hydrates
+and baselines synchronously after Back. (5) Mounting runs once per screen: `WizardShell.on_mount`
+calls the `_before_mount()` and `_mounted()` hooks, which subclasses chain with `super()`;
+subclasses must not define `on_mount`, because Textual dispatches that handler on every
+class in the MRO.
+
 Step-specific saves return a typed `WizardSaveResult` so partial success is explicit. A multi-operation save must
 either be transactional or leave the unsaved remainder dirty and retryable; UI status
 text is never parsed to infer success.
@@ -194,14 +216,24 @@ identities are not rewritten by later configuration operations.
 Plan approval is a metadata-only compare-and-swap (`EpisodePlanRepository.approve`): it
 updates the plan's status in place only while the episode revision is unchanged, so a
 concurrent edit can never be followed by an approval that re-publishes a stale plan.
+Callers pass the plan they showed the user (`reviewed_plan_id`); if another surface
+replaced it, approval raises `EpisodeConfigurationConflict` instead of approving a plan
+nobody reviewed. Re-approving an already-approved plan is an idempotent success (the
+update is keyed on plan id and episode id, not on `status='draft'`). Segment
+regeneration and edits read the configuration snapshot first and fail with the same
+typed conflict if the plan was replaced or removed meanwhile.
 Each plan records a SHA-256 digest of the episode configuration it was built from
 (`episode_config_sha256` in `plan_json`), and `plan_validity` rejects a plan whose digest
 no longer matches (plans saved before the digest existed stay usable).
 Run creation is one `BEGIN IMMEDIATE` selection that rechecks the episode revision seen
-at preflight and refuses a second active run. The readiness fingerprint is read without
-the config lock (`UserConfigStore.load_published`) so the UI thread never waits on a
-writer. The typed dirty-form snapshot is still a computed view; making it the shared
-contract is TPR-17 and remains open.
+at preflight and inspects every run of the episode: it returns the active run, and it
+refuses to create another while any pending/running/paused run has a cancel request
+outstanding (`GenerationRunStillStopping`), because cancellation only takes effect at a
+stage boundary. See `docs/GENERATION_RUN_SELECTION_POLICY.md`. The readiness
+fingerprint is read without the config lock (`UserConfigStore.load_published`), so the
+fingerprint computation itself never waits on a writer; other UI-thread paths still read
+the locked `config()`. The typed dirty-form snapshot (`WizardDirtyFormSnapshot`) is the
+shared contract for Save/Discard/Cancel (TPR-17).
 
 ## Checkpointing and resume
 
@@ -290,10 +322,14 @@ request made by a probe uses a socket timeout of `min(timeout_seconds / 4, 1.0)`
 seconds, and the calls inside one probe run sequentially. The worst-case probe
 duration is therefore `(number of provider calls) x (per-request timeout)`, which
 is also capped by an aggregate budget: the isolated probe controller carries a
-monotonic deadline (`probe_deadline`, equal to the UI deadline) and, once it has
+monotonic deadline (`probe_deadline`, set to the UI timeout after the isolated adapters
+have been built, so it ends slightly later than the UI deadline) and, once it has
 passed, adapter lookups (`llm()`/`tts()`) raise `TimeoutError`, so providers not yet
 probed are reported not ready instead of starting new requests. A single in-flight
-request can still run for its own socket timeout past the deadline. The UI never
+request can still run for its own socket timeout past the deadline, and one provider
+lookup can issue both `health()` and `models()`, so the overrun is at most two
+request timeouts. Providers whose adapter cannot be built are listed with a sanitized
+reason (`ProviderController.build_failures`) in the first-run system check. The UI never
 waits past the deadline: it reports a timeout and the worker finishes in the
 background, occupying one of the bounded worker slots (`max_workers`) until it
 returns. An explicit Retry while all slots are busy shows a "workers are still

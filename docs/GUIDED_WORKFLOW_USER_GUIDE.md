@@ -247,4 +247,8 @@ Guided TUI and CLI workflows use shared production project/source services,
 
 - **Retry while checks are still finishing:** if earlier provider checks timed out and are still running, Retry shows "workers are still finishing" instead of doing nothing. Retry again once they finish.
 - **Editing the project after creating it:** going Back to Project Setup and changing the name, topic or audience saves those changes to the same project when you Continue and choose Save.
-- **Discard on the hosts step:** choosing another host or Create Host with unsaved profile edits offers Save/Discard/Cancel. The prompt says which scope Discard reverts; a profile-only Discard keeps unsaved episode host order edits. Leaving the step reverts both.
+- **Save and Discard on the hosts step:** choosing another host or Create Host with unsaved profile edits offers Save/Discard/Cancel. The prompt says that Save stores, and Discard reverts, the host profile only; unsaved episode host order edits stay pending until you save or discard them. Leaving the step (Back, Continue) saves or reverts both.
+- **A prompt stays in charge:** while a Save/Discard/Cancel prompt is open, changing the host or plan-segment picker does not replace the pending action; the picker snaps back.
+- **Custom audience:** an episode created from the command line or the legacy Episode Setup screen may have any audience text. The guided Episode Settings shows it as an extra "Custom: ..." choice and keeps it unless you pick another.
+- **Generate right after Cancel:** a cancelled run only stops at the next safe stage boundary. Until it does, Generate says "the previous run is still stopping"; try again once it has stopped.
+- **Approving a plan:** Approve applies to the plan you are looking at. If another screen regenerated the plan meanwhile, approval is refused with "the plan changed since you reviewed it"; review the current plan and approve again.
