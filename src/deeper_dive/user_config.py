@@ -570,7 +570,9 @@ class UserConfigStore:
         nested acquisition must reuse the descriptor already held (tracked by a
         depth counter) rather than open a second one and block on itself.
         """
-        key = str(self.path.absolute())
+        # Resolve ``..`` and symlinks: two spellings of one file must share one
+        # lock state, or the second would block forever on the first's flock.
+        key = str(self.path.resolve())
         with _PATH_LOCKS_GUARD:
             process_lock = _PATH_LOCKS.setdefault(key, RLock())
             state = _PATH_LOCK_STATE.setdefault(key, _HeldAdvisoryLock())
@@ -586,9 +588,12 @@ class UserConfigStore:
                 if state.depth == 0:
                     handle, state.handle = state.handle, None
                     if handle is not None:
-                        if fcntl is not None:
-                            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
-                        handle.close()
+                        try:
+                            if fcntl is not None:
+                                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+                        finally:
+                            # Closing releases the flock too; never leak the handle.
+                            handle.close()
 
     def _open_advisory_lock(self) -> IO[bytes] | None:
         if fcntl is None:
