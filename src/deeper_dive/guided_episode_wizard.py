@@ -245,6 +245,11 @@ class GuidedEpisodeWizard(EpisodeFormHelpers):
                 # rather than rehydrating over newer plan selection or edits.
                 return
             ordinal = int(value)
+            if self._exit_confirmation_pending:
+                # Keep the transition the open prompt guards; ignore the picker change.
+                if self._loaded_segment_ordinal is not None:
+                    self._assign_select(event.select, str(self._loaded_segment_ordinal))
+                return
             if (
                 self._loaded_segment_ordinal is not None
                 and ordinal != self._loaded_segment_ordinal

@@ -121,11 +121,9 @@ class GuidedHostWizard(HostWizardSupport):
         value = event.value if isinstance(event.value, str) else None
         if value is None:
             return
-        if (
-            self._exit_confirmation_pending
-            and self._pending_transition is not None
-            and self._pending_transition.kind is TransitionKind.HOST_SELECT
-        ):
+        if self._exit_confirmation_pending:
+            # Whatever transition the open prompt guards (Back, Continue, a reselect…)
+            # stays the one the user resolves; a picker change must not replace it.
             original = self._loaded_host_id
             if original is not None and event.select.value != original:
                 self._assign_select(event.select, original)
