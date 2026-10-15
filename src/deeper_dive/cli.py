@@ -384,8 +384,8 @@ def _episode_cancel_command(
 ) -> int:
     """Cancel the run named by ``--run``, else the run that blocks a new start, else the latest.
 
-    The cancel is finalized with ``pipeline.run``, which applies the requested control
-    before any stage handler, so no stage is executed by this command.
+    The cancel is one conditional write (``pipeline.cancel_now``); no executor runs, so
+    no stage is executed by this command even if a worker writes concurrently.
     """
 
     runs = composition.generation_run_repository(episode.project_id)
@@ -398,8 +398,7 @@ def _episode_cancel_command(
     if run is None:
         raise KeyError("no generation run for episode")
     pipeline = composition.generation_pipeline(episode.project_id)
-    pipeline.request_cancel(run.id)
-    return _output(asdict(pipeline.run(run.id).run), args.json_output)
+    return _output(asdict(pipeline.cancel_now(run.id)), args.json_output)
 
 
 def _episode_run_command(

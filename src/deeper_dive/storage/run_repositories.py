@@ -143,24 +143,52 @@ class GenerationRunRepository:
             ).fetchone()
         return None if row is None else self._from_row(dict(row))
 
-    def update(self, run: GenerationRunRecord) -> None:
+    def update(self, run: GenerationRunRecord, *, clear_pause: bool = False) -> bool:
+        """Write run progress; return False when another writer already cancelled the run.
+
+        Control flags are monotonic here: a stage write never clears a pause or
+        cancel request it did not read as set (``MAX`` with the stored value), so a
+        request written between the caller's read and this write survives. Only
+        ``clear_pause`` (the resume transition) clears a pause. A ``cancelled`` run
+        is final: a stale stage write cannot move it back to ``running``.
+        """
+
         with self.database.transaction() as db:
-            db.execute(
+            cursor = db.execute(
                 """UPDATE generation_runs SET
                     stage=?,state=?,retry_count=?,failure_code=?,failure_message=?,
-                    pause_requested=?,cancel_requested=?,modified_at=? WHERE id=?""",
+                    pause_requested=CASE WHEN ? THEN 0 ELSE MAX(pause_requested,?) END,
+                    cancel_requested=MAX(cancel_requested,?),modified_at=?
+                WHERE id=? AND state!='cancelled'""",
                 (
                     run.stage,
                     run.state,
                     run.retry_count,
                     run.failure_code,
                     self._safe_failure_message(run.failure_message),
+                    int(clear_pause),
                     int(run.pause_requested),
                     int(run.cancel_requested),
                     run.modified_at,
                     run.id,
                 ),
             )
+            return cursor.rowcount == 1
+
+    def cancel_now(self, run_id: str, modified_at: str) -> GenerationRunRecord | None:
+        """Mark a pending/running/paused run cancelled in one statement; run no stage.
+
+        Returns the stored record, or ``None`` when the run does not exist. A run
+        already in another state is returned unchanged.
+        """
+
+        with self.database.transaction() as db:
+            db.execute(
+                """UPDATE generation_runs SET state='cancelled',cancel_requested=1,modified_at=?
+                WHERE id=? AND state IN ('pending','running','paused')""",
+                (modified_at, run_id),
+            )
+        return self.get(run_id)
 
     def request_pause(self, run_id: str, modified_at: str) -> None:
         self._set_flag(run_id, "pause_requested", modified_at)

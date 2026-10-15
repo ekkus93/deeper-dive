@@ -40,12 +40,12 @@ If a reproducer disproves a finding, keep the task visible and record a justifie
 ## 6PR-100 — Correctness and leaks
 
 ### 6PR-01 — Lost update of run control flags
-- [ ] DB-level regression: a stale stage write after `request_cancel` leaves `cancel_requested=1` (fails on the baseline). Same for pause; resume still clears pause.
-- [ ] Control flags are set only by the request path and cleared only by resume (pause) or a terminal transition. Design recorded in `docs/GENERATION_RUN_SELECTION_POLICY.md`.
-- [ ] Stage writes cannot move a run out of `cancelled` or another terminal state set by another writer (conditional `UPDATE`; zero rows means someone else finalized it). Test.
-- [ ] `episode cancel` finalizes with one conditional statement and never calls `pipeline.run` or any executor. It emits the "cancelled" event and prints the record.
-- [ ] CLI regression with a stage write injected between request and finalize: no stage handler runs (recording fake), the run ends `cancelled`, exit 0. Fails on the baseline.
-- [ ] Sweep every writer of `generation_runs` and record each. The concurrent-start thread test still yields one run.
+- [x] DB-level regression: a stale stage write after `request_cancel` leaves `cancel_requested=1` (fails on the baseline). Same for pause; resume still clears pause.
+- [x] Control flags are set only by the request path and cleared only by resume (pause) or a terminal transition. Design recorded in `docs/GENERATION_RUN_SELECTION_POLICY.md`.
+- [x] Stage writes cannot move a run out of `cancelled` set by another writer (conditional `UPDATE`; zero rows means someone else finalized it). Test. Deviation from "or another terminal state": `completed` and `failed` stay re-drivable (`force_from`, resume), so only `cancelled` is final; recorded in the policy doc.
+- [x] `episode cancel` finalizes with one conditional statement and never calls `pipeline.run` or any executor. It emits the "cancelled" event and prints the record.
+- [x] CLI regression with a stage write injected between request and finalize: no stage handler runs (recording fake), the run ends `cancelled`, exit 0. Fails on the baseline.
+- [x] Sweep every writer of `generation_runs` and record each (see notes). The concurrent-start thread test still yields one run.
 
 ### 6PR-02 — Credential URL leaks with terminator combinations
 - [ ] Canary rows that fail on the baseline, each also embedded in JSON and in a Python repr:
@@ -169,3 +169,5 @@ If a reproducer disproves a finding, keep the task visible and record a justifie
 ## Evidence notes
 
 (Record baseline counts, sweep results, design decisions, deviations, accepted gaps and qualification evidence here.)
+
+- **6PR-01 sweep:** writers of `generation_runs` are `GenerationRunRepository.create/select_or_create` (INSERT), `update` (pipeline `_update`, `resume`, failure path; `composition.py:356` failure path), `_set_flag` (request_pause/request_cancel) and the new `cancel_now`. `tts_generation.py`, `plan_validity.py`, `host_turn.py` and `service.py` only SELECT it. Mutation: with `src/` reverted the 5 new tests in `test_sixth_post_review_run_control.py` fail.

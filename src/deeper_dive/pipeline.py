@@ -109,6 +109,16 @@ class PipelineOrchestrator:
             raise ValueError(f"cannot cancel generation run in {record.state} state")
         self.repository.request_cancel(run_id, self._now())
 
+    def cancel_now(self, run_id: str) -> GenerationRunRecord:
+        """Finish a cancel with one conditional write; no stage handler is executed."""
+        record = self._refresh(run_id)
+        if record.state not in {"pending", "running", "paused"}:
+            raise ValueError(f"cannot cancel generation run in {record.state} state")
+        cancelled = self.repository.cancel_now(run_id, self._now())
+        assert cancelled is not None
+        self._emit(cancelled.stage, "cancelled", "cancel requested")
+        return cancelled
+
     def resume(self, run_id: str) -> GenerationRunRecord:
         """Clear a durable pause request so pipeline execution can continue."""
         record = self._refresh(run_id)
@@ -124,7 +134,7 @@ class PipelineOrchestrator:
             failure_message=None,
             modified_at=self._now(),
         )
-        self.repository.update(resumed)
+        self.repository.update(resumed, clear_pause=True)
         self._emit(record.stage, "resumed")
         return resumed
 
@@ -244,7 +254,9 @@ class PipelineOrchestrator:
             pause_requested=record.pause_requested,
             cancel_requested=record.cancel_requested,
         )
-        self.repository.update(updated)
+        if not self.repository.update(updated):
+            # Another writer finalized the run (cancel); report what is stored.
+            return self._refresh(record.id)
         return updated
 
     def _now(self) -> str:
