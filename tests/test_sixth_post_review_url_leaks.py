@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import time
 from pathlib import Path
 
 import pytest
+from linear_timing import assert_scales_linearly
 
 from deeper_dive.cli import main
 from deeper_dive.diagnostics import MAX_REDACTED_TEXT_CHARS, redact, sanitize_exception_message
@@ -100,16 +100,9 @@ def test_terminator_combinations_scale_linearly_at_the_cap() -> None:
         "x://",
         "https://u:,)",
     )
+    for filler in fillers:
 
-    def worst(size: int) -> float:
-        best = 0.0
-        for filler in fillers:
-            text = (filler * (size // len(filler) + 1))[:size]
-            start = time.perf_counter()
-            redact(text)
-            best = max(best, time.perf_counter() - start)
-        return best
+        def make(size: int, filler: str = filler) -> str:
+            return (filler * (size // len(filler) + 1))[:size]
 
-    small, large = worst(MAX_REDACTED_TEXT_CHARS // 4), worst(MAX_REDACTED_TEXT_CHARS)
-    # Quadratic behaviour would give ~16x; allow generous noise around the linear 4x.
-    assert large < max(8 * small, 0.5) + 2.0
+        assert_scales_linearly(redact, make, large=MAX_REDACTED_TEXT_CHARS, label=filler[:20])

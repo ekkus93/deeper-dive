@@ -64,3 +64,46 @@ async def _exercise(tmp_path: Path) -> None:
         assert wizard.query_one("#setup-provider-adapter", Input).value == "ollama"
         assert wizard.query_one("#setup-provider-model", Input).value == "m"
         assert controller.config().providers["local"] == durable_before
+
+
+def test_preset_survives_leaving_from_the_provider_config_step(tmp_path: Path) -> None:
+    """6PR-10: the spec's exact path (Continue to provider-config, leave, return), by bytes."""
+
+    asyncio.run(_provider_config_path(tmp_path))
+
+
+async def _provider_config_path(tmp_path: Path) -> None:
+    app = GuidedDeeperDiveApp(DeeperDiveService(WorkspaceManager(tmp_path / "data")))
+    async with app.run_test(size=(100, 45)) as pilot:
+        app._first_run_readiness.close()
+        controller = app.provider_controller
+        controller.save_provider(
+            "local",
+            "ollama",
+            base_url="http://127.0.0.1:11434",
+            default_model="m",
+            network_scope="local",
+        )
+        durable_bytes = controller.config_store.path.read_bytes()
+        wizard = app.screen
+        wizard._load_existing_setup()
+        await continue_step(pilot, "system-check")
+        await continue_step(pilot, "ai-provider")
+        await choose_option(pilot, "#setup-ai-choice", steps_down=2)
+        picked = wizard.query_one("#setup-ai-choice", Select).value
+        await click(pilot, "#wizard-continue")
+        assert wizard.context.state.current_step == "provider-config"
+        adapter = wizard.query_one("#setup-provider-adapter", Input).value
+        assert wizard._current_form_dirty()
+
+        app.push_screen("home")
+        await pilot.pause()
+        app.pop_screen()
+        await pilot.pause()
+        await pilot.pause()
+
+        assert wizard.context.state.current_step == "provider-config"
+        assert wizard.query_one("#setup-ai-choice", Select).value == picked
+        assert wizard.query_one("#setup-provider-adapter", Input).value == adapter
+        assert wizard._current_form_dirty()
+        assert controller.config_store.path.read_bytes() == durable_bytes

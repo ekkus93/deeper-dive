@@ -277,7 +277,9 @@ class EpisodeFormHelpers(GuidedHostWizard):
                 raise ValueError("custom duration must be positive")
             # The guided form displays whole minutes, but imported/CLI episodes
             # can retain an exact duration in seconds. A no-op guided save must
-            # not round that value and invalidate an otherwise unchanged plan.
+            # not round that value and invalidate an otherwise unchanged plan. This
+            # means typing the rounded minutes (30 for 1830 s) keeps the exact seconds;
+            # to set exactly 30:00, choose the "30 minutes" preset (6PR-09, decided).
             if (
                 persisted_seconds is not None
                 and persisted_seconds % 60

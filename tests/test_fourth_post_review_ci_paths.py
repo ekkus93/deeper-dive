@@ -26,20 +26,35 @@ def test_every_test_path_named_in_workflows_exists() -> None:
     assert not missing, missing
 
 
+def _defined(body: list, parts: list[str]) -> bool:  # type: ignore[type-arg]
+    """Whether ``parts`` (``Class`` then ``method`` ids, or one function) resolve in ``body``."""
+
+    import ast
+
+    head, rest = parts[0], parts[1:]
+    for node in body:
+        if rest:
+            if isinstance(node, ast.ClassDef) and node.name == head and _defined(node.body, rest):
+                return True
+        elif (
+            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+            and node.name == head
+        ):
+            return True
+    return False
+
+
 def _missing_node_ids(text: str, label: str) -> list[str]:
     import ast
 
     missing: list[str] = []
-    for path, name in re.findall(r"(tests/[A-Za-z0-9_./-]+\.py)::([A-Za-z0-9_]+)", text):
+    for path, name in re.findall(
+        r"(tests/[A-Za-z0-9_./-]+\.py)::([A-Za-z0-9_]+(?:::[A-Za-z0-9_]+)*)", text
+    ):
         source = ROOT / path
         if not source.is_file():
             continue  # reported by the path test
-        defined = {
-            node.name
-            for node in ast.walk(ast.parse(source.read_text()))
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-        }
-        if name not in defined:
+        if not _defined(ast.parse(source.read_text()).body, name.split("::")):
             missing.append(f"{label}: {path}::{name}")
     return missing
 
@@ -60,3 +75,12 @@ def test_node_id_check_catches_a_renamed_function() -> None:
     assert (
         _missing_node_ids("run tests/test_cli.py::test_cli_visible_errors_are_sanitized", "x") == []
     )
+
+
+def test_node_id_check_resolves_class_methods() -> None:
+    ok = "tests/test_fourth_post_review_ci_paths.py::test_workflows_exist"
+    assert _missing_node_ids(ok, "x") == []
+    # A ``Class::method`` id resolves through the class body.
+    assert _missing_node_ids("tests/test_wizard_shell.py::NoSuchClass::test_x", "x") == [
+        "x: tests/test_wizard_shell.py::NoSuchClass::test_x"
+    ]

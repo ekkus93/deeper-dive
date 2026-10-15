@@ -59,6 +59,7 @@ class GenerationRunRepository:
         active_states: frozenset[str],
         terminal_states: frozenset[str],
         expected_episode_config_json: str | None = None,
+        project_id: str | None = None,
     ) -> tuple[GenerationRunRecord, bool]:
         """Atomically return the active run or insert ``run`` (``created`` is True).
 
@@ -97,7 +98,8 @@ class GenerationRunRepository:
                 raise GenerationRunStillStopping(
                     f"the previous run {oldest.id} is still stopping; wait for it to finish, "
                     "or if its worker is gone run `deeper-dive episode cancel "
-                    f"<project_id> {run.episode_id} --run {oldest.id}` to finish stopping it, "
+                    f"{project_id or '<project_id>'} {run.episode_id} --run {oldest.id}` "
+                    "to finish stopping it, "
                     "then start again"
                 )
             reusable = [item for item in active if not item.cancel_requested]

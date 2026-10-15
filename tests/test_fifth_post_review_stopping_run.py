@@ -11,6 +11,7 @@ from test_generation_start import _episode
 from deeper_dive.cli import main
 from deeper_dive.generation_start import select_or_create_generation_run
 from deeper_dive.storage.episode_errors import GenerationRunStillStopping
+from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 
 
@@ -85,8 +86,26 @@ def test_cli_cancel_run_option_selects_a_specific_run(tmp_path: Path) -> None:
 
 def test_cli_cancel_rejects_a_run_of_another_episode(tmp_path: Path) -> None:
     service, project_id, episode_id = _legacy_database(tmp_path)
-    assert _cancel(tmp_path, project_id, episode_id, "--run", "missing") == 2
+    # A real run that belongs to a different episode of the same project.
+    other_id = "other-episode"
+    service.hosts(project_id).create_episode(
+        EpisodeRecord(
+            id=other_id,
+            project_id=project_id,
+            title="Other",
+            created_at="2026-01-01T00:00:00Z",
+            modified_at="2026-01-01T00:00:00Z",
+        ),
+        [],
+    )
+    service.runs(project_id).create(_run("foreign", other_id, "running", "2026-01-03T00:00:00Z"))
+
+    assert _cancel(tmp_path, project_id, episode_id, "--run", "foreign") == 2
+
+    assert _states(service, project_id, other_id)["foreign"] == ("running", False)
     assert _states(service, project_id, episode_id)["r1"] == ("running", True)
+    # An unknown id is rejected the same way.
+    assert _cancel(tmp_path, project_id, episode_id, "--run", "missing") == 2
 
 
 def test_cli_cancel_never_executes_a_stage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

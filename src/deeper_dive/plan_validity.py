@@ -42,9 +42,11 @@ def evaluate_episode_plan(database: Database, episode_id: str) -> PlanValidity:
     episode = repository.get_episode(episode_id)
     if episode is None:
         return PlanValidity(False, None, 0, (f"episode not found: {episode_id}",))
-    plan = repository.get_plan(episode_id)
-    if plan is None:
+    # One statement: the plan and its segments cannot belong to two different plans.
+    stored = repository.get_plan_with_segments(episode_id)
+    if stored is None:
         return PlanValidity(False, None, 0, ("episode has no persisted plan",))
+    plan, stored_segments = stored
 
     issues: list[str] = []
     if plan.episode_id != episode_id:
@@ -64,7 +66,7 @@ def evaluate_episode_plan(database: Database, episode_id: str) -> PlanValidity:
             if built_from is not None and built_from != config_digest(episode.config_json):
                 issues.append("plan was built from a different episode configuration")
 
-    segments = tuple(repository.list_segments(plan.id))
+    segments = tuple(stored_segments)
     if not segments:
         issues.append("plan has no segments")
     _validate_segments(database, repository, episode.project_id, episode_id, segments, issues)

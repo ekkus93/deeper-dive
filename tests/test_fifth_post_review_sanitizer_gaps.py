@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import time
-
 import pytest
+from linear_timing import assert_scales_linearly
 
 from deeper_dive.diagnostics import MAX_REDACTED_TEXT_CHARS, redact
 
@@ -25,6 +24,8 @@ LEAKS = {
     ),
     "pem bare": f"-----BEGIN RSA PRIVATE KEY-----\nMIIE{C}abc\n-----END RSA PRIVATE KEY-----",
     "pem encrypted unterminated": f"-----BEGIN ENCRYPTED PRIVATE KEY-----\nMIIE{C}abc",
+    # Pre-existing coverage: the older Bearer rule redacts these on the baseline too
+    # (the non-Bearer bytes shapes are in test_sixth_post_review_credential_shapes.py).
     "bytes authorization header": f"{{b'Authorization': b'Bearer {C}'}}",
     "bytes header tuple": f"[(b'authorization', b'Bearer {C}')]",
     "unclosed double-quoted api key": f'{{"api_key": "{C}',
@@ -34,6 +35,7 @@ LEAKS = {
     "custom scheme fragment after state": f"myapp://cb#state=1,code={C}",
     # The cap cuts inside the secret: the canary starts before the cut, no "@" survives.
     "url password cut by the cap": f"https://user:{C}" + "x" * MAX_REDACTED_TEXT_CHARS + "@host/x",
+    # Pre-existing coverage: the unclosed-quote rule predates the cycle.
     "authorization value cut by the cap": f'"authorization": "{C}' + "x" * MAX_REDACTED_TEXT_CHARS,
 }
 
@@ -64,16 +66,19 @@ def test_benign_text_is_unchanged(text: str) -> None:
 
 def test_new_passes_stay_linear_at_the_cap() -> None:
     shapes = {
-        "unclosed quotes": '{"api_key": "' * (MAX_REDACTED_TEXT_CHARS // 13),
-        "pem openers": "-----BEGIN PRIVATE KEY-----" * (MAX_REDACTED_TEXT_CHARS // 27),
-        "encoded schemes": "aa%3A%2F%2F" * (MAX_REDACTED_TEXT_CHARS // 11),
-        "fragment pairs": "myapp://cb#" + "a=1," * (MAX_REDACTED_TEXT_CHARS // 4),
-        "scheme tail": "x://" * (MAX_REDACTED_TEXT_CHARS // 4),
+        "unclosed quotes": ('{"api_key": "', 13),
+        "pem openers": ("-----BEGIN PRIVATE KEY-----", 27),
+        "encoded schemes": ("aa%3A%2F%2F", 11),
+        "fragment pairs": ("a=1,", 4),
+        "scheme tail": ("x://", 4),
     }
-    for name, text in shapes.items():
-        start = time.perf_counter()
-        redact(text[: MAX_REDACTED_TEXT_CHARS + 100])
-        assert time.perf_counter() - start < 4.0, name
+    for name, (unit, _width) in shapes.items():
+        prefix = "myapp://cb#" if name == "fragment pairs" else ""
+
+        def make(size: int, unit: str = unit, prefix: str = prefix) -> str:
+            return (prefix + unit * (size // len(unit) + 1))[:size]
+
+        assert_scales_linearly(redact, make, large=MAX_REDACTED_TEXT_CHARS, label=name)
 
 
 REVIEW_LEAKS = {

@@ -601,6 +601,11 @@ class UserConfigStore:
         # Derived from the resolved path, like the in-process key: two processes that
         # reach one file through different spellings (``..``, a symlinked directory
         # or file) must contend on one lock file.
+        if self.path.is_symlink() and not self.path.exists():
+            # A dangling link would make ``resolve()`` point at a directory this store
+            # does not own; refuse before creating anything there (load/save reject
+            # symlinked config files anyway).
+            raise UserConfigError(f"invalid user configuration path at {self.path}")
         resolved = self.path.resolve()
         resolved.parent.mkdir(parents=True, exist_ok=True)
         lock_path = resolved.parent / f".{resolved.name}.lock"

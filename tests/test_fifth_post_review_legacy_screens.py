@@ -14,6 +14,7 @@ from deeper_dive.hosts import HostProfile
 from deeper_dive.hosts_screen import HostsScreen
 from deeper_dive.preflight_screen import PreflightController, PreflightScreen
 from deeper_dive.research_screen import ResearchScreen
+from deeper_dive.storage.database import Database
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.transcript_review_screen import TranscriptReviewScreen
 from deeper_dive.tui import DeeperDiveApp, HomeProjectsScreen
@@ -63,7 +64,19 @@ def test_research_actions_report_a_locked_database(tmp_path: Path) -> None:
     asyncio.run(run())
 
 
-def test_hosts_save_actions_report_a_locked_database(tmp_path: Path) -> None:
+def _fail_writes(service, project_id: str, table: str) -> None:  # type: ignore[no-untyped-def]
+    """Make the real repository's writes to ``table`` fail inside SQLite (no mocks)."""
+
+    database = Database(service.workspaces.project_root(project_id) / "project.db")
+    with database.transaction() as db:
+        for operation in ("INSERT", "UPDATE"):
+            db.execute(
+                f"CREATE TRIGGER fail_{table}_{operation.lower()} BEFORE {operation} ON {table} "
+                "BEGIN SELECT RAISE(ABORT, 'disk I/O error'); END"
+            )
+
+
+def test_hosts_save_actions_report_a_real_database_failure(tmp_path: Path) -> None:
     async def run() -> None:
         service, project, app = await _open(tmp_path, "hosts")
         service.hosts(project.id).create_host(HostProfile("h1", project.id, "A").to_record())
@@ -77,16 +90,43 @@ def test_hosts_save_actions_report_a_locked_database(tmp_path: Path) -> None:
             screen.selected_host_id = "h1"
             screen.query_one("#host-name", Input).value = "Renamed"
             screen.query_one("#relationship-target", Input).value = "h2"
+            _fail_writes(service, project.id, "hosts")
+            _fail_writes(service, project.id, "host_relationships")
+
+            screen.action_save_host()
+            assert app.is_running and "Host not saved" in _status(screen)
+            screen.action_save_relationship()
+            assert app.is_running and "Relationship not saved" in _status(screen)
+            # The real repository rejected both writes: nothing was stored.
+            assert service.hosts(project.id).get_host("h1").display_name == "A"
+
+    asyncio.run(run())
+
+
+def test_hosts_save_actions_report_an_os_error(tmp_path: Path) -> None:
+    async def run() -> None:
+        service, project, app = await _open(tmp_path, "hosts")
+        service.hosts(project.id).create_host(HostProfile("h1", project.id, "A").to_record())
+        service.hosts(project.id).create_host(HostProfile("h2", project.id, "B").to_record())
+        async with app.run_test(size=(100, 40)) as pilot:
+            app.current_project_id = project.id
+            app.action_navigate("hosts")
+            await pilot.pause()
+            screen = app.screen
+            assert isinstance(screen, HostsScreen)
+            screen.selected_host_id = "h1"
+            screen.query_one("#relationship-target", Input).value = "h2"
             repository = type(screen._repository())
+            # sqlite never raises OSError on its own here; the patch stands in for a
+            # full disk surfacing from the filesystem layer.
             with (
-                patch.object(repository, "update_host", side_effect=LOCKED),
-                patch.object(repository, "upsert_relationship", side_effect=LOCKED),
+                patch.object(repository, "update_host", side_effect=OSError("disk full")),
+                patch.object(repository, "upsert_relationship", side_effect=OSError("disk full")),
             ):
                 screen.action_save_host()
                 assert app.is_running and "Host not saved" in _status(screen)
                 screen.action_save_relationship()
                 assert app.is_running and "Relationship not saved" in _status(screen)
-            assert service.hosts(project.id).get_host("h1").display_name == "A"
 
     asyncio.run(run())
 
@@ -135,16 +175,12 @@ def test_saved_change_is_not_reported_as_failed_when_only_the_refresh_raises(
             screen = app.screen
             assert isinstance(screen, HomeProjectsScreen)
             screen.query_one("#new-project-name", Input).value = "Fresh"
-            real = service.list_project_summaries
-            calls = {"n": 0}
 
             def flaky():  # type: ignore[no-untyped-def]
-                calls["n"] += 1
                 raise sqlite3.OperationalError("database is locked")
 
             with patch.object(DeeperDiveService, "list_project_summaries", side_effect=flaky):
                 screen.action_create_project()
-            _ = real
             await pilot.pause()
             assert app.is_running
             status = _status(screen)

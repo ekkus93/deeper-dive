@@ -106,28 +106,28 @@ If a reproducer disproves a finding, keep the task visible and record a justifie
 - [x] Validation errors use a dedicated typed error (a `ValueError` subclass).
 
 ### 6PR-09 — Residuals
-- [ ] Discard fallback on an `allow_blank=False` Select: reproduce; then keep the step dirty or blocked until the user picks, or fix the comment and record why adopting the first option is safe.
-- [ ] A dangling-symlink config path is rejected before any directory or lock file is created. Test fails on the baseline.
-- [ ] `plan_validity.py`, `conversation_generation.py` and `composition.py` two-step plan reads moved to `get_plan_with_segments`, or each recorded as safe with a reason.
-- [ ] The stopping-run refusal names the real project id (no `<project_id>` placeholder). Test.
-- [ ] The TUI monitor shows the blocking run, or a notice naming the CLI command, when an older run blocks a start.
-- [ ] Duration custom field with a non-whole-minute stored value: decided and documented (test or N/A).
+- [x] Discard fallback on an `allow_blank=False` Select: reproduce; then keep the step dirty or blocked until the user picks, or fix the comment and record why adopting the first option is safe. N/A (deviation): not reproducible. Every `allow_blank=False` guided Select has static presets (plus the stored "Custom"/"(not set)" option), so the `InvalidSelectValueError` branch cannot occur for it; the comment is corrected and `_reset_select` is pinned by a unit test.
+- [x] A dangling-symlink config path is rejected before any directory or lock file is created. Test fails on the baseline.
+- [x] `plan_validity.py`, `conversation_generation.py` and `composition.py` two-step plan reads moved to `get_plan_with_segments`, or each recorded as safe with a reason. Moved; no new test (the previous behaviour failed safe, so no baseline-failing reproducer exists; existing plan-validity, conversation and evidence tests pass).
+- [x] The stopping-run refusal names the real project id (no `<project_id>` placeholder). Test.
+- [x] The TUI monitor shows the blocking run, or a notice naming the CLI command, when an older run blocks a start.
+- [x] Duration custom field with a non-whole-minute stored value: decided and documented (test or N/A). Decision: typing the rounded minutes keeps the exact stored seconds, the 30-minute preset sets exactly 30:00 (comment in `_duration_seconds`); the preserve half is covered by the 5PR-04 pilot, N/A for a new test.
 
 ## 6PR-300 — Tests and process
 
 ### 6PR-10 — Test quality
-- [ ] FPR-04 Save-after-adopt test (per 6PR-09's Discard decision).
-- [ ] 5PR-02 tests: a real run of another episode; stage execution checked with a recording handler (with 6PR-01).
-- [ ] 5PR-07 tests: transcript regenerate fault test; `OSError` for host save and relationship save; hosts "name unchanged" with a real `update_host`; Reload Plan test with a real plan, a real conflict, and the stored plan unchanged.
-- [ ] 5PR-09 test: the child reports "acquired" or "blocked" explicitly; output and exit code checked.
-- [ ] 5PR-05 test: the spec's exact path, with durable config bytes compared.
-- [ ] 5PR-08 rows: bytes Bearer rows and the authorization cap row labelled "pre-existing coverage"; accepted gaps moved into the matrix file as strict-xfail rows.
-- [ ] 5PR-01 rows: JSON embedding for every shape; CLI error-path check.
-- [ ] Fragile patterns: `try/finally` or `monkeypatch` in `prior_wizard_destination`; Create Host fallback removed or justified; unused `real`/`calls` removed; sanitizer wall-clock assertions replaced per the spec.
-- [ ] CI node-id check handles `file::Class::method` ids, with a self-test.
+- [x] FPR-04 Save-after-adopt test (per 6PR-09's Discard decision).
+- [x] 5PR-02 tests: a real run of another episode; stage execution checked with a recording handler (with 6PR-01).
+- [x] 5PR-07 tests: transcript regenerate fault test; `OSError` for host save and relationship save; hosts "name unchanged" with a real `update_host`; Reload Plan test with a real plan, a real conflict, and the stored plan unchanged.
+- [x] 5PR-09 test: the child reports "acquired" or "blocked" explicitly; output and exit code checked.
+- [x] 5PR-05 test: the spec's exact path, with durable config bytes compared.
+- [x] 5PR-08 rows: bytes Bearer rows and the authorization cap row labelled "pre-existing coverage"; accepted gaps moved into the matrix file as strict-xfail rows.
+- [x] 5PR-01 rows: JSON embedding for every shape; CLI error-path check.
+- [x] Fragile patterns: `try/finally` or `monkeypatch` in `prior_wizard_destination`; Create Host fallback removed or justified; unused `real`/`calls` removed; sanitizer wall-clock assertions replaced per the spec.
+- [x] CI node-id check handles `file::Class::method` ids, with a self-test.
 
 ### 6PR-11 — Process and documentation reconciliation
-- [ ] Fifth-cycle TODO annotations (no unchecking):
+- [x] Fifth-cycle TODO annotations (no unchecking):
   - 5PR-02 lease/`--force` box (not implemented; see 6PR-01);
   - 5PR-11 FPR-04 box (no test; see 6PR-10);
   - 5PR-01 timing not recorded and no CLI-path test; numeric-password wording too narrow;
@@ -136,8 +136,8 @@ If a reproducer disproves a finding, keep the task visible and record a justifie
   - 5PR-04 empty-value rewrite from `d1952b4`;
   - 5PR-911 missed 6PR-01, 6PR-03, 6PR-05;
   - exact-head run 38739107751 on `44970a9`.
-- [ ] Add a "Post-closeout review 2026-10-15 (sixth)" note in the fifth-cycle TODO pointing to this cycle.
-- [ ] `docs/GENERATION_RUN_SELECTION_POLICY.md`, `docs/ARCHITECTURE.md` and the user guide match 6PR-01 (control-flag rules; cancel executes nothing).
+- [x] Add a "Post-closeout review 2026-10-15 (sixth)" note in the fifth-cycle TODO pointing to this cycle.
+- [x] `docs/GENERATION_RUN_SELECTION_POLICY.md`, `docs/ARCHITECTURE.md` and the user guide match 6PR-01 (control-flag rules; cancel executes nothing).
 
 ## 6PR-900 — Review and qualification
 
@@ -178,3 +178,6 @@ If a reproducer disproves a finding, keep the task visible and record a justifie
 - **6PR-06:** new passes in `_redact_text` (all linear; each bounded repeat-prefix input at the 262,144 cap took <= 0.13 s): optional `b` before mapping values (group 3 `\s*:\s*b?`), `_TUPLE_PAIR`, `_CLI_FLAG_VALUE`, `_XML_ELEMENT`, `_QUOTED_VALUE_ASSIGNMENT` (to the closing quote, else end of line) and `_ESCAPED_QUOTE_PAIR` (value bounded at 2,048 characters, so a longer escaped secret keeps its tail: accepted). `_is_secret_key` gained `pwd` and a bare `auth` key (`auth_method`, `author` stay benign) and the assignment key alternation gained `pwd|auth`; one classifier (`_is_secret_key`) now serves assignment, mapping, tuple, flag, element and escaped rules. URL-query-only keys (`code`, `key`, `sig`, `session`, ...) deliberately stay query-specific because they are common benign JSON fields. Over-redaction accepted: `--token-limit 5` (the word `token`, as `token_limit=5` already was). Mutation: 37 of 50 rows fail on the baseline `diagnostics.py`; the 13 that pass are the benign rows and the `repr` variants of rows the old Bearer rule already covered.
 - **6PR-07:** the loose-form colon check and the stale docstring were fixed together with 6PR-02 (commit `623ce58`; docstring now lists the accepted gap and the `user:pw@host:8080/x?e=a@b` over-redaction). The PEM pass now requires the opener to be followed by a line break, an escaped `\n`, or a 16-character base64 run, so prose that names a header survives; the fail-closed unclosed-body behaviour is unchanged.
 - **6PR-08:** `InvalidModelOverrides` (a `ValueError` subclass in `storage/episode_errors.py`) is raised by the override normalizer and by `configuration_from_record` for a non-mapping stored value; stored `null` means "none". Its message ends with the repair command; `describe(project_id, episode_id)` fills in the real ids and is used by the CLI (`episode configure` re-raises it as a `ValueError`) and the guided Save. `episode configure --clear-model-overrides` loads with `drop_invalid_model_overrides=True` and writes no overrides, so even a non-mapping stored value can be repaired. The legacy setup screen normalizes only the overrides (an invalid `source_overrides` no longer drops valid ones) and appends "Stored model overrides were replaced (<detail naming the role>)" to the "Plan built" status. Mutation: with `src/` reverted the new test module cannot even import `InvalidModelOverrides`; the behaviours (CLI repair, notice, null handling) are new.
+- **6PR-09:** dangling-symlink config path raises before any directory or lock file is created (only a dangling link is rejected there; existing-symlink spellings still share one lock and load/save reject them as before). `GenerationRunStillStopping` names the real project id (`select_or_create(project_id=...)`; the placeholder remains only when a caller omits it). `MonitorSnapshot.blocking_run` makes the monitor print the exact `episode cancel … --run` command for an older stopping run. Sibling plan reads use `get_plan_with_segments`.
+- **6PR-10:** FPR-04 Save-after-adopt: asserted in `test_third_post_review_voice_discard.py` (a vanished voice stays blank and Save refuses, config bytes unchanged); 5PR-02 foreign-run test uses a real second episode; hosts failures use SQLite triggers on the real repository (no mocks) plus an `OSError` stand-in; the lock test's child reports `ready`/`acquired`; the resume-preset test has the spec's `provider-config` path with durable bytes; bytes Bearer and cap rows are labelled pre-existing coverage; accepted gaps are strict-xfail rows (`ACCEPTED_GAPS`); 5PR-01 shapes run in JSON and through the CLI; `prior_wizard_destination` uses try/finally; the Create Host test no longer assigns the picker value; timing checks compare growth (`tests/linear_timing.py`); the CI node-id check resolves `file::Class::method`. The third-cycle `< 2.0` s cap test in `test_third_post_review_sanitizer_performance.py` is left as is (generous, pre-existing).
+- **6PR-11:** annotations added to the fifth-cycle TODO ("Post-closeout review 2026-10-15 (sixth)"); ARCHITECTURE, the policy doc and the user guide describe monotonic control flags, the cancel command with real ids and the monitor notice.

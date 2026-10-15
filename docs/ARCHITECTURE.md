@@ -229,7 +229,10 @@ Run creation is one `BEGIN IMMEDIATE` selection that rechecks the episode revisi
 at preflight and inspects every run of the episode: it returns the active run, and it
 refuses to create another while any pending or running run has a cancel request
 outstanding (a paused run executes nothing, so its cancel request is exempt) (`GenerationRunStillStopping`), because cancellation only takes effect at a
-stage boundary. See `docs/GENERATION_RUN_SELECTION_POLICY.md`. The readiness
+stage boundary. Run control flags are monotonic (`GenerationRunRepository.update` never
+clears a pause or cancel request it did not read as set, and a `cancelled` run is final),
+and `deeper-dive episode cancel` finishes a cancel with one conditional write that runs no
+stage (6PR-01). See `docs/GENERATION_RUN_SELECTION_POLICY.md`. The readiness
 fingerprint is read without the config lock (`UserConfigStore.load_published`), so the
 fingerprint computation itself never waits on a writer; other UI-thread paths still read
 the locked `config()`. The typed dirty-form snapshot (`WizardDirtyFormSnapshot`) is the

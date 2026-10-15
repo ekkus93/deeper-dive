@@ -81,3 +81,11 @@ async def _exercise(tmp_path: Path) -> None:
         assert host1.value is Select.BLANK
         status = str(wizard.query_one("#wizard-status", Static).render())
         assert "voice" in status.lower()
+
+        # 6PR-10 (FPR-04): a later Save the user did not ask for must not write anything.
+        # The voice Select allows blank, so Discard leaves it blank and Save refuses.
+        assert wizard.action_save_defaults() is False
+        assert "Choose Host 1 and Host 2 voices" in str(
+            wizard.query_one("#wizard-status", Static).render()
+        )
+        assert controller.config_store.path.read_bytes() == original

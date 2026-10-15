@@ -101,8 +101,10 @@ async def reach_hosts(pilot: Pilot[None]) -> None:
     await continue_step(pilot, "hosts")
 
 
-async def choose_option(pilot: Pilot[None], selector: str, steps_down: int = 1) -> None:
-    """Open a Select by focusing it and move ``steps_down`` options by keyboard."""
+async def choose_option(
+    pilot: Pilot[None], selector: str, steps_down: int = 1, steps_up: int = 0
+) -> None:
+    """Open a Select by focusing it and move ``steps_down`` (then ``steps_up``) by keyboard."""
 
     widget = pilot.app.screen.query_one(selector)
     widget.scroll_visible(animate=False)
@@ -113,6 +115,8 @@ async def choose_option(pilot: Pilot[None], selector: str, steps_down: int = 1) 
     # The overlay opens on the current value; move down ``steps_down`` options.
     for _ in range(steps_down):
         await pilot.press("down")
+    for _ in range(steps_up):
+        await pilot.press("up")
     await pilot.press("enter")
     await pilot.pause()
 

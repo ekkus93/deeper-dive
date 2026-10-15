@@ -86,11 +86,11 @@ class ConversationGenerationService:
         episode = self.repository.get_episode(episode_id)
         if episode is None:
             raise KeyError(episode_id)
-        plan = self.repository.get_plan(episode_id)
-        if plan is None:
+        stored = self.repository.get_plan_with_segments(episode_id)
+        if stored is None:
             raise ValueError("conversation generation requires a persisted episode plan")
         bind_generation_plan_revision(self.database, run_id, episode_id)
-        segment_records = tuple(self.repository.list_segments(plan.id))
+        segment_records = tuple(stored[1])
         if not segment_records:
             raise ValueError("conversation generation requires at least one planned segment")
         segments = tuple(self._segment(record) for record in segment_records)

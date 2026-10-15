@@ -63,19 +63,21 @@ async def _exercise(tmp_path: Path, destination: str, resolution: str) -> None:
             return original_navigate(self, name)
 
         type(app).action_navigate = counting_navigate  # type: ignore[method-assign]
-        app.action_navigate(destination)
-        await pilot.pause()
-        await pilot.pause()
-        assert app.screen is wizard and wizard._exit_confirmation_pending
+        try:
+            app.action_navigate(destination)
+            await pilot.pause()
+            await pilot.pause()
+            assert app.screen is wizard and wizard._exit_confirmation_pending
 
-        if resolution == "save":
-            wizard.action_confirm_save_exit()
-        else:
-            wizard.action_confirm_discard_exit()
-        await pilot.pause()
-        await pilot.pause()
+            if resolution == "save":
+                wizard.action_confirm_save_exit()
+            else:
+                wizard.action_confirm_discard_exit()
+            await pilot.pause()
+            await pilot.pause()
 
-        type(app).action_navigate = original_navigate  # type: ignore[method-assign]
+        finally:
+            type(app).action_navigate = original_navigate  # type: ignore[method-assign]
         # The user's request (1) plus its single replay after the prompt (1).
         assert navigated.count(destination) == 2, navigated
         landed = app.screen

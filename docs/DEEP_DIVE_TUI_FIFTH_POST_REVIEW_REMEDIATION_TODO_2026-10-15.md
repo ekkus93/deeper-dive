@@ -196,3 +196,18 @@ If a reproducer disproves a finding, keep the task visible and record a justifie
 - **5PR-11 deviation:** the FPR-04 "adopted first option is not written by a later Save" case is covered only as "discard clears the form, tells the user and creates nothing"; no Save-after-adopt test. Remaining `BUTTON_SETTLE_SECONDS` pauses are documented negative waits.
 - **5PR-911:** fresh read-only reviewer found: setup screen could not save a string override (fixed), PGP/lowercase PEM, `+` in percent-encoded schemes, `$` host, `/@segment` paths garbled (fixed in `d1952b4`). Accepted: cancel race on a live worker (documented), numeric-leading password, `gpt@latest`.
 - **5PR-912:** `uv build` + fresh-venv wheel from `d1952b4`: `deeper-dive --help`, `episode cancel --help` shows `--run`, `redact()` hid `https://user:pa#ssCANARY9x@host/x` and `apikey=`, package imported from site-packages. CI for `d1952b4`: run 38735849872, jobs quality 116424819234 and fresh-machine 116424818691, both success. Full local check on the same tree: 2,538 passed, exit 0.
+
+## Post-closeout review 2026-10-15 (sixth)
+
+Three independent read-only reviewers re-traced this cycle after it was closed. Findings and fixes live in `docs/DEEP_DIVE_TUI_SIXTH_POST_REVIEW_REMEDIATION_SPEC_2026-10-15.md` and its TODO. No checked state above was changed. Contradicted or incomplete items:
+
+- 5PR-01: worst-case timing was not recorded and no CLI-path test existed; terminator combinations still leaked (6PR-02). The accepted numeric-password wording was narrower than the real gap (any password starting with a valid port number followed by a terminator).
+- 5PR-02: the "lease/heartbeat or `--force`" box was ticked although neither was implemented (recorded as a deviation in the evidence notes). The CLI cancel could still execute every remaining stage after a lost control-flag update (6PR-01). The "another episode" test used the id `missing`; the refusal printed a literal `<project_id>` (6PR-09).
+- 5PR-04: the review fix `if not stored: return` rewrote an empty stored depth/audience on a no-op Save (6PR-04).
+- 5PR-07: the sweep missed the Episode Library, preflight mount and transcript regenerate, and used mocks (6PR-03, 6PR-05, 6PR-10).
+- 5PR-08: bytes header reprs were not fixed (the rows passed on the baseline through the older Bearer rule), the authorization cap row was pre-existing coverage, and the accepted gaps were not recorded in the matrix file (6PR-06, 6PR-10).
+- 5PR-09: the regression only affected a symlinked config file that load/save already reject; the test treated a 3 s timeout as contention (6PR-09, 6PR-10).
+- 5PR-11: the FPR-04 "adopted first option is not written by a later Save" box was ticked without a test (6PR-10).
+- 5PR-911: the review missed the cancel race, the Library/preflight crashes and the transcript mislabel.
+- 5PR-912: exact head `44970a9` (docs only) also has green CI, run 38739107751.
+

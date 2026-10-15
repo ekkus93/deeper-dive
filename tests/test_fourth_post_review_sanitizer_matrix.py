@@ -26,6 +26,7 @@ LEAKS = {
     "azure subscription key header": f"{{'Ocp-Apim-Subscription-Key': '{CANARY}'}}",
     "comma list of urls": f"https://a:b@h1,https://c:{CANARY}@h2",
     # The cap cuts inside the secret (5PR-08: the canary used to sit after the cut).
+    # Pre-existing coverage: the unclosed-quote rule already redacted this on the baseline.
     "capped input cut mid authorization": '"authorization": "'
     + CANARY
     + "x" * (MAX_REDACTED_TEXT_CHARS),
@@ -116,3 +117,18 @@ def test_userinfo_followed_by_punctuation_is_still_redacted() -> None:
     for tail in (":", ".", ",", ";", ")"):
         text = f"failed https://user:{CANARY}@example.test{tail} next"
         assert CANARY not in str(redact(text)), tail
+
+
+# Accepted gaps (strict xfail: if one is ever fixed the test flips and must be promoted
+# into LEAKS). Each names the shape class, not just the example.
+ACCEPTED_GAPS = {
+    "fragment pair after an empty piece": f"https://h/cb#a=1,,code={CANARY}",
+    "fragment pair after a comma and space": f"https://h/cb#a=1, code={CANARY}",
+    "unquoted password containing a space": f"password=pa ss{CANARY}",
+}
+
+
+@pytest.mark.xfail(strict=True, reason="accepted sanitizer gap (see TODO evidence notes)")
+@pytest.mark.parametrize("name", sorted(ACCEPTED_GAPS))
+def test_accepted_gaps_still_leak(name: str) -> None:
+    assert CANARY not in str(redact(ACCEPTED_GAPS[name])), name

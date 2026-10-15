@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import time
+import json
 
 import pytest
+from linear_timing import assert_scales_linearly
 
 from deeper_dive.diagnostics import MAX_REDACTED_TEXT_CHARS, redact, sanitize_exception_message
 
@@ -26,6 +27,7 @@ def _shapes() -> dict[str, str]:
         shapes[name] = url
         shapes[f"{name} in a repr"] = f"DatabaseError({url!r})"
         shapes[f"{name} after text"] = f"connect failed for {url} (retrying)"
+        shapes[f"{name} in json"] = json.dumps({"dsn": url, "ok": True})
     return shapes
 
 
@@ -65,10 +67,27 @@ def test_slash_in_password_still_redacted() -> None:
 
 
 def test_new_shapes_stay_linear_at_the_cap() -> None:
-    worst = 0.0
     for filler in ("https://u:" + "#" * 500, "https://u:" + "?'" * 250, "https://" + "a:" * 300):
-        text = (filler * (MAX_REDACTED_TEXT_CHARS // len(filler) + 1))[:MAX_REDACTED_TEXT_CHARS]
-        start = time.perf_counter()
-        redact(text)
-        worst = max(worst, time.perf_counter() - start)
-    assert worst < 4.0
+
+        def make(size: int, filler: str = filler) -> str:
+            return (filler * (size // len(filler) + 1))[:size]
+
+        assert_scales_linearly(redact, make, large=MAX_REDACTED_TEXT_CHARS, label=filler[:20])
+
+
+@pytest.mark.parametrize("name", sorted(LEAKS))
+def test_terminators_in_a_password_do_not_leak_through_the_cli(
+    name: str,
+    tmp_path,
+    capsys,
+    monkeypatch,  # type: ignore[no-untyped-def]
+) -> None:
+    from deeper_dive.cli import main
+
+    def failing(*_args: object) -> int:
+        raise RuntimeError(f"upstream failed for {LEAKS[name]}")
+
+    monkeypatch.setattr("deeper_dive.cli._project_command", failing)
+    assert main(["--data-dir", str(tmp_path / "data"), "project", "list"]) == 2
+    captured = capsys.readouterr()
+    assert CANARY not in captured.out + captured.err

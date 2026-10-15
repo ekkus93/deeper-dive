@@ -37,6 +37,8 @@ class MonitorSnapshot:
     tts_total: int | None = None
     research_completed: int | None = None
     research_total: int | None = None
+    # An older cancel-requested run that blocks a new start (not the displayed run).
+    blocking_run: GenerationRunRecord | None = None
 
 
 @dataclass(slots=True)
@@ -63,6 +65,7 @@ class GenerationMonitorController:
         if run is None:
             return MonitorSnapshot(None, DEFAULT_STAGES, frozenset())
         completed = frozenset(repository.list_completed_stages(run.id))
+        blocking = repository.blocking_cancel_run(episode_id)
         database = Database(app.service.workspaces.project_root(project_id) / "project.db")
         conversation = ConversationStateRepository(database).get(episode_id)
         units = repository.list_completed_units_all(run.id)
@@ -81,6 +84,7 @@ class GenerationMonitorController:
             None,
             len(research_units) if research_units else None,
             None,
+            blocking if blocking is not None and blocking.id != run.id else None,
         )
 
     async def run(self, run_id: str) -> None:
@@ -298,11 +302,20 @@ class GenerationMonitorScreen(Screen[None]):
     def refresh_monitor(self, status: str | None = None) -> None:
         snapshot = self._app.generation_monitor_controller.snapshot(self._app)
         run = snapshot.run
-        self.query_one("#generation-state", Static).update(
+        state = (
             "Run: none"
             if run is None
             else f"Run: {run.id} | {run.state} | stage {generation_stage_label(run.stage)}"
         )
+        blocking = snapshot.blocking_run
+        if blocking is not None:
+            state += (
+                f"\nRun {blocking.id} is still stopping and blocks a new start. If its worker "
+                "is gone, run `deeper-dive episode cancel "
+                f"{self._app.current_project_id} {self._app.current_episode_id} "
+                f"--run {blocking.id}`."
+            )
+        self.query_one("#generation-state", Static).update(state)
         self.query_one("#stage-checklist", Static).update(
             "Stages:\n"
             + "\n".join(

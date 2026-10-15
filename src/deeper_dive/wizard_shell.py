@@ -540,8 +540,13 @@ class WizardShell(Screen[None]):
                     except InvalidSelectValueError:
                         # The durable choice is no longer offered (for example a
                         # voice that vanished during rediscovery). Durable config
-                        # is untouched; the control shows blank and the user must
-                        # reselect before continuing.
+                        # is untouched. A Select that allows blank shows blank and
+                        # the step's Save refuses until the user reselects. A Select
+                        # that does not allow blank (``_reset_select`` then picks its
+                        # first option) has only static presets plus the stored
+                        # "Custom" option, so this branch is unreachable for it today;
+                        # the first option is a visible placeholder, and the step's
+                        # Save writes it only when the user presses Save.
                         self._reset_select(widget)
                         self._discard_unavailable = (*self._discard_unavailable, key)
         self._remember_current_form()

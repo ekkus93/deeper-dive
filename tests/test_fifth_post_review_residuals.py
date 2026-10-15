@@ -131,12 +131,18 @@ def test_create_host_double_submit_window_ends_when_another_host_is_loaded(
             # Select a different host with real keys, then come back to the created one.
             await choose_option(pilot, "#guided-host-picker", steps_down=1)
             assert wizard._loaded_host_id != created
+            # Return to the created host by keyboard: the number of steps is the distance
+            # between the two options in the picker.
             picker = wizard.query_one("#guided-host-picker", Select)
-            await choose_option(pilot, "#guided-host-picker", steps_down=1)
+            values = [value for _label, value in picker._options if isinstance(value, str)]
+            distance = values.index(created) - values.index(str(picker.value))
+            await choose_option(
+                pilot,
+                "#guided-host-picker",
+                steps_down=max(distance, 0),
+                steps_up=max(-distance, 0),
+            )
             await pilot.pause()
-            if wizard._loaded_host_id != created:
-                picker.value = created
-                await pilot.pause()
             assert wizard._loaded_host_id == created
             await click(pilot, "#guided-host-create")
             assert count() == base + 2, str(wizard.query_one("#wizard-status", Static).render())

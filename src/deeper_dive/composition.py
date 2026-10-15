@@ -576,12 +576,12 @@ def _episode_evidence_ids(database: Database, episode_id: str) -> tuple[str, ...
     episode = repository.get_episode(episode_id)
     if episode is None:
         return ()
-    plan = repository.get_plan(episode_id)
-    if plan is None:
+    stored = repository.get_plan_with_segments(episode_id)
+    if stored is None:
         return ()
     valid_evidence_ids = _project_indexed_evidence_ids(database, episode.project_id)
     evidence: list[str] = []
-    for segment in repository.list_segments(plan.id):
+    for segment in stored[1]:
         payload = json.loads(segment.segment_json)
         for evidence_id in payload.get("evidence_ids", ()):
             normalized = str(evidence_id)

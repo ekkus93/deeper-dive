@@ -195,5 +195,6 @@ def select_or_create_generation_run(
         active_states=_ACTIVE_STATES,
         terminal_states=_TERMINAL_STATES,
         expected_episode_config_json=expected_episode_config_json,
+        project_id=project_id,
     )
     return GenerationStartResult(run, created)
