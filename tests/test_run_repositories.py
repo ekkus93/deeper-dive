@@ -22,7 +22,7 @@ def _repository(tmp_path: Path) -> GenerationRunRepository:
     return GenerationRunRepository(database)
 
 
-def test_run_stage_failure_flags_and_retry_state_survive_reopen(tmp_path: Path) -> None:
+def test_terminal_run_ignores_late_control_flags_after_reopen(tmp_path: Path) -> None:
     repository = _repository(tmp_path)
     run = GenerationRunRecord("r1", "e1", "conversation", "running", "t0", "t0")
     repository.create(run)
@@ -41,8 +41,9 @@ def test_run_stage_failure_flags_and_retry_state_survive_reopen(tmp_path: Path) 
     assert restored.retry_count == 1
     assert restored.failure_code == "provider_timeout"
     assert restored.failure_message == "provider timed out"
-    assert restored.pause_requested is True
-    assert restored.cancel_requested is True
+    # Failed runs are terminal: late controls must not mutate their durable row.
+    assert restored.pause_requested is False
+    assert restored.cancel_requested is False
 
 
 def test_repository_redacts_failure_message_even_when_caller_supplies_raw_text(
