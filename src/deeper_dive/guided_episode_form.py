@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
+from textual.markup import escape
 from textual.widgets import Button, Input, Select, Static
 
 from deeper_dive.diagnostics import sanitize_exception_message
@@ -79,7 +80,7 @@ class EpisodeFormHelpers(GuidedHostWizard):
         select = self.query_one("#guided-episode-audience", Select)
         options = list(AUDIENCE_OPTIONS)
         if audience not in {value for _label, value in options}:
-            options.append((f"Custom: {audience}", audience))
+            options.append((f"Custom: {escape(audience)}", audience))
         with select.prevent(Select.Changed):
             select.set_options(options)
             select.value = audience

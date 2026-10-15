@@ -54,7 +54,8 @@ _ASSIGNMENT = re.compile(
     # Avoid consuming noncredential wrapper fields surrounding nested secrets.
     r"(?=[A-Za-z0-9_.+/\[\]-]{1,128}\s*[:=])"
     r"([A-Za-z0-9_.+/\[\]-]*"
-    r"(?:authorization|token|secret|password|cookie|api[-_.+/\[\]]*key)"
+    r"(?:authorization|token|secret|password|cookie|api[-_.+/\[\]]*key"
+    r"|subscription[-_.+/\[\]]*key|private[-_.+/\[\]]*key)"
     r"[A-Za-z0-9_.+/\[\]-]*)(\s*[:=]\s*)([^\s,;]+)"
 )
 _QUOTED_MAPPING_ASSIGNMENT = re.compile(
@@ -69,36 +70,43 @@ _QUOTED_CONTAINER_START = re.compile(r"(?i)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\
 # position inside a long alphanumeric run is retried, which is quadratic.
 _URL_SCHEME_PREFIX = re.compile(r"(?i)(?<![a-z0-9+.-])[a-z][a-z0-9+.-]*://")
 _USERINFO_WINDOW = 1024
-_HOST_START = re.compile(r"[A-Za-z0-9._\[\]-]+")
+# The authority of a URL ends at the first path, query, fragment, whitespace or quote.
+_AUTHORITY = re.compile(r"[^\s/?#\"'<>]*")
+_HOST_CHAR = re.compile(r"[\w.\[\]-]")
 
 
-def _split_userinfo(rest: str) -> tuple[int, int] | None:
-    """Return ``(userinfo_end, host_start)`` for ``rest`` (text after ``scheme://``).
+def _userinfo_end(text: str, start: int) -> int | None:
+    """Index of the ``@`` that closes the userinfo of the URL whose authority starts at ``start``.
 
-    ``rest`` is one whitespace-free window. Userinfo runs to the LAST ``@`` (as
-    ``urlsplit`` does), so a password may itself contain ``@`` or ``/``. A ``/``
-    before the first ``:`` means the text is a path, not userinfo; a ``/`` inside
-    the password is accepted only when the "password" has no ``?`` (otherwise it
-    is far more likely ``host:port/path?email=a@b``).
+    1. Authority form (``user:pw@host``): userinfo runs to the LAST ``@`` inside the
+       authority, as ``urlsplit`` does, so a password may contain ``@``. Scanning is
+       linear: the authority ends at the first ``/``, ``?``, ``#``, space or quote.
+    2. Slash-in-password form (``app:ab/xyz==@db``): only when the authority has no
+       ``@``. The text before the last ``@`` of a bounded window must have a ``:``
+       before any ``/``, and the "password" must not contain ``?`` (otherwise it is
+       far more likely ``host:port/path?email=a@b``) and the character after the ``@``
+       must look like a host. Known trade-off: ``scheme://host:8080/@scope/x`` is
+       redacted as userinfo, which only garbles a diagnostic and never leaks.
     """
 
-    at = rest.rfind("@")
+    authority = _AUTHORITY.match(text, start)
+    assert authority is not None
+    at = text.rfind("@", start, authority.end())
+    if at != -1:
+        return at
+    window = text[start : start + _USERINFO_WINDOW]
+    token = re.split(r"\s", window, maxsplit=1)[0]
+    at = token.rfind("@")
     if at == -1:
         return None
-    userinfo = rest[:at]
+    userinfo = token[:at]
     colon = userinfo.find(":")
     slash = userinfo.find("/")
-    if colon == -1:
-        if slash != -1:
-            return None
-    else:
-        if slash != -1 and slash < colon:
-            return None
-        if slash != -1 and "?" in userinfo[colon:]:
-            return None
-    if _HOST_START.match(rest, at + 1) is None:
+    if colon == -1 or slash == -1 or slash < colon or "?" in userinfo[colon:]:
         return None
-    return at, at + 1
+    if _HOST_CHAR.match(token, at + 1) is None:
+        return None
+    return start + at
 
 
 def _redact_credential_urls(text: str) -> str:
@@ -107,14 +115,12 @@ def _redact_credential_urls(text: str) -> str:
     for scheme in _URL_SCHEME_PREFIX.finditer(text):
         if scheme.start() < position:
             continue
-        window = text[scheme.end() : scheme.end() + _USERINFO_WINDOW]
-        token = re.split(r"\s", window, maxsplit=1)[0]
-        split = _split_userinfo(token)
-        if split is None:
+        at = _userinfo_end(text, scheme.end())
+        if at is None:
             continue
         out.append(text[position : scheme.end()])
         out.append("[REDACTED]@")
-        position = scheme.end() + split[1]
+        position = at + 1
     out.append(text[position:])
     return "".join(out)
 

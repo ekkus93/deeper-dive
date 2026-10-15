@@ -27,6 +27,33 @@ __all__ = [
 ]
 
 
+def _normalized_source_overrides(value: object) -> dict[str, bool]:
+    if not isinstance(value, dict):
+        raise ValueError("source overrides must be a mapping")
+    result: dict[str, bool] = {}
+    for key, flag in value.items():
+        if not isinstance(key, str) or not isinstance(flag, bool):
+            raise ValueError("source overrides must map source ids to true or false")
+        result[key.strip()] = flag
+    return result
+
+
+def _normalized_model_overrides(value: object) -> dict[str, dict[str, str]]:
+    if not isinstance(value, dict):
+        raise ValueError("model overrides must be a mapping")
+    result: dict[str, dict[str, str]] = {}
+    for role, assignment in value.items():
+        if not isinstance(role, str) or not isinstance(assignment, dict):
+            raise ValueError("model overrides must map roles to provider/model settings")
+        cleaned: dict[str, str] = {}
+        for key, item in assignment.items():
+            if not isinstance(key, str) or not isinstance(item, str):
+                raise ValueError("model override settings must be text")
+            cleaned[key.strip()] = item.strip()
+        result[role.strip()] = cleaned
+    return result
+
+
 @dataclass(frozen=True, slots=True)
 class EpisodeConfiguration:
     title: str
@@ -72,9 +99,7 @@ class EpisodeConfiguration:
             host_ids=tuple(item.strip() for item in self.host_ids),
             must_cover=tuple(item.strip() for item in self.must_cover if item.strip()),
             avoid_topics=tuple(item.strip() for item in self.avoid_topics if item.strip()),
-            source_overrides={
-                str(key).strip(): bool(value) for key, value in self.source_overrides.items()
-            },
+            source_overrides=_normalized_source_overrides(self.source_overrides),
             research_overrides={
                 str(key).strip(): value.strip() if isinstance(value, str) else value
                 for key, value in self.research_overrides.items()
@@ -82,12 +107,7 @@ class EpisodeConfiguration:
             },
             # Whitespace only: a blank override value stays blank so the shared
             # model-role validation can still reject it visibly.
-            model_overrides={
-                str(role).strip(): {
-                    str(key).strip(): str(value).strip() for key, value in raw.items()
-                }
-                for role, raw in self.model_overrides.items()
-            },
+            model_overrides=_normalized_model_overrides(self.model_overrides),
         )
 
     def snapshot(self) -> dict[str, Any]:

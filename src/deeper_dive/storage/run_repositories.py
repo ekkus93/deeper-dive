@@ -87,15 +87,18 @@ class GenerationRunRepository:
             ).fetchall()
             records = [self._from_row(dict(row)) for row in rows]
             active = [item for item in records if item.state in active_states]
-            if any(item.cancel_requested for item in active):
-                # Cancellation is honored only at a stage boundary, so a
-                # cancel-requested run keeps executing; a second run would share
-                # its episode-keyed state.
+            # Cancellation is honored only at a stage boundary, so a pending or
+            # running run with a cancel request keeps executing; a second run would
+            # share its episode-keyed state. A paused run executes nothing and can
+            # never reach a boundary, so its cancel request does not block a new run.
+            if any(item.cancel_requested and item.state != "paused" for item in active):
                 raise GenerationRunStillStopping(
-                    "the previous run is still stopping; wait for it to finish, then start again"
+                    "the previous run is still stopping; wait for it to finish, or run "
+                    "`deeper-dive episode cancel` to finish stopping it, then start again"
                 )
-            if active:
-                return active[0], False
+            reusable = [item for item in active if not item.cancel_requested]
+            if reusable:
+                return reusable[0], False
             latest = records[0] if records else None
             if latest is not None and latest.state not in terminal_states | active_states:
                 raise ValueError(

@@ -38,7 +38,7 @@ def _seed(service, project_id: str, episode_id: str, state: str, **flags) -> Gen
     return run
 
 
-@pytest.mark.parametrize("state", ["pending", "running", "paused"])
+@pytest.mark.parametrize("state", ["pending", "running"])
 def test_cancel_requested_active_run_blocks_a_new_run(tmp_path: Path, state: str) -> None:
     service, project_id, episode_id = _episode(tmp_path)
     run = _seed(service, project_id, episode_id, state, cancel_requested=True)
