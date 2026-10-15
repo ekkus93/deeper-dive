@@ -109,3 +109,9 @@ def test_new_shapes_stay_fast_at_the_input_cap(name: str) -> None:
     start = time.perf_counter()
     redact(text)
     assert time.perf_counter() - start < 3.0, name
+
+
+def test_userinfo_followed_by_punctuation_is_still_redacted() -> None:
+    for tail in (":", ".", ",", ";", ")"):
+        text = f"failed https://user:{CANARY}@example.test{tail} next"
+        assert CANARY not in str(redact(text)), tail

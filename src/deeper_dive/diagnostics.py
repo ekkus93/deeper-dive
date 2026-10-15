@@ -69,7 +69,7 @@ _QUOTED_CONTAINER_START = re.compile(r"(?i)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\
 # position inside a long alphanumeric run is retried, which is quadratic.
 _URL_SCHEME_PREFIX = re.compile(r"(?i)(?<![a-z0-9+.-])[a-z][a-z0-9+.-]*://")
 _USERINFO_WINDOW = 1024
-_HOST_START = re.compile(r"[A-Za-z0-9._\[\]-]+(?::\d+)?(?:[/?#,]|$)")
+_HOST_START = re.compile(r"[A-Za-z0-9._\[\]-]+")
 
 
 def _split_userinfo(rest: str) -> tuple[int, int] | None:
