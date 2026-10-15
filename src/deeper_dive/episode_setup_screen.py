@@ -101,7 +101,7 @@ class EpisodeSetupScreen(Screen[None]):
                 assignment.model,
             )
             plan = planner.build_plan(episode.id)
-        except (KeyError, ValueError, RuntimeError) as exc:
+        except (KeyError, ValueError, RuntimeError, OSError, sqlite3.Error) as exc:
             safe = sanitize_provider_error(assignment.provider, exc).message
             self._status(f"Quick Deep Dive planning failed: {safe}")
             return
@@ -146,7 +146,7 @@ class EpisodeSetupScreen(Screen[None]):
                 assignment.model,
             )
             plan = planner.build_plan(episode.id)
-        except (KeyError, ValueError, RuntimeError) as exc:
+        except (KeyError, ValueError, RuntimeError, OSError, sqlite3.Error) as exc:
             safe = sanitize_provider_error(assignment.provider, exc).message
             self._status(f"Planning failed: {safe}")
             return

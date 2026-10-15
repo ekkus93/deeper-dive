@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sqlite3
+
 from textual.widgets import Input, Select, Static
 
 from deeper_dive.diagnostics import sanitize_exception_message
@@ -18,30 +20,37 @@ class HostWizardSupport(GuidedSourceWizard):
     def __init__(self, context: WizardContext, completion_probe: CompletionProbe) -> None:
         super().__init__(context, completion_probe)
         self._selected_host_ids: list[str] = []
+        # Last host-order load failure, republished after a status reset.
+        self.host_order_notice = ""
         self._loaded_host_id: str | None = None
         self._loaded_host_record: HostProfileRecord | None = None
         # Form signature of the last successful Create Host: repeating the same
         # request (double Enter/click) must not create a second identical host.
         self._last_created_host_signature: tuple[str, str, str, str, object] | None = None
 
-    def _load_episode_host_order(self) -> None:
+    def _load_episode_host_order(self) -> bool:
+        """Load the saved order; ``False`` means the current in-memory order was kept."""
+
         project_id = self.context.project_id
         episode_id = self.context.episode_id
         if project_id is None or episode_id is None:
-            return
+            return False
         try:
             config = EpisodeConfigurationService(
                 self.context.composition.database_for_project(project_id)
             ).load_configuration(episode_id)
-        except (KeyError, ValueError) as exc:
+        except (KeyError, OSError, ValueError, sqlite3.Error) as exc:
             # Keep the current in-memory order; never present a silent empty list.
-            self.set_status(
+            self.host_order_notice = (
                 "Could not load the saved episode host order: "
                 + sanitize_exception_message(exc)
                 + " The current order was kept."
             )
-            return
+            self.set_status(self.host_order_notice)
+            return False
         self._selected_host_ids = list(config.host_ids)
+        self.host_order_notice = ""
+        return True
 
     def _refresh_hosts(
         self, preferred_host_id: str | None = None, *, preserve_dirty: bool = True

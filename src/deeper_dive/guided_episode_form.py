@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import sqlite3
+from typing import Any
 
 from textual.widgets import Button, Input, Select, Static
 
+from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.episode_planner import EpisodePlan, EpisodePlannerService
 from deeper_dive.generation_start import GenerationStartService
@@ -21,6 +23,14 @@ AUDIENCE_OPTIONS: tuple[tuple[str, str], ...] = (
     ("Technical audience", "technical"),
     ("Expert audience", "expert"),
 )
+
+
+class _UnavailablePlanGenerator:
+    """Generator for read-only planner use; generation is never configured here."""
+
+    def generate_plan(self, request: dict[str, Any]) -> dict[str, Any]:
+        _ = request
+        raise RuntimeError("episode plan generation is not configured")
 
 
 class EpisodeFormHelpers(GuidedHostWizard):
@@ -124,10 +134,23 @@ class EpisodeFormHelpers(GuidedHostWizard):
             summary.update("No plan loaded.")
             self._set_plan_controls()
             return
+        project_id = self.context.project_id
         try:
-            self._plan = self._planning_service().load_plan(self.context.episode_id)
-        except (KeyError, OSError, RuntimeError, ValueError):
+            if project_id is None:
+                raise KeyError(self.context.episode_id)
+            # Reading a stored plan needs no model: a reader whose generator is
+            # never called keeps an existing plan visible when roles are unusable.
+            reader = self.context.composition.planning_service(
+                project_id, _UnavailablePlanGenerator()
+            )
+            self._plan = reader.load_plan(self.context.episode_id)
+        except KeyError:
+            self._plan = None  # no plan yet is the normal state before Build Plan
+        except (OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
             self._plan = None
+            self.set_status(
+                "The saved plan could not be loaded: " + sanitize_exception_message(exc)
+            )
         self._render_plan()
         if self.context.state.current_step == "plan":
             self._remember_current_form()

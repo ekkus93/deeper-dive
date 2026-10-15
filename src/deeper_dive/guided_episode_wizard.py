@@ -207,8 +207,11 @@ class GuidedEpisodeWizard(EpisodeFormHelpers):
             self.set_status("Unsaved changes remain; save or discard them before reloading.")
             return
         self.context.state = self.navigator.recovered_state()
+        previous_order = list(self._selected_host_ids)
         self._selected_host_ids = []
-        self._load_episode_host_order()
+        if not self._load_episode_host_order():
+            # No episode yet, or the load failed: keep what the user had.
+            self._selected_host_ids = previous_order
         self._refresh_sources()
         self._refresh_hosts()
         self._load_episode_form()
@@ -217,6 +220,8 @@ class GuidedEpisodeWizard(EpisodeFormHelpers):
         self._sync_text()
         self._toggle()
         self._remember_current_form()
+        if self.host_order_notice:
+            self.set_status(self.host_order_notice)
 
     def action_continue(self) -> bool:
         if not super().action_continue():
