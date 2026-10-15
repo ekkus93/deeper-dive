@@ -102,11 +102,18 @@ class EpisodePlannerService:
 
     def regenerate_segment(self, episode_id: str, ordinal: int) -> EpisodePlan:
         self.plan_repository.require_editable(episode_id)
-        current = self.load_plan(episode_id)
+        # Snapshot first: any edit after this point either removes the plan (the
+        # check below fails) or changes the revision (the persist CAS fails).
+        config, episode_revision = self._snapshot(episode_id)
+        try:
+            current = self.load_plan(episode_id)
+        except KeyError:
+            raise EpisodeConfigurationConflict(
+                "there is no plan to change (it was removed or never built); build the plan first"
+            ) from None
         if ordinal < 0 or ordinal >= len(current.segments):
             raise IndexError(ordinal)
-        config, episode_revision = self._snapshot(episode_id)
-        self._require_plan_matches_revision(episode_id, episode_revision)
+        self._require_plan_matches_revision(episode_id, episode_revision, current.id)
         request = {
             "episode": config.snapshot(),
             "segment": {"ordinal": ordinal, **self._segment_payload(current.segments[ordinal])},
@@ -131,11 +138,18 @@ class EpisodePlannerService:
         """Persist a user-edited segment while retaining plan identity and safety bounds."""
 
         self.plan_repository.require_editable(episode_id)
-        current = self.load_plan(episode_id)
+        # Snapshot first: any edit after this point either removes the plan (the
+        # check below fails) or changes the revision (the persist CAS fails).
+        config, episode_revision = self._snapshot(episode_id)
+        try:
+            current = self.load_plan(episode_id)
+        except KeyError:
+            raise EpisodeConfigurationConflict(
+                "there is no plan to change (it was removed or never built); build the plan first"
+            ) from None
         if ordinal < 0 or ordinal >= len(current.segments):
             raise IndexError(ordinal)
-        config, episode_revision = self._snapshot(episode_id)
-        self._require_plan_matches_revision(episode_id, episode_revision)
+        self._require_plan_matches_revision(episode_id, episode_revision, current.id)
         validated = self._validate_segments(
             {"segments": [self._segment_payload(segment)]},
             config.host_ids,
@@ -234,10 +248,17 @@ class EpisodePlannerService:
             raise KeyError(episode_id)
         return self._snapshot_of(episode)
 
-    def _require_plan_matches_revision(self, episode_id: str, revision: str) -> None:
+    def _require_plan_matches_revision(
+        self, episode_id: str, revision: str, loaded_plan_id: str
+    ) -> None:
+        """Fail unless the stored plan is the one loaded and was built from ``revision``."""
+
         record = self.repository.get_plan(episode_id)
-        if record is None:
-            return
+        if record is None or record.id != loaded_plan_id:
+            raise EpisodeConfigurationConflict(
+                "the plan was replaced or removed while it was being changed; "
+                "reload the plan and retry"
+            )
         try:
             built_from = json.loads(record.plan_json).get(PLAN_CONFIG_DIGEST_KEY)
         except (ValueError, AttributeError):
