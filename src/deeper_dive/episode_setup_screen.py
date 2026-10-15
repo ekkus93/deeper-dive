@@ -260,6 +260,9 @@ class EpisodeSetupScreen(Screen[None]):
             )
         except KeyError:
             return {}
+        except InvalidModelOverrides as exc:
+            self._override_notice = exc.describe(project_id, self.current_episode_id)
+            return {}
         try:
             # Only the overrides are normalized (a stored "provider:model" string becomes
             # a mapping): an invalid field elsewhere must not drop valid overrides.

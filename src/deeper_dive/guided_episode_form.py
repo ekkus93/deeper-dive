@@ -17,6 +17,8 @@ from deeper_dive.model_roles import ModelRole
 from deeper_dive.plan_validity import evaluate_episode_plan
 from deeper_dive.preflight import PreflightReport
 from deeper_dive.research_policy import ResearchPolicyStore
+from deeper_dive.screen_guard import report_service_errors
+from deeper_dive.storage.episode_errors import InvalidModelOverrides
 
 AUDIENCE_OPTIONS: tuple[tuple[str, str], ...] = (
     ("General audience", "general"),
@@ -89,6 +91,11 @@ class EpisodeFormHelpers(GuidedHostWizard):
             config, revision = EpisodeConfigurationService(
                 self.context.composition.database_for_project(project_id)
             ).load_with_revision(episode_id)
+        except InvalidModelOverrides as exc:
+            detail = exc.describe(project_id, episode_id)
+            self.query_one("#guided-episode-validation", Static).update(detail)
+            self.set_status("Episode settings need attention before continuing.")
+            return
         except (KeyError, ValueError):
             return
         self._loaded_episode_id = episode_id
@@ -185,6 +192,7 @@ class EpisodeFormHelpers(GuidedHostWizard):
             return
         self.action_check_preflight()
 
+    @report_service_errors("Action failed")
     def action_check_preflight(self) -> None:
         project_id = self.context.project_id
         episode_id = self.context.episode_id

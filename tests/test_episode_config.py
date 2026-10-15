@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 
+import pytest
+
 from deeper_dive.domain.clock import FrozenClock
-from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
+from deeper_dive.episode_config import (
+    EpisodeConfiguration,
+    EpisodeConfigurationError,
+    EpisodeConfigurationService,
+)
 from deeper_dive.hosts import create_host_from_preset
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
@@ -62,3 +69,54 @@ def test_episode_configurations_are_independent_reproducible_snapshots(tmp_path)
     assert service.load_configuration(one.id) == edited
     assert service.load_configuration(two.id) == two_config
     assert hosts.list_episode_host_ids(one.id) == ["h2", "h1"]
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    ("source_overrides", "research_overrides", "must_cover", "avoid_topics"),
+)
+def test_stored_null_episode_fields_load_as_empty(tmp_path, field_name: str) -> None:
+    service, database, episode = _stored_episode(tmp_path)
+    payload = json.loads(episode.config_json)
+    payload[field_name] = None
+    with database.transaction() as connection:
+        connection.execute(
+            "UPDATE episodes SET config_json=? WHERE id=?",
+            (json.dumps(payload), episode.id),
+        )
+
+    loaded = service.load_configuration(episode.id)
+    assert getattr(loaded, field_name) == ({} if field_name.endswith("overrides") else ())
+
+
+@pytest.mark.parametrize(
+    "field_name,bad_value",
+    (
+        ("source_overrides", []),
+        ("research_overrides", "not a mapping"),
+        ("must_cover", "not a sequence"),
+        ("avoid_topics", ["valid", 3]),
+    ),
+)
+def test_nonconforming_stored_episode_field_has_typed_error(
+    tmp_path, field_name: str, bad_value: object
+) -> None:
+    service, database, episode = _stored_episode(tmp_path)
+    payload = json.loads(episode.config_json)
+    payload[field_name] = bad_value
+    with database.transaction() as connection:
+        connection.execute(
+            "UPDATE episodes SET config_json=? WHERE id=?",
+            (json.dumps(payload), episode.id),
+        )
+
+    with pytest.raises(EpisodeConfigurationError, match=field_name):
+        service.load_configuration(episode.id)
+
+
+def _stored_episode(tmp_path):
+    database = Database(tmp_path / "stored-shape.db")
+    CorpusRepository(database).create_project(ProjectRecord("p", "Project", "now", "now"))
+    service = EpisodeConfigurationService(database)
+    episode = service.create("p", EpisodeConfiguration(title="Stored shape"))
+    return service, database, episode

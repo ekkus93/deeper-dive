@@ -246,6 +246,10 @@ class EpisodeConfigurationService:
             host_ids = tuple(payload["host_ids"])
         else:
             host_ids = tuple(self.episodes.list_episode_host_ids(record.id))
+        source_overrides = self._stored_mapping(payload, "source_overrides", value_type=bool)
+        research_overrides = self._stored_mapping(payload, "research_overrides")
+        must_cover = self._stored_text_sequence(payload, "must_cover")
+        avoid_topics = self._stored_text_sequence(payload, "avoid_topics")
         return EpisodeConfiguration(
             title=record.title,
             focus=record.focus,
@@ -254,14 +258,38 @@ class EpisodeConfigurationService:
             target_duration_seconds=record.target_duration_seconds,
             style=record.style,
             host_ids=host_ids,
-            must_cover=tuple(payload.get("must_cover", ())),
-            avoid_topics=tuple(payload.get("avoid_topics", ())),
-            source_overrides=dict(payload.get("source_overrides", {})),
-            research_overrides=dict(payload.get("research_overrides", {})),
+            must_cover=must_cover,
+            avoid_topics=avoid_topics,
+            source_overrides=source_overrides,
+            research_overrides=research_overrides,
             model_overrides=self._stored_model_overrides(
                 payload.get("model_overrides"), drop_invalid_model_overrides
             ),
         )
+
+    @staticmethod
+    def _stored_mapping(
+        payload: dict[str, Any], field_name: str, *, value_type: type[object] | None = None
+    ) -> dict[str, Any]:
+        value = payload.get(field_name)
+        if value is None:
+            return {}
+        if not isinstance(value, dict) or any(not isinstance(key, str) for key in value):
+            raise EpisodeConfigurationError(f"stored {field_name} must be a mapping with text keys")
+        if value_type is not None and any(
+            not isinstance(item, value_type) for item in value.values()
+        ):
+            raise EpisodeConfigurationError(f"stored {field_name} values must be booleans")
+        return dict(value)
+
+    @staticmethod
+    def _stored_text_sequence(payload: dict[str, Any], field_name: str) -> tuple[str, ...]:
+        value = payload.get(field_name)
+        if value is None:
+            return ()
+        if not isinstance(value, (list, tuple)) or any(not isinstance(item, str) for item in value):
+            raise EpisodeConfigurationError(f"stored {field_name} must be a sequence of text")
+        return tuple(value)
 
     @staticmethod
     def _stored_model_overrides(value: object, drop_invalid: bool) -> dict[str, Any]:

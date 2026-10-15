@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -23,6 +24,48 @@ from deeper_dive.tui import DeeperDiveApp
 
 def test_library_preserves_independent_run_states_and_actions(tmp_path: Path) -> None:
     asyncio.run(_library_workflow(tmp_path))
+
+
+def test_duplicate_repairs_frozen_episode_with_invalid_overrides(tmp_path: Path) -> None:
+    async def run() -> None:
+        service = _service(tmp_path)
+        project = service.create_project("Frozen duplicate")
+        database = Database(service.workspaces.project_root(project.id) / "project.db")
+        configurations = EpisodeConfigurationService(database, clock=service.clock)
+        episode = configurations.create(
+            project.id,
+            EpisodeConfiguration(
+                title="Frozen malformed",
+                model_overrides={"directing": {"provider": "fake", "model": "fake-v1"}},
+            ),
+        )
+        with database.transaction() as connection:
+            payload = json.loads(episode.config_json)
+            payload["model_overrides"] = "invalid legacy shape"
+            connection.execute(
+                "UPDATE episodes SET state='running',config_json=? WHERE id=?",
+                (json.dumps(payload), episode.id),
+            )
+        app = DeeperDiveApp(service)
+        app.current_project_id = project.id
+        async with app.run_test(size=(100, 30)) as pilot:
+            app.action_navigate("library")
+            await pilot.pause()
+            screen = app.screen
+            screen.action_duplicate_selected()
+            await pilot.pause()
+            copied = next(
+                row
+                for row in service.hosts(project.id).list_episodes(project.id)
+                if row.id != episode.id
+            )
+            assert copied.title == "Frozen malformed Copy"
+            assert configurations.load_configuration(copied.id).model_overrides == {}
+            assert "invalid stored model overrides were cleared" in str(
+                screen.query_one("#screen-status", Static).render()
+            )
+
+    asyncio.run(run())
 
 
 async def _library_workflow(tmp_path: Path) -> None:

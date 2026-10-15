@@ -88,6 +88,13 @@ async def _project_scenario(tmp_path: Path) -> None:
         await pilot.pause()
         wizard = first.screen
         assert isinstance(wizard, GuidedProjectWizard)
+        # Seed the durable-empty state, then reload with no selected project to
+        # model reusing the same wizard instance after its prior project was cleared.
+        wizard._project_audience_unset = True
+        wizard.context.project_id = None
+        wizard._load_project_form()
+        assert not wizard._project_audience_unset
+        assert wizard.query_one("#guided-project-audience", Select).value == "general"
         await type_into(pilot, "#guided-project-name", "Policy")
         await type_into(pilot, "#guided-project-topic", "Does typing work")
         await click(pilot, "#guided-project-create")

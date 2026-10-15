@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
@@ -132,6 +133,43 @@ async def _episode_validation_preserves_typed_input(tmp_path: Path) -> None:
         screen.action_save_episode()
         assert screen.query_one("#guided-episode-title", Input).value == "Typed title"
         assert screen.query_one("#guided-episode-focus", Input).value == "Typed focus"
+
+
+def test_guided_episode_load_shows_repair_command_for_string_overrides(tmp_path: Path) -> None:
+    asyncio.run(_guided_episode_load_shows_repair_command_for_string_overrides(tmp_path))
+
+
+async def _guided_episode_load_shows_repair_command_for_string_overrides(
+    tmp_path: Path,
+) -> None:
+    service = _service_and_config(tmp_path)
+    app = GuidedDeeperDiveApp(service)
+    async with app.run_test(size=(100, 30)) as pilot:
+        app.action_navigate("new")
+        await pilot.pause()
+        screen = app.screen
+        assert isinstance(screen, GuidedEpisodeWizard)
+        project_id, episode_id = await _prepare_to_plan(screen, pilot)
+        database = app.composition.database_for_project(project_id)
+        with database.transaction() as connection:
+            row = connection.execute(
+                "SELECT config_json FROM episodes WHERE id=?", (episode_id,)
+            ).fetchone()
+            assert row is not None
+            payload = json.loads(row["config_json"])
+            payload["model_overrides"] = "malformed stored override"
+            connection.execute(
+                "UPDATE episodes SET config_json=? WHERE id=?",
+                (json.dumps(payload), episode_id),
+            )
+
+        screen.action_back()
+        validation = str(screen.query_one("#guided-episode-validation", Static).render())
+        assert f"deeper-dive episode configure {project_id} {episode_id}" in validation
+        assert "--clear-model-overrides" in validation
+        assert "Episode settings need attention" in str(
+            screen.query_one("#wizard-status", Static).render()
+        )
 
 
 def test_guided_planner_invalid_output_is_actionable_and_retryable(tmp_path: Path) -> None:

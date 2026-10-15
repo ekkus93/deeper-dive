@@ -57,7 +57,7 @@ class EpisodeLibraryController:
         project_id = EpisodeLibraryController._project_id(app)
         database = Database(app.service.workspaces.project_root(project_id) / "project.db")
         service = EpisodeConfigurationService(database, clock=app.service.clock)
-        config = service.load_configuration(episode_id)
+        config = service.load_configuration(episode_id, drop_invalid_model_overrides=True)
         return service.create(project_id, replace(config, title=f"{config.title} Copy"))
 
     @staticmethod
@@ -267,7 +267,10 @@ class EpisodeLibraryScreen(Screen[None]):
             return
         duplicate = EpisodeLibraryController.duplicate(self._app, item.episode.id)
         self.selected_episode_id = duplicate.id
-        self.refresh_library(f"Duplicated configuration as {duplicate.title}")
+        self.refresh_library(
+            f"Duplicated configuration as {duplicate.title}; invalid stored model overrides "
+            "were cleared."
+        )
 
     @report_service_errors("Export failed")
     def action_export_selected(self) -> None:
