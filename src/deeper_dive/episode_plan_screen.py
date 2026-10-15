@@ -214,7 +214,7 @@ class EpisodePlanScreen(Screen[None]):
         self._status(f"Regenerated segment {self.selected_ordinal + 1}")
 
     def action_regenerate_plan(self) -> None:
-        context = self._plan_context()
+        context = self._plan_context(allow_empty=True)
         if context is None:
             return
         episode_id, controller = context
@@ -252,9 +252,14 @@ class EpisodePlanScreen(Screen[None]):
         else:
             self._status("Plan approved; generation remains explicitly gated")
 
-    def _plan_context(self) -> tuple[str, EpisodePlanController] | None:
+    def _plan_context(
+        self, *, allow_empty: bool = False
+    ) -> tuple[str, EpisodePlanController] | None:
         if self.plan is None or self._app.current_episode_id is None:
             self._status("No plan loaded")
+            return None
+        if not self.plan.segments and not allow_empty:
+            self._status("The stored plan has no segments; regenerate the plan")
             return None
         controller = self._app.episode_plan_controller
         if controller is None:

@@ -10,6 +10,7 @@ from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfiguratio
 from deeper_dive.episode_planner import EpisodePlannerService, PlannedSegment
 from deeper_dive.hosts import create_host_from_preset
 from deeper_dive.storage.database import Database
+from deeper_dive.storage.episode_errors import EpisodeConfigurationError
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 from deeper_dive.storage.repositories import (
     CorpusRepository,
@@ -107,6 +108,16 @@ def test_plan_is_duration_bounded_persisted_and_reloadable(tmp_path) -> None:
     assert plan.target_duration_seconds == 600
     assert [segment.target_duration_seconds for segment in plan.segments] == [300, 300]
     assert service.load_plan(episode_id) == plan
+
+
+def test_approve_plan_rejects_stored_plan_without_segments(tmp_path) -> None:
+    service, episode_id, _fake = _service(tmp_path)
+    plan = service.build_plan(episode_id)
+    with service.database.transaction() as connection:
+        connection.execute("DELETE FROM segment_plans WHERE episode_plan_id=?", (plan.id,))
+
+    with pytest.raises(EpisodeConfigurationError, match="stored plan has no segments"):
+        service.approve_plan(episode_id, reviewed_plan_id=plan.id)
 
 
 def test_targeted_segment_regeneration_preserves_other_segment(tmp_path) -> None:

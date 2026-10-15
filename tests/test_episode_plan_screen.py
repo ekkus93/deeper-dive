@@ -7,8 +7,12 @@ from pathlib import Path
 from textual.widgets import Checkbox, Input, Static
 
 from deeper_dive.application.service import DeeperDiveService
+from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.episode_plan_screen import EpisodePlanScreen
-from deeper_dive.episode_planner import EpisodePlan, PlannedSegment
+from deeper_dive.episode_planner import EpisodePlan, EpisodePlannerService, PlannedSegment
+from deeper_dive.hosts import create_host_from_preset
+from deeper_dive.storage.database import Database
+from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 from deeper_dive.storage.workspace import WorkspaceManager
 from deeper_dive.tui import DeeperDiveApp
 
@@ -107,6 +111,63 @@ async def _exercise_plan_review(tmp_path: Path) -> None:
 
 def test_plan_screen_explicit_auto_generate_routes_to_generation(tmp_path: Path) -> None:
     asyncio.run(_exercise_auto_generate(tmp_path))
+
+
+def test_empty_stored_plan_actions_show_regenerate_instruction(tmp_path: Path) -> None:
+    async def run() -> None:
+        service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))
+        project = service.create_project("Empty plan")
+        database = Database(service.workspaces.project_root(project.id) / "project.db")
+        hosts = HostEpisodeRepository(database)
+        hosts.create_host(
+            create_host_from_preset("skeptic", project.id, host_id="host").to_record()
+        )
+        episode = EpisodeConfigurationService(database).create(
+            project.id, EpisodeConfiguration(title="Empty", host_ids=("host",))
+        )
+
+        class Generator:
+            def generate_plan(self, request: dict[str, object]) -> dict[str, object]:
+                _ = request
+                return {
+                    "segments": [
+                        {
+                            "title": "Opening",
+                            "purpose": "Frame the question",
+                            "target_duration_seconds": 300,
+                            "lead_host_ids": ["host"],
+                        }
+                    ]
+                }
+
+        planner = EpisodePlannerService(database, Generator())
+        plan = planner.build_plan(episode.id)
+        with database.transaction() as connection:
+            connection.execute("DELETE FROM segment_plans WHERE episode_plan_id=?", (plan.id,))
+        app = DeeperDiveApp(service, episode_plan_controller=planner)
+        app.current_project_id = project.id
+        app.current_episode_id = episode.id
+        async with app.run_test(size=(120, 50)) as pilot:
+            app.action_navigate("plan")
+            await pilot.pause()
+            screen = app.screen
+            assert isinstance(screen, EpisodePlanScreen)
+            screen.query_one("#segment-duration", Input).value = "bad"
+            for action in (
+                screen.action_approve_generate,
+                screen.action_save_segment,
+                screen.action_regenerate_segment,
+            ):
+                action()
+                status = str(screen.query_one("#screen-status", Static).render())
+                assert "The stored plan has no segments; regenerate the plan" in status
+                assert "invalid literal" not in status
+
+            screen.action_regenerate_plan()
+            assert "Regenerated plan" in str(screen.query_one("#screen-status", Static).render())
+            assert screen.plan is not None and screen.plan.segments
+
+    asyncio.run(run())
 
 
 async def _exercise_auto_generate(tmp_path: Path) -> None:

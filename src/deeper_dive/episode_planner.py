@@ -12,7 +12,10 @@ from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfiguratio
 from deeper_dive.plan_validity import PLAN_CONFIG_DIGEST_KEY, config_digest
 from deeper_dive.retrieval import LexicalIndex
 from deeper_dive.storage.database import Database
-from deeper_dive.storage.episode_errors import EpisodeConfigurationConflict
+from deeper_dive.storage.episode_errors import (
+    EpisodeConfigurationConflict,
+    EpisodeConfigurationError,
+)
 from deeper_dive.storage.episode_plan_repository import EpisodePlanRepository
 from deeper_dive.storage.episode_repositories import (
     EpisodePlanRecord,
@@ -181,6 +184,8 @@ class EpisodePlannerService:
         # by re-publishing the plan that edit just invalidated.
         revision = self._episode_revision(episode_id)
         plan = self.load_plan(episode_id)
+        if not plan.segments:
+            raise EpisodeConfigurationError("The stored plan has no segments; regenerate the plan")
         if reviewed_plan_id is not None and plan.id != reviewed_plan_id:
             raise EpisodeConfigurationConflict(
                 "the plan changed since you reviewed it; reload and review the current plan"
