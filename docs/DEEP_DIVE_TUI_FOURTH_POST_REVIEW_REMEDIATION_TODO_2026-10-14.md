@@ -19,14 +19,14 @@ This is the only completion checklist for the fourth post-review cycle. No item 
 
 ## FPR-000 — Baseline
 
-- [ ] Record the baseline head (`4ede40e`), its local check result (2,260 passed) and CI result (run 38674826121, `fresh-machine` failed).
+- [x] Record the baseline head (`4ede40e`), its local check result (2,260 passed) and CI result (run 38674826121, `fresh-machine` failed). (Baseline `4ede40e`: local 2,260 passed; CI run 38674826121, `quality` green, `fresh-machine` red on the stale path.)
 - [ ] Every "Reproduced" item has a committed regression test that fails on the baseline; every "Source-verified" item has a deterministic reproducer or a justified N/A.
 
 ## FPR-100 — CI unblock (do first)
 
 - [x] Replace `tests/test_second_post_review_dirty_navigation.py` in `.github/workflows/ci.yml` `fresh-machine` with the three `..._part{1,2,3}.py` files. (`bd7007a`)
 - [x] Add a check (script or test) that every `tests/*.py` path named in `.github/workflows/ci.yml` exists, so a rename cannot silently break `fresh-machine` again; run it from `scripts/check.sh`. (`tests/test_fourth_post_review_ci_paths.py`, run by `check.sh` through pytest; fails against the `4ede40e` workflow.)
-- [ ] Green exact-head CI (both jobs) recorded with run and job IDs.
+- [x] Green exact-head CI (both jobs) recorded with run and job IDs. (`bd7007a`: run 38677734180, jobs quality 116235058765 and fresh-machine 116235059659, both success.)
 
 ## FPR-200 — Crashes and durable-state corruption
 
