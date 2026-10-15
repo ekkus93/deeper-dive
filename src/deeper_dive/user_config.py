@@ -598,8 +598,12 @@ class UserConfigStore:
     def _open_advisory_lock(self) -> IO[bytes] | None:
         if fcntl is None:
             return None
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        lock_path = self.path.parent / f".{self.path.name}.lock"
+        # Derived from the resolved path, like the in-process key: two processes that
+        # reach one file through different spellings (``..``, a symlinked directory
+        # or file) must contend on one lock file.
+        resolved = self.path.resolve()
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        lock_path = resolved.parent / f".{resolved.name}.lock"
         flags = os.O_CREAT | os.O_RDWR
         if hasattr(os, "O_CLOEXEC"):
             flags |= os.O_CLOEXEC
