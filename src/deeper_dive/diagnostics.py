@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, unquote_plus
 
-_SECRET_WORDS = frozenset({"authorization", "password", "cookie"})
+_SECRET_WORDS = frozenset({"authorization", "password", "cookie", "pwd"})
 _SECRET_PAIRS = frozenset(
     {
         ("api", "key"),
@@ -54,19 +54,43 @@ _ASSIGNMENT = re.compile(
     # Avoid consuming noncredential wrapper fields surrounding nested secrets.
     r"(?=[A-Za-z0-9_.+/\[\]-]{1,128}\s*[:=])"
     r"([A-Za-z0-9_.+/\[\]-]*"
-    r"(?:authorization|token|secret|password|passwd|cookie|api[-_.+/\[\]]*key"
+    r"(?:authorization|token|secret|password|passwd|pwd|auth|cookie|api[-_.+/\[\]]*key"
     r"|subscription[-_.+/\[\]]*key|private[-_.+/\[\]]*key)"
     r"[A-Za-z0-9_.+/\[\]-]*)(\s*[:=]\s*)([^\s,;]+)"
 )
 _QUOTED_MAPPING_ASSIGNMENT = re.compile(
     # Match a bounded, quoted mapping key and decide sensitivity with _is_secret_key.
     # Dots, slashes, brackets and plus signs must not bypass credential redaction.
-    r"(?i)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*)(['\"])((?:\\.|(?!\4)[^\\\r\n])+)\4"
+    r"(?i)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*b?)(['\"])((?:\\.|(?!\4)[^\\\r\n])+)\4"
 )
 # A secret value whose closing quote is missing (truncated or malformed text): redact to
 # the end of the line. Possessive, so a long unterminated value is scanned once.
 _QUOTED_MAPPING_OPEN = re.compile(
-    r"(?i)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*)(['\"])(?:\\.|(?!\4)[^\\\r\n])*+(?=\r|\n|\Z)"
+    r"(?i)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*b?)(['\"])(?:\\.|(?!\4)[^\\\r\n])*+(?=\r|\n|\Z)"
+)
+# ``('x-api-key', 'C')`` / ``(b'authorization', b'Basic C')``: header lists and tuples
+# stringified by an SDK. The classifier decides which keys are sensitive.
+_TUPLE_PAIR = re.compile(
+    r"(?i)(\(\s*b?)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\2(\s*,\s*b?)(['\"])"
+    r"((?:\\.|(?!\5)[^\\\r\n])+)\5"
+)
+# ``--api-key C``: a CLI flag and its value separated by whitespace.
+_CLI_FLAG_VALUE = re.compile(r"(?<![\w-])(--?[A-Za-z][A-Za-z0-9_.-]{0,127})([ \t]+)(?!-)(\S+)")
+# ``<password>C</password>``.
+_XML_ELEMENT = re.compile(
+    r"(?i)(<)([A-Za-z][A-Za-z0-9_.:-]{0,127})((?:\s[^<>]{0,256})?>)([^<>]{1,2048})(</\2\s*>)"
+)
+# ``password="pa ss"``: an unquoted key with a quoted value that may hold spaces. A missing
+# closing quote (truncated text) redacts to the end of the line.
+_QUOTED_VALUE_ASSIGNMENT = re.compile(
+    r"(?i)(?<![A-Za-z0-9_.+/\[\]-])([A-Za-z0-9_.+/\[\]-]{1,128})(\s*[:=]\s*)(['\"])"
+    r"(?:\\.|(?!\3)[^\\\r\n])*+(?:\3|(?=\r|\n|\Z))"
+)
+# ``\"apiKey\":\"C\"`` inside a JSON string. The value is bounded so a repeated prefix
+# cannot make the scan quadratic.
+_ESCAPED_QUOTE_PAIR = re.compile(
+    r"(?i)(\\+['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*)(\\+['\"])"
+    r"((?:(?!\4)[^\r\n]){0,2048}+)(\4|(?=\r|\n|\Z))"
 )
 _PEM_PRIVATE_KEY = re.compile(
     r"(?i)-----BEGIN [A-Z ]{0,40}PRIVATE KEY(?: BLOCK)?-----.*?"
@@ -368,6 +392,9 @@ def _is_secret_key(key: object) -> bool:
         return True
     if "passwd" in words:
         return True
+    # A bare ``auth`` key is a credential (``auth=C``); ``auth_method`` / ``oauth`` are not.
+    if words == ("auth",):
+        return True
     if any(word in _SECRET_WORDS for word in words):
         return True
     return any(pair in zip(words, words[1:], strict=False) for pair in _SECRET_PAIRS)
@@ -392,6 +419,41 @@ def _redact_quoted_mapping_assignment(match: re.Match[str]) -> str:
     return (
         f"{match.group(1)}{match.group(2)}{match.group(1)}"
         f"{match.group(3)}{match.group(4)}[REDACTED]{match.group(4)}"
+    )
+
+
+def _redact_tuple_pair(match: re.Match[str]) -> str:
+    if not _is_secret_key(match.group(3)):
+        return match.group(0)
+    quote = match.group(2)
+    head = f"{match.group(1)}{quote}{match.group(3)}{quote}{match.group(4)}"
+    return f"{head}{match.group(5)}[REDACTED]{match.group(5)}"
+
+
+def _redact_cli_flag(match: re.Match[str]) -> str:
+    if not _is_secret_key(match.group(1)):
+        return match.group(0)
+    return f"{match.group(1)}{match.group(2)}[REDACTED]"
+
+
+def _redact_xml_element(match: re.Match[str]) -> str:
+    if not _is_secret_key(match.group(2)):
+        return match.group(0)
+    return f"{match.group(1)}{match.group(2)}{match.group(3)}[REDACTED]{match.group(5)}"
+
+
+def _redact_quoted_value_assignment(match: re.Match[str]) -> str:
+    if not _is_secret_key(match.group(1)):
+        return match.group(0)
+    return f"{match.group(1)}{match.group(2)}[REDACTED]"
+
+
+def _redact_escaped_quote_pair(match: re.Match[str]) -> str:
+    if not _is_secret_key(match.group(2)):
+        return match.group(0)
+    quote = match.group(1)
+    return (
+        f"{quote}{match.group(2)}{quote}{match.group(3)}{match.group(4)}[REDACTED]{match.group(6)}"
     )
 
 
@@ -603,6 +665,11 @@ def _redact_text(value: str) -> str:
     value = _sub_url_fragments(value)
     value = _QUOTED_MAPPING_ASSIGNMENT.sub(_redact_quoted_mapping_assignment, value)
     value = _QUOTED_MAPPING_OPEN.sub(_redact_quoted_mapping_open, value)
+    value = _ESCAPED_QUOTE_PAIR.sub(_redact_escaped_quote_pair, value)
+    value = _TUPLE_PAIR.sub(_redact_tuple_pair, value)
+    value = _XML_ELEMENT.sub(_redact_xml_element, value)
+    value = _CLI_FLAG_VALUE.sub(_redact_cli_flag, value)
+    value = _QUOTED_VALUE_ASSIGNMENT.sub(_redact_quoted_value_assignment, value)
     value = _ASSIGNMENT.sub(_redact_assignment, value)
     value = _CREDENTIAL_QUERY.sub(r"\1[REDACTED]", value)
     value = _ENCODED_CREDENTIAL_QUERY.sub(_redact_encoded_query, value)
