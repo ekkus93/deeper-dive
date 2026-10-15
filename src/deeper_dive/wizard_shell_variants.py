@@ -57,8 +57,8 @@ class FirstRunWizardShell(WizardShell):
             return "\n".join(rows)
         return super().step_content(step_key)
 
-    def on_mount(self) -> None:
-        super().on_mount()
+    def _mounted(self) -> None:
+        super()._mounted()
         self._show_welcome_controls()
 
     def action_continue(self) -> bool:

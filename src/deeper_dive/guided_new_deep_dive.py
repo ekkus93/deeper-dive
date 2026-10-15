@@ -32,12 +32,12 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
             Button("Create Project", id="guided-project-create", name="create-project"),
         )
 
-    def on_mount(self) -> None:
+    def _before_mount(self) -> None:
         # Resuming (or remounting) with an existing project must show that
         # project's durable values, not blank controls that Save would then
         # write back over the project.
         self._load_project_form()
-        super().on_mount()
+        super()._before_mount()
 
     def _load_project_form(self) -> None:
         project_id = self.context.project_id

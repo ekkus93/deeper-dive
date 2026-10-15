@@ -191,8 +191,8 @@ class GuidedEpisodeWizard(EpisodeFormHelpers):
             )
         return super().step_content(step_key)
 
-    def on_mount(self) -> None:
-        super().on_mount()
+    def _mounted(self) -> None:
+        super()._mounted()
         self._load_episode_form()
         self._refresh_plan()
         self._refresh_preflight()

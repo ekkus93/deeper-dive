@@ -96,8 +96,8 @@ class GuidedSourceWizard(GuidedProjectWizard):
             )
         return super().step_content(step_key)
 
-    def on_mount(self) -> None:
-        super().on_mount()
+    def _mounted(self) -> None:
+        super()._mounted()
         self._refresh_sources()
         self._refresh_research_choice()
         self._toggle()

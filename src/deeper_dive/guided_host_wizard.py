@@ -91,8 +91,8 @@ class GuidedHostWizard(HostWizardSupport):
             )
         return super().step_content(step_key)
 
-    def on_mount(self) -> None:
-        super().on_mount()
+    def _mounted(self) -> None:
+        super()._mounted()
         self._load_episode_host_order()
         self._refresh_hosts()
         self._toggle()

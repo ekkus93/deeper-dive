@@ -148,6 +148,23 @@ class WizardShell(Screen[None]):
         yield Footer()
 
     def on_mount(self) -> None:
+        """Single mount handler. Subclasses extend ``_before_mount`` / ``_mounted``.
+
+        Textual dispatches ``on_mount`` on every class in the MRO, so a subclass that
+        defined its own (and called ``super()``) re-ran the base bodies repeatedly.
+        """
+
+        self._before_mount()
+        self._mount_shell()
+        self._mounted()
+
+    def _before_mount(self) -> None:
+        """Hook run before the shared mount work (hydrate widgets from durable state)."""
+
+    def _mounted(self) -> None:
+        """Hook run after the shared mount work; subclasses chain with ``super()``."""
+
+    def _mount_shell(self) -> None:
         # Production prerequisites may change between sessions; a saved step is
         # only a hint and must be validated before it is shown to the user.
         recovered = self.navigator.recovered_state()

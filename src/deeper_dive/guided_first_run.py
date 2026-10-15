@@ -243,8 +243,8 @@ class GuidedFirstRunWizard(FirstRunSpeechActions):
             for name, reason in snapshot.provider_notes
         ]
 
-    def on_mount(self) -> None:
-        super().on_mount()
+    def _mounted(self) -> None:
+        super()._mounted()
         self._load_existing_setup()
         self._last_llm_choice = self._select_value("#setup-ai-choice")
         self._last_speech_choice = self._select_value("#setup-speech-choice")
