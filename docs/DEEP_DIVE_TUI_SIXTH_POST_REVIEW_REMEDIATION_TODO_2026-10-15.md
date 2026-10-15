@@ -1,7 +1,7 @@
 # Deeper Dive TUI — Sixth Post-Review Remediation TODO
 
 **Created:** 2026-10-15 (America/Los_Angeles)  
-**Status:** Not started  
+**Status:** Complete (code head `8ad0a60`, CI run 38789463854 green)  
 **Authority:** `docs/DEEP_DIVE_TUI_SIXTH_POST_REVIEW_REMEDIATION_SPEC_2026-10-15.md`  
 **Reviewed baseline:** `44970a9` (CI run 38739107751 green; code head `d1952b4`, CI run 38735849872 green; local 2,538 passed on the `d1952b4` tree)  
 **Predecessor historical checklist:** `docs/DEEP_DIVE_TUI_FIFTH_POST_REVIEW_REMEDIATION_TODO_2026-10-15.md`
@@ -145,26 +145,26 @@ If a reproducer disproves a finding, keep the task visible and record a justifie
 - [x] A fresh read-only reviewer with no prior conclusions traces every changed source path and sibling sweep. Every finding is fixed (with a test, a sweep and a mutation check) or recorded as accepted with a reason. Review-fix commits are named by SHA.
 
 ### 6PR-912 — Final qualification (after the last `src/` change)
-- [ ] `uv lock --check`; ruff format and lint; strict mypy; full pytest count recorded at the exact head.
-- [ ] `uv build`; fresh-venv wheel smoke at the exact head, including one 6PR-02 and one 6PR-06 redaction check and `deeper-dive episode cancel --help`.
-- [ ] Green exact-head CI on both jobs, with run and job IDs.
-- [ ] Evidence ledger below complete. Every row's test fails with its fix reverted (Mutation column), including review fixes.
+- [x] `uv lock --check`; ruff format and lint; strict mypy; full pytest count recorded at the exact head.
+- [x] `uv build`; fresh-venv wheel smoke at the exact head, including one 6PR-02 and one 6PR-06 redaction check and `deeper-dive episode cancel --help`.
+- [x] Green exact-head CI on both jobs, with run and job IDs.
+- [x] Evidence ledger below complete. Every row's test fails with its fix reverted (Mutation column), including review fixes.
 
 ## Evidence ledger
 
 | Item | Outcome | Commit(s) | Test file(s) | Mutation |
 |---|---|---|---|---|
-| 6PR-01 | | | | |
-| 6PR-02 | | | | |
-| 6PR-03 | | | | |
-| 6PR-04 | | | | |
-| 6PR-05 | | | | |
-| 6PR-06 | | | | |
-| 6PR-07 | | | | |
-| 6PR-08 | | | | |
-| 6PR-09 | | | | |
-| 6PR-10 | | | | |
-| 6PR-11 | | | | |
+| 6PR-01 | confirmed (reviewer reproduced all 8 stages run) | 41523b5, 8ad0a60 | sixth_post_review_run_control | run (5 failed; race test fails without the pipeline guard) |
+| 6PR-02 | confirmed | 623ce58 | sixth_post_review_url_leaks | run (53 failed on baseline diagnostics) |
+| 6PR-03 | confirmed | 056ad59 | sixth_post_review_legacy_crashes | run (5 of 6 failed) |
+| 6PR-04 | confirmed (regression from d1952b4) | 2bbabf4 | sixth_post_review_empty_stored_values | run (2 failed) |
+| 6PR-05 | confirmed (items 1, 2; 3, 4 reproduced) | 7f73eb9 | sixth_post_review_legacy_outcomes | run (4 failed) |
+| 6PR-06 | confirmed | 13dabd3, 8ad0a60 | sixth_post_review_credential_shapes | run (37 failed; backslash case hangs on the unfixed pattern) |
+| 6PR-07 | partly N/A (h:abc#frag stays redacted on purpose) | 623ce58, add1d83 | url_leaks, credential_shapes | run |
+| 6PR-08 | confirmed | f4ef3d8 | sixth_post_review_model_override_repair | run (import fails without src) |
+| 6PR-09 | confirmed (Discard fallback N/A: unreachable) | 92e6b10 | sixth_post_review_residuals, lock_processes | run (lock test fails with resolve() reverted) |
+| 6PR-10 | complete | 92e6b10 | fifth/fourth/third strengthened tests, linear_timing | n/a (tests) |
+| 6PR-11 | complete | 92e6b10 | ci_paths | n/a (docs) |
 
 ## Evidence notes
 
@@ -186,3 +186,4 @@ If a reproducer disproves a finding, keep the task visible and record a justifie
   - Fixed: `_ESCAPED_QUOTE_PAIR` was quadratic on a long backslash run (305 s at the cap) — opener now `(?<!\\)\\{1,8}` (0.06 s; growth test). A stage handler could still run after a cancel landed between the boundary check and the stage-start write, and a late `completed` write emitted a false event — `run()` now returns when `_update` reports `cancelled`; `cancel_now` raises for a missing/finished run instead of emitting an event (test). PEM header followed by `\x0b`, `\x0c`, NEL, `<br>`, `%0A`/`%0D` leaked — lookahead widened. `--token-count`, `--pwd-dir` and `<password-policy>` were over-redacted — flag and element names must end in a credential noun (`_is_secret_name`).
   - Accepted (not fixed): control flags persist into `completed`/`failed` (a cancel during the last stage leaves `completed` + `cancel_requested`; a failed stage with a cancel request is not resumable, which matches "cancelled runs cannot be resumed"); `request_pause`/`request_cancel` can bump `modified_at` of a finished run; a PEM body shorter than 16 characters directly after a space-separated header; `pwd:`/`pwd=` shell output and `auth: required`, `{"auth": "none"}`, `<auth>none</auth>` are redacted (fail closed); `curl -u user:pass`, a password containing whitespace and `https://tok/en@host` (no colon) are not redacted (pre-existing); `msg='hello password=x'` loses its closing quote.
   - The reviewer found no leak beyond those in the URL, tuple, bytes, escaped-JSON, XML and flag passes, and no defect in the screen guards, `keep_empty`, model overrides, lock or `get_plan_with_segments` changes.
+- **6PR-912 qualification (code head `8ad0a60`, the last `src/` change):** `uv lock --check`, ruff format/lint and strict mypy clean; full local check 2,713 passed, 5 xfailed (the strict-xfail accepted-gap rows), exit 0; `uv build` and a fresh-venv wheel install from that head: `deeper-dive --help`, `episode cancel --help` shows `--run`, `episode configure --help` shows `--clear-model-overrides`, and `redact()` hid `https://user:p@a#ssCANARY9x@host/x`, `https://user:pa/ss?CANARY9x@host/x`, `[('x-api-key', 'CANARY9x')]`, `--api-key CANARY9x` and `{b'Authorization': b'Basic CANARY9x'}`; package imported from site-packages. CI run 38789463854 on `8ad0a60`: quality 116609951228 and fresh-machine 116609951611, both success. Checks and pushes were batched (one full check and one push for the cycle's task commits plus the review-fix commit); the closing docs-only commit has no CI run of its own recorded here.
