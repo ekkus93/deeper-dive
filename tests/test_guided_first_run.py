@@ -252,6 +252,7 @@ async def _model_test_failure_and_retry(tmp_path: Path) -> None:
         await pilot.pause()
         screen.action_save_provider()
         await pilot.pause()
+        await _wait_for_runtime_readiness(app, pilot)
         screen.action_continue()
         provider = app.provider_controller.llm("fixture")
         with patch.object(provider, "generate", side_effect=RuntimeError("provider unavailable")):
