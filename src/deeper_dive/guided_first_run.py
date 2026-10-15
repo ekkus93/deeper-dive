@@ -256,7 +256,10 @@ class GuidedFirstRunWizard(FirstRunSpeechActions):
         """Refresh externally saved setup only when the active form is clean."""
         if not self.is_mounted:
             return
-        if self._current_form_dirty():
+        # Any dirty step blocks the reload, not just the current one: re-hydrating
+        # overwrites every step's widgets, including an AI preset picked earlier
+        # whose provider fields are still unsaved on a later step.
+        if self._current_form_dirty() or self._dirty_baseline_steps():
             self.set_status("Unsaved setup edits remain; save or discard before reloading.")
             return
         clean_steps = self._clean_baseline_steps()
@@ -268,6 +271,16 @@ class GuidedFirstRunWizard(FirstRunSpeechActions):
         self._remember_current_form()
         self._rebaseline_steps(clean_steps)
         self._request_runtime_readiness()
+
+    def _dirty_baseline_steps(self) -> list[str]:
+        """Steps (other than the current one) whose widgets differ from their baseline."""
+
+        current = self.context.state.current_step
+        return [
+            step
+            for step, baseline in self._form_baselines.items()
+            if step != current and self._editable_snapshot(step) != baseline
+        ]
 
     def _clean_baseline_steps(self) -> list[str]:
         """Steps (other than the current one) whose widgets still match their baseline."""
