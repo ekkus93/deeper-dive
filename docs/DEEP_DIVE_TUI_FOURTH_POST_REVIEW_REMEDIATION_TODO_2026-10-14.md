@@ -24,36 +24,36 @@ This is the only completion checklist for the fourth post-review cycle. No item 
 
 ## FPR-100 — CI unblock (do first)
 
-- [ ] Replace `tests/test_second_post_review_dirty_navigation.py` in `.github/workflows/ci.yml` `fresh-machine` with the three `..._part{1,2,3}.py` files.
-- [ ] Add a check (script or test) that every `tests/*.py` path named in `.github/workflows/ci.yml` exists, so a rename cannot silently break `fresh-machine` again; run it from `scripts/check.sh`.
+- [x] Replace `tests/test_second_post_review_dirty_navigation.py` in `.github/workflows/ci.yml` `fresh-machine` with the three `..._part{1,2,3}.py` files. (`bd7007a`)
+- [x] Add a check (script or test) that every `tests/*.py` path named in `.github/workflows/ci.yml` exists, so a rename cannot silently break `fresh-machine` again; run it from `scripts/check.sh`. (`tests/test_fourth_post_review_ci_paths.py`, run by `check.sh` through pytest; fails against the `4ede40e` workflow.)
 - [ ] Green exact-head CI (both jobs) recorded with run and job IDs.
 
 ## FPR-200 — Crashes and durable-state corruption
 
 ### FPR-01 — Stale AI choice after preset discard
-- [ ] Real-input regression: durable Ollama `local` → choose OpenAI → Continue → Back → Discard → Continue → Save Provider; assert durable config bytes unchanged (fails on baseline).
-- [ ] Discard restores the AI choice matching the durable provider, or Save derives the adapter from restored/durable state; document the chosen design.
-- [ ] Save Provider refuses with a visible status when the AI choice and provider fields disagree on adapter type.
-- [ ] `_capture_preset_baseline` never lets a preset become the clean baseline when a differing stored baseline exists; regression test for that path.
+- [x] Real-input regression: durable Ollama `local` → choose OpenAI → Continue → Back → Discard → Continue → Save Provider; assert durable config bytes unchanged (fails on baseline). (`tests/test_fourth_post_review_ai_choice_discard.py`; failed on baseline.)
+- [x] Discard restores the AI choice matching the durable provider, or Save derives the adapter from restored/durable state; document the chosen design. (`_restore_discarded_form` -> `_resync_ai_choice_from_fields`: the choice is re-derived from the restored adapter/base URL fields.)
+- [x] Save Provider refuses with a visible status when the AI choice and provider fields disagree on adapter type. (`action_save_provider`; test `test_save_provider_refuses_when_choice_and_adapter_disagree`.)
+- [x] `_capture_preset_baseline` never lets a preset become the clean baseline when a differing stored baseline exists; regression test for that path. (early-return branch now marks the step in `_preset_baseline_steps`.)
 
 ### FPR-02 — Legacy Episode Plan screen crashes
-- [ ] Real-click regressions: Regenerate Plan and Regenerate Segment with a generation run present; provider failure; plan deleted between load and Save Segment → app alive, sanitized status, durable plan unchanged.
-- [ ] `save`, `regenerate plan`, `regenerate segment` and `approve` catch `KeyError`, `ValueError`, `RuntimeError`, `OSError`, `sqlite3.Error` and the typed episode errors.
-- [ ] Sweep every legacy `tui.py` screen action that calls a planner/config/run service; record each with its disposition.
+- [x] Real-click regressions: Regenerate Plan and Regenerate Segment with a generation run present; provider failure; plan deleted between load and Save Segment → app alive, sanitized status, durable plan unchanged. (`tests/test_fourth_post_review_plan_screen_errors.py`; the frozen cases failed on baseline with the app exiting.)
+- [x] `save`, `regenerate plan`, `regenerate segment` and `approve` catch `KeyError`, `ValueError`, `RuntimeError`, `OSError`, `sqlite3.Error` and the typed episode errors. (`_SERVICE_ERRORS` in `episode_plan_screen.py`; also `refresh_plan`.)
+- [x] Sweep every legacy `tui.py` screen action that calls a planner/config/run service; record each with its disposition. (Disposition: settings screens already route through `_save`; 20 unguarded actions in `tui.py` Home/Sources, `hosts_screen.py`, `transcript_review_screen.py`, `claim_inspector_screen.py` now use `screen_guard.report_service_errors`; `episode_setup_screen.py` planning step is FPR-13; tests `test_fourth_post_review_legacy_screen_guard.py`.)
 
 ### FPR-03 — Guided resume crash on free-text audience
-- [ ] Real-input regression: episode created via service with audience "college students" → guided draft at that episode → fresh app → Resume → app alive (fails on baseline).
-- [ ] Decide and document the policy for stored values the guided Select cannot represent (extra "Custom" option vs. BLANK + status); a no-op Save leaves the durable value unchanged.
-- [ ] Audit every raw `Select.value =` in `guided_*.py` and `wizard_shell*.py`; route stored-data hydration through `_assign_select`; record the list.
+- [x] Real-input regression: episode created via service with audience "college students" → guided draft at that episode → fresh app → Resume → app alive (fails on baseline). (`tests/test_fourth_post_review_free_text_audience.py`; failed on baseline with `InvalidSelectValueError`.)
+- [x] Decide and document the policy for stored values the guided Select cannot represent (extra "Custom" option vs. BLANK + status); a no-op Save leaves the durable value unchanged. (Policy: an unknown stored audience becomes an extra "Custom: <value>" option, so a no-op Save keeps the durable value; `_show_audience`.)
+- [x] Audit every raw `Select.value =` in `guided_*.py` and `wizard_shell*.py`; route stored-data hydration through `_assign_select`; record the list. (Audit: audience fixed; duration/depth guarded by membership checks; project audience and host preset (line 113) guarded by membership; research policy always a valid enum value; host preset restore now `_assign_select`; remaining `Select.BLANK` assignments are in guarded helpers.)
 
 ### FPR-04 — Fail-closed discard crashes on non-blank Selects
-- [ ] Parametrized test over every `_FORM_FIELDS` step with the baseline removed → Discard → no exception, no unsaved value retained, missing-baseline diagnostic asserted.
-- [ ] Fail-closed discard reloads durable state where a loader exists; otherwise clears Inputs and resets `allow_blank=False` Selects to a valid default via the guarded helper.
+- [x] Parametrized test over every `_FORM_FIELDS` step with the baseline removed → Discard → no exception, no unsaved value retained, missing-baseline diagnostic asserted. (`tests/test_fourth_post_review_discard_without_baseline.py`; 5 of 10 steps failed on baseline. The state is seeded because a missing baseline is a race no UI path holds still.)
+- [x] Fail-closed discard reloads durable state where a loader exists; otherwise clears Inputs and resets `allow_blank=False` Selects to a valid default via the guarded helper. (No step has a generic loader hook, so it clears Inputs and resets Selects via `_reset_select`.)
 
 ### FPR-05 — Select transition after the target vanished
-- [ ] Real-input regression for host select: edit A → pick B → delete B via service → Save-and-select → app alive, A saved, status explains B is gone.
-- [ ] Deterministic tests for the plan-segment and speech-choice transition paths.
-- [ ] `guided_host_wizard.py:269`, `guided_episode_wizard.py:294`, `guided_first_run.py:353` use the guarded helper.
+- [x] Real-input regression for host select: edit A → pick B → delete B via service → Save-and-select → app alive, A saved, status explains B is gone. (`tests/test_fourth_post_review_select_target_vanished.py`: real input shows the order-save guard stops the transition first, so the unguarded assignment is covered deterministically for host, plan and speech.)
+- [x] Deterministic tests for the plan-segment and speech-choice transition paths. (same file.)
+- [x] `guided_host_wizard.py:269`, `guided_episode_wizard.py:294`, `guided_first_run.py:353` use the guarded helper. (now `_assign_select` with a refresh and status.)
 
 ## FPR-300 — Lifecycle integrity
 
