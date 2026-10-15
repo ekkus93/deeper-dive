@@ -100,14 +100,16 @@ class PipelineOrchestrator:
         record = self._refresh(run_id)
         if record.state not in {"pending", "running"}:
             raise ValueError(f"cannot pause generation run in {record.state} state")
-        self.repository.request_pause(run_id, self._now())
+        if not self.repository.request_pause(run_id, self._now()):
+            raise ValueError("cannot pause generation run after it reached a terminal state")
 
     def request_cancel(self, run_id: str) -> None:
         """Request cooperative cancel at the next safe stage boundary."""
         record = self._refresh(run_id)
         if record.state not in {"pending", "running", "paused"}:
             raise ValueError(f"cannot cancel generation run in {record.state} state")
-        self.repository.request_cancel(run_id, self._now())
+        if not self.repository.request_cancel(run_id, self._now()):
+            raise ValueError("cannot cancel generation run after it reached a terminal state")
 
     def cancel_now(self, run_id: str) -> GenerationRunRecord:
         """Finish a cancel with one conditional write; no stage handler is executed."""
@@ -153,6 +155,9 @@ class PipelineOrchestrator:
             raise KeyError(f"unknown generation run: {run_id}")
         if force_from is not None and force_from not in self.stages:
             raise ValueError(f"unknown force_from stage: {force_from}")
+        if record.state == "completed" and (record.pause_requested or record.cancel_requested):
+            self.repository.clear_stale_control_flags(run_id, self._now())
+            record = self._refresh(run_id)
         forced_index = self.stages.index(force_from) if force_from is not None else len(self.stages)
         executed: list[str] = []
         skipped: list[str] = []
@@ -209,9 +214,15 @@ class PipelineOrchestrator:
             if control_result is not None:
                 return control_result
 
-        record = self._update(record, stage=self.stages[-1], state="completed")
-        if record.state == "cancelled":
-            return PipelineResult(record, tuple(executed), tuple(skipped))
+        if not self.repository.complete(run_id, self._now()):
+            record = self._refresh(run_id)
+            control_result = self._apply_requested_control(record, tuple(executed), tuple(skipped))
+            if control_result is not None:
+                return control_result
+            if record.state != "completed":
+                return PipelineResult(record, tuple(executed), tuple(skipped))
+        else:
+            record = self._refresh(run_id)
         self._emit("pipeline", "completed", completed=len(self.stages), total=len(self.stages))
         return PipelineResult(record, tuple(executed), tuple(skipped))
 

@@ -87,3 +87,21 @@ def test_paused_run_resumes_from_completed_checkpoint(tmp_path) -> None:
     assert result.run.state == "completed"
     assert result.skipped_stages == ("sources",)
     assert result.executed_stages == ("conversation", "export")
+
+
+def test_terminal_control_requests_are_noops_and_completed_replay_clears_stale_flags(
+    tmp_path,
+) -> None:
+    repository, pipeline = _orchestrator(tmp_path)
+    completed = pipeline.run("run").run
+    assert completed.state == "completed"
+    assert completed.pause_requested is False and completed.cancel_requested is False
+
+    assert repository.request_pause("run", "2026-09-23T00:01:00.000000Z") is False
+    assert repository.request_cancel("run", "2026-09-23T00:01:00.000000Z") is False
+    assert repository.get("run") == completed
+
+    repository.update(replace(completed, pause_requested=True, cancel_requested=True))
+    replayed = pipeline.run("run", force_from="conversation").run
+    assert replayed.state == "completed"
+    assert replayed.pause_requested is False and replayed.cancel_requested is False

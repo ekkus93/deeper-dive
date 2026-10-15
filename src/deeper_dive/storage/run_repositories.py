@@ -192,11 +192,33 @@ class GenerationRunRepository:
             )
         return self.get(run_id)
 
-    def request_pause(self, run_id: str, modified_at: str) -> None:
-        self._set_flag(run_id, "pause_requested", modified_at)
+    def request_pause(self, run_id: str, modified_at: str) -> bool:
+        return self._set_flag(run_id, "pause_requested", modified_at)
 
-    def request_cancel(self, run_id: str, modified_at: str) -> None:
-        self._set_flag(run_id, "cancel_requested", modified_at)
+    def request_cancel(self, run_id: str, modified_at: str) -> bool:
+        return self._set_flag(run_id, "cancel_requested", modified_at)
+
+    def complete(self, run_id: str, modified_at: str) -> bool:
+        """Complete an active run and clear control flags atomically at the terminal edge."""
+        with self.database.transaction() as db:
+            cursor = db.execute(
+                """UPDATE generation_runs SET state='completed',pause_requested=0,
+                    cancel_requested=0,modified_at=?
+                WHERE id=? AND state IN ('pending','running')
+                    AND pause_requested=0 AND cancel_requested=0""",
+                (modified_at, run_id),
+            )
+            return cursor.rowcount == 1
+
+    def clear_stale_control_flags(self, run_id: str, modified_at: str) -> bool:
+        """Clear flags left on a completed run before an explicit replay."""
+        with self.database.transaction() as db:
+            cursor = db.execute(
+                """UPDATE generation_runs SET pause_requested=0,cancel_requested=0,modified_at=?
+                WHERE id=? AND state='completed' AND (pause_requested=1 OR cancel_requested=1)""",
+                (modified_at, run_id),
+            )
+            return cursor.rowcount == 1
 
     def complete_unit(self, unit: CompletedUnitRecord) -> bool:
         """Commit one work-unit checkpoint; return False when already complete."""
@@ -231,14 +253,16 @@ class GenerationRunRepository:
             unit.stage for unit in self.list_completed_units_all(run_id) if unit.unit_id == "stage"
         ]
 
-    def _set_flag(self, run_id: str, column: str, modified_at: str) -> None:
+    def _set_flag(self, run_id: str, column: str, modified_at: str) -> bool:
         if column not in {"pause_requested", "cancel_requested"}:
             raise ValueError("unsupported run flag")
         with self.database.transaction() as db:
-            db.execute(
-                f"UPDATE generation_runs SET {column}=1,modified_at=? WHERE id=?",
+            cursor = db.execute(
+                f"UPDATE generation_runs SET {column}=1,modified_at=? "
+                "WHERE id=? AND state IN ('pending','running','paused')",
                 (modified_at, run_id),
             )
+            return cursor.rowcount == 1
 
     @staticmethod
     def _safe_failure_message(message: str | None) -> str | None:

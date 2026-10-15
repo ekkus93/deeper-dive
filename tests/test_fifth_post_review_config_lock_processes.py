@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from deeper_dive.user_config import UserConfigStore
+from deeper_dive.user_config import UserConfigError, UserConfigStore
 
 pytestmark = pytest.mark.skipif(
     not hasattr(os, "symlink") or sys.platform == "win32", reason="needs flock and symlinks"
@@ -37,7 +37,12 @@ def _read_line(process: subprocess.Popen[str], timeout: float) -> str | None:
     return process.stdout.readline().strip() if ready else None
 
 
-def _child_blocks(path: Path) -> bool:
+def _child_blocks(
+    path: Path,
+    *,
+    child_script: str = _CHILD,
+    ready_timeout: float = _IMPORT_SECONDS,
+) -> bool:
     """True when a child that finished importing cannot take the lock within 1.5 s.
 
     The child reports ``ready`` after its imports, so a slow start cannot read as
@@ -45,15 +50,18 @@ def _child_blocks(path: Path) -> bool:
     """
 
     process = subprocess.Popen(
-        [sys.executable, "-c", _CHILD, str(path)],
+        [sys.executable, "-c", child_script, str(path)],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
     )
     try:
-        assert _read_line(process, _IMPORT_SECONDS) == "ready", (
-            process.stderr and process.stderr.read()
-        )
+        ready = _read_line(process, ready_timeout)
+        if ready != "ready":
+            process.kill()
+            process.wait()
+            stderr = process.stderr.read() if process.stderr is not None else ""
+            raise AssertionError(stderr or f"child did not report ready: {ready!r}")
         line = _read_line(process, _CONTENTION_SECONDS)
         if line is None:
             return True
@@ -103,3 +111,24 @@ def test_an_unrelated_path_does_not_contend(tmp_path: Path) -> None:
         assert not _child_blocks(tmp_path / "b" / "config.json")
     finally:
         handle.close()
+
+
+def test_child_without_ready_output_is_killed_before_stderr_read(tmp_path: Path) -> None:
+    with pytest.raises(AssertionError, match="child did not report ready"):
+        _child_blocks(
+            tmp_path / "config.json",
+            child_script="import time; time.sleep(60)",
+            ready_timeout=0.05,
+        )
+
+
+def test_dangling_parent_symlink_is_refused_before_creating_its_target(tmp_path: Path) -> None:
+    missing_target = tmp_path / "outside-not-created"
+    dangling = tmp_path / "dangling-parent"
+    dangling.symlink_to(missing_target, target_is_directory=True)
+    store = UserConfigStore(dangling / "nested" / "config.json")
+
+    with pytest.raises(UserConfigError, match="invalid user configuration path"):
+        store.load()
+
+    assert not missing_target.exists()

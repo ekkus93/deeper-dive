@@ -75,7 +75,7 @@ def test_cancel_now_leaves_other_states_alone(tmp_path: Path) -> None:
 
 
 def test_cli_cancel_survives_a_worker_write_in_the_race_window(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     service, project_id, episode_id = _episode(tmp_path)
     runs = service.runs(project_id)
@@ -115,6 +115,7 @@ def test_cli_cancel_survives_a_worker_write_in_the_race_window(
         monkeypatch.setattr(GenerationRunRepository, "cancel_now", worker_then_cancel)
 
     assert _cancel(tmp_path, project_id, episode_id) == 0
+    assert '"state": "cancelled"' in capsys.readouterr().out
 
     assert executed == []
     assert _states(service, project_id, episode_id)["r1"][0] == "cancelled"
