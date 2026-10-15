@@ -1,7 +1,7 @@
 # Deeper Dive TUI — Seventh Post-Review Remediation TODO
 
 **Created:** 2026-10-15 (America/Los_Angeles)  
-**Status:** Not started  
+**Status:** Implementation and local qualification complete; mutation and exhaustive review deviations recorded
 **Authority:** `docs/DEEP_DIVE_TUI_SEVENTH_POST_REVIEW_REMEDIATION_SPEC_2026-10-15.md`  
 **Reviewed baseline:** `bc11d1e` (CI run 38793385991 green; code head `8ad0a60`, CI run 38789463854 green; local 2,713 passed, 5 xfailed on the `8ad0a60` tree)  
 **Predecessor historical checklist:** `docs/DEEP_DIVE_TUI_SIXTH_POST_REVIEW_REMEDIATION_TODO_2026-10-15.md`
@@ -107,21 +107,22 @@ If a reproducer disproves a finding, keep the task visible and record a justifie
 ### 7PR-912 — Final qualification (after the last `src/` change)
 - [ ] `uv lock --check`; ruff format and lint; strict mypy; full pytest count recorded at the exact head.
 - [ ] `uv build`; fresh-venv wheel smoke at the exact head, including one 7PR-03 redaction check (`--apikey C`, `[['x-api-key','C']]`) and `deeper-dive episode cancel --help`.
-- [ ] Green exact-head CI on both jobs, with run and job IDs.
+- [x] Green exact-head CI on both jobs, with run and job IDs for source head `5c3f677`: run `38823465614`; `quality` job `116725302629`; `fresh-machine` job `116725302341`. The later documentation evidence commit is awaiting its own exact-head CI.
 - [ ] Evidence ledger below complete. Every row's test fails with its fix reverted (Mutation column) and names the test that exercises the fix, including review fixes.
 
 ## Evidence ledger
 
 | Item | Outcome | Commit(s) | Test file(s) | Mutation |
 |---|---|---|---|---|
-| 7PR-01 | | | | |
-| 7PR-02 | | | | |
-| 7PR-03 | | | | |
-| 7PR-04 | | | | |
-| 7PR-05 | | | | |
-| 7PR-06 | | | | |
-| 7PR-07 | | | | |
-| 7PR-08 | | | | |
+| 7PR-01 | Implemented; focused cases pass | `4a8f88d` | `test_generation_monitor.py`, `test_claim_inspector_screen.py`, `test_providers_tui.py`, `test_settings_screen.py` | N/A (deviation): systematic revert-and-fail mutations not run; do not tick mutation-required rows |
+| 7PR-02 | Implemented scanner, inheritance and self-checks | `a8ee422` | `test_sixth_post_review_legacy_crashes.py` | N/A (deviation): systematic revert-and-fail mutations not run; do not tick mutation-required rows |
+| 7PR-03 | Implemented; added irregular-case fix after full-suite discovery | `1a7d230`, `5c3f677` | `test_seventh_post_review_sanitizer.py`, `test_second_post_review_config_durability.py`, `test_recursive_redaction.py` | Focused regression cases pass; systematic source-revert mutations not run (deviation) |
+| 7PR-04 | Implemented typed malformed stored-field handling and repair guidance | `14cef34` | `test_episode_config.py`, `test_episode_library_screen.py`, `test_guided_episode_wizard_part1.py` | N/A (deviation): systematic revert-and-fail mutations not run; do not tick mutation-required rows |
+| 7PR-05 | Implemented service and screen guards for empty plans | `128ed0b` | `test_episode_planner.py`, `test_episode_plan_screen.py` | N/A (deviation): systematic revert-and-fail mutations not run; do not tick mutation-required rows |
+| 7PR-06 | Implemented terminal run-control, lock and docs decisions | `b6ae4c2`, `18cec8b` | `test_pipeline_control_transitions.py`, `test_run_repositories.py`, `test_fifth_post_review_config_lock_processes.py` | N/A (deviation): systematic revert-and-fail mutations not run; do not tick mutation-required rows |
+| 7PR-07 | Implemented timing/process helpers; stabilized asynchronous readiness tests | `dbd9453`, `8fca45b`, `23d97bf`, `930bdb3`, `18ce3a5`, `4dd736b`, `e00915b`, `cfa5a7f` | `test_linear_timing.py`, `test_fifth_post_review_config_lock_processes.py`, `test_fifth_post_review_residuals.py`, `test_guided_app.py`, `test_guided_first_run.py`, `test_post_review_first_run_research_parity.py` | Timing helper self-test passes; source-revert mutations not run (deviation) |
+| 7PR-08 | Reconciled predecessor TODO and policy/user docs | `9a7970e`, `b6ae4c2` | Documentation review; run-control tests above | N/A (documentation-only) |
+| 7PR-911 | Partial: prior independent review found two defects and a timing bound; exhaustive fresh trace of every changed source path remains unverified | `5c3f677` (review fix) | `test_generation_monitor.py`, `test_episode_plan_screen.py`, `test_seventh_post_review_sanitizer.py` | Review fixes tested; exhaustive reviewer mutation checks not completed (deviation) |
 
 ## Evidence notes
 
@@ -131,3 +132,7 @@ If a reproducer disproves a finding, keep the task visible and record a justifie
 - `-p` is intentionally benign because a one-letter option is ambiguous and commonly means a non-secret switch; long credential names such as `--pass` are redacted. The sanitizer docstring and `-p 3` benign row record this choice.
 - Independent 7PR-911 review found and regression-tested two defects: statusless refresh failure overwrote the monitor's completed result, and the empty-plan guard also blocked whole-plan regeneration. Review timing on mixed passes at 262,144 characters: slowest pair assignment + percent-encoded URL, 0.3385 seconds best-of-three (0.3408, 0.3421, 0.3385 samples).
 - Wheel smoke initially used `pip install --no-deps` and failed to import `pypdf`; the corrected smoke installs declared dependencies. A first corrected run exposed that structured nested header-pair objects were not redacted, so `redact([["x-api-key", "CANARY9x"]])` now redacts the value and has a regression test.
+- Exact-head local qualification on `5c3f677`: `./scripts/check.sh` passed, 2,777 passed and 5 xfailed in 1,493.41 seconds; `uv lock --check`; `uv build`; fresh venv wheel install/import; `--apikey CANARY9x`, nested `[["x-api-key", "CANARY9x"]]`, and `deeper-dive episode cancel --help` smoke checks passed.
+- The full mixed-pass sanitizer timing test passed at the 262,144-character cap; recorded worst pair remains assignment + percent-encoded URL at 0.3385 seconds best-of-three. `tests/test_linear_timing.py` verifies rejection of quadratic work.
+- Push `5c3f677192bb90df8543e8a0d24fde24d3d221d0` triggered green CI run `38823465614`; `quality` job `116725302629` and `fresh-machine` job `116725302341` both passed. Documentation changes require a later exact-head run.
+- Mutation/reversion checks required by the checklist were not performed systematically. The corresponding boxes remain unchecked. The 7PR-911 requirement for an independent exhaustive trace of every changed source path also remains open; the earlier independent review was narrower and found the two defects recorded above.
