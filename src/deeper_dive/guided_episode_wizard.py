@@ -13,7 +13,7 @@ from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.episode_planner import PlannedSegment
 from deeper_dive.generation_start import GenerationStartService
-from deeper_dive.guided_episode_form import EpisodeFormHelpers
+from deeper_dive.guided_episode_form import AUDIENCE_OPTIONS, EpisodeFormHelpers
 from deeper_dive.guided_generation import GuidedGenerationMonitorScreen
 from deeper_dive.wizard_transitions import (
     Transition,
@@ -120,11 +120,7 @@ class GuidedEpisodeWizard(EpisodeFormHelpers):
             ),
             Input(placeholder="Custom duration in minutes", id="guided-episode-custom-duration"),
             Select(
-                [
-                    ("General audience", "general"),
-                    ("Technical audience", "technical"),
-                    ("Expert audience", "expert"),
-                ],
+                list(AUDIENCE_OPTIONS),
                 value="general",
                 allow_blank=False,
                 id="guided-episode-audience",

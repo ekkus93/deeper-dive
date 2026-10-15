@@ -269,7 +269,7 @@ class HostWizardSupport(GuidedSourceWizard):
         self.query_one("#guided-host-role", Input).value = role
         self.query_one("#guided-host-expertise", Input).value = expertise
         self.query_one("#guided-host-instructions", Input).value = instructions
-        self.query_one("#guided-host-preset", Select).value = preset
+        self._assign_select(self.query_one("#guided-host-preset", Select), preset)
 
     def _host_profile_values_dirty(
         self,

@@ -16,6 +16,12 @@ from deeper_dive.plan_validity import evaluate_episode_plan
 from deeper_dive.preflight import PreflightReport
 from deeper_dive.research_policy import ResearchPolicyStore
 
+AUDIENCE_OPTIONS: tuple[tuple[str, str], ...] = (
+    ("General audience", "general"),
+    ("Technical audience", "technical"),
+    ("Expert audience", "expert"),
+)
+
 
 class EpisodeFormHelpers(GuidedHostWizard):
     """Plan service, episode form, plan rendering and preflight helpers for the episode wizard."""
@@ -52,6 +58,22 @@ class EpisodeFormHelpers(GuidedHostWizard):
             assignment.model,
         )
 
+    def _show_audience(self, audience: str) -> None:
+        """Show a stored audience, adding a "Custom" option for free text.
+
+        The CLI and the legacy Episode Setup screen accept any audience text. The
+        guided Select only knows the presets, so an unknown stored value becomes an
+        extra option; a no-op Save then keeps the durable value unchanged.
+        """
+
+        select = self.query_one("#guided-episode-audience", Select)
+        options = list(AUDIENCE_OPTIONS)
+        if audience not in {value for _label, value in options}:
+            options.append((f"Custom: {audience}", audience))
+        with select.prevent(Select.Changed):
+            select.set_options(options)
+            select.value = audience
+
     def _load_episode_form(self) -> None:
         self._loaded_episode_id = None
         self._loaded_episode_config = None
@@ -71,7 +93,7 @@ class EpisodeFormHelpers(GuidedHostWizard):
         self._loaded_episode_revision = revision
         self.query_one("#guided-episode-title", Input).value = config.title
         self.query_one("#guided-episode-focus", Input).value = config.focus
-        self.query_one("#guided-episode-audience", Select).value = config.audience
+        self._show_audience(config.audience)
         if config.technical_depth in {"accessible", "balanced", "deep"}:
             self.query_one("#guided-episode-depth", Select).value = config.technical_depth
         minutes = config.target_duration_seconds // 60
