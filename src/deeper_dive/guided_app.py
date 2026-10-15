@@ -139,7 +139,11 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
         # Resume has already installed the saved New Deep Dive wizard, treating a
         # duplicate resume as another external navigation would make the new
         # screen guard itself and can race its composition.
-        if destination == "resume" and screen is self.get_screen("new"):
+        if (
+            destination == "resume"
+            and screen is self.get_screen("new")
+            and self._resume_is_current()
+        ):
             return
         if isinstance(screen, WizardShell) and screen.request_external_navigation(destination):
             return
@@ -231,6 +235,24 @@ class GuidedDeeperDiveApp(DeeperDiveApp):
             self.call_after_refresh(lambda: refresh_goal_home(self))
         else:
             super().action_navigate(destination)
+
+    def _resume_is_current(self) -> bool:
+        """True when the showing wizard already is the saved draft (a duplicate Resume).
+
+        After a dirty wizard resolved its Save/Discard prompt for a Resume request,
+        the wizard is still the current screen but may be at a different step than
+        the draft; that Resume must run, not be swallowed as a duplicate.
+        """
+
+        restored = self._draft_store.load(self.composition, WizardKind.NEW_DEEP_DIVE)
+        if restored is None:
+            return True
+        context = self._new_context
+        return (
+            restored.state == context.state
+            and restored.project_id == context.project_id
+            and restored.episode_id == context.episode_id
+        )
 
     def _surface_dirty_prior_wizard(self, destination: str) -> bool:
         """Never silently reset a New Deep Dive wizard that holds unsaved edits.
