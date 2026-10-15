@@ -27,6 +27,7 @@ from deeper_dive.guided_workflow import (
     WizardTransitionBlocked,
     steps_for,
 )
+from deeper_dive.screen_guard import report_service_errors
 from deeper_dive.wizard_transitions import (
     _FORM_FIELDS,
     Transition,
@@ -149,6 +150,7 @@ class WizardShell(Screen[None]):
             )
         yield Footer()
 
+    @report_service_errors("Action failed")
     def on_mount(self) -> None:
         """Single mount handler. Subclasses extend ``_before_mount`` / ``_mounted``.
 
@@ -482,6 +484,7 @@ class WizardShell(Screen[None]):
         )
         return True
 
+    @report_service_errors("Action failed")
     def action_confirm_save_exit(self) -> None:
         if not self._exit_confirmation_pending or self.busy:
             return
@@ -580,6 +583,7 @@ class WizardShell(Screen[None]):
                     select.value = value
                     return
 
+    @report_service_errors("Action failed")
     def action_confirm_discard_exit(self) -> None:
         if not self._exit_confirmation_pending or self.busy:
             return

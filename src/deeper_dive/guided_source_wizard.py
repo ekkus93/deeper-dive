@@ -13,6 +13,7 @@ from deeper_dive.batch_import import DuplicateDisposition
 from deeper_dive.guided_new_deep_dive import GuidedProjectWizard
 from deeper_dive.guided_workflow import CompletionProbe, WizardContext
 from deeper_dive.research_policy import ResearchMode, ResearchPolicy, ResearchPolicyStore
+from deeper_dive.screen_guard import report_service_errors
 from deeper_dive.source_readiness import source_readiness_label
 from deeper_dive.storage.repositories import SourceRecord
 from deeper_dive.tui import DeeperDiveApp
@@ -103,6 +104,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
         self._toggle()
         self._schedule_form_baseline()
 
+    @report_service_errors("Action failed")
     def action_continue(self) -> bool:
         if not super().action_continue():
             return False
@@ -112,6 +114,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
         self._schedule_form_baseline()
         return True
 
+    @report_service_errors("Action failed")
     def action_back(self) -> bool:
         if not super().action_back():
             return False
@@ -121,6 +124,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
         self._schedule_form_baseline()
         return True
 
+    @report_service_errors("Action failed")
     def on_select_changed(self, event: Select.Changed) -> None:
         if event.select.id == "guided-source-picker":
             self._pending_delete_source_id = None
@@ -144,6 +148,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
             return
         # Textual dispatches the base-class handlers itself; no super() call.
 
+    @report_service_errors("Action failed")
     def action_add_pasted_source(self) -> bool:
         project_id = self.context.project_id
         title_input = self.query_one("#guided-source-title", Input)
@@ -169,6 +174,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
         self.set_status(f"Imported {source.title}.")
         return True
 
+    @report_service_errors("Action failed")
     def action_add_file_sources(self) -> bool:
         project_id = self.context.project_id
         paths_input = self.query_one("#guided-source-paths", Input)
@@ -192,6 +198,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
         self.set_status(self._import_summary("file/folder", summary))
         return not unresolved
 
+    @report_service_errors("Action failed")
     def action_add_url_sources(self) -> bool:
         project_id = self.context.project_id
         urls_input = self.query_one("#guided-source-urls", Input)
@@ -215,6 +222,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
         self.set_status(self._import_summary("URL", summary))
         return not unresolved
 
+    @report_service_errors("Action failed")
     def action_toggle_source(self) -> None:
         project_id = self.context.project_id
         source = self._selected_source()
@@ -235,6 +243,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
         self._sync_text()
         self.set_status(f"{'Included' if not source.included else 'Excluded'} {source.title}.")
 
+    @report_service_errors("Action failed")
     def action_delete_source(self) -> None:
         project_id = self.context.project_id
         source = self._selected_source()
@@ -279,6 +288,7 @@ class GuidedSourceWizard(GuidedProjectWizard):
         self.set_status(f"Saved research choice: {mode.value}.")
         return True
 
+    @report_service_errors("Action failed")
     def action_open_advanced_research(self) -> None:
         """Open existing expert controls against this wizard's durable project."""
         project_id = self.context.project_id

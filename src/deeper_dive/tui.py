@@ -103,6 +103,7 @@ class HomeProjectsScreen(NavigationMixin, Screen[None]):
     def on_mount(self) -> None:
         self.refresh_projects()
 
+    @report_service_errors("Action failed")
     def on_button_pressed(self, event: Button.Pressed) -> None:
         action = event.button.name
         if action == "create-project":

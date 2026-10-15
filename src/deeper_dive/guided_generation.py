@@ -9,6 +9,7 @@ from deeper_dive.diagnostics import redact
 from deeper_dive.domain.clock import parse_timestamp
 from deeper_dive.generation_monitor import GenerationMonitorScreen
 from deeper_dive.pipeline import generation_stage_label
+from deeper_dive.screen_guard import report_service_errors, tolerate_refresh_errors
 
 _STAGE_REPAIR_ROUTES = {
     "sources": "sources",
@@ -36,6 +37,7 @@ class GuidedGenerationMonitorScreen(GenerationMonitorScreen):
         self.set_interval(1.0, self.refresh_monitor)
         self.call_after_refresh(self._route_completed_run)
 
+    @report_service_errors("Action failed")
     def on_screen_resume(self) -> None:
         self.refresh_monitor()
         self.call_after_refresh(self._route_completed_run)
@@ -52,6 +54,7 @@ class GuidedGenerationMonitorScreen(GenerationMonitorScreen):
         if run is not None and run.id == run_id:
             self._route_completed_run()
 
+    @report_service_errors("Action failed")
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.name == "repair-generation":
             event.stop()
@@ -59,6 +62,7 @@ class GuidedGenerationMonitorScreen(GenerationMonitorScreen):
             return
         super().on_button_pressed(event)
 
+    @report_service_errors("Action failed")
     def action_repair_configuration(self) -> None:
         run = self._run()
         if run is None:
@@ -83,6 +87,7 @@ class GuidedGenerationMonitorScreen(GenerationMonitorScreen):
         self._cancel_confirmation_pending = False
         super().action_resume()
 
+    @tolerate_refresh_errors
     def refresh_monitor(self, status: str | None = None) -> None:
         super().refresh_monitor(status)
         snapshot = self._app.generation_monitor_controller.snapshot(self._app)

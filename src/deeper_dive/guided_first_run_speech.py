@@ -5,6 +5,7 @@ from __future__ import annotations
 from textual.widgets import Input, Select
 
 from deeper_dive.guided_first_run_form import FirstRunFormControls
+from deeper_dive.screen_guard import report_service_errors
 from deeper_dive.voice_preview import VoicePreviewService
 from deeper_dive.wizard_transitions import Transition, TransitionKind
 
@@ -12,6 +13,7 @@ from deeper_dive.wizard_transitions import Transition, TransitionKind
 class FirstRunSpeechActions(FirstRunFormControls):
     """Speech and voice-default actions for the first-run wizard."""
 
+    @report_service_errors("Action failed")
     def action_save_speech(self) -> bool:
         choice = self._select_value("#setup-speech-choice") or "kitten"
         if choice == "deferred":
@@ -90,6 +92,7 @@ class FirstRunSpeechActions(FirstRunFormControls):
         self._request_runtime_readiness()
         return True
 
+    @report_service_errors("Action failed")
     def action_discover_voices(self) -> None:
         if self.busy or self._exit_confirmation_pending:
             return
@@ -152,6 +155,7 @@ class FirstRunSpeechActions(FirstRunFormControls):
         else:
             self.set_status(f"Discovered {len(voices)} friendly voice option(s) from {name}.")
 
+    @report_service_errors("Action failed")
     def action_preview_voice(self) -> None:
         name = self._selected_tts_name()
         voice = self._select_value("#setup-host1-voice")
@@ -168,6 +172,7 @@ class FirstRunSpeechActions(FirstRunFormControls):
             return
         self.set_status(f"Voice preview synthesized through {name}: {path.name}")
 
+    @report_service_errors("Action failed")
     def action_save_defaults(self) -> bool:
         config = self.context.composition.provider_controller.config()
         deferred = config.defaults.get("speech_setup") == "deferred"

@@ -19,6 +19,7 @@ from deeper_dive.guided_episode_form import (
     EpisodeFormHelpers,
 )
 from deeper_dive.guided_generation import GuidedGenerationMonitorScreen
+from deeper_dive.screen_guard import report_service_errors
 from deeper_dive.storage.episode_errors import InvalidModelOverrides
 from deeper_dive.wizard_transitions import (
     Transition,
@@ -200,6 +201,7 @@ class GuidedEpisodeWizard(EpisodeFormHelpers):
         self._toggle()
         self._remember_current_form()
 
+    @report_service_errors("Action failed")
     def on_screen_resume(self) -> None:
         """A previously mounted wizard must reload production state when re-entered."""
         if not self.is_mounted:
@@ -339,6 +341,7 @@ class GuidedEpisodeWizard(EpisodeFormHelpers):
             else "Advanced episode options hidden."
         )
 
+    @report_service_errors("Action failed")
     def action_save_episode(self) -> bool:
         project_id = self.context.project_id
         episode_id = self.context.episode_id

@@ -57,6 +57,10 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
     def _load_project_form(self) -> None:
         project_id = self.context.project_id
         if project_id is None:
+            self._project_audience_unset = False
+            self._show_stored_choice(
+                "#guided-project-audience", PROJECT_AUDIENCE_OPTIONS, "general"
+            )
             return
         try:
             project = self.context.composition.service.open_project(project_id)

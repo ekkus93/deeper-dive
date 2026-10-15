@@ -10,6 +10,7 @@ from textual.widgets import Button, Input, Select, Static
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.guided_host_support import HostWizardSupport
 from deeper_dive.hosts import HostProfile, create_host_from_preset, preset_names
+from deeper_dive.screen_guard import report_service_errors
 from deeper_dive.voice_preview import VoicePreviewService
 from deeper_dive.wizard_transitions import Transition, TransitionKind
 
@@ -98,6 +99,7 @@ class GuidedHostWizard(HostWizardSupport):
         self._toggle()
         self._schedule_form_baseline()
 
+    @report_service_errors("Action failed")
     def action_continue(self) -> bool:
         if not super().action_continue():
             return False
@@ -106,6 +108,7 @@ class GuidedHostWizard(HostWizardSupport):
         self._schedule_form_baseline()
         return True
 
+    @report_service_errors("Action failed")
     def action_back(self) -> bool:
         if not super().action_back():
             return False
@@ -114,6 +117,7 @@ class GuidedHostWizard(HostWizardSupport):
         self._schedule_form_baseline()
         return True
 
+    @report_service_errors("Action failed")
     def on_select_changed(self, event: Select.Changed) -> None:
         # Base-class handlers are dispatched by Textual itself (no super() call).
         if event.select.id != "guided-host-picker":
@@ -288,6 +292,7 @@ class GuidedHostWizard(HostWizardSupport):
             return
         super()._execute_custom_transition(transition)
 
+    @report_service_errors("Action failed")
     def on_button_pressed(self, event: Button.Pressed) -> None:
         handlers = {
             "recommended-hosts": self.action_create_recommended_hosts,
@@ -337,6 +342,7 @@ class GuidedHostWizard(HostWizardSupport):
             if button.name in self._MUTATING_HOST_BUTTONS:
                 button.disabled = disabled
 
+    @report_service_errors("Action failed")
     def action_create_recommended_hosts(self) -> None:
         if self.busy or self._exit_confirmation_pending:
             return
@@ -373,6 +379,7 @@ class GuidedHostWizard(HostWizardSupport):
         self._remember_host_profile_baseline()
         self.set_status("Created/selected the recommended Curious Explainer and Skeptic pair.")
 
+    @report_service_errors("Action failed")
     def action_create_host(self) -> bool:
         if self.busy or self._exit_confirmation_pending:
             return False
@@ -421,6 +428,7 @@ class GuidedHostWizard(HostWizardSupport):
         self.set_status(f"Created host {host.display_name}.")
         return True
 
+    @report_service_errors("Action failed")
     def action_save_host(self) -> bool:
         if self._host_actions_blocked():
             return False
@@ -448,6 +456,7 @@ class GuidedHostWizard(HostWizardSupport):
         self.set_status(f"Saved host {host.display_name}.")
         return True
 
+    @report_service_errors("Action failed")
     def action_select_host(self) -> None:
         if self._host_actions_blocked():
             return
@@ -460,6 +469,7 @@ class GuidedHostWizard(HostWizardSupport):
         self._refresh_host_order()
         self.set_status(f"Selected {record.display_name} for this episode.")
 
+    @report_service_errors("Action failed")
     def action_remove_selected_host(self) -> None:
         if self._host_actions_blocked():
             return
@@ -471,6 +481,7 @@ class GuidedHostWizard(HostWizardSupport):
         self._refresh_host_order()
         self.set_status(f"Removed {record.display_name} from this episode.")
 
+    @report_service_errors("Action failed")
     def action_preview_host_voice(self) -> None:
         record = self._selected_host_record()
         if record is None:
@@ -495,6 +506,7 @@ class GuidedHostWizard(HostWizardSupport):
             return
         self.set_status(f"Previewed {voice.name}: {path.name}")
 
+    @report_service_errors("Action failed")
     def action_save_host_order(self) -> bool:
         if self._host_actions_blocked():
             return False

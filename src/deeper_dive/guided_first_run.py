@@ -13,6 +13,7 @@ from deeper_dive.guided_async_readiness import FirstRunRuntimeSnapshot
 from deeper_dive.guided_first_run_speech import FirstRunSpeechActions
 from deeper_dive.llm import LLMMessage, LLMRequest
 from deeper_dive.model_roles import ModelRole
+from deeper_dive.screen_guard import report_service_errors
 from deeper_dive.wizard_transitions import Transition, TransitionKind, WizardSaveResult
 
 _REQUIRED_SETUP_ROLES = (
@@ -252,6 +253,7 @@ class GuidedFirstRunWizard(FirstRunSpeechActions):
         self._remember_current_form()
         self._request_runtime_readiness()
 
+    @report_service_errors("Action failed")
     def on_screen_resume(self) -> None:
         """Refresh externally saved setup only when the active form is clean."""
         if not self.is_mounted:
@@ -304,6 +306,7 @@ class GuidedFirstRunWizard(FirstRunSpeechActions):
             self._form_baseline_targets[step] = self._form_target_identity(step)
             self._preset_baseline_steps.discard(step)
 
+    @report_service_errors("Action failed")
     def action_continue(self) -> bool:
         step = self.context.state.current_step
         # A pending role edit must reach the shared Save/Discard/Cancel guard
@@ -328,6 +331,7 @@ class GuidedFirstRunWizard(FirstRunSpeechActions):
             self._remember_current_form()
         return True
 
+    @report_service_errors("Action failed")
     def action_back(self) -> bool:
         if not super().action_back():
             return False
@@ -408,6 +412,7 @@ class GuidedFirstRunWizard(FirstRunSpeechActions):
             return
         super()._execute_custom_transition(transition)
 
+    @report_service_errors("Action failed")
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id in {"setup-provider-adapter", "setup-speech-adapter"}:
             self._sync_setup_controls()
@@ -436,6 +441,7 @@ class GuidedFirstRunWizard(FirstRunSpeechActions):
             return
         # Textual dispatches the base-class handlers itself; no super() call.
 
+    @report_service_errors("Action failed")
     def action_save_provider(self) -> bool:
         adapter = self._selected_llm_adapter()
         raw_name = self.query_one("#setup-provider-name", Input).value
@@ -495,6 +501,7 @@ class GuidedFirstRunWizard(FirstRunSpeechActions):
         self._request_runtime_readiness()
         return True
 
+    @report_service_errors("Action failed")
     def action_test_provider(self) -> None:
         name = self._selected_llm_name()
         if name is None:
@@ -512,6 +519,7 @@ class GuidedFirstRunWizard(FirstRunSpeechActions):
         self._sync_text()
         self.set_status(f"{name} connection is healthy. {message}".strip())
 
+    @report_service_errors("Action failed")
     def action_discover_models(self) -> None:
         if self.busy or self._exit_confirmation_pending:
             return
@@ -554,6 +562,7 @@ class GuidedFirstRunWizard(FirstRunSpeechActions):
             return
         self.set_status(f"Discovered {len(models)} model(s) from {name}.")
 
+    @report_service_errors("Action failed")
     def action_run_model_test(self) -> None:
         identity = self._current_llm_identity()
         name = self._selected_llm_name()
@@ -597,6 +606,7 @@ class GuidedFirstRunWizard(FirstRunSpeechActions):
         self._sync_text()
         self.set_status(self._model_test_summary)
 
+    @report_service_errors("Action failed")
     def action_recommended_roles(self) -> None:
         if self.busy or self._exit_confirmation_pending:
             return

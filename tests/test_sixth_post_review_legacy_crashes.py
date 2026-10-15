@@ -121,95 +121,315 @@ def test_opening_generate_survives_a_failing_preflight(tmp_path: Path) -> None:
 
 # --- sweep -------------------------------------------------------------------------------
 
-_MARKERS = ("service", "controller", "repository")
-_ENTRY_POINTS = ("on_mount", "on_screen_resume")
+_SERVICE_WORDS = (
+    "service",
+    "controller",
+    "repository",
+    "database",
+    "composition",
+    "provider_controller",
+    "provider_factory",
+    "path",
+    "read_bytes",
+    "write_bytes",
+    "read_text",
+    "write_text",
+)
 _GUARDS = ("report_service_errors", "tolerate_refresh_errors")
-
-# ``Class.method`` -> why it needs no decorator. Whole classes are never exempt.
-_REVIEWED = {
-    "EpisodePlanScreen.on_mount": "refresh_plan catches _SERVICE_ERRORS itself (FPR-02)",
-    "EpisodePlanScreen.action_save_segment": "own _SERVICE_ERRORS handling with a reload hint",
-    "EpisodePlanScreen.action_regenerate_segment": "own _SERVICE_ERRORS handling",
-    "EpisodePlanScreen.action_regenerate_plan": "own _SERVICE_ERRORS handling",
-    "EpisodePlanScreen.action_approve_generate": "own _SERVICE_ERRORS handling",
-    "EpisodePlanScreen.action_reload_plan": "6PR-05 guards the reload itself",
-    "GenerationMonitorScreen.action_pause": "except Exception with user_status",
-    "GenerationMonitorScreen.action_resume": "except Exception with user_status",
-    "GenerationMonitorScreen.action_cancel": "except Exception with user_status",
-    "GenerationMonitorScreen.action_diagnostics": "except Exception with user_status",
-    "ProvidersScreen.action_save": "catches the config errors; config is JSON, not sqlite",
-    "ProvidersScreen.action_remove": "catches the config errors; config is JSON, not sqlite",
-    "ProvidersScreen.action_confirm_remove": "catches the config errors; config is JSON",
-    "ProvidersScreen.action_health": "catches the config errors; config is JSON",
-    "ProvidersScreen.action_models": "catches the config errors; config is JSON",
-    "ProvidersScreen.action_voices": "catches the config errors; config is JSON",
-    "SettingsScreen.action_save_default": "_save catches OSError/TypeError/ValueError (JSON)",
-    "SettingsScreen.action_save_model_default": "_save catches OSError/TypeError/ValueError",
-    "SettingsScreen.action_save_tts_defaults": "_save catches OSError/TypeError/ValueError",
-    "SettingsScreen.action_save_research_defaults": "_save catches OSError/TypeError/ValueError",
-    "SettingsScreen.action_save_quick_defaults": "_save catches OSError/TypeError/ValueError",
-    "SettingsScreen.action_save_runtime_defaults": "_save catches OSError/TypeError/ValueError",
+_REVIEWED: dict[str, str] = {
+    "EpisodePlanScreen.action_select_segment": "pure-ui",
 }
 
 
-def _is_guarded(function: ast.FunctionDef) -> bool:
-    return any(guard in ast.unparse(d) for d in function.decorator_list for guard in _GUARDS)
+def _methods(cls: ast.ClassDef) -> dict[str, ast.FunctionDef | ast.AsyncFunctionDef]:
+    return {
+        node.name: node
+        for node in cls.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
 
 
-def _is_screen_class(cls: ast.ClassDef) -> bool:
-    return any("Screen" in ast.unparse(base) for base in cls.bases)
+def _is_guarded(function: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    return any(
+        guard in ast.unparse(decorator)
+        for decorator in function.decorator_list
+        for guard in _GUARDS
+    )
 
 
-def _touches_service(
-    methods: dict[str, ast.FunctionDef], name: str, seen: frozenset[str] = frozenset()
-) -> bool:
-    """Whether a method (or an unguarded ``self.`` helper it calls) reaches a service."""
-
-    function = methods[name]
-    if any(marker in ast.unparse(function).lower() for marker in _MARKERS):
+def _catches_service_errors(handler: ast.ExceptHandler) -> bool:
+    if handler.type is None:
         return True
+    names = {node.id for node in ast.walk(handler.type) if isinstance(node, ast.Name)}
+    return bool(
+        names
+        & {
+            "Exception",
+            "BaseException",
+            "OSError",
+            "RuntimeError",
+            "ValueError",
+            "KeyError",
+            "IndexError",
+            "Error",
+            "SERVICE_ERRORS",
+            "_SERVICE_ERRORS",
+        }
+    )
+
+
+def _inside_catching_try(function: ast.FunctionDef | ast.AsyncFunctionDef, call: ast.Call) -> bool:
     for node in ast.walk(function):
+        if not isinstance(node, ast.Try) or not any(
+            _catches_service_errors(exc) for exc in node.handlers
+        ):
+            continue
+        if any(id(child) == id(call) for statement in node.body for child in ast.walk(statement)):
+            return True
+    return False
+
+
+def _is_service_call(call: ast.Call) -> bool:
+    name = ast.unparse(call.func).lower()
+    if any(
+        part in {"provider", "providers", "provider_controller", "provider_factory"}
+        for part in name.split(".")
+    ):
+        return True
+    if name in {"json.load", "json.loads"} or name.endswith((".json.load", ".json.loads")):
+        return True
+    if name in {"open", "path.open", "pathlib.path.open"}:
+        return True
+    return any(word in name for word in _SERVICE_WORDS)
+
+
+def _self_calls(function: ast.FunctionDef | ast.AsyncFunctionDef) -> list[ast.Call]:
+    return [
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "self"
+    ]
+
+
+def _has_service_path(
+    methods: dict[str, ast.FunctionDef | ast.AsyncFunctionDef],
+    name: str,
+    seen: frozenset[str] = frozenset(),
+) -> bool:
+    if name not in methods or name in seen:
+        return False
+    function = methods[name]
+    if _is_guarded(function):
+        return False
+    if any(_is_service_call(call) for call in ast.walk(function) if isinstance(call, ast.Call)):
+        return True
+    for call in _self_calls(function):
+        helper = call.func.attr
         if (
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and isinstance(node.func.value, ast.Name)
-            and node.func.value.id == "self"
-            and node.func.attr in methods
-            and node.func.attr not in seen | {name}
-            and not _is_guarded(methods[node.func.attr])
-            and _touches_service(methods, node.func.attr, seen | {name})
+            helper in methods
+            and not _is_guarded(methods[helper])
+            and _has_service_path(methods, helper, seen | {name})
         ):
             return True
     return False
 
 
-def _unguarded_entry_points(read: Callable[[Path], str] = Path.read_text) -> list[str]:
-    found: list[str] = []
-    for path in sorted(SRC.glob("*.py")):
-        # Guided screens are the wizard framework: their own tests cover them.
-        if path.name.startswith("guided_") or path.name == "wizard_shell.py":
+def _unguarded_paths(
+    methods: dict[str, ast.FunctionDef | ast.AsyncFunctionDef],
+    name: str,
+    seen: frozenset[str] = frozenset(),
+) -> bool:
+    if name not in methods or name in seen:
+        return False
+    function = methods[name]
+    if _is_guarded(function):
+        return False
+    for call in (node for node in ast.walk(function) if isinstance(node, ast.Call)):
+        if _is_service_call(call) and not _inside_catching_try(function, call):
+            return True
+        if (
+            isinstance(call.func, ast.Attribute)
+            and isinstance(call.func.value, ast.Name)
+            and call.func.value.id == "self"
+            and call.func.attr in methods
+            and not _is_guarded(methods[call.func.attr])
+            and _has_service_path(methods, call.func.attr)
+            and not _inside_catching_try(function, call)
+            and _unguarded_paths(methods, call.func.attr, seen | {name})
+        ):
+            return True
+    return False
+
+
+def _screen_class_names(trees: list[ast.Module]) -> set[str]:
+    classes = [node for tree in trees for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
+    bases = {
+        cls.name: {
+            node.id for base in cls.bases for node in ast.walk(base) if isinstance(node, ast.Name)
+        }
+        for cls in classes
+    }
+
+    def inherits_screen(name: str, seen: frozenset[str] = frozenset()) -> bool:
+        if name == "Screen":
+            return True
+        if name in seen:
+            return False
+        return any(inherits_screen(base, seen | {name}) for base in bases.get(name, ()))
+
+    return {name for name in bases if inherits_screen(name)}
+
+
+def _review_reason_errors(
+    reviewed: dict[str, str],
+    classes: dict[str, dict[str, ast.FunctionDef | ast.AsyncFunctionDef]],
+) -> list[str]:
+    errors: list[str] = []
+    for qualified, reason in reviewed.items():
+        class_name, _, method_name = qualified.partition(".")
+        methods = classes.get(class_name, {})
+        if method_name not in methods:
+            errors.append(f"stale review entry: {qualified}")
             continue
-        tree = ast.parse(read(path))
-        for cls in (n for n in ast.walk(tree) if isinstance(n, ast.ClassDef)):
-            if not _is_screen_class(cls):
+        function = methods[method_name]
+        if reason == "pure-ui":
+            valid = not _has_service_path(methods, method_name)
+        elif reason in {"own-try", "json-config"}:
+            valid = _has_service_path(methods, method_name) and not _unguarded_paths(
+                methods, method_name
+            )
+            if reason == "json-config":
+                valid = valid and any(
+                    isinstance(node, ast.Try)
+                    and any(
+                        {name.id for name in ast.walk(handler.type)}
+                        & {"OSError", "TypeError", "ValueError"}
+                        for handler in node.handlers
+                        if handler.type is not None
+                    )
+                    for node in ast.walk(function)
+                )
+        else:
+            valid = False
+        if not valid:
+            errors.append(f"unverified review reason {reason!r}: {qualified}")
+    return errors
+
+
+def _scan_sources(
+    read: Callable[[Path], str], paths: list[Path] | None = None
+) -> tuple[list[str], dict[str, dict[str, ast.FunctionDef | ast.AsyncFunctionDef]]]:
+    paths = sorted(SRC.rglob("*.py")) if paths is None else paths
+    trees = [ast.parse(read(path)) for path in paths]
+    screen_names = _screen_class_names(trees)
+    class_nodes = {
+        cls.name: cls for tree in trees for cls in ast.walk(tree) if isinstance(cls, ast.ClassDef)
+    }
+    declared_methods = {name: _methods(cls) for name, cls in class_nodes.items()}
+    class_bases = {
+        name: {
+            node.id for base in cls.bases for node in ast.walk(base) if isinstance(node, ast.Name)
+        }
+        for name, cls in class_nodes.items()
+    }
+
+    def effective_methods(
+        name: str, seen: frozenset[str] = frozenset()
+    ) -> dict[str, ast.FunctionDef | ast.AsyncFunctionDef]:
+        if name in seen:
+            return {}
+        methods: dict[str, ast.FunctionDef | ast.AsyncFunctionDef] = {}
+        for base in class_bases.get(name, ()):
+            methods.update(effective_methods(base, seen | {name}))
+        methods.update(declared_methods.get(name, {}))
+        return methods
+
+    classes = {name: effective_methods(name) for name in screen_names}
+    found: list[str] = []
+    for path, tree in zip(paths, trees, strict=True):
+        for cls in (node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)):
+            if cls.name not in screen_names:
                 continue
-            methods = {n.name: n for n in cls.body if isinstance(n, ast.FunctionDef)}
-            for name, function in methods.items():
-                is_entry = name.startswith("action_") or name in _ENTRY_POINTS
-                if not is_entry or _is_guarded(function) or not _touches_service(methods, name):
-                    continue
-                key = f"{cls.name}.{name}"
-                if key not in _REVIEWED:
-                    found.append(f"{path.name}:{key}")
-    return found
+            methods = classes[cls.name]
+            for name, _function in methods.items():
+                is_entry = name.startswith(("action_", "on_", "key_", "watch_"))
+                if (
+                    is_entry
+                    and _has_service_path(methods, name)
+                    and _unguarded_paths(methods, name)
+                ):
+                    qualified = f"{cls.name}.{name}"
+                    if qualified not in _REVIEWED:
+                        found.append(f"{path.name}:{qualified}")
+    found.extend(_review_reason_errors(_REVIEWED, classes))
+    return found, classes
 
 
-def test_every_legacy_screen_entry_point_is_guarded_or_reviewed() -> None:
+def _unguarded_entry_points(read: Callable[[Path], str] = Path.read_text) -> list[str]:
+    return _scan_sources(read)[0]
+
+
+def test_every_framework_screen_entry_point_is_guarded_or_verified() -> None:
     assert _unguarded_entry_points() == []
 
 
-def test_the_sweep_sees_the_episode_library_and_mount_refreshes() -> None:
-    # The discovery is not a fixed file list: strip the library's guards and it must report.
+def test_the_sweep_sees_framework_handlers_transitive_refresh_and_inheritance() -> None:
+    source = """
+from textual.screen import Screen
+class Intermediate(Screen):
+    pass
+class Legacy(Intermediate):
+    def action_pause(self):
+        self.controller.pause()
+    def on_button_pressed(self, event):
+        self.database.save()
+    def key_p(self):
+        self.refresh_status()
+    def refresh_status(self):
+        self.service.snapshot()
+class GenerationMonitorScreen(Screen):
+    def action_pause(self): self._run()
+    def action_resume(self): self._run()
+    def action_cancel(self): self._run()
+    def action_diagnostics(self): self._run()
+    def _run(self): self.controller.snapshot()
+class BaseWithRefresh(Screen):
+    def refresh_inherited(self): self.database.read()
+class InheritedHandler(BaseWithRefresh):
+    def action_inherited(self): self.refresh_inherited()
+class ClaimInspectorScreen(Screen):
+    def action_repair(self):
+        self.controller.repair()
+        self.refresh_claims()
+    def refresh_claims(self): self.database.read()
+class ProvidersScreen(Screen):
+    def action_save(self):
+        self.provider.save()
+        self.refresh_providers()
+    def action_confirm_remove(self): self.refresh_providers()
+    def refresh_providers(self): self.provider_controller.config()
+"""
+    found, _ = _scan_sources(lambda _path: source, [Path("legacy.py")])
+    finding_set = set(found)
+    assert {
+        "legacy.py:Legacy.action_pause",
+        "legacy.py:Legacy.key_p",
+        "legacy.py:Legacy.on_button_pressed",
+        "legacy.py:GenerationMonitorScreen.action_pause",
+        "legacy.py:GenerationMonitorScreen.action_resume",
+        "legacy.py:GenerationMonitorScreen.action_cancel",
+        "legacy.py:GenerationMonitorScreen.action_diagnostics",
+        "legacy.py:ClaimInspectorScreen.action_repair",
+        "legacy.py:ProvidersScreen.action_save",
+        "legacy.py:ProvidersScreen.action_confirm_remove",
+        "legacy.py:InheritedHandler.action_inherited",
+    } <= finding_set
+
+
+def test_the_sweep_rejects_stripped_guards_and_review_reasons() -> None:
     def unguarded_library(path: Path) -> str:
         text = path.read_text()
         if path.name == "episode_library_screen.py":
@@ -217,5 +437,19 @@ def test_the_sweep_sees_the_episode_library_and_mount_refreshes() -> None:
         return text
 
     found = _unguarded_entry_points(unguarded_library)
-    assert "episode_library_screen.py:EpisodeLibraryScreen.on_mount" in found
-    assert "episode_library_screen.py:EpisodeLibraryScreen.action_duplicate_selected" in found
+    assert any("EpisodeLibraryScreen.on_mount" in item for item in found)
+    invalid_reason = {"EpisodePlanScreen.action_select_segment": ""}
+
+    def source(_path: Path) -> str:
+        return """
+from textual.screen import Screen
+class EpisodePlanScreen(Screen):
+    def action_select_segment(self):
+        self.query_one('x')
+"""
+
+    _errors, classes = _scan_sources(source, [Path("review.py")])
+    assert any(
+        "unverified review reason" in item
+        for item in _review_reason_errors(invalid_reason, classes)
+    )

@@ -17,6 +17,7 @@ from deeper_dive.episode_library_screen import (
 )
 from deeper_dive.guided_draft import GuidedDraftStore
 from deeper_dive.guided_workflow import WizardContext, WizardKind
+from deeper_dive.screen_guard import report_service_errors
 from deeper_dive.transcript_review_screen import TranscriptReviewScreen
 from deeper_dive.user_errors import user_status
 
@@ -47,9 +48,11 @@ class GuidedEpisodeReadyScreen(Screen[None]):
             yield Static("", id="ready-status")
         yield Footer()
 
+    @report_service_errors("Action failed")
     def on_mount(self) -> None:
         self.refresh_ready()
 
+    @report_service_errors("Action failed")
     def on_screen_resume(self) -> None:
         self.refresh_ready()
 
@@ -109,6 +112,7 @@ class GuidedEpisodeReadyScreen(Screen[None]):
         for button_id in ("#ready-play", "#ready-review", "#ready-export", "#ready-library"):
             self.query_one(button_id, Button).disabled = item is None
 
+    @report_service_errors("Action failed")
     def on_button_pressed(self, event: Button.Pressed) -> None:
         action = event.button.name
         if action == "ready-home":

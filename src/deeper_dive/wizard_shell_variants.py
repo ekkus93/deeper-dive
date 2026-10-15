@@ -8,6 +8,7 @@ from textual.widget import Widget
 from textual.widgets import Button, Select
 
 from deeper_dive.guided_workflow import CompletionProbe, SetupMode, WizardContext
+from deeper_dive.screen_guard import report_service_errors
 from deeper_dive.wizard_shell import WizardShell
 
 
@@ -79,6 +80,7 @@ class FirstRunWizardShell(WizardShell):
         if event.select.id == "setup-mode" and isinstance(event.value, str):
             self.context.state = replace(self.context.state, setup_mode=SetupMode(event.value))
 
+    @report_service_errors("Action failed")
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.name == "skip-setup":
             self.on_save_exit()
