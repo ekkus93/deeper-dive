@@ -60,3 +60,23 @@ def test_unusable_override_shapes_are_still_rejected(bad: object) -> None:
     config = EpisodeConfiguration(title="T", model_overrides={"episode_planning": bad})  # type: ignore[dict-item]
     with pytest.raises(ValueError, match="episode_planning"):
         config.normalized()
+
+
+def test_setup_screen_keeps_a_stored_string_override_and_saves(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    from deeper_dive.episode_setup_screen import EpisodeSetupScreen
+
+    service, episode_id, _ = _service(tmp_path)
+    _store_raw_overrides(service, episode_id, {"episode_planning": "fake:fake-v1"})
+
+    class Stub:
+        current_episode_id = episode_id
+
+        def _configuration_service(self, _project_id: str):  # type: ignore[no-untyped-def]
+            return service.configurations
+
+    screen = Stub()
+    result = EpisodeSetupScreen._existing_model_overrides(screen, "p1")  # type: ignore[arg-type]
+    assert result == {"episode_planning": {"provider": "fake", "model": "fake-v1"}}
+
+    _store_raw_overrides(service, episode_id, {"episode_planning": "no-colon"})
+    assert EpisodeSetupScreen._existing_model_overrides(screen, "p1") == {}  # type: ignore[arg-type]

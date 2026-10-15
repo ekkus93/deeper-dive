@@ -346,6 +346,8 @@ class WizardShell(Screen[None]):
         no-op Save keeps the durable value unchanged (never rewritten to a preset).
         """
 
+        if not stored:
+            return
         select = self.query_one(selector, Select)
         options = list(presets)
         if stored not in {value for _label, value in options}:

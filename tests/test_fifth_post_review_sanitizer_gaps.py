@@ -74,3 +74,31 @@ def test_new_passes_stay_linear_at_the_cap() -> None:
         start = time.perf_counter()
         redact(text[: MAX_REDACTED_TEXT_CHARS + 100])
         assert time.perf_counter() - start < 4.0, name
+
+
+REVIEW_LEAKS = {
+    "pgp private key block": (
+        f"-----BEGIN PGP PRIVATE KEY BLOCK-----\n{C}\n-----END PGP PRIVATE KEY BLOCK-----"
+    ),
+    "lowercase pem": f"-----begin private key-----\n{C}\n-----end private key-----",
+    "plus in encoded scheme": f"redis%2Bssl%3A%2F%2Fu%3A{C}%40h",
+    "git plus ssh encoded": f"git%2Bssh%3A%2F%2Fu%3A{C}%40host",
+    "dollar host": f"postgres://u:{C}/a@$HOST",
+}
+
+
+@pytest.mark.parametrize("name", sorted(REVIEW_LEAKS))
+def test_review_leaks_are_closed(name: str) -> None:
+    assert C not in str(redact(REVIEW_LEAKS[name])), name
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "http://localhost:3000/api/users/@me",
+        "https://registry.npmjs.org:443/@types/node",
+        "https://medium.com:443/@author/post",
+    ],
+)
+def test_path_segments_starting_with_at_are_not_userinfo(text: str) -> None:
+    assert redact(text) == text

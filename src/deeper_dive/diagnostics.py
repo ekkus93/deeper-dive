@@ -9,7 +9,7 @@ from contextvars import ContextVar
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote_plus
+from urllib.parse import unquote, unquote_plus
 
 _SECRET_WORDS = frozenset({"authorization", "password", "cookie"})
 _SECRET_PAIRS = frozenset(
@@ -69,7 +69,9 @@ _QUOTED_MAPPING_OPEN = re.compile(
     r"(?i)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*)(['\"])(?:\\.|(?!\4)[^\\\r\n])*+(?=\r|\n|\Z)"
 )
 _PEM_PRIVATE_KEY = re.compile(
-    r"-----BEGIN [A-Z ]{0,40}PRIVATE KEY-----.*?(?:-----END [A-Z ]{0,40}PRIVATE KEY-----|\Z)", re.S
+    r"(?i)-----BEGIN [A-Z ]{0,40}PRIVATE KEY(?: BLOCK)?-----.*?"
+    r"(?:-----END [A-Z ]{0,40}PRIVATE KEY(?: BLOCK)?-----|\Z)",
+    re.S,
 )
 # SDK exceptions sometimes stringify header mappings whose sensitive values
 # are nested lists, tuples, or dictionaries rather than quoted strings.
@@ -80,7 +82,7 @@ _URL_SCHEME_PREFIX = re.compile(r"(?i)(?<![a-z0-9+.-])[a-z][a-z0-9+.-]*://")
 _USERINFO_WINDOW = 1024
 # The authority of a URL ends at the first path, query, fragment, whitespace or quote.
 _AUTHORITY = re.compile(r"[^\s/?#\"'<>]*")
-_HOST_CHAR = re.compile(r"[\w.\[\]-]")
+_HOST_CHAR = re.compile(r"[\w.\[\]$-]")
 
 
 # Cuts the scan window for each fallback form. A password may contain quotes in the
@@ -125,7 +127,14 @@ def _userinfo_end(text: str, start: int) -> int | None:
         userinfo = tight[:at]
         colon = userinfo.find(":")
         slash = userinfo.find("/")
-        if colon != -1 and slash != -1 and slash > colon and "?" not in userinfo[colon:]:
+        # A "password" ending in "/" is a path segment such as ``/@scope`` or ``/@me``.
+        if (
+            colon != -1
+            and slash != -1
+            and slash > colon
+            and "?" not in userinfo[colon:]
+            and not userinfo.endswith("/")
+        ):
             return start + at
     loose = _LOOSE_TOKEN_END.split(window, maxsplit=1)[0]
     at = loose.rfind("@")
@@ -279,7 +288,8 @@ def _sub_url_fragments(text: str) -> str:
 
 # Some SDKs percent-encode the entire endpoint in error and redirect fields.
 _ENCODED_HTTP_URL = re.compile(
-    r"(?i)(?<![a-z0-9+.-])[a-z][a-z0-9+.-]*%(?:25)*3a%(?:25)*2f%(?:25)*2f[^\s<>\"']+"
+    r"(?i)(?<![a-z0-9+.-])[a-z](?:[a-z0-9.-]|\+|%(?:25)*2b)*"
+    r"%(?:25)*3a%(?:25)*2f%(?:25)*2f[^\s<>\"']+"
 )
 # Percent-encoded credential *keys* in URL queries are not matched by the
 # plain-text assignment pattern. Decode only the key and retain the URL shape.
@@ -424,7 +434,15 @@ def _redact_encoded_http_url(match: re.Match[str]) -> str:
         # recurse forever.
         return original
     if _URL_SCHEME.match(decoded) is None:
-        return original
+        # ``unquote_plus`` turns the "+" of a scheme such as ``git+ssh`` into a space.
+        decoded = original
+        for _ in range(_MAX_DECODE_LAYERS):
+            step = unquote(decoded)
+            if step == decoded:
+                break
+            decoded = step
+        if _URL_SCHEME.match(decoded) is None:
+            return original
     depth = _nested_url_depth.get()
     if depth >= _MAX_NESTED_URL_DEPTH:
         # Deeply nested encodings cannot be inspected within a bounded budget;

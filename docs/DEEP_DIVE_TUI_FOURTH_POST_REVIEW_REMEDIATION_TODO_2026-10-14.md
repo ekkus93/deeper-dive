@@ -20,7 +20,7 @@ This is the only completion checklist for the fourth post-review cycle. No item 
 ## FPR-000 — Baseline
 
 - [x] Record the baseline head (`4ede40e`), its local check result (2,260 passed) and CI result (run 38674826121, `fresh-machine` failed). (Baseline `4ede40e`: local 2,260 passed; CI run 38674826121, `quality` green, `fresh-machine` red on the stale path.)
-- [x] Every "Reproduced" item has a committed regression test that fails on the baseline; every "Source-verified" item has a deterministic reproducer or a justified N/A. (Each `tests/test_fourth_post_review_*.py` failed on the baseline; see the Mutation column.)
+- [x] Every "Reproduced" item has a committed regression test that fails on the baseline; every "Source-verified" item has a deterministic reproducer or a justified N/A. (Each `tests/test_fourth_post_review_*.py` failed on the baseline; see the Mutation column. **[Annotated 2026-10-15: overstated: individual matrix rows pass on the baseline; the Mutation column is the real evidence.]**)
 
 ## FPR-100 — CI unblock (do first)
 
@@ -39,16 +39,16 @@ This is the only completion checklist for the fourth post-review cycle. No item 
 ### FPR-02 — Legacy Episode Plan screen crashes
 - [x] Real-click regressions: Regenerate Plan and Regenerate Segment with a generation run present; provider failure; plan deleted between load and Save Segment → app alive, sanitized status, durable plan unchanged. (`tests/test_fourth_post_review_plan_screen_errors.py`; the frozen cases failed on baseline with the app exiting.)
 - [x] `save`, `regenerate plan`, `regenerate segment` and `approve` catch `KeyError`, `ValueError`, `RuntimeError`, `OSError`, `sqlite3.Error` and the typed episode errors. (`_SERVICE_ERRORS` in `episode_plan_screen.py`; also `refresh_plan`.)
-- [x] Sweep every legacy `tui.py` screen action that calls a planner/config/run service; record each with its disposition. (Disposition: settings screens already route through `_save`; 20 unguarded actions in `tui.py` Home/Sources, `hosts_screen.py`, `transcript_review_screen.py`, `claim_inspector_screen.py` now use `screen_guard.report_service_errors`; `episode_setup_screen.py` planning step is FPR-13; tests `test_fourth_post_review_legacy_screen_guard.py`.)
+- [x] Sweep every legacy `tui.py` screen action that calls a planner/config/run service; record each with its disposition. (Disposition: settings screens already route through `_save`; 20 unguarded actions in `tui.py` Home/Sources, `hosts_screen.py`, `transcript_review_screen.py`, `claim_inspector_screen.py` now use `screen_guard.report_service_errors`; `episode_setup_screen.py` planning step is FPR-13; tests `test_fourth_post_review_legacy_screen_guard.py`.) **[Annotated 2026-10-15: the count is 19 decorated actions, not 20, and the sweep missed research, transcript export, preflight Generate and host save actions; see 5PR-07.]**
 
 ### FPR-03 — Guided resume crash on free-text audience
 - [x] Real-input regression: episode created via service with audience "college students" → guided draft at that episode → fresh app → Resume → app alive (fails on baseline). (`tests/test_fourth_post_review_free_text_audience.py`; failed on baseline with `InvalidSelectValueError`.)
 - [x] Decide and document the policy for stored values the guided Select cannot represent (extra "Custom" option vs. BLANK + status); a no-op Save leaves the durable value unchanged. (Policy: an unknown stored audience becomes an extra "Custom: <value>" option, so a no-op Save keeps the durable value; `_show_audience`.)
-- [x] Audit every raw `Select.value =` in `guided_*.py` and `wizard_shell*.py`; route stored-data hydration through `_assign_select`; record the list. (Audit: audience fixed; duration/depth guarded by membership checks; project audience and host preset (line 113) guarded by membership; research policy always a valid enum value; host preset restore now `_assign_select`; remaining `Select.BLANK` assignments are in guarded helpers.)
+- [x] Audit every raw `Select.value =` in `guided_*.py` and `wizard_shell*.py`; route stored-data hydration through `_assign_select`; record the list. (Audit: audience fixed; duration/depth guarded by membership checks; project audience and host preset (line 113) guarded by membership; research policy always a valid enum value; host preset restore now `_assign_select`; remaining `Select.BLANK` assignments are in guarded helpers.) **[Annotated 2026-10-15: membership guards avoid the crash but not the silent rewrite: free-text technical depth and project audience were still rewritten on an unrelated Save; see 5PR-04. First-run duration/research defaults come from this wizard's own Selects (hand-edited values are unsupported) and were left as is.]**
 
 ### FPR-04 — Fail-closed discard crashes on non-blank Selects
-- [x] Parametrized test over every `_FORM_FIELDS` step with the baseline removed → Discard → no exception, no unsaved value retained, missing-baseline diagnostic asserted. (`tests/test_fourth_post_review_discard_without_baseline.py`; 5 of 10 steps failed on baseline. The state is seeded because a missing baseline is a race no UI path holds still.)
-- [x] Fail-closed discard reloads durable state where a loader exists; otherwise clears Inputs and resets `allow_blank=False` Selects to a valid default via the guarded helper. (No step has a generic loader hook, so it clears Inputs and resets Selects via `_reset_select`.)
+- [x] Parametrized test over every `_FORM_FIELDS` step with the baseline removed → Discard → no exception, no unsaved value retained, missing-baseline diagnostic asserted. (`tests/test_fourth_post_review_discard_without_baseline.py`; 5 of 10 steps failed on baseline. The state is seeded because a missing baseline is a race no UI path holds still.) **[Annotated 2026-10-15: five steps failed on the baseline; the claim in FPR-000 that every test file failed is overstated (several matrix rows pass on the baseline).]**
+- [x] Fail-closed discard reloads durable state where a loader exists; otherwise clears Inputs and resets `allow_blank=False` Selects to a valid default via the guarded helper. (No step has a generic loader hook, so it clears Inputs and resets Selects via `_reset_select`.) **[Annotated 2026-10-15: the claim that no step has a generic loader hook is wrong: `_load_episode_form`, `_load_project_form`, `_load_existing_setup` and `_refresh_research_choice` exist. What was implemented clears Inputs and adopts the first option of a non-blank Select as the clean baseline; see 5PR-11 for the visible-status test.]**
 
 ### FPR-05 — Select transition after the target vanished
 - [x] Real-input regression for host select: edit A → pick B → delete B via service → Save-and-select → app alive, A saved, status explains B is gone. (`tests/test_fourth_post_review_select_target_vanished.py`: real input shows the order-save guard stops the transition first, so the unguarded assignment is covered deterministically for host, plan and speech.)
@@ -60,11 +60,11 @@ This is the only completion checklist for the fourth post-review cycle. No item 
 ### FPR-06 — Second active generation run
 - [x] SQLite regression: running run with `cancel_requested=1` → start refused, no new row (fails on baseline). (`tests/test_fourth_post_review_active_run_guard.py`, 62a2ab6.)
 - [x] `select_or_create` refuses while any `pending`/`running` run exists for the episode, inside `BEGIN IMMEDIATE`; start service and both UIs show "previous run is still stopping". (`GenerationRunStillStopping`. `docs/GENERATION_RUN_SELECTION_POLICY.md` and `tests/test_generation_start.py` were updated: this reverses the earlier documented "start a fresh run immediately" policy, so it is a deliberate behaviour change. The guided wizard and preflight screen show the message through their existing `ValueError` handlers; the CLI reports it as a normal error.)
-- [x] Old run reaches a terminal state → start succeeds; concurrent-start thread test still yields one run. (parametrized over pending/running/paused; 6-thread concurrent test.)
+- [x] Old run reaches a terminal state → start succeeds; concurrent-start thread test still yields one run. (parametrized over pending/running/paused; 6-thread concurrent test.) **[Annotated 2026-10-15: a paused run with a cancel request does NOT block (code and GENERATION_RUN_SELECTION_POLICY.md); the test is parametrized over pending/running/paused for reuse, not for blocking. See 5PR-02 for the stuck-run fix.]**
 
 ### FPR-07 — Approval of an unreviewed plan
 - [x] Service regression: load P1, regenerate to P2 under the same config, approve with P1's ID → typed conflict, P2 still draft (fails on baseline). (`tests/test_fourth_post_review_approve_reviewed_plan.py`, 2730cdd.)
-- [x] `approve_plan` takes the reviewed plan ID; legacy and guided callers pass it; legacy plan screen shows a sanitized conflict (pilot). (`reviewed_plan_id`; the legacy screen passes it; pilot in `test_fourth_post_review_plan_screen_errors.py`.)
+- [x] `approve_plan` takes the reviewed plan ID; legacy and guided callers pass it; legacy plan screen shows a sanitized conflict (pilot). (`reviewed_plan_id`; the legacy screen passes it; pilot in `test_fourth_post_review_plan_screen_errors.py`.) **[Annotated 2026-10-15: the guided wizard has no approve caller, so 'legacy and guided callers pass it' is true only for the legacy screen.]**
 - [x] Decide re-approval of an approved plan (no-op vs error); implement `status='draft'` in the CAS if error; docs match. (Decision: idempotent success. The CAS stays keyed on plan id and episode id, and the docs now say so instead of claiming `status='draft'`.)
 
 ### FPR-14 — Stale segments under a newer config
@@ -77,8 +77,8 @@ This is the only completion checklist for the fourth post-review cycle. No item 
 
 ## FPR-400 — Sanitizer (FPR-08)
 
-- [x] Canary matrix test with every spec §10 row (fails on baseline for each leak row). (`tests/test_fourth_post_review_sanitizer_matrix.py`, 920003d and 2808528; 25 of 59 tests failed on the baseline.)
-- [x] Userinfo: empty username and passwords containing `@` or `/` (split on the last `@` before the host). (`_split_userinfo`: last `@`; a `/` inside a password is allowed only when the password has no `?`. Known trade-off: `scheme://host:port/path/a@b` is redacted as userinfo.)
+- [x] Canary matrix test with every spec §10 row (fails on baseline for each leak row). (`tests/test_fourth_post_review_sanitizer_matrix.py`, 920003d and 2808528; 25 of 59 tests failed on the baseline.) **[Annotated 2026-10-15: the 'capped input cut mid authorization' row was vacuous (canary after the cap); fixed in 5PR-08.]**
+- [x] Userinfo: empty username and passwords containing `@` or `/` (split on the last `@` before the host). (`_split_userinfo`: last `@`; a `/` inside a password is allowed only when the password has no `?`. Known trade-off: `scheme://host:port/path/a@b` is redacted as userinfo.) **[Annotated 2026-10-15: the function is `_userinfo_end` (there is no `_split_userinfo`); a regression for passwords containing `#`, `?`, quotes or `<>` was fixed in 5PR-01.]**
 - [x] Partial-decode and fragment-key passes apply to all tokenized URL schemes, including custom schemes. (`_HTTP_URL_TOKEN` now matches any scheme.)
 - [x] Unterminated quoted Authorization redacted to end of line/input, including cap-truncated input. (`_AUTH_QUOTED_OPEN`; also covers cap-truncated input.)
 - [x] Fragment values stop at `,` (TPR-19.4 spec); `)` behavior decided and tested. (`)` ends a fragment only when a bracket opened earlier on the line is still open; otherwise it is part of the value.)
@@ -152,9 +152,9 @@ This is the only completion checklist for the fourth post-review cycle. No item 
   - Fixed: credentialed URL followed by a later `@` in the query/path leaked (userinfo scan now uses the URL authority first); `@` with nothing, a non-ASCII host, a port or a quote after it leaked; userinfo over 1,024 characters leaked (authority form has no length limit now); unquoted `subscription_key=`, `Ocp-Apim-Subscription-Key:` and `private_key=` leaked; a cancel-requested **paused** run blocked starting forever (now exempt, and the still-stopping message names `deeper-dive episode cancel`); a custom audience containing Textual markup such as `[/x]` crashed the guided form (label escaped); `normalized()` coerced malformed override values (`None` -> `'None'`, `"false"` -> `True`) instead of raising `ValueError`.
   - Accepted trade-offs: `scheme://host:8080/@scope/pkg` and `.../logo@2x.png` are redacted as if `host:8080/` were userinfo (garbles a diagnostic, never leaks); a fragment secret that itself contains a comma is cut at the comma (spec: comma is a delimiter); a bare fragment with no key is not redacted; `_resume_is_current` compares against the saved draft, so a duplicate Resume after `recovered_state()` rewrote the step could re-resume (narrow, left as is).
   - Style: `report_service_errors` also wraps `action_navigate` inside `HomeProjectsScreen.action_open_selected`, so a screen-switch `KeyError` would be reported as "Project not opened"; left as is.
-  - Sound (reviewer verified): sanitizer running time (about 45 adversarial inputs up to the 262,144-character cap, worst 0.6 s), single-mount ordering, dirty-form changes, storage and lifecycle changes.
+  - Sound (reviewer verified): sanitizer running time (about 45 adversarial inputs up to the 262,144-character cap, worst 0.6 s), single-mount ordering, dirty-form changes, storage and lifecycle changes. **[Annotated 2026-10-15: the worst measured time was 1.46 s, not 0.6 s.]**
 - [x] `uv lock --check`; ruff format and lint; strict mypy; full pytest count recorded. (`uv lock --check`: 25 packages resolved. Format, lint and mypy (131 source files) clean inside `scripts/check.sh`. Full pytest: 2,410 passed on 040fb74 and 2,432 passed on the closing commit 4384113.)
-- [x] `uv build`; fresh-venv wheel install smoke. (sdist and wheel built from 040fb74; installed into a fresh venv: `deeper-dive --help` ran, `redact()` redacted an empty-user DSN, a `wss://` encoded token and a fragment secret, and one real first-run Continue click advanced exactly one step, with the package imported from site-packages.)
+- [x] `uv build`; fresh-venv wheel install smoke. (sdist and wheel built from 040fb74; installed into a fresh venv: `deeper-dive --help` ran, `redact()` redacted an empty-user DSN, a `wss://` encoded token and a fragment secret, and one real first-run Continue click advanced exactly one step, with the package imported from site-packages.) **[Annotated 2026-10-15: built and smoked on 040fb74; production commit e55b78f landed afterwards and the smoke was not repeated (see 5PR-912).]**
 - [x] Green exact-head CI, both jobs, with run and job IDs. (`4384113`: run 38692430344, jobs quality 116281198665 and fresh-machine 116281198853, both success. Full local check on the same tree: 2,432 passed, exit 0.)
 - [x] Evidence ledger below complete; every row's test fails with its fix reverted (Mutation column). (Run by reverse-patching each fix commit's `src/` changes, or restoring the pre-fix files where later commits overlap.)
 
@@ -167,9 +167,9 @@ This is the only completion checklist for the fourth post-review cycle. No item 
 | FPR-03 | confirmed | 493545a | free_text_audience | run (1 failed) |
 | FPR-04 | confirmed | 1d2852e | discard_without_baseline | run (5 failed) |
 | FPR-05 | confirmed | 7cc755a | select_target_vanished | run (2 failed) |
-| FPR-06 | confirmed (documented policy deliberately changed; paused runs exempt after review) | 62a2ab6, review-fix commit | active_run_guard | run (import error on the new typed error) |
+| FPR-06 | confirmed (documented policy deliberately changed; paused runs exempt after review) | 62a2ab6, e55b78f | active_run_guard | run (import error on the new typed error) |
 | FPR-07 | confirmed | 2730cdd | approve_reviewed_plan, plan_screen_errors | run (2 failed) |
-| FPR-08 | confirmed (trade-offs recorded in the checklist) | 920003d, 2808528, review-fix commit | sanitizer_matrix, review_findings | run (25 failed) |
+| FPR-08 | confirmed (trade-offs recorded in the checklist) | 920003d, 2808528, e55b78f | sanitizer_matrix, review_findings | run (25 failed) |
 | FPR-09 | confirmed | 7abc6b6 | external_change_baseline | run (1 failed) |
 | FPR-10 | confirmed | dcc2b6a | picker_under_prompt | run (2 failed) |
 | FPR-11 | confirmed | 2e649bc | prior_wizard_destination | run (2 failed) |
@@ -178,7 +178,20 @@ This is the only completion checklist for the fourth post-review cycle. No item 
 | FPR-14 | confirmed | b12c043 | stale_segment_ops | run (2 failed) |
 | FPR-15 | confirmed | 892e7bc | provider_build_failures | run (4 failed) |
 | FPR-16 | confirmed | 6908393 | config_lock_alias | run (4 failed) |
-| FPR-17 | confirmed (review fix made override coercion strict) | cbebbdb, c105ca1, review-fix commit | normalization, review_findings | run (8 failed) |
+| FPR-17 | confirmed (review fix made override coercion strict) | cbebbdb, c105ca1, e55b78f | normalization, review_findings | run (8 failed) |
 | FPR-18 | complete | 1e19286 | discriminating tests across the cycle | n/a (test-quality item) |
 | FPR-19 | complete | 51716ea, 040fb74 | single_mount, polish | run (single_mount 2 failed; Create Host scoping fails when its condition is removed) |
 | FPR-20 | complete (CI path fix bd7007a; docs; final qualification below) | bd7007a, 2be9fb6 | ci_paths | run (fails against the 4ede40e workflow) |
+
+## Post-closeout review 2026-10-15
+
+Three independent read-only reviewers re-traced this cycle after it was closed. Findings and fixes live in `docs/DEEP_DIVE_TUI_FIFTH_POST_REVIEW_REMEDIATION_SPEC_2026-10-15.md` and its TODO. Contradicted or incomplete items:
+
+- FPR-02: legacy sweep incomplete (5PR-07).
+- FPR-03: free-text depth and project audience still rewritten (5PR-04).
+- FPR-04: loader claim wrong; first option adopted as baseline (annotated above, 5PR-11).
+- FPR-06: a stopping run the CLI could not reach blocked generation forever (5PR-02).
+- FPR-08: terminators in a password leaked after `e55b78f`; benign JSON garbled (5PR-01, 5PR-06); older gaps (5PR-08).
+- FPR-09: an unsaved AI preset was lost on resume (5PR-05).
+- FPR-17: string-form model overrides were rejected (5PR-03); the no-op revision test did not discriminate (5PR-11).
+- FPR-910: wheel smoke predates `e55b78f`; head `96a5b54` CI run 38694930846 was green and is recorded here.

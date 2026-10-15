@@ -243,7 +243,12 @@ class EpisodeSetupScreen(Screen[None]):
             )
         except KeyError:
             return {}
-        return {role: dict(assignment) for role, assignment in existing.model_overrides.items()}
+        try:
+            # Normalized, so a stored "provider:model" string becomes a mapping.
+            return existing.normalized().model_overrides
+        except ValueError:
+            # A stored value nothing can use: saving replaces it instead of failing.
+            return {}
 
     def _configuration_service(self, project_id: str) -> EpisodeConfigurationService:
         database = Database(self._app.service.workspaces.project_root(project_id) / "project.db")
