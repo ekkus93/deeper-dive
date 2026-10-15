@@ -168,6 +168,7 @@ async def _fake_tts_voice_preview_and_ready_restart(tmp_path: Path) -> None:
         await pilot.pause()
         screen.action_save_provider()
         await pilot.pause()
+        await _wait_for_runtime_readiness(app, pilot)
         screen.action_continue()
         screen.action_run_model_test()
         screen.action_recommended_roles()
