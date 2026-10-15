@@ -58,7 +58,7 @@ class FakePlanController:
         self.plan = replace(self.plan, segments=tuple(segments))
         return self.plan
 
-    def approve_plan(self, episode_id: str) -> EpisodePlan:
+    def approve_plan(self, episode_id: str, reviewed_plan_id: str | None = None) -> EpisodePlan:
         self.approved = True
         return self.plan
 
@@ -135,7 +135,7 @@ async def _approval_conflict(tmp_path: Path) -> None:
     from deeper_dive.episode_config import EpisodeConfigurationConflict
 
     class ConflictingController(FakePlanController):
-        def approve_plan(self, episode_id: str) -> EpisodePlan:
+        def approve_plan(self, episode_id: str, reviewed_plan_id: str | None = None) -> EpisodePlan:
             raise EpisodeConfigurationConflict("episode configuration changed; reload the plan")
 
     service = DeeperDiveService(WorkspaceManager(tmp_path / "data"))

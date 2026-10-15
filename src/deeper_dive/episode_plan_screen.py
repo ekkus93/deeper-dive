@@ -29,7 +29,7 @@ class EpisodePlanController(Protocol):
     def edit_segment(
         self, episode_id: str, ordinal: int, segment: PlannedSegment
     ) -> EpisodePlan: ...
-    def approve_plan(self, episode_id: str) -> EpisodePlan: ...
+    def approve_plan(self, episode_id: str, reviewed_plan_id: str | None = None) -> EpisodePlan: ...
 
 
 class EpisodePlanScreen(Screen[None]):
@@ -188,8 +188,10 @@ class EpisodePlanScreen(Screen[None]):
         if context is None:
             return
         episode_id, controller = context
+        reviewed = self.plan
+        assert reviewed is not None  # _plan_context returned a context
         try:
-            self.plan = controller.approve_plan(episode_id)
+            self.plan = controller.approve_plan(episode_id, reviewed_plan_id=reviewed.id)
         except _SERVICE_ERRORS as exc:
             # Includes EpisodeConfigurationConflict: the episode changed or the plan
             # was replaced since it was loaded. Nothing was approved.

@@ -12,6 +12,7 @@ from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfiguratio
 from deeper_dive.plan_validity import PLAN_CONFIG_DIGEST_KEY, config_digest
 from deeper_dive.retrieval import LexicalIndex
 from deeper_dive.storage.database import Database
+from deeper_dive.storage.episode_errors import EpisodeConfigurationConflict
 from deeper_dive.storage.episode_plan_repository import EpisodePlanRepository
 from deeper_dive.storage.episode_repositories import (
     EpisodePlanRecord,
@@ -147,14 +148,24 @@ class EpisodePlannerService:
         self._persist(plan, expected_episode_config_json=episode_revision)
         return plan
 
-    def approve_plan(self, episode_id: str) -> EpisodePlan:
-        """Mark the reviewed plan approved without starting dialogue or TTS."""
+    def approve_plan(self, episode_id: str, reviewed_plan_id: str | None = None) -> EpisodePlan:
+        """Mark the reviewed plan approved without starting dialogue or TTS.
+
+        ``reviewed_plan_id`` is the plan the caller showed the user. When another
+        surface replaced it since (for example by regenerating), approval is
+        refused instead of silently approving a plan nobody reviewed. Approving
+        an already-approved plan again is an idempotent success.
+        """
 
         # Capture the episode revision before reading the plan: approval is
         # compare-and-swapped against it so a concurrent edit cannot be followed
         # by re-publishing the plan that edit just invalidated.
         revision = self._episode_revision(episode_id)
         plan = self.load_plan(episode_id)
+        if reviewed_plan_id is not None and plan.id != reviewed_plan_id:
+            raise EpisodeConfigurationConflict(
+                "the plan changed since you reviewed it; reload and review the current plan"
+            )
         self.plan_repository.approve(
             plan.id,
             episode_id,

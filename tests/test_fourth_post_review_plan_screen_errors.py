@@ -119,3 +119,26 @@ def test_service_errors_are_reported_not_raised(
             assert screen.plan == before
 
     asyncio.run(run())
+
+
+def test_approving_a_plan_replaced_elsewhere_shows_a_conflict(tmp_path: Path) -> None:
+    """FPR-07: the screen shows P1; another surface regenerates; Approve must not approve P2."""
+
+    async def run() -> None:
+        service, app, project_id = await _open_plan(tmp_path, with_run=False)
+        async with app.run_test(size=(120, 50)) as pilot:
+            screen = await _reach_plan_screen(app, pilot, service, project_id, with_run=False)
+            reviewed = screen.plan
+            assert reviewed is not None
+            controller = app.episode_plan_controller
+            replacement = controller.regenerate_plan(app.current_episode_id)  # other surface
+            assert replacement.id != reviewed.id
+
+            await click(pilot, "#action-approve-generate")
+
+            assert app.is_running and not app.plan_approved
+            assert "changed since you reviewed" in _status(screen)
+            stored = service.hosts(project_id).get_plan(app.current_episode_id)
+            assert stored is not None and stored.status == "draft"
+
+    asyncio.run(run())
