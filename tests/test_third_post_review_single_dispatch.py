@@ -23,6 +23,10 @@ async def _first_run(tmp_path: Path) -> None:
         app._first_run_readiness.close()
         wizard = app.screen
         assert wizard.context.state.current_step == "welcome"
+        # The settle pause is a deliberate negative wait: the assertion is that a SECOND
+        # step does NOT happen, so there is no event to wait for, only time to give a
+        # duplicate dispatch the chance to show up (it also covers the 0.2 s button
+        # animation during which Textual ignores another press).
         await pilot.click("#wizard-continue")
         await pilot.pause(BUTTON_SETTLE_SECONDS)
         assert wizard.context.state.current_step == "system-check"

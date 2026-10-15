@@ -49,8 +49,20 @@ async def _exercise(tmp_path: Path, destination: str, resolution: str) -> None:
         wizard.query_one("#guided-source-text", Input).value = "Unsaved source body"
         assert wizard._current_form_dirty()
 
+        # Direct calls (push_screen / action_navigate / action_confirm_*) are deliberate:
+        # a fresh data directory starts in first-run setup, so Home's "New"/"Resume"
+        # buttons are not reachable without a live provider. The scenario under test is
+        # the routing and the exactly-once replay of the destination, not the buttons.
         app.push_screen("home")  # something else buries the dirty wizard
         await pilot.pause()
+        navigated: list[str] = []
+        original_navigate = type(app).action_navigate
+
+        def counting_navigate(self, name):  # type: ignore[no-untyped-def]
+            navigated.append(name)
+            return original_navigate(self, name)
+
+        type(app).action_navigate = counting_navigate  # type: ignore[method-assign]
         app.action_navigate(destination)
         await pilot.pause()
         await pilot.pause()
@@ -63,6 +75,9 @@ async def _exercise(tmp_path: Path, destination: str, resolution: str) -> None:
         await pilot.pause()
         await pilot.pause()
 
+        type(app).action_navigate = original_navigate  # type: ignore[method-assign]
+        # The user's request (1) plus its single replay after the prompt (1).
+        assert navigated.count(destination) == 2, navigated
         landed = app.screen
         assert landed is not app.get_screen("home")
         if destination == "new":

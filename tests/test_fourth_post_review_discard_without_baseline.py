@@ -54,3 +54,33 @@ async def _exercise(tmp_path: Path, kind: WizardKind, step: str) -> None:
             widget = wizard.query_one(f"#{key}")
             if isinstance(widget, Select):
                 assert widget.value is not None
+
+
+def test_discard_without_baseline_tells_the_user_and_a_later_save_is_not_unasked(
+    tmp_path: Path,
+) -> None:
+    """5PR-11: the status is user-visible, and the cleared form is not silently saved."""
+
+    from guided_pilot import click, type_into, wait_until
+
+    async def run() -> None:
+        app = GuidedDeeperDiveApp(DeeperDiveService(WorkspaceManager(tmp_path / "data")))
+        async with app.run_test(size=(100, 45)) as pilot:
+            app._first_run_readiness.close()
+            app.action_navigate("new")
+            await pilot.pause()
+            wizard = app.screen
+            await type_into(pilot, "#guided-project-name", "CANARY-UNSAVED")
+            # Seeded: a missing baseline is a race no UI path holds still.
+            wizard._form_baselines.pop("project", None)
+            wizard._form_baseline_targets.pop("project", None)
+            await pilot.press("escape")
+            await wait_until(pilot, lambda: wizard._exit_confirmation_pending)
+            await click(pilot, "#wizard-confirm-discard")
+            status = str(wizard.query_one("#wizard-status").render())
+            assert "unsaved input was cleared" in status, status
+            assert wizard.query_one("#guided-project-name", Input).value == ""
+            # Nothing was created by discarding.
+            assert wizard.context.project_id is None
+
+    asyncio.run(run())

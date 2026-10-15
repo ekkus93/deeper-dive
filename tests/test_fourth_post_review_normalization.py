@@ -70,3 +70,36 @@ def test_noop_returns_the_record_it_compared_against(tmp_path) -> None:
     assert returned == existing
     # The compared configuration comes from the same row as the returned revision.
     assert configurations.load_with_revision(episode_id)[1] == returned.config_json
+
+
+def test_noop_compares_against_the_row_it_read_even_if_another_writer_lands(tmp_path) -> None:
+    """5PR-11: discriminating version of the no-op revision check.
+
+    Another writer edits the episode right after ``edit`` read it. The no-op must be
+    judged against that row (and return it), not against a second, newer read that
+    would make the unchanged form look like a change and then lose the CAS.
+    """
+
+    from unittest.mock import patch
+
+    from deeper_dive.storage.episode_repositories import HostEpisodeRepository
+
+    service, episode_id, _ = _service(tmp_path)
+    configurations = service.configurations
+    current = configurations.load_configuration(episode_id)
+    original = service.repository.get_episode(episode_id)
+    real = HostEpisodeRepository.get_episode
+    calls = {"n": 0}
+
+    def get_then_bump(self, requested_id):  # type: ignore[no-untyped-def]
+        record = real(self, requested_id)
+        calls["n"] += 1
+        if calls["n"] == 1:
+            configurations.edit(episode_id, replace(current, title="Edited elsewhere"))
+        return record
+
+    with patch.object(HostEpisodeRepository, "get_episode", get_then_bump):
+        returned = configurations.edit(episode_id, current)
+
+    assert returned == original
+    assert calls["n"] >= 1

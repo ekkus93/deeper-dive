@@ -41,10 +41,13 @@ async def type_into(pilot: Pilot[None], selector: str, text: str) -> None:
     """Focus an Input by clicking it and type ``text`` one key at a time."""
 
     widget = pilot.app.screen.query_one(selector, Input)
-    widget.value = ""
     widget.scroll_visible(animate=False)
     await pilot.pause()
     assert await pilot.click(selector), f"click on {selector} did not hit a widget"
+    if widget.value:
+        # Clear the way a user would: jump to the end, then delete everything before it.
+        await pilot.press("end", "ctrl+u")
+        assert widget.value == "", (selector, widget.value)
     await pilot.press(*text)
     await pilot.pause()
     assert widget.value == text, (selector, widget.value)
