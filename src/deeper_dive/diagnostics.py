@@ -9,7 +9,7 @@ from contextvars import ContextVar
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qsl, unquote_plus
+from urllib.parse import unquote_plus
 
 _SECRET_WORDS = frozenset({"authorization", "password", "cookie"})
 _SECRET_PAIRS = frozenset(
@@ -18,6 +18,8 @@ _SECRET_PAIRS = frozenset(
         ("access", "token"),
         ("refresh", "token"),
         ("client", "secret"),
+        ("subscription", "key"),
+        ("private", "key"),
         ("bearer", "token"),
     }
 )
@@ -28,6 +30,11 @@ _AUTH_DIGEST = re.compile(r"(?i)(\bauthorization\s*[:=]\s*)digest\b[^;\r\n}\]]*"
 # The two body alternatives must not overlap: a backslash is consumed only by the
 # escape alternative, otherwise an unterminated quote backtracks exponentially.
 _AUTH_QUOTED = re.compile(r"(?i)((['\"])authorization\2\s*:\s*)(['\"])(?:\\.|(?!\3)[^\\\r\n])*?\3")
+# An opening quote with no closing quote on the line (a truncated or malformed
+# diagnostic, including text cut by the length cap): redact to the end of the line.
+_AUTH_QUOTED_OPEN = re.compile(
+    r"(?im)((['\"])authorization\2\s*:\s*)(['\"])(?:\\.|(?!\3)[^\\\r\n])*(?=\r|\n|\Z)"
+)
 _AUTH_FIELD = re.compile(
     r"(?i)(\bauthorization\s*[:=]\s*)"
     # Opaque non-Digest credentials may include commas. Stop only at an
@@ -60,12 +67,61 @@ _QUOTED_MAPPING_ASSIGNMENT = re.compile(
 _QUOTED_CONTAINER_START = re.compile(r"(?i)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*)([\[({])")
 # The lookbehind lets a scheme start only at a token boundary; without it every
 # position inside a long alphanumeric run is retried, which is quadratic.
-_CREDENTIAL_URL = re.compile(
-    r"(?i)(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*://)([^/@\s:]+)(?::([^/@\s]+))?@"
-)
+_URL_SCHEME_PREFIX = re.compile(r"(?i)(?<![a-z0-9+.-])[a-z][a-z0-9+.-]*://")
+_USERINFO_WINDOW = 1024
+_HOST_START = re.compile(r"[A-Za-z0-9._\[\]-]+(?::\d+)?(?:[/?#,]|$)")
+
+
+def _split_userinfo(rest: str) -> tuple[int, int] | None:
+    """Return ``(userinfo_end, host_start)`` for ``rest`` (text after ``scheme://``).
+
+    ``rest`` is one whitespace-free window. Userinfo runs to the LAST ``@`` (as
+    ``urlsplit`` does), so a password may itself contain ``@`` or ``/``. A ``/``
+    before the first ``:`` means the text is a path, not userinfo; a ``/`` inside
+    the password is accepted only when the "password" has no ``?`` (otherwise it
+    is far more likely ``host:port/path?email=a@b``).
+    """
+
+    at = rest.rfind("@")
+    if at == -1:
+        return None
+    userinfo = rest[:at]
+    colon = userinfo.find(":")
+    slash = userinfo.find("/")
+    if colon == -1:
+        if slash != -1:
+            return None
+    else:
+        if slash != -1 and slash < colon:
+            return None
+        if slash != -1 and "?" in userinfo[colon:]:
+            return None
+    if _HOST_START.match(rest, at + 1) is None:
+        return None
+    return at, at + 1
+
+
+def _redact_credential_urls(text: str) -> str:
+    out: list[str] = []
+    position = 0
+    for scheme in _URL_SCHEME_PREFIX.finditer(text):
+        if scheme.start() < position:
+            continue
+        window = text[scheme.end() : scheme.end() + _USERINFO_WINDOW]
+        token = re.split(r"\s", window, maxsplit=1)[0]
+        split = _split_userinfo(token)
+        if split is None:
+            continue
+        out.append(text[position : scheme.end()])
+        out.append("[REDACTED]@")
+        position = scheme.end() + split[1]
+    out.append(text[position:])
+    return "".join(out)
+
+
 # Linear-time tokenizer for http(s) URLs that were only partly percent-encoded
 # (for example ``%23`` for ``#``); decoding is bounded in _redact_encoded_http_url.
-_HTTP_URL_TOKEN = re.compile(r"(?i)https?://[^\s<>\"']+")
+_HTTP_URL_TOKEN = re.compile(r"(?i)(?<![a-z0-9+.-])[a-z][a-z0-9+.-]*://[^\s<>\"']+")
 _CREDENTIAL_QUERY = re.compile(
     r"(?i)([?&;](?:api_key|apikey|key|token|access_token|auth|authorization|password|secret)=)"
     r"([^&#;\s]+)"
@@ -74,8 +130,38 @@ _CREDENTIAL_QUERY = re.compile(
 # context, so surrounding JSON, Markdown and prose survive redaction.
 # Earlier passes may already have inserted the ``[REDACTED]`` marker, so it is
 # consumed as one unit rather than ending the fragment at its closing bracket.
-_URL_SCHEME = re.compile(r"(?i)https?://")
-_FRAGMENT_BODY = re.compile(r"(?:\[REDACTED\]|[^\s\"'<>)\]}])+")
+_URL_SCHEME = re.compile(r"(?i)[a-z][a-z0-9+.-]*://")
+_FRAGMENT_STOP = frozenset("\"'<>,")
+_OPENERS = "([{"
+_CLOSERS = ")]}"
+_REDACTED_MARK = "[REDACTED]"
+
+
+def _fragment_end(raw: str, start: int, enclosing: int) -> int:
+    """Index just past the fragment that begins at ``raw[start]``.
+
+    A fragment ends at whitespace, a quote, ``<``/``>`` or a comma. A closing
+    bracket ends it only when an opener earlier on the line is still open
+    (``[label](url#frag)``, ``(see url#frag)``); otherwise it is part of the value,
+    so a secret containing ``)`` is not cut short. An earlier pass's
+    ``[REDACTED]`` marker is consumed as one unit.
+    """
+
+    index = start
+    length = len(raw)
+    while index < length:
+        char = raw[index]
+        if raw.startswith(_REDACTED_MARK, index):
+            index += len(_REDACTED_MARK)
+            continue
+        if char.isspace() or char in _FRAGMENT_STOP:
+            break
+        if char in _CLOSERS and enclosing > 0:
+            break
+        if char in _OPENERS:
+            enclosing += 1
+        index += 1
+    return index
 
 
 class _FragmentMatch:
@@ -96,27 +182,46 @@ class _FragmentMatch:
 
 
 def _iter_url_fragments(text: str) -> Iterator[_FragmentMatch]:
-    """Find ``http(s)://base#fragment`` spans in one linear pass.
+    """Find ``scheme://base#fragment`` spans in one linear pass.
 
-    Scanning whole URL tokens (instead of a regex anchored at every ``http://``)
+    Scanning whole URL tokens (instead of a regex anchored at every ``://``)
     keeps inputs such as ``"http://" * N`` linear; a per-start rescan was quadratic.
+    The count of still-open brackets on the current line is carried across tokens
+    so bracket handling stays linear too.
     """
 
+    enclosing = 0
+    cursor = 0
     for token in _HTTP_URL_TOKEN.finditer(text):
+        enclosing = _advance_enclosing(text, cursor, token.start(), enclosing)
+        cursor = token.start()
         raw = token.group(0)
         hash_index = raw.find("#")
         scheme = _URL_SCHEME.match(raw)
         if hash_index == -1 or scheme is None or hash_index <= scheme.end():
             continue
-        body = _FRAGMENT_BODY.match(raw, hash_index + 1)
-        if body is None:
+        end = _fragment_end(raw, hash_index + 1, enclosing)
+        if end == hash_index + 1:
             continue
         yield _FragmentMatch(
             token.start(),
-            token.start() + body.end(),
+            token.start() + end,
             raw[:hash_index],
-            body.group(0),
+            raw[hash_index + 1 : end],
         )
+
+
+def _advance_enclosing(text: str, start: int, stop: int, enclosing: int) -> int:
+    """Bracket depth after ``text[start:stop]``; resets at a line break, never negative."""
+
+    for char in text[start:stop]:
+        if char == "\n":
+            enclosing = 0
+        elif char in _OPENERS:
+            enclosing += 1
+        elif char in _CLOSERS and enclosing > 0:
+            enclosing -= 1
+    return enclosing
 
 
 def _sub_url_fragments(text: str) -> str:
@@ -227,11 +332,10 @@ def _redact_url_fragment(match: _FragmentMatch) -> str:
     # A diagnostic may contain a URL that was escaped multiple times by an SDK.
     # Bound decoding so layered percent-encoding cannot hide credential keys.
     for fragment in _decode_layers(match.group(2)):
-        try:
-            pairs = parse_qsl(fragment.replace(";", "&"), keep_blank_values=True)
-        except ValueError:
-            pairs = []
-        if any(key.lower() in _SENSITIVE_URL_KEYS or _is_secret_key(key) for key, _ in pairs):
+        # Only ``key=value`` parts name a credential; a bare word is an anchor
+        # (``#credentials``, ``#token-limits``) and stays readable.
+        keys = [part.partition("=")[0] for part in re.split(r"[&;]", fragment) if "=" in part]
+        if any(key.lower() in _SENSITIVE_URL_KEYS or _is_secret_key(key) for key in keys):
             return f"{match.group(1)}#[REDACTED]"
         # SDK diagnostics sometimes render fragment assignments as key:value.
         # Only treat a colon as a credential separator for known sensitive keys;
@@ -258,7 +362,7 @@ def _redact_encoded_http_url(match: re.Match[str]) -> str:
         # passes already scanned this text, and re-scanning identical input would
         # recurse forever.
         return original
-    if not decoded.lower().startswith(("http://", "https://")):
+    if _URL_SCHEME.match(decoded) is None:
         return original
     depth = _nested_url_depth.get()
     if depth >= _MAX_NESTED_URL_DEPTH:
@@ -293,7 +397,7 @@ def _redact_encoded_query(match: re.Match[str]) -> str:
         # Nested redirects may conceal credentials in userinfo or fragments,
         # not only in their query parameters. Preserve benign destinations.
         if "://" in nested and (
-            _CREDENTIAL_URL.search(nested)
+            _redact_credential_urls(nested) != nested
             or any(
                 _redact_url_fragment(item) != item.group(0) for item in _iter_url_fragments(nested)
             )
@@ -375,6 +479,10 @@ def _redact_text(value: str) -> str:
         lambda match: f"{match.group(1)}{match.group(3)}[REDACTED]{match.group(3)}",
         value,
     )
+    value = _AUTH_QUOTED_OPEN.sub(
+        lambda match: f"{match.group(1)}{match.group(3)}[REDACTED]",
+        value,
+    )
     value = _AUTH_DIGEST.sub(r"\1[REDACTED]", value)
     value = _AUTH_FIELD.sub(r"\1[REDACTED]", value)
     value = _BEARER.sub("Bearer [REDACTED]", value)
@@ -386,7 +494,7 @@ def _redact_text(value: str) -> str:
     value = _ASSIGNMENT.sub(_redact_assignment, value)
     value = _CREDENTIAL_QUERY.sub(r"\1[REDACTED]", value)
     value = _ENCODED_CREDENTIAL_QUERY.sub(_redact_encoded_query, value)
-    value = _CREDENTIAL_URL.sub(r"\1[REDACTED]@", value)
+    value = _redact_credential_urls(value)
     value = _ENCODED_HTTP_URL.sub(_redact_encoded_http_url, value)
     return _HTTP_URL_TOKEN.sub(_redact_partly_encoded_http_url, value)
 
