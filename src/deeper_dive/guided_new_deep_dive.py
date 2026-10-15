@@ -13,6 +13,9 @@ PROJECT_AUDIENCE_OPTIONS: tuple[tuple[str, str], ...] = (
 
 
 class GuidedProjectWizard(NewDeepDiveWizardShell):
+    # True when the loaded project stores no audience (see ``_show_stored_choice``).
+    _project_audience_unset = False
+
     def step_controls(self) -> tuple[Widget, ...]:
         return (
             Input(placeholder="Project name", id="guided-project-name"),
@@ -74,8 +77,8 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
         self.query_one("#guided-project-name", Input).value = project.name
         self.query_one("#guided-project-topic", Input).value = topic
         self.query_one("#guided-project-description", Input).value = description
-        if audience:
-            self._show_stored_choice("#guided-project-audience", PROJECT_AUDIENCE_OPTIONS, audience)
+        self._project_audience_unset = audience == ""
+        self._show_stored_choice("#guided-project-audience", PROJECT_AUDIENCE_OPTIONS, audience)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.name == "create-project":
@@ -94,7 +97,8 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
             "topic": "Error: Main curiosity is required." if not topic else "",
             "audience": (
                 "Error: Choose a supported audience."
-                if not isinstance(audience_value, str) or not audience
+                if not isinstance(audience_value, str)
+                or not (audience or self._project_audience_unset)
                 else ""
             ),
         }

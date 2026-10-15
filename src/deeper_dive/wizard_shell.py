@@ -344,14 +344,16 @@ class WizardShell(Screen[None]):
         similar fields, while a guided Select only knows its presets. An unknown
         stored value becomes an extra option so the control shows it honestly and a
         no-op Save keeps the durable value unchanged (never rewritten to a preset).
+        An empty stored value (the CLI accepts ``--depth ""``) is shown as a
+        "(not set)" option with value ``""``, so the control never keeps a previous
+        record's value or a preset the user did not choose; the save code accepts
+        ``""`` only when the stored value was empty.
         """
 
-        if not stored:
-            return
         select = self.query_one(selector, Select)
         options = list(presets)
         if stored not in {value for _label, value in options}:
-            options.append((f"Custom: {escape(stored)}", stored))
+            options.append((f"Custom: {escape(stored)}" if stored else "(not set)", stored))
         with select.prevent(Select.Changed):
             select.set_options(options)
             select.value = stored

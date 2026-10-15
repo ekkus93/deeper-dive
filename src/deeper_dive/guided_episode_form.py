@@ -294,9 +294,18 @@ class EpisodeFormHelpers(GuidedHostWizard):
             if item.strip()
         )
 
-    def _select_value(self, selector: str) -> str | None:
+    def _select_value(self, selector: str, *, keep_empty: bool = False) -> str | None:
+        """The Select's text, or ``None`` when blank; ``""`` counts only with ``keep_empty``.
+
+        ``keep_empty`` is passed when the durable value is itself empty (shown as the
+        "(not set)" option), so a no-op Save preserves it instead of failing or
+        rewriting it to a preset.
+        """
+
         value = self.query_one(selector, Select).value
-        return value if isinstance(value, str) and value else None
+        if not isinstance(value, str):
+            return None
+        return value if value or keep_empty else None
 
     def _toggle_custom_duration(self) -> None:
         custom = self._select_value("#guided-episode-duration") == "custom"

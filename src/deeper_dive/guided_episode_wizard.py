@@ -360,8 +360,12 @@ class GuidedEpisodeWizard(EpisodeFormHelpers):
                 )
             title = self.query_one("#guided-episode-title", Input).value.strip()
             focus = self.query_one("#guided-episode-focus", Input).value.strip()
-            audience = self._select_value("#guided-episode-audience")
-            depth = self._select_value("#guided-episode-depth")
+            audience = self._select_value(
+                "#guided-episode-audience", keep_empty=current.audience == ""
+            )
+            depth = self._select_value(
+                "#guided-episode-depth", keep_empty=current.technical_depth == ""
+            )
             if not title or not focus or audience is None or depth is None:
                 raise ValueError("title, main question, audience, and technical depth are required")
             config = replace(
