@@ -88,6 +88,7 @@ async def _check(tmp_path: Path) -> None:
 
         screen.query_one("#setup-save-defaults", Button).press()
         await pilot.pause()
+        await _wait_for_runtime_readiness(app, pilot)
         screen.action_continue()
         assert screen.context.state.current_step == "ready"
         assert "Language model: Ready" in str(
@@ -206,6 +207,7 @@ async def _fake_tts_voice_preview_and_ready_restart(tmp_path: Path) -> None:
         assert config.defaults["tts_voice_host_1"] == "voice-a"
         assert config.defaults["tts_voice_host_2"] == "voice-b"
         await pilot.pause()
+        await _wait_for_runtime_readiness(app, pilot)
         screen.action_continue()
         assert screen.context.state.current_step == "ready"
         assert "Speech/audio: Ready" in str(
