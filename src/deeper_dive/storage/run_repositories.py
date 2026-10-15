@@ -6,7 +6,10 @@ from dataclasses import dataclass, replace
 
 from deeper_dive.diagnostics import redact
 from deeper_dive.storage.database import Database
-from deeper_dive.storage.episode_errors import EpisodeConfigurationConflict
+from deeper_dive.storage.episode_errors import (
+    EpisodeConfigurationConflict,
+    GenerationRunStillStopping,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,14 +80,23 @@ class GenerationRunRepository:
                         "episode configuration changed after preflight; "
                         "review the episode and start again"
                     )
-            row = db.execute(
+            rows = db.execute(
                 """SELECT * FROM generation_runs WHERE episode_id=?
-                ORDER BY modified_at DESC,id DESC LIMIT 1""",
+                ORDER BY modified_at DESC,id DESC""",
                 (run.episode_id,),
-            ).fetchone()
-            latest = None if row is None else self._from_row(dict(row))
-            if latest is not None and latest.state in active_states and not latest.cancel_requested:
-                return latest, False
+            ).fetchall()
+            records = [self._from_row(dict(row)) for row in rows]
+            active = [item for item in records if item.state in active_states]
+            if any(item.cancel_requested for item in active):
+                # Cancellation is honored only at a stage boundary, so a
+                # cancel-requested run keeps executing; a second run would share
+                # its episode-keyed state.
+                raise GenerationRunStillStopping(
+                    "the previous run is still stopping; wait for it to finish, then start again"
+                )
+            if active:
+                return active[0], False
+            latest = records[0] if records else None
             if latest is not None and latest.state not in terminal_states | active_states:
                 raise ValueError(
                     f"cannot start generation from unsupported run state: {latest.state}"

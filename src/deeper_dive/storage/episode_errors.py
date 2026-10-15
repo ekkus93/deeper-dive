@@ -13,3 +13,7 @@ class EpisodeFrozenError(EpisodeConfigurationError):
 
 class EpisodeConfigurationConflict(EpisodeConfigurationError):
     """The episode changed concurrently or is no longer editable; reload and retry."""
+
+
+class GenerationRunStillStopping(ValueError):
+    """A cancel-requested run is still active; wait for it to stop before starting again."""

@@ -60,16 +60,19 @@ def test_generation_start_creates_new_run_after_terminal_run(tmp_path: Path, sta
     assert result.run.stage == "sources"
 
 
-def test_generation_start_replaces_active_run_with_cancel_requested(tmp_path: Path) -> None:
+def test_generation_start_refuses_while_a_cancel_requested_run_is_still_active(
+    tmp_path: Path,
+) -> None:
+    """FPR-06 supersedes the earlier policy of starting a second run beside a stopping one."""
+
     service, project_id, episode_id = _episode(tmp_path)
     cancelling = replace(_run(service, episode_id, state="running"), cancel_requested=True)
     service.runs(project_id).create(cancelling)
 
-    result = select_or_create_generation_run(service, project_id, episode_id)
+    with pytest.raises(ValueError, match="still stopping"):
+        select_or_create_generation_run(service, project_id, episode_id)
 
-    assert result.created is True
-    assert result.run.id != cancelling.id
-    assert result.run.state == "pending"
+    assert service.runs(project_id).latest_for_episode(episode_id).id == cancelling.id
 
 
 def test_generation_start_rejects_unknown_persisted_state(tmp_path: Path) -> None:
