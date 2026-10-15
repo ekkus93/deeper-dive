@@ -499,8 +499,23 @@ class WizardShell(Screen[None]):
                 with widget.prevent(Input.Changed):
                     widget.value = ""
             elif isinstance(widget, Select):
-                with widget.prevent(Select.Changed):
-                    widget.value = Select.BLANK
+                self._reset_select(widget)
+
+    def _reset_select(self, select: Select[Any]) -> None:
+        """Blank the Select, or pick its first real option when blanks are not allowed."""
+
+        with select.prevent(Select.Changed):
+            try:
+                select.value = Select.BLANK
+                return
+            except InvalidSelectValueError:
+                pass
+            for _label, value in select._options:
+                if value is Select.BLANK:
+                    continue
+                with contextlib.suppress(InvalidSelectValueError):
+                    select.value = value
+                    return
 
     def action_confirm_discard_exit(self) -> None:
         if not self._exit_confirmation_pending or self.busy:
