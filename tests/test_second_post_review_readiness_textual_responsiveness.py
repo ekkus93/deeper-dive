@@ -7,6 +7,8 @@ from pathlib import Path
 from threading import Event
 from typing import cast
 
+from guided_pilot import BUTTON_SETTLE_SECONDS
+
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.guided_app import GuidedDeeperDiveApp
 from deeper_dive.guided_async_readiness import (
@@ -56,13 +58,13 @@ async def _first_run_navigation_with_blocked_provider_probe(tmp_path: Path) -> N
             # advance exactly one step; Textual ignores a press while the previous
             # one's 0.2 s button animation is still running, hence the pauses.
             await pilot.click("#wizard-continue")
-            await pilot.pause(0.3)
+            await pilot.pause(BUTTON_SETTLE_SECONDS)
             assert wizard.context.state.current_step == "system-check"
             await pilot.click("#wizard-continue")
-            await pilot.pause(0.3)
+            await pilot.pause(BUTTON_SETTLE_SECONDS)
             assert wizard.context.state.current_step == "ai-provider"
             await pilot.click("#wizard-back")
-            await pilot.pause(0.3)
+            await pilot.pause(BUTTON_SETTLE_SECONDS)
             assert wizard.context.state.current_step == "system-check"
             await pilot.press("tab")
             await pilot.pause()

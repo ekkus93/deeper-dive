@@ -89,3 +89,29 @@ def test_concurrent_starts_with_a_stopping_run_create_nothing(tmp_path: Path) ->
         outcomes = list(pool.map(lambda _: start(), range(workers)))
     assert outcomes == ["refused"] * workers
     assert _count(service, project_id, episode_id) == 1
+
+
+def test_start_refuses_an_episode_edited_after_preflight(tmp_path: Path) -> None:
+    """FPR-18: the edit-after-preflight window, exercised through ``start()`` itself."""
+
+    from types import SimpleNamespace
+
+    from deeper_dive.episode_config import EpisodeConfigurationConflict
+    from deeper_dive.generation_start import GenerationStartService
+
+    service, project_id, episode_id = _episode(tmp_path)
+    starter = GenerationStartService(SimpleNamespace(service=service))  # type: ignore[arg-type]
+
+    def preflight_then_edit(_project_id: str, _episode_id: str):  # type: ignore[no-untyped-def]
+        with service.hosts(project_id).database.transaction() as db:
+            db.execute(
+                "UPDATE episodes SET config_json=? WHERE id=?",
+                ('{"edited_after_preflight": true}', episode_id),
+            )
+        return SimpleNamespace(require_ready=lambda: None, issues=(), estimate=None, routes=())
+
+    starter.preflight = preflight_then_edit  # type: ignore[method-assign]
+
+    with pytest.raises(EpisodeConfigurationConflict):
+        starter.start(project_id, episode_id)
+    assert _count(service, project_id, episode_id) == 0

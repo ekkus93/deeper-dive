@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import time
+from collections.abc import Callable
 
 from textual.pilot import Pilot
 from textual.widgets import Input
@@ -12,6 +14,18 @@ from deeper_dive.llm import FakeLLMProvider, LLMRequest
 # Textual ignores a second press on a Button while the first one's 0.2 s
 # "active" animation is running, so every click waits a bit longer than that.
 BUTTON_SETTLE_SECONDS = 0.3
+
+
+async def wait_until(
+    pilot: Pilot[None], condition: Callable[[], bool], *, timeout: float = 10.0
+) -> None:
+    """Let the app run until ``condition()`` holds, instead of sleeping a fixed time."""
+
+    deadline = time.monotonic() + timeout
+    while not condition():
+        if time.monotonic() > deadline:
+            raise AssertionError("condition not reached within the timeout")
+        await pilot.pause(0.02)
 
 
 async def click(pilot: Pilot[None], selector: str) -> None:
@@ -62,7 +76,15 @@ async def continue_step(pilot: Pilot[None], expected_step: str) -> None:
 
 
 async def reach_hosts(pilot: Pilot[None]) -> None:
-    """Walk a new Deep Dive to the hosts step with real input only."""
+    """Walk a new Deep Dive to the hosts step with real input only.
+
+    Two setup calls are deliberately not real input, and neither is a step of the
+    flow under test: ``_first_run_readiness.close()`` stops the background readiness
+    probe so it cannot race the clicks, and ``action_navigate("new")`` is the app's
+    own routing entry. A fresh data directory starts in first-run setup, whose
+    prerequisites (a live provider) cannot be satisfied without network or a model,
+    so the Home screen's "New Deep Dive" button is not reachable from there.
+    """
 
     pilot.app._first_run_readiness.close()  # type: ignore[attr-defined]
     await pilot.pause()
@@ -152,7 +174,7 @@ async def reach_plan(pilot: Pilot[None]) -> PlanningLLM:
     await click(pilot, "#guided-episode-save")
     await continue_step(pilot, "plan")
     await click(pilot, "#guided-plan-build")
-    await pilot.pause(0.5)
+    await wait_until(pilot, lambda: app.screen._plan is not None)  # type: ignore[attr-defined]
     wizard = app.screen
     assert wizard._plan is not None and len(wizard._plan.segments) == 2  # type: ignore[attr-defined]
     return llm

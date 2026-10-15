@@ -6,6 +6,7 @@ from queue import Queue
 from threading import Event
 from typing import cast
 
+import pytest
 from textual.message import Message
 
 from deeper_dive.guided_async_readiness import (
@@ -71,7 +72,10 @@ def test_subscriber_of_superseded_generation_is_notified_once() -> None:
         coordinator.close()
 
 
-def test_raising_subscriber_does_not_block_later_subscribers() -> None:
+def test_raising_subscriber_does_not_block_later_subscribers(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level("WARNING", logger="deeper_dive.guided_async_readiness")
     app = _App()
     release = Event()
     coordinator = _coordinator(["same"], release)
@@ -88,6 +92,11 @@ def test_raising_subscriber_does_not_block_later_subscribers() -> None:
         release.set()
         app.deliver_all_until(done)
         assert calls == ["second", "third"]
+        # The failure is logged, with the secret in the exception text redacted.
+        logged = " ".join(record.getMessage() for record in caplog.records)
+        assert "readiness subscriber failed" in logged
+        assert "sk-abcdefghijklmnopqrstuvwxyz123456" not in logged
+        assert "[REDACTED]" in logged
     finally:
         release.set()
         coordinator.close()

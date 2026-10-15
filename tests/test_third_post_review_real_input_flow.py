@@ -13,7 +13,7 @@ from deeper_dive.guided_app import GuidedDeeperDiveApp
 from deeper_dive.storage.workspace import WorkspaceManager
 
 
-def test_new_deep_dive_reaches_hosts_with_real_input_and_discard_is_scoped(
+def test_new_deep_dive_reaches_hosts_with_real_input_and_discarded_edit_is_not_saved(
     tmp_path: Path,
 ) -> None:
     asyncio.run(_exercise(tmp_path))
@@ -45,5 +45,8 @@ async def _exercise(tmp_path: Path) -> None:
         assert wizard._exit_confirmation_pending
         await click(pilot, "#wizard-confirm-discard")
         assert wizard.context.state.current_step == "research"
-        assert service.open_project(project_id) is not None
         assert instructions.value == original
+        # The typed instructions never reached storage.
+        stored = [host.instructions for host in service.hosts(project_id).list_hosts(project_id)]
+        assert stored and "typed by a user" not in stored
+        assert original in stored

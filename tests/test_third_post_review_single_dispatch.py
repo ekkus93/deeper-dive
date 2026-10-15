@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+from guided_pilot import BUTTON_SETTLE_SECONDS
 from textual.widgets import Input
 
 from deeper_dive.application.service import DeeperDiveService
@@ -23,10 +24,10 @@ async def _first_run(tmp_path: Path) -> None:
         wizard = app.screen
         assert wizard.context.state.current_step == "welcome"
         await pilot.click("#wizard-continue")
-        await pilot.pause(0.3)
+        await pilot.pause(BUTTON_SETTLE_SECONDS)
         assert wizard.context.state.current_step == "system-check"
         await pilot.click("#wizard-back")
-        await pilot.pause(0.3)
+        await pilot.pause(BUTTON_SETTLE_SECONDS)
         assert wizard.context.state.current_step == "welcome"
 
 
@@ -49,6 +50,6 @@ async def _new_deep_dive(tmp_path: Path) -> None:
         assert wizard.action_create_project()
         steps_before = wizard.context.state.current_step
         await pilot.click("#wizard-continue")
-        await pilot.pause(0.3)
+        await pilot.pause(BUTTON_SETTLE_SECONDS)
         keys = [step.key for step in wizard.navigator.steps]
         assert keys.index(wizard.context.state.current_step) == keys.index(steps_before) + 1

@@ -201,9 +201,11 @@ class ProviderFactory:
     def _normalized_type(value: str) -> str:
         normalized = value.strip().lower().replace("_", "-")
         if normalized in LEGACY_PROVIDER_TYPES:
-            # Provider types come from imported user configuration: never echo them.
+            # Only the normalized member of the fixed legacy set is named; the raw
+            # configured text (imported user input) is never echoed.
             raise ProviderConfigurationError(
-                "legacy generic provider_type is ambiguous; choose a concrete adapter type"
+                f"legacy generic provider_type {normalized!r} is ambiguous; "
+                "choose a concrete adapter type"
             )
         return normalized
 

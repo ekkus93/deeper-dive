@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
-from guided_pilot import click, reach_hosts
+from guided_pilot import click, reach_hosts, wait_until
 from textual.pilot import Pilot
 
 from deeper_dive.application.service import DeeperDiveService
@@ -20,7 +20,7 @@ def _app(data: Path) -> GuidedDeeperDiveApp:
 
 async def _press_escape_and_save(pilot: Pilot[None], wizard: GuidedEpisodeWizard) -> None:
     await pilot.press("escape")
-    await pilot.pause(0.3)
+    await wait_until(pilot, lambda: wizard._exit_confirmation_pending)
     assert wizard._exit_confirmation_pending, "dirty order must prompt before leaving"
     await click(pilot, "#wizard-confirm-save")
     assert wizard.save_exit_requested
@@ -42,7 +42,7 @@ async def _exercise(tmp_path: Path) -> None:
         saved_order = list(wizard._selected_host_ids)
         assert len(saved_order) == 2 and not wizard._host_order_dirty()
 
-        # Select the second host, then move it up with real clicks: unsaved order edit.
+        # Move the selected host down with a real click: an unsaved order edit.
         await click(pilot, "#guided-host-down")
         reordered = list(wizard._selected_host_ids)
         assert reordered == [saved_order[1], saved_order[0]]

@@ -45,7 +45,12 @@ async def _exercise(tmp_path: Path) -> None:
         assert not wizard._exit_confirmation_pending
         assert picker.value != first_host
         assert name.value != "Typed Name"
-        assert name.value != durable_name
+        # The first host's stored profile was never touched by the discarded edit.
+        project_id = wizard.context.project_id
+        assert project_id is not None
+        stored = app.service.hosts(project_id).get_host(first_host)
+        assert stored is not None
+        assert stored.display_name == durable_name
 
 
 def test_typed_host_edit_saved_from_reselect_prompt_persists(tmp_path: Path) -> None:

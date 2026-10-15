@@ -44,3 +44,29 @@ def test_approving_the_reviewed_plan_still_works_and_is_idempotent(tmp_path: Pat
 def test_approval_without_a_reviewed_id_keeps_the_old_behaviour(tmp_path: Path) -> None:
     _configurations, planner, _database, episode_id = _setup(tmp_path)
     assert planner.approve_plan(episode_id).id == planner.load_plan(episode_id).id
+
+
+def test_revision_cas_alone_rejects_approval_when_the_plan_survives(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FPR-18: the TPR-04 race test deleted the plan; here the plan row survives.
+
+    The configuration revision changes through raw SQL (so no plan invalidation runs),
+    which means only the episode-revision compare-and-swap can reject the approval.
+    """
+
+    _configurations, planner, database, episode_id = _setup(tmp_path)
+    original_load = planner.load_plan
+
+    def load_then_bump_revision(eid: str):  # type: ignore[no-untyped-def]
+        plan = original_load(eid)
+        with database.transaction() as db:
+            db.execute("UPDATE episodes SET config_json=? WHERE id=?", ('{"bumped": true}', eid))
+        return plan
+
+    monkeypatch.setattr(planner, "load_plan", load_then_bump_revision)
+    with pytest.raises(EpisodeConfigurationConflict, match="changed while"):
+        planner.approve_plan(episode_id)
+
+    stored = HostEpisodeRepository(database).get_plan(episode_id)
+    assert stored is not None and stored.status == "draft"

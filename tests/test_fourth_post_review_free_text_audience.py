@@ -6,7 +6,7 @@ import asyncio
 from dataclasses import replace
 from pathlib import Path
 
-from guided_pilot import click, reach_hosts
+from guided_pilot import click, reach_hosts, wait_until
 from textual.widgets import Select
 
 from deeper_dive.application.service import DeeperDiveService
@@ -41,7 +41,7 @@ async def _exercise(tmp_path: Path) -> None:
         project_id = wizard.context.project_id
         assert episode_id is not None and project_id is not None
         await pilot.press("escape")
-        await pilot.pause(0.3)
+        await wait_until(pilot, lambda: wizard._exit_confirmation_pending)
         await click(pilot, "#wizard-confirm-save")
         assert wizard.save_exit_requested
 

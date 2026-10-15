@@ -101,3 +101,10 @@ def test_readiness_names_the_provider_that_could_not_be_built(tmp_path: Path) ->
             assert rows and "broken" in rows[0] and "adapter rejected" in rows[0]
 
     asyncio.run(run())
+
+
+def test_legacy_type_names_only_the_normalized_member() -> None:
+    config = UserConfig(providers={"p": ProviderConfig(provider_type="  LLM  ")})
+    result = ProviderFactory(environ={}).build(config, probe_timeout_seconds=1.0)
+    message = result.build_failures["p"]
+    assert "'llm'" in message and "  LLM  " not in message

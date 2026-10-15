@@ -10,7 +10,6 @@ from guided_episode_support import _prepare_to_plan, _service_and_config
 from textual.widgets import Input, Static
 
 from deeper_dive.episode_config import (
-    EpisodeConfigurationConflict,
     EpisodeConfigurationService,
 )
 from deeper_dive.guided_app import GuidedDeeperDiveApp
@@ -54,17 +53,25 @@ async def _scenario(tmp_path: Path, *, frozen: bool) -> None:
             )
             assert wizard.action_save_episode() is False
         else:
-            with patch.object(
-                EpisodeConfigurationService,
-                "edit",
-                side_effect=EpisodeConfigurationConflict("episode configuration changed; retry"),
-            ):
-                assert wizard.action_save_episode() is False
+            # A REAL concurrent edit by another surface after this form was loaded:
+            # the wizard's expected revision is stale, so the CAS genuinely conflicts.
+            from dataclasses import replace
+
+            configs.edit(
+                episode_id,
+                replace(configs.load_configuration(episode_id), title="Edited elsewhere"),
+            )
+            before = service.hosts(project_id).get_episode(episode_id)
+            assert wizard.action_save_episode() is False
 
         assert app.is_running
         message = str(wizard.query_one("#guided-episode-validation", Static).render())
         assert message.startswith("Fix episode settings:")
-        assert ("create a new episode" in message) if frozen else ("retry" in message)
+        assert (
+            ("create a new episode" in message)
+            if frozen
+            else ("reload" in message.lower() or "changed" in message.lower())
+        ), message
         assert "Traceback" not in message
         assert wizard.query_one("#guided-episode-title", Input).value == "Edited title"
         assert service.hosts(project_id).get_episode(episode_id) == before

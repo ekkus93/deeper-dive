@@ -120,15 +120,34 @@ async def _conflict(tmp_path: Path) -> None:
         assert episode_id is not None
 
         screen.query_one("#episode-title", Input).value = "Concurrent edit"
-        with patch.object(
-            EpisodeConfigurationService,
-            "edit",
-            side_effect=EpisodeConfigurationConflict("episode configuration changed; retry"),
-        ):
+
+        # A REAL concurrent edit lands inside the race window: after the screen's
+        # edit() has read the episode but before its compare-and-swap update runs.
+        from dataclasses import replace
+
+        from deeper_dive.storage.database import Database
+        from deeper_dive.storage.episode_configuration import EpisodeConfigurationRepository
+
+        other = EpisodeConfigurationService(
+            Database(service.workspaces.project_root(project_id) / "project.db")
+        )
+        real_update = EpisodeConfigurationRepository.update
+
+        def update_after_concurrent_edit(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+            EpisodeConfigurationRepository.update = real_update  # type: ignore[method-assign]
+            other.edit(
+                episode_id,
+                replace(other.load_configuration(episode_id), title="Edited elsewhere"),
+            )
+            return real_update(self, *args, **kwargs)
+
+        with patch.object(EpisodeConfigurationRepository, "update", update_after_concurrent_edit):
             screen.action_build_plan()  # must not raise
 
         assert app.is_running
-        assert "retry" in _status(screen).lower()
+        assert "changed" in _status(screen).lower()
+        stored = other.load_configuration(episode_id)
+        assert stored.title == "Edited elsewhere"  # the other writer's edit survived
         assert screen.query_one("#episode-title", Input).value == "Concurrent edit"
 
 
