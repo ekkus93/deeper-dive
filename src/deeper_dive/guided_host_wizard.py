@@ -174,10 +174,10 @@ class GuidedHostWizard(HostWizardSupport):
         order = self._host_order_dirty()
         if self._transition_is_profile_scoped(transition):
             scope = (
-                "Discard reverts the host profile only; unsaved episode host order edits "
-                "stay pending."
+                "Save stores the host profile only and Discard reverts it only; unsaved "
+                "episode host order edits stay pending."
                 if order
-                else "Discard reverts the host profile."
+                else "Save stores the host profile only and Discard reverts it only."
             )
         elif profile and order:
             scope = "Discard reverts both the host profile and the episode host order."
@@ -186,6 +186,15 @@ class GuidedHostWizard(HostWizardSupport):
         else:
             scope = "Discard reverts the host profile."
         self.set_status(f"{self._last_form_status} {scope}")
+
+    def _remember_after_save(self, transition: Transition) -> None:
+        if self.context.state.current_step == "hosts" and self._transition_is_profile_scoped(
+            transition
+        ):
+            # Only the profile was saved; the order edit must stay dirty.
+            self._remember_host_profile_baseline()
+            return
+        super()._remember_after_save(transition)
 
     def _restore_discarded_form(self) -> None:
         step_is_hosts = self.context.state.current_step == "hosts"

@@ -76,7 +76,11 @@ class GuidedEpisodeWizard(EpisodeFormHelpers):
             return WizardSaveResult.from_bool(self.action_save_research())
         if step == "hosts":
             profile_dirty = self._host_profile_dirty()
-            order_dirty = self._host_order_dirty()
+            # A profile-scoped prompt (host reselect, Create Host/Pair) saves only
+            # the profile, matching what its Discard reverts.
+            order_dirty = self._host_order_dirty() and not self._transition_is_profile_scoped(
+                self._saving_transition
+            )
             profile_saved = False
             if profile_dirty:
                 if self._selected_host_record() is None:

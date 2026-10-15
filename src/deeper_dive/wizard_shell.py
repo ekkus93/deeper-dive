@@ -94,6 +94,9 @@ class WizardShell(Screen[None]):
         # Transition being discarded while _restore_discarded_form runs; lets a
         # subclass limit the restore to the dirty scope that raised the prompt.
         self._discarding_transition: Transition | None = None
+        # Transition whose prompt is being resolved with Save (read by subclasses
+        # that scope what Save persists).
+        self._saving_transition: Transition | None = None
         # Snapshot captured when a confirmation opens; Save/Discard act on that
         # target and refuse to run if the live target drifted in the meantime.
         self._pending_snapshot: WizardDirtyFormSnapshot | None = None
@@ -441,17 +444,25 @@ class WizardShell(Screen[None]):
             return
         transition = self._pending_transition or Transition(TransitionKind.EXIT)
         self._clear_transition_confirmation()
+        self._saving_transition = transition
         try:
             result = self._save_dirty_step()
         except (OSError, KeyError, RuntimeError, ValueError) as exc:
             self.set_error("Could not save changes.", exc)
             return
+        finally:
+            self._saving_transition = None
         if not result.can_continue:
             if result.message:
                 self.set_status(result.message)
             return
-        self._remember_current_form()
+        self._remember_after_save(transition)
         self._execute_pending_transition(transition)
+
+    def _remember_after_save(self, transition: Transition) -> None:
+        """Baseline the saved form; subclasses narrow this to what the save covered."""
+
+        self._remember_current_form()
 
     def _restore_discarded_form(self) -> None:
         """Restore the durable form snapshot, never adopt unsaved edits as baseline."""
