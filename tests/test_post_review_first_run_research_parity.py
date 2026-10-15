@@ -16,6 +16,14 @@ from deeper_dive.research_policy import ResearchPolicyStore
 from deeper_dive.storage.workspace import WorkspaceManager
 
 
+async def _wait_for_runtime_readiness(app: GuidedDeeperDiveApp, pilot) -> None:
+    for _ in range(100):
+        if app._first_run_readiness.snapshot is not None:
+            return
+        await pilot.pause()
+    raise AssertionError("first-run readiness did not finish")
+
+
 @pytest.mark.parametrize("research_mode", ["off", "useful", "aggressive"])
 def test_first_run_research_default_reaches_new_and_quick(
     tmp_path: Path, research_mode: str
@@ -40,6 +48,7 @@ async def _check_first_run_research_paths(tmp_path: Path, research_mode: str) ->
         setup.query_one("#setup-provider-network", Input).value = "local"
         setup.query_one("#setup-save-provider", Button).press()
         await pilot.pause()
+        await _wait_for_runtime_readiness(app, pilot)
         setup.query_one("#setup-test-provider", Button).press()
         await pilot.pause()
         setup.action_continue()
@@ -47,16 +56,19 @@ async def _check_first_run_research_paths(tmp_path: Path, research_mode: str) ->
         await pilot.pause()
         setup.query_one("#setup-recommended-roles", Button).press()
         await pilot.pause()
+        await _wait_for_runtime_readiness(app, pilot)
         setup.action_continue()
         setup.query_one("#setup-speech-choice", Select).value = "deferred"
         await pilot.pause()
         setup.query_one("#setup-save-speech", Button).press()
         await pilot.pause()
+        await _wait_for_runtime_readiness(app, pilot)
         setup.action_continue()
         setup.query_one("#setup-research-default", Select).value = research_mode
         await pilot.pause()
         setup.query_one("#setup-save-defaults", Button).press()
         await pilot.pause()
+        await _wait_for_runtime_readiness(app, pilot)
         assert app.provider_controller.config().defaults["research_policy"] == research_mode
         setup.action_continue()
         assert setup.context.state.current_step == "ready"
