@@ -25,9 +25,10 @@ LEAKS = {
     "paren in fragment value": f"https://h/cb#access_token=ab)c{CANARY}",
     "azure subscription key header": f"{{'Ocp-Apim-Subscription-Key': '{CANARY}'}}",
     "comma list of urls": f"https://a:b@h1,https://c:{CANARY}@h2",
+    # The cap cuts inside the secret (5PR-08: the canary used to sit after the cut).
     "capped input cut mid authorization": '"authorization": "'
-    + "x" * (MAX_REDACTED_TEXT_CHARS)
-    + CANARY,
+    + CANARY
+    + "x" * (MAX_REDACTED_TEXT_CHARS),
 }
 
 

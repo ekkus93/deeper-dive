@@ -54,7 +54,7 @@ _ASSIGNMENT = re.compile(
     # Avoid consuming noncredential wrapper fields surrounding nested secrets.
     r"(?=[A-Za-z0-9_.+/\[\]-]{1,128}\s*[:=])"
     r"([A-Za-z0-9_.+/\[\]-]*"
-    r"(?:authorization|token|secret|password|cookie|api[-_.+/\[\]]*key"
+    r"(?:authorization|token|secret|password|passwd|cookie|api[-_.+/\[\]]*key"
     r"|subscription[-_.+/\[\]]*key|private[-_.+/\[\]]*key)"
     r"[A-Za-z0-9_.+/\[\]-]*)(\s*[:=]\s*)([^\s,;]+)"
 )
@@ -62,6 +62,14 @@ _QUOTED_MAPPING_ASSIGNMENT = re.compile(
     # Match a bounded, quoted mapping key and decide sensitivity with _is_secret_key.
     # Dots, slashes, brackets and plus signs must not bypass credential redaction.
     r"(?i)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*)(['\"])((?:\\.|(?!\4)[^\\\r\n])+)\4"
+)
+# A secret value whose closing quote is missing (truncated or malformed text): redact to
+# the end of the line. Possessive, so a long unterminated value is scanned once.
+_QUOTED_MAPPING_OPEN = re.compile(
+    r"(?i)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*)(['\"])(?:\\.|(?!\4)[^\\\r\n])*+(?=\r|\n|\Z)"
+)
+_PEM_PRIVATE_KEY = re.compile(
+    r"-----BEGIN [A-Z ]{0,40}PRIVATE KEY-----.*?(?:-----END [A-Z ]{0,40}PRIVATE KEY-----|\Z)", re.S
 )
 # SDK exceptions sometimes stringify header mappings whose sensitive values
 # are nested lists, tuples, or dictionaries rather than quoted strings.
@@ -160,6 +168,8 @@ _CREDENTIAL_QUERY = re.compile(
 # Earlier passes may already have inserted the ``[REDACTED]`` marker, so it is
 # consumed as one unit rather than ending the fragment at its closing bracket.
 _URL_SCHEME = re.compile(r"(?i)[a-z][a-z0-9+.-]*://")
+# ``#state=1,code=SECRET``: a comma directly followed by ``key=`` continues the fragment.
+_FRAGMENT_PAIR_AFTER_COMMA = re.compile(r"[A-Za-z0-9_.-]+=")
 _FRAGMENT_STOP = frozenset("\"'<>,")
 _OPENERS = "([{"
 _CLOSERS = ")]}"
@@ -182,6 +192,9 @@ def _fragment_end(raw: str, start: int, enclosing: int) -> int:
         char = raw[index]
         if raw.startswith(_REDACTED_MARK, index):
             index += len(_REDACTED_MARK)
+            continue
+        if char == "," and _FRAGMENT_PAIR_AFTER_COMMA.match(raw, index + 1):
+            index += 1
             continue
         if char.isspace() or char in _FRAGMENT_STOP:
             break
@@ -265,7 +278,9 @@ def _sub_url_fragments(text: str) -> str:
 
 
 # Some SDKs percent-encode the entire endpoint in error and redirect fields.
-_ENCODED_HTTP_URL = re.compile(r"(?i)https?%(?:25)*3a%(?:25)*2f%(?:25)*2f[^\s<>\"']+")
+_ENCODED_HTTP_URL = re.compile(
+    r"(?i)(?<![a-z0-9+.-])[a-z][a-z0-9+.-]*%(?:25)*3a%(?:25)*2f%(?:25)*2f[^\s<>\"']+"
+)
 # Percent-encoded credential *keys* in URL queries are not matched by the
 # plain-text assignment pattern. Decode only the key and retain the URL shape.
 # Match raw punctuation in keys (api[key], api+key, api/key) as well as
@@ -312,11 +327,21 @@ def _key_words(key: object) -> tuple[str, ...]:
     return tuple(part.lower() for part in _WORD_SPLIT.split(separated) if part)
 
 
+# One-word spellings of the credential pairs (``apikey``, ``accesstoken``, ``clientsecret``)
+# and the common short form ``passwd``; a word that only *ends* with a credential
+# noun (``csrftoken``) counts, while ``tokens`` (a count) does not.
+_SECRET_SUFFIXES = ("token", "secret", "password", "passwd", "apikey", "privatekey")
+
+
 def _is_secret_key(key: object) -> bool:
     words = _key_words(key)
     if not words:
         return False
     if "token" in words or "secret" in words:
+        return True
+    if any(word.endswith(_SECRET_SUFFIXES) for word in words):
+        return True
+    if "passwd" in words:
         return True
     if any(word in _SECRET_WORDS for word in words):
         return True
@@ -327,6 +352,13 @@ def _redact_assignment(match: re.Match[str]) -> str:
     if not _is_secret_key(match.group(1)):
         return match.group(0)
     return f"{match.group(1)}{match.group(2)}[REDACTED]"
+
+
+def _redact_quoted_mapping_open(match: re.Match[str]) -> str:
+    if not _is_secret_key(match.group(2)):
+        return match.group(0)
+    key = f"{match.group(1)}{match.group(2)}{match.group(1)}"
+    return f"{key}{match.group(3)}{match.group(4)}[REDACTED]"
 
 
 def _redact_quoted_mapping_assignment(match: re.Match[str]) -> str:
@@ -363,7 +395,7 @@ def _redact_url_fragment(match: _FragmentMatch) -> str:
     for fragment in _decode_layers(match.group(2)):
         # Only ``key=value`` parts name a credential; a bare word is an anchor
         # (``#credentials``, ``#token-limits``) and stays readable.
-        keys = [part.partition("=")[0] for part in re.split(r"[&;]", fragment) if "=" in part]
+        keys = [part.partition("=")[0] for part in re.split(r"[&;,]", fragment) if "=" in part]
         if any(key.lower() in _SENSITIVE_URL_KEYS or _is_secret_key(key) for key in keys):
             return f"{match.group(1)}#[REDACTED]"
         # SDK diagnostics sometimes render fragment assignments as key:value.
@@ -492,6 +524,22 @@ MAX_REDACTED_TEXT_CHARS = 262_144
 _TRUNCATION_MARKER = "...[TRUNCATED]"
 
 
+def _drop_cut_url_tail(kept: str) -> str:
+    """Hide a URL token cut off by the length cap.
+
+    A password cut before its ``@`` has no delimiter left to recognise it by, so
+    the unfinished last token is dropped when it starts a URL with ``user:`` text.
+    """
+
+    marker = kept.rfind("://")
+    if marker == -1:
+        return kept
+    tail = kept[marker + 3 :]
+    if re.search(r"[\s\"'<>@]", tail) is not None or ":" not in tail:
+        return kept
+    return kept[: marker + 3] + "[REDACTED]"
+
+
 def _redact_text(value: str) -> str:
     """Apply every redaction pass in a fixed order.
 
@@ -502,7 +550,8 @@ def _redact_text(value: str) -> str:
     """
 
     if len(value) > MAX_REDACTED_TEXT_CHARS:
-        value = value[:MAX_REDACTED_TEXT_CHARS] + _TRUNCATION_MARKER
+        value = _drop_cut_url_tail(value[:MAX_REDACTED_TEXT_CHARS]) + _TRUNCATION_MARKER
+    value = _PEM_PRIVATE_KEY.sub("[REDACTED PRIVATE KEY]", value)
     value = _redact_quoted_secret_containers(value)
     value = _AUTH_QUOTED.sub(
         lambda match: f"{match.group(1)}{match.group(3)}[REDACTED]{match.group(3)}",
@@ -520,6 +569,7 @@ def _redact_text(value: str) -> str:
     # otherwise swallow the closing quote/bracket that delimits the URL.
     value = _sub_url_fragments(value)
     value = _QUOTED_MAPPING_ASSIGNMENT.sub(_redact_quoted_mapping_assignment, value)
+    value = _QUOTED_MAPPING_OPEN.sub(_redact_quoted_mapping_open, value)
     value = _ASSIGNMENT.sub(_redact_assignment, value)
     value = _CREDENTIAL_QUERY.sub(r"\1[REDACTED]", value)
     value = _ENCODED_CREDENTIAL_QUERY.sub(_redact_encoded_query, value)
