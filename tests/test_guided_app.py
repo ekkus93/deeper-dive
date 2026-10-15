@@ -97,7 +97,13 @@ async def _goal_first_home_exposes_navigation(tmp_path: Path) -> None:
     app = GuidedDeeperDiveApp(service)
 
     async with app.run_test(size=(100, 30)) as pilot:
-        await pilot.pause()
+        # Runtime readiness is probed on a background worker and returned to
+        # the UI loop asynchronously; wait for that public status update.
+        for _ in range(50):
+            readiness = str(app.screen.query_one("#home-readiness").render())
+            if "Setup ready" in readiness:
+                break
+            await pilot.pause(0.1)
         assert app.screen.id == "screen-home"
         primary = tuple(
             button.name
@@ -121,7 +127,7 @@ async def _goal_first_home_exposes_navigation(tmp_path: Path) -> None:
             "generate",
         )
         assert "My source research" in str(app.screen.query_one("#home-recent-projects").render())
-        assert "Setup ready" in str(app.screen.query_one("#home-readiness").render())
+        assert "Setup ready" in readiness
         quick_notice = str(app.screen.query_one("#home-quick-guidance").render())
         assert "automatically starts generation" in quick_notice
         assert "external services" in quick_notice
