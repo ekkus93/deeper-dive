@@ -2,10 +2,35 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import StrEnum
 
 from deeper_dive.guided_workflow import WizardKind
+
+_LABEL_OVERRIDES = {
+    "tts-voice": "Narrator voice",
+}
+_ACRONYMS = {"ai": "AI", "llm": "Language model", "tts": "Speech", "url": "URL", "urls": "URLs"}
+
+
+def field_label(key: str) -> str:
+    """Human wording for a form widget id (``setup-host1-voice`` -> ``Host 1 voice``).
+
+    Statuses name the control the user sees, never its widget id.
+    """
+
+    if key in _LABEL_OVERRIDES:
+        return _LABEL_OVERRIDES[key]
+    words = key.split("-")
+    if words and words[0] in {"setup", "guided"}:
+        words = words[1:]
+    spelled: list[str] = []
+    for word in words:
+        match = re.fullmatch(r"([a-z]+)(\d+)", word)
+        spelled.extend(match.groups() if match else (word,))
+    text = " ".join(_ACRONYMS.get(word, word) for word in spelled)
+    return text[:1].upper() + text[1:] if text else key
 
 
 @dataclass(frozen=True, slots=True)

@@ -32,6 +32,16 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
             Button("Create Project", id="guided-project-create", name="create-project"),
         )
 
+    def _sync_project_button(self) -> None:
+        """The button creates the project once, then saves edits to the same project."""
+
+        label = "Create Project" if self.context.project_id is None else "Save Project"
+        self.query_one("#guided-project-create", Button).label = label
+
+    def _mounted(self) -> None:
+        super()._mounted()
+        self._sync_project_button()
+
     def _before_mount(self) -> None:
         # Resuming (or remounting) with an existing project must show that
         # project's durable values, not blank controls that Save would then
@@ -129,6 +139,7 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
         for field in ("name", "topic", "audience"):
             self.query_one(f"#guided-project-{field}-error", Static).update("")
         self.context.project_id = project.id
+        self._sync_project_button()
         self._sync_text()
         self._remember_current_form()
         self.set_status(

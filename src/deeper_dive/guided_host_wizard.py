@@ -377,6 +377,7 @@ class GuidedHostWizard(HostWizardSupport):
         if (
             self._loaded_host_id is not None
             and self._last_created_host_signature is not None
+            and self._loaded_host_id == self._last_created_host_id
             and self._host_form_values() == self._last_created_host_signature
         ):
             self.set_status("That host was just created. Change the form to create another.")
@@ -414,6 +415,7 @@ class GuidedHostWizard(HostWizardSupport):
         self._refresh_hosts(host.id, preserve_dirty=False)
         self._remember_host_profile_baseline()
         self._last_created_host_signature = self._host_form_values()
+        self._last_created_host_id = self._loaded_host_id
         self.set_status(f"Created host {host.display_name}.")
         return True
 

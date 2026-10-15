@@ -27,6 +27,9 @@ class HostWizardSupport(GuidedSourceWizard):
         # Form signature of the last successful Create Host: repeating the same
         # request (double Enter/click) must not create a second identical host.
         self._last_created_host_signature: tuple[str, str, str, str, object] | None = None
+        # The created host the signature belongs to: loading any other host ends the
+        # double-submit window, so a deliberate later identical Create is allowed.
+        self._last_created_host_id: str | None = None
 
     def _load_episode_host_order(self) -> bool:
         """Load the saved order; ``False`` means the current in-memory order was kept."""

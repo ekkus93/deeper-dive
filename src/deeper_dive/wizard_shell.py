@@ -34,6 +34,7 @@ from deeper_dive.wizard_transitions import (
     WizardSaveOutcome,
     WizardSaveResult,
     describe_transition,
+    field_label,
 )
 
 MINIMUM_TERMINAL_WIDTH = 80
@@ -576,11 +577,15 @@ class WizardShell(Screen[None]):
         elif unavailable:
             # Published after the transition so its own status cannot hide it.
             with contextlib.suppress(NoMatches):
-                self.set_status(
-                    "A saved selection is no longer available ("
-                    + ", ".join(unavailable)
-                    + "). Choose a replacement before continuing."
-                )
+                self.set_status(self._unavailable_status(unavailable))
+
+    @staticmethod
+    def _unavailable_status(keys: tuple[str, ...]) -> str:
+        return (
+            "A saved selection is no longer available ("
+            + ", ".join(field_label(key) for key in keys)
+            + "). Choose a replacement before continuing."
+        )
 
     def action_cancel_exit_confirmation(self) -> None:
         if not self._exit_confirmation_pending:
