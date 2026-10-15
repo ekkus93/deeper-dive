@@ -7,7 +7,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from test_guided_episode_wizard import _prepare_to_plan, _service_and_config
+from guided_episode_support import _prepare_to_plan, _service_and_config
 from textual.widgets import Input, Static
 
 from deeper_dive.episode_config import (

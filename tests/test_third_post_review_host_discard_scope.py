@@ -18,7 +18,7 @@ from deeper_dive.guided_workflow import WizardKind, WizardState
 from deeper_dive.hosts import HostProfile
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.workspace import WorkspaceManager
-from deeper_dive.wizard_shell import TransitionKind
+from deeper_dive.wizard_transitions import TransitionKind
 
 Scenario = Callable[[GuidedEpisodeWizard, Pilot, DeeperDiveService, str], Awaitable[None]]
 

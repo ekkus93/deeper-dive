@@ -6,7 +6,7 @@ import asyncio
 from pathlib import Path
 from unittest.mock import patch
 
-from test_guided_episode_wizard import _prepare_to_plan, _service_and_config
+from guided_episode_support import _prepare_to_plan, _service_and_config
 from textual.widgets import Input, Static
 
 from deeper_dive.episode_config import (

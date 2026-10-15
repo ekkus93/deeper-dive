@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from deeper_dive.wizard_shell import (
+from deeper_dive.wizard_transitions import (
     Transition,
     TransitionKind,
     describe_transition,

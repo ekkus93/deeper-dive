@@ -3,7 +3,7 @@
 from textual.widget import Widget
 from textual.widgets import Button, Input, Select, Static
 
-from deeper_dive.wizard_shell import NewDeepDiveWizardShell
+from deeper_dive.wizard_shell_variants import NewDeepDiveWizardShell
 
 
 class GuidedProjectWizard(NewDeepDiveWizardShell):

@@ -15,7 +15,7 @@ from deeper_dive.guided_app import GuidedDeeperDiveApp
 from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
 from deeper_dive.guided_workflow import WizardContext, WizardKind, WizardState
 from deeper_dive.storage.workspace import WorkspaceManager
-from deeper_dive.wizard_shell import NewDeepDiveWizardShell
+from deeper_dive.wizard_shell_variants import NewDeepDiveWizardShell
 
 
 @pytest.mark.parametrize("size", [(80, 24), (100, 30)])

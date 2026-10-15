@@ -11,7 +11,7 @@ from textual.widgets import Input, Select
 from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.guided_app import GuidedDeeperDiveApp
 from deeper_dive.storage.workspace import WorkspaceManager
-from deeper_dive.wizard_shell import TransitionKind
+from deeper_dive.wizard_transitions import TransitionKind
 
 
 def test_typed_host_edit_blocks_reselect_until_discarded(tmp_path: Path) -> None:

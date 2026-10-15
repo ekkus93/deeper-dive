@@ -11,11 +11,8 @@ from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.guided_workflow import SetupMode, WizardContext, WizardKind, WizardState
 from deeper_dive.storage.workspace import WorkspaceManager
-from deeper_dive.wizard_shell import (
-    FirstRunWizardShell,
-    NewDeepDiveWizardShell,
-    WizardShell,
-)
+from deeper_dive.wizard_shell import WizardShell
+from deeper_dive.wizard_shell_variants import FirstRunWizardShell, NewDeepDiveWizardShell
 
 
 def _composition(tmp_path: Path) -> ProductionComposition:

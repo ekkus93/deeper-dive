@@ -14,7 +14,7 @@ from deeper_dive.guided_episode_wizard import GuidedEpisodeWizard
 from deeper_dive.guided_workflow import WizardKind, WizardState
 from deeper_dive.hosts import HostProfile
 from deeper_dive.storage.workspace import WorkspaceManager
-from deeper_dive.wizard_shell import Transition, TransitionKind
+from deeper_dive.wizard_transitions import Transition, TransitionKind
 
 
 @pytest.mark.parametrize("resolution", ("cancel", "discard", "save"))

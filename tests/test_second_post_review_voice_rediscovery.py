@@ -14,7 +14,7 @@ from deeper_dive.guided_app import GuidedDeeperDiveApp
 from deeper_dive.guided_first_run import GuidedFirstRunWizard
 from deeper_dive.guided_workflow import WizardKind, WizardState
 from deeper_dive.storage.workspace import WorkspaceManager
-from deeper_dive.wizard_shell import Transition, TransitionKind
+from deeper_dive.wizard_transitions import Transition, TransitionKind
 
 
 def test_voice_rediscovery_guards_dirty_edits_and_preserves_saved_ids(

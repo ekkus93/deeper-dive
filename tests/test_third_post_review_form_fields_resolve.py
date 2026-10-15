@@ -13,7 +13,7 @@ from deeper_dive.guided_app import GuidedDeeperDiveApp
 from deeper_dive.guided_first_run import GuidedFirstRunWizard
 from deeper_dive.guided_workflow import WizardKind
 from deeper_dive.storage.workspace import WorkspaceManager
-from deeper_dive.wizard_shell import _FORM_FIELDS
+from deeper_dive.wizard_transitions import _FORM_FIELDS
 
 
 def _ids(kind: WizardKind) -> list[tuple[str, str]]:
