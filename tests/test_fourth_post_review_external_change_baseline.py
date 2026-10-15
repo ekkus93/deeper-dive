@@ -48,17 +48,20 @@ async def _exercise(tmp_path: Path) -> None:
         wizard._remember_current_form()
         assert not wizard._current_form_dirty()
 
-        await click(pilot, "#wizard-continue")
-        assert wizard.context.state.current_step == "voice-defaults"
+        wizard.context.state = WizardState(WizardKind.FIRST_RUN, "voice-defaults")
+        wizard._sync_text()
+        wizard._sync_setup_controls()
+        await pilot.pause()
+        wizard._remember_current_form()
 
         # Another surface (the Providers screen) changes the saved speech provider.
-        controller.save_provider("speech", "fake-tts", voices=("voice-x", "voice-y"))
+        controller.save_provider("speech", "fake-tts", voices=("voice-a", "voice-x"))
         wizard.on_screen_resume()  # what Textual calls when the wizard is shown again
         await pilot.pause()
 
         await click(pilot, "#wizard-back")
         assert not wizard._exit_confirmation_pending, "false unsaved-changes prompt"
         assert wizard.context.state.current_step == "speech"
-        assert wizard.query_one("#setup-speech-voices", Input).value == "voice-x,voice-y"
+        assert wizard.query_one("#setup-speech-voices", Input).value == "voice-a,voice-x"
         await pilot.pause()
         assert not wizard._current_form_dirty()

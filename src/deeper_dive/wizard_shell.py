@@ -320,10 +320,12 @@ class WizardShell(Screen[None]):
 
         return None
 
-    def _form_target_identity(self) -> tuple[str | None, str | None, str | None]:
-        """Identify the production record behind the currently displayed edit."""
+    def _form_target_identity(
+        self, step: str | None = None
+    ) -> tuple[str | None, str | None, str | None]:
+        """Identify the production record behind ``step``'s edit (default: the current step)."""
 
-        step = self.context.state.current_step
+        step = step or self.context.state.current_step
         target: str | None
         if step in {"episode", "project", "research"}:
             target = self.context.episode_id if step == "episode" else self.context.project_id

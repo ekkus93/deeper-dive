@@ -247,13 +247,37 @@ class GuidedFirstRunWizard(FirstRunSpeechActions):
         if self._current_form_dirty():
             self.set_status("Unsaved setup edits remain; save or discard before reloading.")
             return
+        clean_steps = self._clean_baseline_steps()
         self._load_existing_setup()
         self._last_llm_choice = self._select_value("#setup-ai-choice")
         self._last_speech_choice = self._select_value("#setup-speech-choice")
         self._sync_text()
         self._sync_setup_controls()
         self._remember_current_form()
+        self._rebaseline_steps(clean_steps)
         self._request_runtime_readiness()
+
+    def _clean_baseline_steps(self) -> list[str]:
+        """Steps (other than the current one) whose widgets still match their baseline."""
+
+        current = self.context.state.current_step
+        return [
+            step
+            for step, baseline in self._form_baselines.items()
+            if step != current and self._editable_snapshot(step) == baseline
+        ]
+
+    def _rebaseline_steps(self, steps: list[str]) -> None:
+        """Adopt freshly re-hydrated durable values as the baseline of steps that were clean.
+
+        Only app-initiated re-hydration may do this, and only for steps the user had
+        not edited; otherwise a later Back would report edits nobody made.
+        """
+
+        for step in steps:
+            self._form_baselines[step] = self._editable_snapshot(step)
+            self._form_baseline_targets[step] = self._form_target_identity(step)
+            self._preset_baseline_steps.discard(step)
 
     def action_continue(self) -> bool:
         step = self.context.state.current_step
