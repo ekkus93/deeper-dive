@@ -75,12 +75,14 @@ async def _check(tmp_path: Path) -> None:
         ):
             assert config.defaults[role.value] == "fixture:fake-v1"
 
+        await _wait_for_runtime_readiness(app, pilot)
         screen.action_continue()
         assert screen.context.state.current_step == "speech"
         screen.query_one("#setup-speech-choice", Select).value = "deferred"
         await pilot.pause()
         screen.query_one("#setup-save-speech", Button).press()
         await pilot.pause()
+        await _wait_for_runtime_readiness(app, pilot)
         screen.action_continue()
         assert screen.context.state.current_step == "voice-defaults"
 
