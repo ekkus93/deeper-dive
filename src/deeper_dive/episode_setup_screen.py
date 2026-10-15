@@ -14,7 +14,7 @@ from deeper_dive.composition import ProductionComposition
 from deeper_dive.diagnostics import redact, sanitize_exception_message, sanitize_provider_error
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.model_roles import ModelAssignment, ModelRole, preflight_model_roles
-from deeper_dive.screen_guard import report_service_errors
+from deeper_dive.screen_guard import SERVICE_ERRORS, report_service_errors
 from deeper_dive.storage.database import Database
 
 if TYPE_CHECKING:
@@ -91,8 +91,15 @@ class EpisodeSetupScreen(Screen[None]):
         self.current_episode_id = episode.id
         self._app.current_episode_id = episode.id
         self._app.current_run_id = None
-        config = self._configuration_service(project_id).load_configuration(episode.id)
-        assignment = self._planning_assignment(project_id, config)
+        try:
+            config = self._configuration_service(project_id).load_configuration(episode.id)
+            assignment = self._planning_assignment(project_id, config)
+        except SERVICE_ERRORS as exc:
+            # The episode already exists and is current; do not report that as a failure.
+            self._status(
+                f"Episode created; planning could not start: {sanitize_exception_message(exc)}"
+            )
+            return
         if isinstance(assignment, str):
             self._status(f"Quick Deep Dive planning blocked: {assignment}")
             return

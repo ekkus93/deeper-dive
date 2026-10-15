@@ -26,7 +26,7 @@ from deeper_dive.diagnostics import redact
 from deeper_dive.host_turn import HostTurn
 from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
 from deeper_dive.material_claims import MaterialClaimService
-from deeper_dive.screen_guard import report_service_errors
+from deeper_dive.screen_guard import report_service_errors, tolerate_refresh_errors
 from deeper_dive.storage.database import Database
 from deeper_dive.targeted_repair import TargetedRepairService
 from deeper_dive.tts_generation import TTSArtifactRepository
@@ -514,6 +514,7 @@ class TranscriptReviewScreen(Screen[None]):
         elif name:
             self._app.action_navigate(name)
 
+    @tolerate_refresh_errors
     def refresh_review(self, status: str = "Ready") -> None:
         try:
             self.turns = self.controller.turns(self._app)

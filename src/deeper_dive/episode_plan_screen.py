@@ -12,6 +12,7 @@ from textual.widgets import Button, Checkbox, Footer, Header, Input, Label, Stat
 
 from deeper_dive.diagnostics import redact, sanitize_exception_message
 from deeper_dive.episode_planner import EpisodePlan, PlannedSegment
+from deeper_dive.screen_guard import report_service_errors
 
 if TYPE_CHECKING:
     from deeper_dive.tui import DeeperDiveApp
@@ -98,11 +99,37 @@ class EpisodePlanScreen(Screen[None]):
         elif name:
             self._app.action_navigate(name)
 
+    @report_service_errors("Plan not reloaded")
     def action_reload_plan(self) -> None:
-        """Show the stored plan without regenerating it (e.g. after a conflict)."""
+        """Show the stored plan without regenerating it (e.g. after a conflict).
 
+        The stored plan wins: unsaved segment edits are replaced, and the status says
+        so when there were any.
+        """
+
+        discarded = self._segment_inputs_differ()
         if self.refresh_plan():
-            self._status("Reloaded the stored plan")
+            self._status(
+                "Reloaded the stored plan; unsaved segment edits were discarded"
+                if discarded
+                else "Reloaded the stored plan"
+            )
+
+    def _segment_inputs_differ(self) -> bool:
+        """Whether the segment inputs hold edits that differ from the loaded segment."""
+
+        if self.plan is None or not self.plan.segments:
+            return False
+        segment = self.plan.segments[min(self.selected_ordinal, len(self.plan.segments) - 1)]
+        shown = (
+            ("#segment-title", segment.title),
+            ("#segment-purpose", segment.purpose),
+            ("#segment-duration", str(segment.target_duration_seconds)),
+            ("#segment-questions", ", ".join(segment.questions)),
+            ("#segment-evidence", ", ".join(segment.evidence_ids)),
+            ("#segment-hosts", ", ".join(segment.lead_host_ids)),
+        )
+        return any(self.query_one(selector, Input).value != value for selector, value in shown)
 
     def refresh_plan(self) -> bool:
         episode_id = self._app.current_episode_id
@@ -121,6 +148,10 @@ class EpisodePlanScreen(Screen[None]):
         if self.selected_ordinal >= len(self.plan.segments):
             self.selected_ordinal = 0
         self._render_plan()
+        if not self.plan.segments:
+            self._clear_selected()
+            self._status("The stored plan has no segments; regenerate the plan")
+            return False
         self._load_selected()
         return True
 
@@ -246,8 +277,24 @@ class EpisodePlanScreen(Screen[None]):
             f"Total estimate: {self.plan.target_duration_seconds}s\n" + "\n".join(rows)
         )
 
+    def _clear_selected(self) -> None:
+        for selector in (
+            "#segment-title",
+            "#segment-purpose",
+            "#segment-duration",
+            "#segment-questions",
+            "#segment-evidence",
+            "#segment-hosts",
+        ):
+            self.query_one(selector, Input).value = ""
+        self.query_one("#segment-number", Input).value = ""
+
     def _load_selected(self) -> None:
         assert self.plan is not None
+        if not self.plan.segments:
+            self._clear_selected()
+            return
+        self.selected_ordinal = min(self.selected_ordinal, len(self.plan.segments) - 1)
         segment = self.plan.segments[self.selected_ordinal]
         self.query_one("#segment-number", Input).value = str(self.selected_ordinal + 1)
         self.query_one("#segment-title", Input).value = segment.title
