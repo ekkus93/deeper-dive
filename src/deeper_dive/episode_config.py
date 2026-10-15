@@ -39,16 +39,35 @@ def _normalized_source_overrides(value: object) -> dict[str, bool]:
 
 
 def _normalized_model_overrides(value: object) -> dict[str, dict[str, str]]:
+    """Canonical ``{role: {"provider": ..., "model": ...}}``.
+
+    ``model_roles`` also accepts the ``"provider:model"`` string form, which older
+    writers and imports can store, so it is accepted here and canonicalized to the
+    mapping form. Shapes nothing can use raise a ``ValueError`` naming the role.
+    """
+
     if not isinstance(value, dict):
         raise ValueError("model overrides must be a mapping")
     result: dict[str, dict[str, str]] = {}
     for role, assignment in value.items():
-        if not isinstance(role, str) or not isinstance(assignment, dict):
-            raise ValueError("model overrides must map roles to provider/model settings")
+        if not isinstance(role, str):
+            raise ValueError("model override roles must be text")
+        if isinstance(assignment, str):
+            provider, separator, model = assignment.partition(":")
+            if not separator:
+                raise ValueError(
+                    f"model override {role} must be provider:model or provider/model settings"
+                )
+            result[role.strip()] = {"provider": provider.strip(), "model": model.strip()}
+            continue
+        if not isinstance(assignment, dict):
+            raise ValueError(
+                f"model override {role} must be provider:model or provider/model settings"
+            )
         cleaned: dict[str, str] = {}
         for key, item in assignment.items():
             if not isinstance(key, str) or not isinstance(item, str):
-                raise ValueError("model override settings must be text")
+                raise ValueError(f"model override {role} settings must be text")
             cleaned[key.strip()] = item.strip()
         result[role.strip()] = cleaned
     return result
@@ -159,8 +178,14 @@ class EpisodeConfigurationService:
         self._validate_hosts(existing.project_id, config)
         # Compare against the row already read: a second read could see a newer
         # revision than the ``existing`` record this method returns.
-        current = self.configuration_from_record(existing)
-        if current.snapshot() == config.snapshot():
+        try:
+            unchanged = self.configuration_from_record(existing).snapshot() == config.snapshot()
+        except ValueError:
+            # A stored value that no longer normalizes (for example a malformed
+            # model override) must not make the episode uneditable: the edit that
+            # replaces it is by definition a change.
+            unchanged = False
+        if unchanged:
             return existing
         if existing.state != "draft":
             raise EpisodeFrozenError(
