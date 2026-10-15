@@ -5,6 +5,12 @@ from textual.widgets import Button, Input, Select, Static
 
 from deeper_dive.wizard_shell_variants import NewDeepDiveWizardShell
 
+PROJECT_AUDIENCE_OPTIONS: tuple[tuple[str, str], ...] = (
+    ("General audience", "general"),
+    ("Technical audience", "technical"),
+    ("Expert audience", "expert"),
+)
+
 
 class GuidedProjectWizard(NewDeepDiveWizardShell):
     def step_controls(self) -> tuple[Widget, ...]:
@@ -14,11 +20,7 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
             Input(placeholder="Main curiosity prompt", id="guided-project-topic"),
             Static("", id="guided-project-topic-error", markup=False),
             Select(
-                [
-                    ("General audience", "general"),
-                    ("Technical audience", "technical"),
-                    ("Expert audience", "expert"),
-                ],
+                list(PROJECT_AUDIENCE_OPTIONS),
                 value="general",
                 allow_blank=False,
                 id="guided-project-audience",
@@ -72,8 +74,8 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
         self.query_one("#guided-project-name", Input).value = project.name
         self.query_one("#guided-project-topic", Input).value = topic
         self.query_one("#guided-project-description", Input).value = description
-        if audience in {"general", "technical", "expert"}:
-            self.query_one("#guided-project-audience", Select).value = audience
+        if audience:
+            self._show_stored_choice("#guided-project-audience", PROJECT_AUDIENCE_OPTIONS, audience)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.name == "create-project":
@@ -92,7 +94,7 @@ class GuidedProjectWizard(NewDeepDiveWizardShell):
             "topic": "Error: Main curiosity is required." if not topic else "",
             "audience": (
                 "Error: Choose a supported audience."
-                if audience not in {"general", "technical", "expert"}
+                if not isinstance(audience_value, str) or not audience
                 else ""
             ),
         }

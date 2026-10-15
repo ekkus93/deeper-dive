@@ -13,7 +13,11 @@ from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.episode_planner import PlannedSegment
 from deeper_dive.generation_start import GenerationStartService
-from deeper_dive.guided_episode_form import AUDIENCE_OPTIONS, EpisodeFormHelpers
+from deeper_dive.guided_episode_form import (
+    AUDIENCE_OPTIONS,
+    DEPTH_OPTIONS,
+    EpisodeFormHelpers,
+)
 from deeper_dive.guided_generation import GuidedGenerationMonitorScreen
 from deeper_dive.wizard_transitions import (
     Transition,
@@ -135,11 +139,7 @@ class GuidedEpisodeWizard(EpisodeFormHelpers):
                 name="toggle-episode-advanced",
             ),
             Select(
-                [
-                    ("Accessible", "accessible"),
-                    ("Balanced", "balanced"),
-                    ("Deep", "deep"),
-                ],
+                list(DEPTH_OPTIONS),
                 value="balanced",
                 allow_blank=False,
                 id="guided-episode-depth",

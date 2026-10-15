@@ -5,7 +5,6 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
-from textual.markup import escape
 from textual.widgets import Button, Input, Select, Static
 
 from deeper_dive.diagnostics import sanitize_exception_message
@@ -23,6 +22,12 @@ AUDIENCE_OPTIONS: tuple[tuple[str, str], ...] = (
     ("General audience", "general"),
     ("Technical audience", "technical"),
     ("Expert audience", "expert"),
+)
+
+DEPTH_OPTIONS: tuple[tuple[str, str], ...] = (
+    ("Accessible", "accessible"),
+    ("Balanced", "balanced"),
+    ("Deep", "deep"),
 )
 
 
@@ -70,20 +75,7 @@ class EpisodeFormHelpers(GuidedHostWizard):
         )
 
     def _show_audience(self, audience: str) -> None:
-        """Show a stored audience, adding a "Custom" option for free text.
-
-        The CLI and the legacy Episode Setup screen accept any audience text. The
-        guided Select only knows the presets, so an unknown stored value becomes an
-        extra option; a no-op Save then keeps the durable value unchanged.
-        """
-
-        select = self.query_one("#guided-episode-audience", Select)
-        options = list(AUDIENCE_OPTIONS)
-        if audience not in {value for _label, value in options}:
-            options.append((f"Custom: {escape(audience)}", audience))
-        with select.prevent(Select.Changed):
-            select.set_options(options)
-            select.value = audience
+        self._show_stored_choice("#guided-episode-audience", AUDIENCE_OPTIONS, audience)
 
     def _load_episode_form(self) -> None:
         self._loaded_episode_id = None
@@ -105,8 +97,7 @@ class EpisodeFormHelpers(GuidedHostWizard):
         self.query_one("#guided-episode-title", Input).value = config.title
         self.query_one("#guided-episode-focus", Input).value = config.focus
         self._show_audience(config.audience)
-        if config.technical_depth in {"accessible", "balanced", "deep"}:
-            self.query_one("#guided-episode-depth", Select).value = config.technical_depth
+        self._show_stored_choice("#guided-episode-depth", DEPTH_OPTIONS, config.technical_depth)
         minutes = config.target_duration_seconds // 60
         if minutes in {10, 20, 30} and config.target_duration_seconds == minutes * 60:
             self.query_one("#guided-episode-duration", Select).value = str(minutes)

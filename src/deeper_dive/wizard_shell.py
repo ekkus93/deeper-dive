@@ -11,6 +11,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
 from textual.css.query import NoMatches
+from textual.markup import escape
 from textual.screen import Screen
 from textual.widget import Widget
 from textual.widgets import Button, Footer, Header, Input, Label, Select, Static
@@ -330,6 +331,28 @@ class WizardShell(Screen[None]):
                 with contextlib.suppress(InvalidSelectValueError):
                     select.value = Select.BLANK
                 return False
+
+    def _show_stored_choice(
+        self,
+        selector: str,
+        presets: Sequence[tuple[str, str]],
+        stored: str,
+    ) -> None:
+        """Show a stored value in a preset Select, adding a "Custom" option for free text.
+
+        The CLI and the legacy screens accept any text for audience, depth and
+        similar fields, while a guided Select only knows its presets. An unknown
+        stored value becomes an extra option so the control shows it honestly and a
+        no-op Save keeps the durable value unchanged (never rewritten to a preset).
+        """
+
+        select = self.query_one(selector, Select)
+        options = list(presets)
+        if stored not in {value for _label, value in options}:
+            options.append((f"Custom: {escape(stored)}", stored))
+        with select.prevent(Select.Changed):
+            select.set_options(options)
+            select.value = stored
 
     def _wizard_target(self, step: str) -> str | None:
         """Override to name the production record a step's form currently edits.
