@@ -11,8 +11,31 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, unquote_plus
 
-_SECRET_WORDS = frozenset({"authorization", "password", "cookie", "pwd"})
-_SECRET_PAIRS = frozenset(
+_CREDENTIAL_NOUNS = frozenset(
+    {
+        "token",
+        "secret",
+        "password",
+        "passwd",
+        "pwd",
+        "pass",
+        "passphrase",
+        "auth",
+        "authorization",
+        "cookie",
+        "credential",
+        "credentials",
+        "session",
+        "sessionid",
+        "apikey",
+        "accesstoken",
+        "clientsecret",
+        "privatekey",
+        "signature",
+        "jwt",
+    }
+)
+_CREDENTIAL_PAIRS = frozenset(
     {
         ("api", "key"),
         ("access", "token"),
@@ -21,8 +44,24 @@ _SECRET_PAIRS = frozenset(
         ("subscription", "key"),
         ("private", "key"),
         ("bearer", "token"),
+        ("session", "id"),
     }
 )
+# Generic query names are sensitive only in a URL query/fragment context. A plain
+# ``key=value`` or ``--key value`` is not treated as a credential by the shared noun set.
+_QUERY_ONLY_GENERIC_NAMES = frozenset({"key", "code", "sig", "sid"})
+_CREDENTIAL_SUFFIXES = frozenset(
+    {"token", "secret", "apikey", "accesstoken", "clientsecret", "privatekey", "sessionid"}
+)
+
+
+def _credential_alternation() -> str:
+    separator = r"[-_.+/\[\]]*"
+    spellings = [re.escape(noun) for noun in _CREDENTIAL_NOUNS]
+    spellings.extend(separator.join(re.escape(word) for word in pair) for pair in _CREDENTIAL_PAIRS)
+    return "|".join(sorted(spellings, key=len, reverse=True))
+
+
 # Sanitize complete authorization values before generic assignment redaction.
 # The delimiter preserves adjacent diagnostic fields (e.g. status=401).
 # Digest can contain a comma-separated collection of credential components.
@@ -53,9 +92,7 @@ _ASSIGNMENT = re.compile(
     r"(?i)(?<![A-Za-z0-9_.+/\[\]-])"
     # Avoid consuming noncredential wrapper fields surrounding nested secrets.
     r"(?=[A-Za-z0-9_.+/\[\]-]{1,128}\s*[:=])"
-    r"([A-Za-z0-9_.+/\[\]-]*"
-    r"(?:authorization|token|secret|password|passwd|pwd|auth|cookie|api[-_.+/\[\]]*key"
-    r"|subscription[-_.+/\[\]]*key|private[-_.+/\[\]]*key)"
+    r"([A-Za-z0-9_.+/\[\]-]*(?:" + _credential_alternation() + r")"
     r"[A-Za-z0-9_.+/\[\]-]*)(\s*[:=]\s*)([^\s,;]+)"
 )
 _QUOTED_MAPPING_ASSIGNMENT = re.compile(
@@ -71,7 +108,7 @@ _QUOTED_MAPPING_OPEN = re.compile(
 # ``('x-api-key', 'C')`` / ``(b'authorization', b'Basic C')``: header lists and tuples
 # stringified by an SDK. The classifier decides which keys are sensitive.
 _TUPLE_PAIR = re.compile(
-    r"(?i)(\(\s*b?)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\2(\s*,\s*b?)(['\"])"
+    r"(?i)([\[(]\s*b?)(['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\2(\s*,\s*b?)(['\"])"
     r"((?:\\.|(?!\5)[^\\\r\n])+)\5"
 )
 # ``--api-key C``: a CLI flag and its value separated by whitespace.
@@ -90,7 +127,7 @@ _QUOTED_VALUE_ASSIGNMENT = re.compile(
 # cannot make the scan quadratic.
 _ESCAPED_QUOTE_PAIR = re.compile(
     r"(?i)(?<!\\)(\\{1,8}['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*)(\\{1,8}['\"])"
-    r"((?:(?!\4)[^\r\n]){0,2048}+)(\4|(?=\r|\n|\Z))"
+    r"((?:(?!(?<!\\)\4)[^\r\n]){0,2048}+)((?<!\\)\4|(?=\r|\n|\Z))"
 )
 # The opener must be followed by a line break, an escaped ``\\n`` or a base64-looking run, so
 # prose that merely names the header (``use '-----BEGIN PRIVATE KEY-----' header``) survives.
@@ -129,14 +166,18 @@ def _credential_shaped(userinfo: str) -> bool:
     """Whether ``userinfo`` (the text before a candidate ``@``) looks like ``user:password``.
 
     The ``:`` must come before the first ``/``, ``?`` or ``#`` (otherwise it belongs to
-    a query or path such as ``example.com?q=a:b@c``), the text must not end in ``/``
-    (``/@scope`` path segments), and what follows the colon must not be a port number
+    a query or path such as ``example.com?q=a:b@c``). A trailing slash is accepted only
+    when the username before the colon has no slash or dot, preserving host paths such as
+    ``repo/@v1`` and ``host:8080/@x``. What follows the colon must not be a port number
     directly followed by a terminator: ``host:8080?email=a@b`` and
     ``host:8080/v1/models/gpt@latest`` are a host, a port and a path.
     """
 
     colon = userinfo.find(":")
-    if colon == -1 or userinfo.endswith("/"):
+    if colon == -1:
+        return False
+    username = userinfo[:colon]
+    if userinfo.endswith("/") and ("/" in username or "." in username):
         return False
     first_terminator = min(
         (index for index in map(userinfo.find, _USERINFO_TERMINATORS) if index != -1),
@@ -157,6 +198,9 @@ def _userinfo_end(text: str, start: int) -> int | None:
     2. Terminator-in-password form (``user:pa#ss@host``, ``app:ab/cd?e@db``,
        ``u:pa'ss@h``): the LAST ``@`` of the scan token (see ``_TOKEN_END``) that is
        followed by a host character and whose preceding text is ``_credential_shaped``.
+       A password ending in ``/`` is accepted only when its username has no slash or dot;
+       this catches ``user:p/CANARY/@host`` while preserving path forms such as
+       ``repo/@v1`` and ``host:8080/@x``.
        It also extends an authority-form match when the password itself contained an
        ``@`` and a terminator (``user:p@a#ss@host``): the later ``@`` wins, because
        over-redacting a URL tail is safe and a leaked password is not.
@@ -211,9 +255,15 @@ def _redact_credential_urls(text: str) -> str:
 # Linear-time tokenizer for http(s) URLs that were only partly percent-encoded
 # (for example ``%23`` for ``#``); decoding is bounded in _redact_encoded_http_url.
 _HTTP_URL_TOKEN = re.compile(r"(?i)(?<![a-z0-9+.-])[a-z][a-z0-9+.-]*://[^\s<>\"']+")
+# Generic names (key, code, sig, sid) are sensitive in URL query/fragment context
+# only. Assignment, mapping, flag and XML checks use the shared credential nouns.
+_QUERY_GENERIC_ALTERNATION = "|".join(sorted(map(re.escape, _QUERY_ONLY_GENERIC_NAMES)))
 _CREDENTIAL_QUERY = re.compile(
-    r"(?i)([?&;](?:api_key|apikey|key|token|access_token|auth|authorization|password|secret)=)"
-    r"([^&#;\s]+)"
+    r"(?i)([?&;](?:"
+    + _credential_alternation()
+    + r"|"
+    + _QUERY_GENERIC_ALTERNATION
+    + r")=)([^&#;\s]+)"
 )
 # A fragment ends at whitespace or a delimiter that closes a quoted/bracketed
 # context, so surrounding JSON, Markdown and prose survive redaction.
@@ -341,36 +391,6 @@ _ENCODED_HTTP_URL = re.compile(
 # including when an earlier non-sensitive parameter precedes the secret.
 # The shared key classifier decides sensitivity.
 _ENCODED_CREDENTIAL_QUERY = re.compile(r"(?i)([?&;])([^?&#=;\s]+)(=)([^&#;\s]+)")
-_SENSITIVE_URL_KEYS = frozenset(
-    {
-        "api_key",
-        "apikey",
-        "key",
-        "token",
-        "access_token",
-        "auth",
-        "authorization",
-        "password",
-        "secret",
-        "code",
-        "sig",
-        "signature",
-        "x-amz-signature",
-        "x-goog-signature",
-        "x-amz-credential",
-        "x-amz-security-token",
-        "session",
-        "sessionid",
-        "session_id",
-        "sid",
-        "jwt",
-        "credential",
-        "credentials",
-        "pass",
-        "passwd",
-        "pwd",
-    }
-)
 _CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 _WORD_SPLIT = re.compile(r"[^A-Za-z0-9]+")
 
@@ -380,28 +400,16 @@ def _key_words(key: object) -> tuple[str, ...]:
     return tuple(part.lower() for part in _WORD_SPLIT.split(separated) if part)
 
 
-# One-word spellings of the credential pairs (``apikey``, ``accesstoken``, ``clientsecret``)
-# and the common short form ``passwd``; a word that only *ends* with a credential
-# noun (``csrftoken``) counts, while ``tokens`` (a count) does not.
-_SECRET_SUFFIXES = ("token", "secret", "password", "passwd", "apikey", "privatekey")
-
-
 def _is_secret_key(key: object) -> bool:
     words = _key_words(key)
     if not words:
         return False
-    if "token" in words or "secret" in words:
+    final_word = words[-1]
+    if final_word in _CREDENTIAL_NOUNS or any(
+        final_word.endswith(noun) for noun in _CREDENTIAL_SUFFIXES
+    ):
         return True
-    if any(word.endswith(_SECRET_SUFFIXES) for word in words):
-        return True
-    if "passwd" in words:
-        return True
-    # A bare ``auth`` key is a credential (``auth=C``); ``auth_method`` / ``oauth`` are not.
-    if words == ("auth",):
-        return True
-    if any(word in _SECRET_WORDS for word in words):
-        return True
-    return any(pair in zip(words, words[1:], strict=False) for pair in _SECRET_PAIRS)
+    return len(words) > 1 and words[-2:] in _CREDENTIAL_PAIRS
 
 
 def _redact_assignment(match: re.Match[str]) -> str:
@@ -434,20 +442,26 @@ def _redact_tuple_pair(match: re.Match[str]) -> str:
     return f"{head}{match.group(5)}[REDACTED]{match.group(5)}"
 
 
-_SECRET_LAST_WORDS = frozenset(
-    {"token", "secret", "password", "passwd", "pwd", "auth", "authorization", "cookie", "key"}
-)
-
-
 def _is_secret_name(name: str) -> bool:
     """A flag or element name that *is* a credential (``--api-key``, ``<password>``).
 
     ``--token-count`` and ``<password-policy>`` mention a credential word but name
-    something else, so the last word must be the credential noun.
+    something else, so the last word must be the credential noun. A one-letter
+    ``-p`` stays benign; longer names follow credential nouns.
+
+    Query-only generic names are documented in the constants above and do not
+    broaden assignment or flag matching.
     """
 
     words = _key_words(name)
-    return bool(words) and words[-1] in _SECRET_LAST_WORDS and _is_secret_key(name)
+    if not words:
+        return False
+    # ``key`` is generic in assignments and URLs, but a key-named CLI option
+    # explicitly asks for a key value and is therefore treated as sensitive.
+    ends_in_pair = len(words) > 1 and words[-2:] in _CREDENTIAL_PAIRS
+    return (words[-1] in _CREDENTIAL_NOUNS or words[-1] == "key" or ends_in_pair) and (
+        _is_secret_key(name) or words == ("key",)
+    )
 
 
 def _redact_cli_flag(match: re.Match[str]) -> str:
@@ -503,7 +517,7 @@ def _redact_url_fragment(match: _FragmentMatch) -> str:
         # Only ``key=value`` parts name a credential; a bare word is an anchor
         # (``#credentials``, ``#token-limits``) and stays readable.
         keys = [part.partition("=")[0] for part in re.split(r"[&;,]", fragment) if "=" in part]
-        if any(key.lower() in _SENSITIVE_URL_KEYS or _is_secret_key(key) for key in keys):
+        if any(key.lower() in _QUERY_ONLY_GENERIC_NAMES or _is_secret_key(key) for key in keys):
             return f"{match.group(1)}#[REDACTED]"
         # SDK diagnostics sometimes render fragment assignments as key:value.
         # Only treat a colon as a credential separator for known sensitive keys;
@@ -562,7 +576,7 @@ def _redact_partly_encoded_http_url(match: re.Match[str]) -> str:
 def is_sensitive_url_query_key(key: str) -> bool:
     """Recognize credential query keys, including layered percent-encoding."""
     return any(
-        layer.lower() in _SENSITIVE_URL_KEYS or _is_secret_key(layer)
+        layer.lower() in _QUERY_ONLY_GENERIC_NAMES or _is_secret_key(layer)
         for layer in _decode_layers(key)
     )
 
@@ -711,6 +725,14 @@ def redact(value: object, *, drop_secret_keys: bool = False) -> object:
             if not (drop_secret_keys and _is_secret_key(key))
         }
     if isinstance(value, (list, tuple)):
+        if len(value) == 2 and isinstance(value[0], (str, bytes)):
+            key = (
+                value[0].decode("utf-8", errors="replace")
+                if isinstance(value[0], bytes)
+                else value[0]
+            )
+            if _is_secret_key(key):
+                return [redact(value[0]), "[REDACTED]"]
         return [redact(item, drop_secret_keys=drop_secret_keys) for item in value]
     if isinstance(value, (set, frozenset)):
         return [redact(item, drop_secret_keys=drop_secret_keys) for item in sorted(value, key=repr)]
