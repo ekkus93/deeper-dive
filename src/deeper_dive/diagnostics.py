@@ -85,68 +85,83 @@ _AUTHORITY = re.compile(r"[^\s/?#\"'<>]*")
 _HOST_CHAR = re.compile(r"[\w.\[\]$-]")
 
 
-# Cuts the scan window for each fallback form. A password may contain quotes in the
-# no-slash form, but the slash form reads a longer span, so it also stops at quotes.
-_LOOSE_TOKEN_END = re.compile(r"[\s,)]")
-_TIGHT_TOKEN_END = re.compile(r"[\s,)\"']")
-_PORT_THEN_TERMINATOR = re.compile(r"\d+[?#'\"<>]")
+# A scan token ends at whitespace, at a ``,``/``)`` that is followed by whitespace, a
+# quote, a closing bracket, another separator or the end, and at a quote that is
+# followed by such a separator. A password may therefore contain ``,``, ``)`` and
+# quotes (``pa,ss``, ``pa'ss``), while JSON or code that merely follows a URL
+# (``"https://h/x", "e": "a@b"``) still ends the token.
+_TOKEN_END = re.compile(
+    r"""\s|[,)](?=[\s"'}\],;:)]|\Z)|["'](?=[\s,)}\];:]|\Z)"""
+)
+_UNTIL_WHITESPACE = re.compile(r"\S*")
+_USERINFO_TERMINATORS = "/?#"
+# ``host:port`` followed by a terminator: a port is 1-5 digits (at most 65535).
+_PORT_THEN_TERMINATOR = re.compile(r"(\d{1,5})(?=[/?#'\"<>]|\Z)")
+
+
+def _credential_shaped(userinfo: str) -> bool:
+    """Whether ``userinfo`` (the text before a candidate ``@``) looks like ``user:password``.
+
+    The ``:`` must come before the first ``/``, ``?`` or ``#`` (otherwise it belongs to
+    a query or path such as ``example.com?q=a:b@c``), the text must not end in ``/``
+    (``/@scope`` path segments), and what follows the colon must not be a port number
+    directly followed by a terminator: ``host:8080?email=a@b`` and
+    ``host:8080/v1/models/gpt@latest`` are a host, a port and a path.
+    """
+
+    colon = userinfo.find(":")
+    if colon == -1 or userinfo.endswith("/"):
+        return False
+    first_terminator = min(
+        (index for index in map(userinfo.find, _USERINFO_TERMINATORS) if index != -1),
+        default=len(userinfo),
+    )
+    if colon > first_terminator:
+        return False
+    port = _PORT_THEN_TERMINATOR.match(userinfo, colon + 1)
+    return port is None or int(port.group(1)) > 65535
 
 
 def _userinfo_end(text: str, start: int) -> int | None:
     """Index of the ``@`` that closes the userinfo of the URL whose authority starts at ``start``.
 
-    1. Authority form (``user:pw@host``): userinfo runs to the LAST ``@`` inside the
-       authority, as ``urlsplit`` does, so a password may contain ``@``. Scanning is
-       linear: the authority ends at the first ``/``, ``?``, ``#``, space or quote.
-    Only when the authority has no ``@`` (the password contains a terminator):
-    2. Slash-in-password form (``app:ab/xyz==@db``): the window ends at whitespace,
-       ``,``, ``)`` or a quote, so JSON/code that merely follows a URL is not
-       swallowed. The text before its last ``@`` must have a ``:`` before any ``/``,
-       the "password" must not contain ``?`` (otherwise it is far more likely
-       ``host:port/path?email=a@b``) and the character after the ``@`` must look
-       like a host.
-    3. Terminator-in-password form (``user:pa#ss@host``, no ``/``): the window ends at
-       whitespace, ``,`` or ``)`` but may contain quotes. It needs a ``:`` before the
-       ``@`` and is rejected when what follows the colon is a port number immediately
-       followed by a terminator (``host:8080?email=a@b``, ``host:80">me@x.com``).
-       A purely numeric password followed by a terminator is ambiguous and is not
-       redacted.
-    Known trade-off: ``scheme://host:8080/@scope/x`` is redacted as userinfo, which
-    only garbles a diagnostic and never leaks.
+    1. Authority form (``user:pw@host``): the LAST ``@`` inside the authority, as
+       ``urlsplit`` does, so a password may contain ``@``. The authority ends at the
+       first ``/``, ``?``, ``#``, whitespace or quote.
+    2. Terminator-in-password form (``user:pa#ss@host``, ``app:ab/cd?e@db``,
+       ``u:pa'ss@h``): the LAST ``@`` of the scan token (see ``_TOKEN_END``) that is
+       followed by a host character and whose preceding text is ``_credential_shaped``.
+       It also extends an authority-form match when the password itself contained an
+       ``@`` and a terminator (``user:p@a#ss@host``): the later ``@`` wins, because
+       over-redacting a URL tail is safe and a leaked password is not.
+    3. Fail closed: when the token fills the whole scan window (a password longer than
+       ``_USERINFO_WINDOW`` containing a terminator) and is credential-shaped, the
+       whole whitespace-delimited token is redacted.
+
+    Accepted gaps (``tests/test_fourth_post_review_sanitizer_matrix.py``): a password
+    that starts with a valid port number directly followed by a terminator
+    (``u:8#pw@h``, ``u:2024#Summer@h``) is indistinguishable from
+    ``host:8080#mail@b.com`` and is not redacted. Over-redaction (never a leak):
+    ``https://user:pw@host:8080/x?e=a@b`` loses its host and path.
     """
 
     authority = _AUTHORITY.match(text, start)
     assert authority is not None
-    at = text.rfind("@", start, authority.end())
-    if at != -1:
-        return at
+    authority_at = text.rfind("@", start, authority.end())
     window = text[start : start + _USERINFO_WINDOW]
-    tight = _TIGHT_TOKEN_END.split(window, maxsplit=1)[0]
-    at = tight.rfind("@")
-    if at != -1 and _HOST_CHAR.match(tight, at + 1) is not None:
-        userinfo = tight[:at]
-        colon = userinfo.find(":")
-        slash = userinfo.find("/")
-        # A "password" ending in "/" is a path segment such as ``/@scope`` or ``/@me``.
-        if (
-            colon != -1
-            and slash != -1
-            and slash > colon
-            and "?" not in userinfo[colon:]
-            and not userinfo.endswith("/")
-        ):
+    end_match = _TOKEN_END.search(window)
+    token = window if end_match is None else window[: end_match.start()]
+    at = token.rfind("@")
+    if at != -1 and _HOST_CHAR.match(token, at + 1) is not None and _credential_shaped(token[:at]):
+        if authority_at == -1 or start + at > authority_at:
             return start + at
-    loose = _LOOSE_TOKEN_END.split(window, maxsplit=1)[0]
-    at = loose.rfind("@")
-    if at == -1 or _HOST_CHAR.match(loose, at + 1) is None:
-        return None
-    userinfo = loose[:at]
-    colon = userinfo.find(":")
-    if colon == -1 or "/" in userinfo:
-        return None
-    if _PORT_THEN_TERMINATOR.match(userinfo, colon + 1) is not None:
-        return None
-    return start + at
+    if authority_at != -1:
+        return authority_at
+    if end_match is None and len(window) == _USERINFO_WINDOW and _credential_shaped(token):
+        whole = _UNTIL_WHITESPACE.match(text, start)
+        assert whole is not None
+        return whole.end() - 1
+    return None
 
 
 def _redact_credential_urls(text: str) -> str:

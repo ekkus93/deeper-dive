@@ -48,17 +48,17 @@ If a reproducer disproves a finding, keep the task visible and record a justifie
 - [x] Sweep every writer of `generation_runs` and record each (see notes). The concurrent-start thread test still yields one run.
 
 ### 6PR-02 — Credential URL leaks with terminator combinations
-- [ ] Canary rows that fail on the baseline, each also embedded in JSON and in a Python repr:
+- [x] Canary rows that fail on the baseline, each also embedded in JSON and in a Python repr:
   - `https://user:p@a#ssCANARY9x@host/x`
   - `https://user:pa/ss?CANARY9x@host/x`, `https://user:CANARY9x/x?y@host`
   - `https://user:pa/ss'CANARY9x@host/x`, `https://user:pa/ss"CANARY9x@host/x`
   - `https://user:pa#ss,CANARY9x@host`, `https://user:CANARY9x?)x@host`, `https://user:CANARY9x/x)y@host`
   - a password longer than `_USERINFO_WINDOW` containing a terminator
-- [ ] `_userinfo_end` uses one rule for the last host-followed `@`, with the `host:port` exception decided and documented in the docstring; linear.
-- [ ] Numeric-password case re-decided (`https://user:8#CANARY9x@host` vs `https://host:8080#mail@b.com`); both directions tested; any remaining accepted shape named as a class.
-- [ ] A userinfo longer than the window fails closed.
-- [ ] Fifth-cycle benign rows unchanged (`host:8080?email=a@b`, `host:8080#mail@b.com`, `/@scope`, JSON and code rows).
-- [ ] Each shape checked through `redact()`, `sanitize_exception_message()` and a CLI error-path test. Linearity checked by growth ratio or a generous ceiling; worst case recorded.
+- [x] `_userinfo_end` uses one rule for the last host-followed `@`, with the `host:port` exception decided and documented in the docstring; linear.
+- [x] Numeric-password case re-decided (`https://user:8#CANARY9x@host` vs `https://host:8080#mail@b.com`); both directions tested; any remaining accepted shape named as a class (a password starting with a valid port number, 1-5 digits <= 65535, directly followed by a terminator; strict-xfail rows).
+- [x] A userinfo longer than the window fails closed.
+- [x] Fifth-cycle benign rows unchanged (`host:8080?email=a@b`, `host:8080#mail@b.com`, `/@scope`, JSON and code rows).
+- [x] Each shape checked through `redact()`, `sanitize_exception_message()` and a CLI error-path test. Linearity checked by growth ratio or a generous ceiling; worst case recorded.
 
 ### 6PR-03 — Legacy screens that still crash the app
 - [ ] Pilot regressions with a fake raising `sqlite3.OperationalError` (each fails on the baseline): navigate to Library; Library Duplicate; Library Delete confirm; navigate to Generate. Each shows a status and `app.is_running`.
@@ -171,3 +171,4 @@ If a reproducer disproves a finding, keep the task visible and record a justifie
 (Record baseline counts, sweep results, design decisions, deviations, accepted gaps and qualification evidence here.)
 
 - **6PR-01 sweep:** writers of `generation_runs` are `GenerationRunRepository.create/select_or_create` (INSERT), `update` (pipeline `_update`, `resume`, failure path; `composition.py:356` failure path), `_set_flag` (request_pause/request_cancel) and the new `cancel_now`. `tts_generation.py`, `plan_validity.py`, `host_turn.py` and `service.py` only SELECT it. Mutation: with `src/` reverted the 5 new tests in `test_sixth_post_review_run_control.py` fail.
+- **6PR-02 design:** `_userinfo_end` now has one fallback rule: the last host-followed `@` of a scan token (`_TOKEN_END`: whitespace, or `,`/`)`/quote only when followed by a separator) whose preceding text is `_credential_shaped` (a `:` before the first `/?#`, not ending in `/`, and not `host:port` + terminator). It also extends an authority-form match when the password held `@` plus a terminator, and a credential-shaped token that fills the 1024-character window is redacted whole (fails closed). Side effects: `host:8080/v1/models/gpt@latest` and `scheme://host:8080/@scope/x` are now benign (port + path) instead of garbled; `https://user:pw@host:8080/x?e=a@b` now loses its host and path (over-redaction, no leak). Accepted: password starting with a valid port number + terminator (`u:8#pw@h`, `u:2024#Summer@h`). Worst-case timing at the 262,144 cap: 1.5 s (`x://` repeated; baseline 1.1 s), 1.0 s (`u://a#@` repeated). Mutation: 53 tests in `test_sixth_post_review_url_leaks.py` fail on the baseline `diagnostics.py`.
