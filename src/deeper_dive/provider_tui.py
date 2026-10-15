@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import inspect
 import time
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from deeper_dive.llm import LLMProvider, LLMProviderRegistry
 from deeper_dive.model_roles import ModelRole
@@ -64,6 +65,27 @@ _PROVIDER_CONFIGURATION_FIELDS: dict[str, frozenset[str]] = {
 }
 
 
+def _accepts_probe_timeouts(factory: object) -> bool:
+    """A factory is probe-capable only if it opts in AND its ``build`` takes the keyword.
+
+    A subclass that overrides ``build()`` without ``probe_timeout_seconds`` inherits
+    the opt-in flag but would fail the whole probe with a ``TypeError``.
+    """
+
+    if not getattr(factory, "supports_probe_timeouts", False):
+        return False
+    build = getattr(factory, "build", None)
+    if build is None:
+        return False
+    try:
+        parameters = inspect.signature(build).parameters
+    except (TypeError, ValueError):
+        return False
+    return "probe_timeout_seconds" in parameters or any(
+        parameter.kind is inspect.Parameter.VAR_KEYWORD for parameter in parameters.values()
+    )
+
+
 @dataclass(slots=True)
 class ProviderController:
     config_store: UserConfigStore
@@ -74,6 +96,9 @@ class ProviderController:
     # Monotonic deadline of an isolated readiness-probe controller; ``None`` for
     # the live controller. Past it, adapter lookups fail fast (aggregate budget).
     probe_deadline: float | None = None
+    # Sanitized per-provider adapter build failures of an isolated probe controller
+    # (provider name -> reason); empty for the live controller.
+    build_failures: dict[str, str] = field(default_factory=dict)
 
     def config(self) -> UserConfig:
         return self.config_store.load()
@@ -243,9 +268,7 @@ class ProviderController:
         by ``ProviderFactory`` subclasses); others retain their deterministic boundary.
         Providers that cannot be built degrade individually (``build_failures``).
         """
-        if self.provider_factory is None or not getattr(
-            self.provider_factory, "supports_probe_timeouts", False
-        ):
+        if self.provider_factory is None or not _accepts_probe_timeouts(self.provider_factory):
             return self
         configured = self.config()
         isolated = self.provider_factory.build(
@@ -258,6 +281,7 @@ class ProviderController:
             probe_deadline=(
                 None if total_timeout_seconds is None else time.monotonic() + total_timeout_seconds
             ),
+            build_failures=dict(isolated.build_failures),
         )
 
     def llm(self, name: str) -> LLMProvider:

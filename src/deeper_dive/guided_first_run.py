@@ -9,6 +9,7 @@ from textual.widget import Widget
 from textual.widgets import Button, Input, Select
 
 from deeper_dive.diagnostics import redact
+from deeper_dive.guided_async_readiness import FirstRunRuntimeSnapshot
 from deeper_dive.guided_first_run_speech import FirstRunSpeechActions
 from deeper_dive.llm import LLMMessage, LLMRequest
 from deeper_dive.model_roles import ModelRole
@@ -162,6 +163,7 @@ class GuidedFirstRunWizard(FirstRunSpeechActions):
                 return self._checking_text()
             check = snapshot.system_check
             rows = list(check.summary())
+            rows.extend(self._provider_note_rows(snapshot))
             if getattr(self, "_system_details_visible", False):
                 rows.extend(("", "Details:", *check.diagnostics))
                 rows.append(
@@ -218,6 +220,7 @@ class GuidedFirstRunWizard(FirstRunSpeechActions):
             ready = snapshot.readiness
             return "\n".join(
                 (
+                    *self._provider_note_rows(snapshot),
                     f"Language model: {'Ready' if ready.llm_provider_ready else 'Needs attention'}",
                     f"Model roles: {'Ready' if ready.model_roles_ready else 'Needs attention'}",
                     (
@@ -230,6 +233,15 @@ class GuidedFirstRunWizard(FirstRunSpeechActions):
                 )
             )
         return super().step_content(step_key)
+
+    @staticmethod
+    def _provider_note_rows(snapshot: FirstRunRuntimeSnapshot) -> list[str]:
+        """Say which configured providers could not be built, and why (sanitized)."""
+
+        return [
+            f"Provider needs attention: {redact(name)} — {redact(reason)}"
+            for name, reason in snapshot.provider_notes
+        ]
 
     def on_mount(self) -> None:
         super().on_mount()

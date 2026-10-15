@@ -63,6 +63,8 @@ class ThreadDispatchApp(Protocol):
 class FirstRunRuntimeSnapshot:
     readiness: FirstRunDerivedReadiness
     system_check: FirstRunSystemCheck
+    # (provider name, sanitized reason) for providers whose adapter could not be built.
+    provider_notes: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -510,6 +512,7 @@ class FirstRunReadinessCoordinator:
         return FirstRunRuntimeSnapshot(
             readiness=first_run_readiness(self.context, runtime_controller=controller),
             system_check=FirstRunController(controller).system_check(),
+            provider_notes=tuple(sorted(controller.build_failures.items())),
         )
 
     def _configuration_fingerprint(self) -> str:

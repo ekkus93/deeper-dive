@@ -182,7 +182,7 @@ class ProviderFactory:
                     # Provider names and types originate in imported user configuration.
                     # Never echo potentially credential-bearing input in UI/CLI errors.
                     raise ProviderConfigurationError("provider has unsupported provider_type")
-            except ProviderConfigurationError as exc:
+            except (ProviderConfigurationError, ValueError, OSError, RuntimeError) as exc:
                 if probe_timeout_seconds is None:
                     raise
                 # Readiness degrades per provider: report this one as needing
@@ -201,9 +201,9 @@ class ProviderFactory:
     def _normalized_type(value: str) -> str:
         normalized = value.strip().lower().replace("_", "-")
         if normalized in LEGACY_PROVIDER_TYPES:
+            # Provider types come from imported user configuration: never echo them.
             raise ProviderConfigurationError(
-                f"legacy generic provider_type {value!r} is ambiguous; "
-                "choose a concrete adapter type"
+                "legacy generic provider_type is ambiguous; choose a concrete adapter type"
             )
         return normalized
 
