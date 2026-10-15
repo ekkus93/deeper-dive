@@ -18,7 +18,7 @@ from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.conversation_state import ConversationStateRepository
 from deeper_dive.diagnostics import redact
 from deeper_dive.pipeline import DEFAULT_STAGES, generation_stage_label
-from deeper_dive.screen_guard import report_service_errors
+from deeper_dive.screen_guard import report_service_errors, tolerate_refresh_errors
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.transcript_review_screen import TranscriptReviewScreen
@@ -219,8 +219,13 @@ class GenerationMonitorScreen(Screen[None]):
         elif name:
             self._app.action_navigate(name)
 
+    @report_service_errors("Pause failed")
     def action_pause(self) -> None:
-        run = self._run()
+        try:
+            run = self._run()
+        except Exception as exc:
+            self._status(user_status("pause", exc))
+            return
         if run is None:
             self._status("No generation run")
             return
@@ -231,13 +236,18 @@ class GenerationMonitorScreen(Screen[None]):
             return
         self.refresh_monitor("Pause requested; waiting for a safe pipeline boundary")
 
+    @report_service_errors("Resume failed")
     def action_resume(self) -> None:
-        run = self._run()
+        try:
+            run = self._run()
+        except Exception as exc:
+            self._status(user_status("resume", exc))
+            return
         if run is None:
             self._status("No generation run")
             return
         try:
-            self._app.generation_monitor_controller.resume(self._app, run)
+            resumed = self._app.generation_monitor_controller.resume(self._app, run)
         except ValueError as exc:
             self._status(str(exc).capitalize())
             return
@@ -245,10 +255,15 @@ class GenerationMonitorScreen(Screen[None]):
             self._status(user_status("resume", exc))
             return
         self.refresh_monitor("Run resumed from durable checkpoint")
-        self.start_background_generation()
+        self.start_background_generation(resumed.id)
 
+    @report_service_errors("Cancel failed")
     def action_cancel(self) -> None:
-        run = self._run()
+        try:
+            run = self._run()
+        except Exception as exc:
+            self._status(user_status("cancel", exc))
+            return
         if run is None:
             self._status("No generation run")
             return
@@ -265,8 +280,13 @@ class GenerationMonitorScreen(Screen[None]):
             return
         self.app.push_screen(TranscriptReviewScreen())
 
+    @report_service_errors("Diagnostics unavailable")
     def action_diagnostics(self) -> None:
-        run = self._run()
+        try:
+            run = self._run()
+        except Exception as exc:
+            self._status(user_status("diagnostics", exc))
+            return
         if run is None:
             text = "No run diagnostics available."
         else:
@@ -281,13 +301,14 @@ class GenerationMonitorScreen(Screen[None]):
             )
         self.query_one("#diagnostics-summary", Static).update(str(redact(text)))
 
-    def start_background_generation(self) -> None:
-        run = self._run()
-        if run is None or self._app.generation_monitor_controller.runner is None:
+    def start_background_generation(self, run_id: str | None = None) -> None:
+        run = self._run() if run_id is None else None
+        selected_run_id = run_id if run is None else run.id
+        if selected_run_id is None or self._app.generation_monitor_controller.runner is None:
             return
         if self._task is not None and not self._task.done():
             return
-        self._task = asyncio.create_task(self._background_run(run.id))
+        self._task = asyncio.create_task(self._background_run(selected_run_id))
 
     async def _background_run(self, run_id: str) -> None:
         self._status("Generation running")
@@ -299,6 +320,7 @@ class GenerationMonitorScreen(Screen[None]):
             self._status("Generation finished")
         self.refresh_monitor()
 
+    @tolerate_refresh_errors
     def refresh_monitor(self, status: str | None = None) -> None:
         snapshot = self._app.generation_monitor_controller.snapshot(self._app)
         run = snapshot.run

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import sqlite3
 from pathlib import Path
+from unittest.mock import patch
 
 from textual.widgets import Input, Static
 
@@ -73,6 +75,72 @@ async def _providers_workflow(tmp_path: Path) -> None:
 
 def test_provider_errors_are_actionable(tmp_path: Path) -> None:
     asyncio.run(_provider_error_workflow(tmp_path))
+
+
+def test_provider_save_reports_success_when_refresh_read_fails(tmp_path: Path) -> None:
+    async def run() -> None:
+        store = UserConfigStore(tmp_path / "config.json")
+        controller = ProviderController(store, LLMProviderRegistry(), {})
+        app = DeeperDiveApp(
+            DeeperDiveService(WorkspaceManager(tmp_path / "data")), provider_controller=controller
+        )
+        async with app.run_test(size=(100, 30)) as pilot:
+            app.action_navigate("providers")
+            await pilot.pause()
+            screen = app.screen
+            screen.query_one("#provider-name", Input).value = "saved"
+            screen.query_one("#provider-type", Input).value = "fake"
+            original_load = UserConfigStore.load
+            calls = 0
+
+            def fail_refresh(config_store):  # type: ignore[no-untyped-def]
+                nonlocal calls
+                calls += 1
+                if calls == 2:
+                    raise sqlite3.OperationalError("database is locked")
+                return original_load(config_store)
+
+            # The config store is the public persistence boundary: save reads once,
+            # then refresh reads after the durable write.
+            with patch.object(UserConfigStore, "load", fail_refresh):
+                screen.action_save()
+            status = _text(screen, "#screen-status")
+            assert "Saved fake provider saved" in status and "could not refresh" in status
+            assert "saved" in controller.config().providers
+
+    asyncio.run(run())
+
+
+def test_provider_remove_reports_success_when_refresh_read_fails(tmp_path: Path) -> None:
+    async def run() -> None:
+        store = UserConfigStore(tmp_path / "config.json")
+        controller = ProviderController(store, LLMProviderRegistry(), {})
+        controller.save_provider("saved", "fake")
+        app = DeeperDiveApp(
+            DeeperDiveService(WorkspaceManager(tmp_path / "data")), provider_controller=controller
+        )
+        async with app.run_test(size=(100, 30)) as pilot:
+            app.action_navigate("providers")
+            await pilot.pause()
+            screen = app.screen
+            screen.action_remove()
+            original_load = UserConfigStore.load
+            calls = 0
+
+            def fail_refresh(config_store):  # type: ignore[no-untyped-def]
+                nonlocal calls
+                calls += 1
+                if calls == 2:
+                    raise sqlite3.OperationalError("database is locked")
+                return original_load(config_store)
+
+            with patch.object(UserConfigStore, "load", fail_refresh):
+                screen.action_confirm_remove()
+            status = _text(screen, "#screen-status")
+            assert "Removed provider saved" in status and "could not refresh" in status
+            assert "saved" not in controller.config().providers
+
+    asyncio.run(run())
 
 
 async def _provider_error_workflow(tmp_path: Path) -> None:

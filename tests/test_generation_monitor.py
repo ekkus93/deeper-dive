@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import sqlite3
 import threading
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from textual.widgets import Static
@@ -25,6 +27,178 @@ from deeper_dive.user_errors import user_status
 
 def test_monitor_renders_durable_progress_and_controls(tmp_path: Path) -> None:
     asyncio.run(_monitor_renders_durable_progress_and_controls(tmp_path))
+
+
+@pytest.mark.parametrize(
+    "action", ("action_pause", "action_resume", "action_cancel", "action_diagnostics")
+)
+def test_monitor_actions_report_snapshot_database_errors(tmp_path: Path, action: str) -> None:
+    async def run() -> None:
+        service, project_id, episode_id, run_id = _fixture(tmp_path)
+        controller = GenerationMonitorController()
+        app = DeeperDiveApp(service, generation_monitor_controller=controller)
+        async with app.run_test(size=(100, 30)) as pilot:
+            app.current_project_id = project_id
+            app.current_episode_id = episode_id
+            app.current_run_id = run_id
+            app.action_navigate("monitor")
+            await pilot.pause()
+            screen = _monitor(app)
+
+            def fail_snapshot(controller, monitor_app):  # type: ignore[no-untyped-def]
+                _ = (controller, monitor_app)
+                raise sqlite3.OperationalError("database is locked")
+
+            with patch.object(GenerationMonitorController, "snapshot", fail_snapshot):
+                getattr(screen, action)()
+            assert app.is_running
+            status = _text(screen, "#screen-status")
+            assert "Operation failed" in status
+            assert "database is locked" not in status
+
+    asyncio.run(run())
+
+
+def test_monitor_keeps_pause_success_when_refresh_fails(tmp_path: Path) -> None:
+    async def run() -> None:
+        service, project_id, episode_id, run_id = _fixture(tmp_path)
+        controller = GenerationMonitorController()
+        app = DeeperDiveApp(service, generation_monitor_controller=controller)
+        async with app.run_test(size=(100, 30)) as pilot:
+            app.current_project_id = project_id
+            app.current_episode_id = episode_id
+            app.current_run_id = run_id
+            app.action_navigate("monitor")
+            await pilot.pause()
+            screen = _monitor(app)
+            snapshot = GenerationMonitorController.snapshot
+
+            def fail_refresh(monitor_controller, monitor_app):  # type: ignore[no-untyped-def]
+                saved_run = service.runs(project_id).get(run_id)
+                if saved_run is not None and saved_run.pause_requested:
+                    raise sqlite3.OperationalError("database is locked")
+                return snapshot(monitor_controller, monitor_app)
+
+            # Snapshot is the controller's public persistence boundary; the first call
+            # selects the run and the second simulates the post-commit refresh failure.
+            with patch.object(GenerationMonitorController, "snapshot", fail_refresh):
+                screen.action_pause()
+            status = _text(screen, "#screen-status")
+            assert "Pause requested" in status, status
+            saved = service.runs(project_id).get(run_id)
+            assert saved is not None and saved.pause_requested
+            assert app.is_running
+            assert "Pause requested" in status and "could not refresh" in status
+
+    asyncio.run(run())
+
+
+def test_monitor_keeps_cancel_success_when_refresh_fails(tmp_path: Path) -> None:
+    async def run() -> None:
+        service, project_id, episode_id, run_id = _fixture(tmp_path)
+        controller = GenerationMonitorController()
+        app = DeeperDiveApp(service, generation_monitor_controller=controller)
+        async with app.run_test(size=(100, 30)) as pilot:
+            app.current_project_id = project_id
+            app.current_episode_id = episode_id
+            app.current_run_id = run_id
+            app.action_navigate("monitor")
+            await pilot.pause()
+            screen = _monitor(app)
+            snapshot = GenerationMonitorController.snapshot
+
+            def fail_refresh(monitor_controller, monitor_app):  # type: ignore[no-untyped-def]
+                saved_run = service.runs(project_id).get(run_id)
+                if saved_run is not None and saved_run.cancel_requested:
+                    raise sqlite3.OperationalError("database is locked")
+                return snapshot(monitor_controller, monitor_app)
+
+            # Controller snapshot is the public persistence seam; failure follows commit.
+            with patch.object(GenerationMonitorController, "snapshot", fail_refresh):
+                screen.action_cancel()
+            status = _text(screen, "#screen-status")
+            assert "Cancel requested" in status and "could not refresh" in status
+            saved = service.runs(project_id).get(run_id)
+            assert saved is not None and saved.cancel_requested
+            assert app.is_running
+
+    asyncio.run(run())
+
+
+def test_resume_starts_generation_when_monitor_refresh_fails(tmp_path: Path) -> None:
+    async def run() -> None:
+        service, project_id, episode_id, run_id = _fixture(tmp_path)
+        repository = service.runs(project_id)
+        run_record = repository.get(run_id)
+        assert run_record is not None
+        repository.update(replace(run_record, state="paused", pause_requested=True))
+        started = threading.Event()
+
+        def runner(selected_run_id: str, progress) -> None:  # type: ignore[no-untyped-def]
+            assert selected_run_id == run_id
+            started.set()
+
+        controller = GenerationMonitorController(runner=runner)
+        app = DeeperDiveApp(service, generation_monitor_controller=controller)
+        async with app.run_test(size=(100, 30)) as pilot:
+            app.current_project_id = project_id
+            app.current_episode_id = episode_id
+            app.current_run_id = run_id
+            app.action_navigate("monitor")
+            await pilot.pause()
+            screen = _monitor(app)
+            snapshot = GenerationMonitorController.snapshot
+
+            def fail_after_resume(monitor_controller, monitor_app):  # type: ignore[no-untyped-def]
+                saved = repository.get(run_id)
+                if saved is not None and saved.state == "pending":
+                    raise sqlite3.OperationalError("database is locked")
+                return snapshot(monitor_controller, monitor_app)
+
+            with patch.object(GenerationMonitorController, "snapshot", fail_after_resume):
+                screen.action_resume()
+            assert "Run resumed" in _text(screen, "#screen-status")
+            assert "could not refresh" in _text(screen, "#screen-status")
+            assert controller.runner is runner
+            assert screen._task is not None
+            await pilot.pause()
+            assert not screen._task.cancelled()
+            assert app.is_running
+            assert app.is_running
+
+    asyncio.run(run())
+
+
+def test_background_result_survives_statusless_refresh_failure(tmp_path: Path) -> None:
+    async def run() -> None:
+        service, project_id, episode_id, run_id = _fixture(tmp_path)
+
+        def successful_runner(_selected_run_id: str, _progress) -> None:  # type: ignore[no-untyped-def]
+            return None
+
+        app = DeeperDiveApp(
+            service,
+            generation_monitor_controller=GenerationMonitorController(runner=successful_runner),
+        )
+        async with app.run_test(size=(100, 30)) as pilot:
+            app.current_project_id = project_id
+            app.current_episode_id = episode_id
+            app.current_run_id = run_id
+            app.action_navigate("monitor")
+            await pilot.pause()
+            screen = _monitor(app)
+            # Call the worker boundary directly to make its final refresh failure deterministic.
+            with patch.object(
+                GenerationMonitorController,
+                "snapshot",
+                side_effect=sqlite3.OperationalError("database is locked"),
+            ):
+                await screen._background_run(run_id)
+            assert "Generation finished" in _text(screen, "#screen-status")
+            assert "Screen refresh failed" not in _text(screen, "#screen-status")
+            assert app.is_running
+
+    asyncio.run(run())
 
 
 async def _monitor_renders_durable_progress_and_controls(tmp_path: Path) -> None:

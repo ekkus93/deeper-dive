@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import inspect
 import sqlite3
 from collections.abc import Callable
 from typing import Any, TypeVar
@@ -23,6 +24,15 @@ SERVICE_ERRORS: tuple[type[BaseException], ...] = (
 F = TypeVar("F", bound=Callable[..., Any])
 
 
+def _report_screen_status(screen: Any, message: str) -> None:
+    report = (
+        getattr(screen, "_status", None)
+        or getattr(screen, "_set_status", None)
+        or screen.set_status
+    )
+    report(message)
+
+
 def tolerate_refresh_errors[T: Callable[..., Any]](function: T) -> T:
     """Keep a failing view refresh from masking the change that was just saved.
 
@@ -32,12 +42,19 @@ def tolerate_refresh_errors[T: Callable[..., Any]](function: T) -> T:
     """
 
     @functools.wraps(function)
-    def wrapper(self: Any, status: str = "Ready", *args: Any, **kwargs: Any) -> Any:
+    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+        bound = inspect.signature(function).bind_partial(self, *args, **kwargs)
+        status = bound.arguments.get(
+            "status", inspect.signature(function).parameters["status"].default
+        )
         try:
-            return function(self, status, *args, **kwargs)
+            return function(self, *args, **kwargs)
         except SERVICE_ERRORS as exc:
-            report = getattr(self, "_status", None) or self._set_status
-            report(f"{status} (the screen could not refresh: {sanitize_exception_message(exc)})")
+            if status is None:
+                return None
+            _report_screen_status(
+                self, f"{status} (the screen could not refresh: {sanitize_exception_message(exc)})"
+            )
             return None
 
     return wrapper  # type: ignore[return-value]
@@ -57,8 +74,7 @@ def report_service_errors(label: str) -> Callable[[F], F]:
             try:
                 return function(self, *args, **kwargs)
             except SERVICE_ERRORS as exc:
-                report = getattr(self, "_status", None) or self._set_status
-                report(f"{label}: {sanitize_exception_message(exc)}")
+                _report_screen_status(self, f"{label}: {sanitize_exception_message(exc)}")
                 return None
 
         return wrapper  # type: ignore[return-value]

@@ -186,6 +186,38 @@ def test_settings_screen_handles_config_io_failure_without_discarding_input(
     )
 
 
+def test_settings_save_reports_success_when_refresh_read_fails(tmp_path: Path) -> None:
+    async def run() -> None:
+        controller = _provider_controller(tmp_path)
+        app = DeeperDiveApp(
+            DeeperDiveService(WorkspaceManager(tmp_path / "data")),
+            provider_controller=controller,
+        )
+        async with app.run_test(size=(100, 30)) as pilot:
+            app.action_navigate("settings")
+            await pilot.pause()
+            screen = app.screen
+            original_load = UserConfigStore.load
+            calls = 0
+
+            def fail_refresh(config_store):  # type: ignore[no-untyped-def]
+                nonlocal calls
+                calls += 1
+                if calls == 2:
+                    raise OSError("config read failed")
+                return original_load(config_store)
+
+            with patch.object(UserConfigStore, "load", fail_refresh):
+                screen.query_one("#settings-key", Input).value = "local_only"
+                screen.query_one("#settings-value", Input).value = "true"
+                screen.action_save_default()
+            status = str(screen.query_one("#screen-status", Static).render())
+            assert "Saved default" in status and "could not refresh" in status
+            assert controller.config().defaults["local_only"] == "true"
+
+    asyncio.run(run())
+
+
 async def _settings_screen_handles_config_io_failure_without_discarding_input(
     tmp_path: Path, endpoint: str
 ) -> None:

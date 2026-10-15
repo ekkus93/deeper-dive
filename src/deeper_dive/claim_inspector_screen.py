@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -11,6 +12,7 @@ from textual.binding import Binding
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
+from deeper_dive.diagnostics import sanitize_exception_message
 from deeper_dive.screen_guard import report_service_errors
 from deeper_dive.storage.database import Database
 
@@ -170,7 +172,13 @@ class ClaimInspectorScreen(Screen[None]):
             self._status("No claim selected")
             return
         self.controller.repair(self.claims[self.selected_index].turn_id)
-        self.refresh_claims()
+        try:
+            self.refresh_claims()
+        except (OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
+            self._status(
+                f"Turn repaired (the screen could not refresh: {sanitize_exception_message(exc)})"
+            )
+            return
         self._status("Turn repaired and claim inspection refreshed")
 
     def _render_selected(self) -> None:

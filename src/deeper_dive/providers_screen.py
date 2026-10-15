@@ -12,7 +12,7 @@ from textual.widgets import Button, Footer, Header, Input, Label, Static
 from deeper_dive.destructive_confirmation import PendingRemoval
 from deeper_dive.diagnostics import redact, sanitize_exception_message
 from deeper_dive.provider_tui import ProviderController
-from deeper_dive.screen_guard import report_service_errors
+from deeper_dive.screen_guard import report_service_errors, tolerate_refresh_errors
 from deeper_dive.user_errors import user_status
 
 _DEFAULT_TIMEOUT_SECONDS = 60.0
@@ -158,6 +158,7 @@ class ProvidersScreen(Screen[None]):
         elif action == "voices":
             self.action_voices()
 
+    @report_service_errors("Provider save failed")
     def action_save(self) -> None:
         name = self.query_one("#provider-name", Input).value.strip()
         provider_type = self.query_one("#provider-type", Input).value.strip().lower()
@@ -210,6 +211,7 @@ class ProvidersScreen(Screen[None]):
         self.selected_provider = name
         self.refresh_providers(f"Saved {provider_type} provider {name}")
 
+    @report_service_errors("Provider removal failed")
     def action_remove(self) -> None:
         name = self._selected_name()
         if name is None:
@@ -219,6 +221,7 @@ class ProvidersScreen(Screen[None]):
         self._status(f"Remove provider {name}? Confirm Remove or Cancel Remove.")
         self.query_one("#action-cancel-provider-remove", Button).focus()
 
+    @report_service_errors("Provider removal failed")
     def action_confirm_remove(self) -> None:
         name = self._pending_removal.target
         if name is None:
@@ -248,6 +251,7 @@ class ProvidersScreen(Screen[None]):
         self.query_one("#action-confirm-provider-remove", Button).disabled = not pending
         self.query_one("#action-cancel-provider-remove", Button).disabled = not pending
 
+    @report_service_errors("Provider health check failed")
     def action_health(self) -> None:
         name = self._selected_name()
         if name is None:
@@ -267,6 +271,7 @@ class ProvidersScreen(Screen[None]):
                 f"{name}: {user_status('provider', exc)} {sanitize_exception_message(exc)}"
             )
 
+    @report_service_errors("Model discovery failed")
     def action_models(self) -> None:
         name = self._selected_name()
         if name is None:
@@ -291,6 +296,7 @@ class ProvidersScreen(Screen[None]):
                 f"{name}: {user_status('provider', exc)} {sanitize_exception_message(exc)}"
             )
 
+    @report_service_errors("Voice discovery failed")
     def action_voices(self) -> None:
         name = self._selected_name()
         if name is None:
@@ -311,6 +317,7 @@ class ProvidersScreen(Screen[None]):
         except (KeyError, ValueError, RuntimeError, OSError) as exc:
             self._status(f"{name}: {user_status('tts', exc)} {sanitize_exception_message(exc)}")
 
+    @tolerate_refresh_errors
     def refresh_providers(self, status: str = "Ready") -> None:
         providers = self.provider_app.provider_controller.config().providers
         if self._pending_removal.target not in providers:

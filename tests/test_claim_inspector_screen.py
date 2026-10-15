@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import sqlite3
 from pathlib import Path
+from unittest.mock import patch
 
 from textual.app import App
 from textual.widgets import Static
@@ -45,7 +47,11 @@ def test_claim_inspector_traces_claim_to_exact_source_chunks_and_repairs(tmp_pat
     asyncio.run(_exercise(tmp_path))
 
 
-async def _exercise(tmp_path: Path) -> None:
+def test_claim_repair_keeps_success_when_refresh_fails(tmp_path: Path) -> None:
+    asyncio.run(_exercise(tmp_path, failing_refresh=True))
+
+
+async def _exercise(tmp_path: Path, *, failing_refresh: bool = False) -> None:
     database = Database(tmp_path / "project.db")
     database.initialize()
     corpus = CorpusRepository(database)
@@ -91,5 +97,16 @@ async def _exercise(tmp_path: Path) -> None:
         assert "supplemental | Web | section 2" in evidence
         assert "The figure is 12." in passage
         assert "The figure is not 10." in passage
-        screen.action_repair()
+        if failing_refresh:
+            # claims_for_turn is the controller's public read seam used by refresh_claims.
+            with patch.object(
+                ClaimInspectorController,
+                "claims_for_turn",
+                side_effect=sqlite3.OperationalError("database is locked"),
+            ):
+                screen.action_repair()
+            status = str(screen.query_one("#screen-status", Static).render())
+            assert "Turn repaired" in status and "could not refresh" in status
+        else:
+            screen.action_repair()
         assert repaired == ["turn"]

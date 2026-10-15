@@ -17,7 +17,7 @@ from deeper_dive.diagnostics import redact, sanitize_exception_message
 from deeper_dive.kitten_tts import MICRO_MODEL_ID
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.provider_tui import ProviderController
-from deeper_dive.screen_guard import report_service_errors
+from deeper_dive.screen_guard import report_service_errors, tolerate_refresh_errors
 
 
 class SettingsApp(Protocol):
@@ -213,6 +213,7 @@ class SettingsScreen(Screen[None]):
     def on_mount(self) -> None:
         self.refresh_settings()
 
+    @report_service_errors("Action failed")
     def on_button_pressed(self, event: Button.Pressed) -> None:
         action = event.button.name or ""
         if action.startswith("nav:"):
@@ -234,6 +235,7 @@ class SettingsScreen(Screen[None]):
         elif action == "save-runtime":
             self.action_save_runtime_defaults()
 
+    @report_service_errors("Settings save failed")
     def action_save_default(self) -> None:
         self._save(
             lambda: self.controller.set_default(
@@ -243,6 +245,7 @@ class SettingsScreen(Screen[None]):
             "Saved default",
         )
 
+    @report_service_errors("Settings save failed")
     def action_save_model_default(self) -> None:
         self._save(
             lambda: self.controller.save_model_default(
@@ -252,6 +255,7 @@ class SettingsScreen(Screen[None]):
             "Saved model default",
         )
 
+    @report_service_errors("Settings save failed")
     def action_save_tts_defaults(self) -> None:
         self._save(
             lambda: self.controller.save_tts_defaults(
@@ -261,6 +265,7 @@ class SettingsScreen(Screen[None]):
             "Saved TTS defaults",
         )
 
+    @report_service_errors("Settings save failed")
     def action_save_research_defaults(self) -> None:
         self._save(
             lambda: self.controller.save_research_defaults(
@@ -270,6 +275,7 @@ class SettingsScreen(Screen[None]):
             "Saved research defaults",
         )
 
+    @report_service_errors("Settings save failed")
     def action_save_quick_defaults(self) -> None:
         self._save(
             lambda: self.controller.save_quick_deep_dive_defaults(
@@ -280,6 +286,7 @@ class SettingsScreen(Screen[None]):
             "Saved Quick Deep Dive defaults",
         )
 
+    @report_service_errors("Settings save failed")
     def action_save_runtime_defaults(self) -> None:
         self._save(
             lambda: self.controller.save_runtime_defaults(
@@ -290,6 +297,7 @@ class SettingsScreen(Screen[None]):
             "Saved runtime defaults",
         )
 
+    @tolerate_refresh_errors
     def refresh_settings(self, status: str = "Ready") -> None:
         self.query_one("#settings-summary", Static).update(
             str(redact("Current settings:\n" + "\n".join(self.controller.summary())))
