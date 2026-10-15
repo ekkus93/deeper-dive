@@ -58,6 +58,9 @@ class EpisodeConfiguration:
         values are dropped (unset and empty mean the same thing).
         """
 
+        for name in ("title", "focus", "audience", "technical_depth", "style"):
+            if not isinstance(getattr(self, name), str):
+                raise ValueError(f"episode {name} must be text")
         return replace(
             self,
             title=self.title.strip(),
@@ -69,10 +72,28 @@ class EpisodeConfiguration:
             host_ids=tuple(item.strip() for item in self.host_ids),
             must_cover=tuple(item.strip() for item in self.must_cover if item.strip()),
             avoid_topics=tuple(item.strip() for item in self.avoid_topics if item.strip()),
+            source_overrides={
+                str(key).strip(): bool(value) for key, value in self.source_overrides.items()
+            },
             research_overrides={
-                key: value
+                str(key).strip(): value.strip() if isinstance(value, str) else value
                 for key, value in self.research_overrides.items()
                 if value is not None and not (isinstance(value, str) and not value.strip())
+            },
+            model_overrides={
+                role: assignment
+                for role, assignment in (
+                    (
+                        str(role).strip(),
+                        {
+                            str(key).strip(): str(value).strip()
+                            for key, value in raw.items()
+                            if str(value).strip()
+                        },
+                    )
+                    for role, raw in self.model_overrides.items()
+                )
+                if assignment
             },
         )
 
@@ -123,7 +144,9 @@ class EpisodeConfigurationService:
                 "episode configuration changed since it was loaded; reload and retry"
             )
         self._validate_hosts(existing.project_id, config)
-        current = self.load_configuration(episode_id)
+        # Compare against the row already read: a second read could see a newer
+        # revision than the ``existing`` record this method returns.
+        current = self.configuration_from_record(existing)
         if current.snapshot() == config.snapshot():
             return existing
         if existing.state != "draft":
