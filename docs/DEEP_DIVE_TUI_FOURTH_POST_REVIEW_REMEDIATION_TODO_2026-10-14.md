@@ -1,7 +1,7 @@
 # Deeper Dive TUI — Fourth Post-Review Remediation TODO
 
 **Created:** 2026-10-14 (America/Los_Angeles)  
-**Status:** Not started  
+**Status:** Complete (closing commit `4384113`, CI run 38692430344 green)  
 **Authority:** `docs/DEEP_DIVE_TUI_FOURTH_POST_REVIEW_REMEDIATION_SPEC_2026-10-14.md`  
 **Reviewed baseline:** `4ede40e` (CI run 38674826121: `quality` green, `fresh-machine` red on a stale test path)  
 **Predecessor historical checklist:** `docs/DEEP_DIVE_TUI_THIRD_POST_REVIEW_REMEDIATION_TODO_2026-10-13.md`
@@ -153,10 +153,10 @@ This is the only completion checklist for the fourth post-review cycle. No item 
   - Accepted trade-offs: `scheme://host:8080/@scope/pkg` and `.../logo@2x.png` are redacted as if `host:8080/` were userinfo (garbles a diagnostic, never leaks); a fragment secret that itself contains a comma is cut at the comma (spec: comma is a delimiter); a bare fragment with no key is not redacted; `_resume_is_current` compares against the saved draft, so a duplicate Resume after `recovered_state()` rewrote the step could re-resume (narrow, left as is).
   - Style: `report_service_errors` also wraps `action_navigate` inside `HomeProjectsScreen.action_open_selected`, so a screen-switch `KeyError` would be reported as "Project not opened"; left as is.
   - Sound (reviewer verified): sanitizer running time (about 45 adversarial inputs up to the 262,144-character cap, worst 0.6 s), single-mount ordering, dirty-form changes, storage and lifecycle changes.
-- [x] `uv lock --check`; ruff format and lint; strict mypy; full pytest count recorded. (`uv lock --check`: 25 packages resolved. Format, lint and mypy (131 source files) clean inside `scripts/check.sh`. Full pytest on 040fb74: 2,410 passed; the final count on the closing commit is in the last line of this section.)
+- [x] `uv lock --check`; ruff format and lint; strict mypy; full pytest count recorded. (`uv lock --check`: 25 packages resolved. Format, lint and mypy (131 source files) clean inside `scripts/check.sh`. Full pytest: 2,410 passed on 040fb74 and 2,432 passed on the closing commit 4384113.)
 - [x] `uv build`; fresh-venv wheel install smoke. (sdist and wheel built from 040fb74; installed into a fresh venv: `deeper-dive --help` ran, `redact()` redacted an empty-user DSN, a `wss://` encoded token and a fragment secret, and one real first-run Continue click advanced exactly one step, with the package imported from site-packages.)
-- [ ] Green exact-head CI, both jobs, with run and job IDs.
-- [ ] Evidence ledger below complete; every row's test fails with its fix reverted (Mutation column).
+- [x] Green exact-head CI, both jobs, with run and job IDs. (`4384113`: run 38692430344, jobs quality 116281198665 and fresh-machine 116281198853, both success. Full local check on the same tree: 2,432 passed, exit 0.)
+- [x] Evidence ledger below complete; every row's test fails with its fix reverted (Mutation column). (Run by reverse-patching each fix commit's `src/` changes, or restoring the pre-fix files where later commits overlap.)
 
 ## Evidence ledger
 
