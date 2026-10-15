@@ -17,6 +17,11 @@ if TYPE_CHECKING:
     from deeper_dive.tui import DeeperDiveApp
 
 
+# Everything a planner/config/run service call can raise for a recoverable reason;
+# typed episode errors subclass ValueError. Never let these terminate the app.
+_SERVICE_ERRORS = (KeyError, IndexError, OSError, RuntimeError, ValueError, sqlite3.Error)
+
+
 class EpisodePlanController(Protocol):
     def load_plan(self, episode_id: str) -> EpisodePlan: ...
     def regenerate_plan(self, episode_id: str) -> EpisodePlan: ...
@@ -98,6 +103,9 @@ class EpisodePlanScreen(Screen[None]):
         except KeyError:
             self._status("No plan exists for this episode")
             return
+        except _SERVICE_ERRORS as exc:
+            self._status(f"Plan could not be loaded: {sanitize_exception_message(exc)}")
+            return
         if self.selected_ordinal >= len(self.plan.segments):
             self.selected_ordinal = 0
         self._render_plan()
@@ -135,7 +143,10 @@ class EpisodePlanScreen(Screen[None]):
             )
             self.plan = controller.edit_segment(episode_id, self.selected_ordinal, segment)
         except ValueError as exc:
-            self._status(str(exc))
+            self._status(sanitize_exception_message(exc))
+            return
+        except _SERVICE_ERRORS as exc:
+            self._status(f"Segment not saved: {sanitize_exception_message(exc)}")
             return
         self._render_plan()
         self._load_selected()
@@ -146,7 +157,12 @@ class EpisodePlanScreen(Screen[None]):
         if context is None:
             return
         episode_id, controller = context
-        self.plan = controller.regenerate_segment(episode_id, self.selected_ordinal)
+        try:
+            plan = controller.regenerate_segment(episode_id, self.selected_ordinal)
+        except _SERVICE_ERRORS as exc:
+            self._status(f"Segment not regenerated: {sanitize_exception_message(exc)}")
+            return
+        self.plan = plan
         self._render_plan()
         self._load_selected()
         self._status(f"Regenerated segment {self.selected_ordinal + 1}")
@@ -156,7 +172,12 @@ class EpisodePlanScreen(Screen[None]):
         if context is None:
             return
         episode_id, controller = context
-        self.plan = controller.regenerate_plan(episode_id)
+        try:
+            plan = controller.regenerate_plan(episode_id)
+        except _SERVICE_ERRORS as exc:
+            self._status(f"Plan not regenerated: {sanitize_exception_message(exc)}")
+            return
+        self.plan = plan
         self.selected_ordinal = 0
         self._render_plan()
         self._load_selected()
@@ -169,7 +190,7 @@ class EpisodePlanScreen(Screen[None]):
         episode_id, controller = context
         try:
             self.plan = controller.approve_plan(episode_id)
-        except (KeyError, OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
+        except _SERVICE_ERRORS as exc:
             # Includes EpisodeConfigurationConflict: the episode changed or the plan
             # was replaced since it was loaded. Nothing was approved.
             self._status(f"Plan not approved: {sanitize_exception_message(exc)}")

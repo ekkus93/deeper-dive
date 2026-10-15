@@ -11,6 +11,7 @@ from textual.binding import Binding
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
+from deeper_dive.screen_guard import report_service_errors
 from deeper_dive.storage.database import Database
 
 
@@ -161,6 +162,7 @@ class ClaimInspectorScreen(Screen[None]):
         self.selected_index = index
         self._render_selected()
 
+    @report_service_errors("Repair failed")
     def action_repair(self) -> None:
         if not self.claims:
             self._status("No claim selected")

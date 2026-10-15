@@ -16,6 +16,7 @@ from deeper_dive.destructive_confirmation import PendingRemoval
 from deeper_dive.diagnostics import redact
 from deeper_dive.hosts import HostProfile, HostRelationship, create_host_from_preset, preset_names
 from deeper_dive.kitten_model_manager import KittenModelManager
+from deeper_dive.screen_guard import report_service_errors
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 from deeper_dive.tts_benchmark import TTSBenchmarkService
 from deeper_dive.voice_preview import VoicePreviewService
@@ -186,6 +187,7 @@ class HostsScreen(Screen[None]):
         for selector, value in values.items():
             self.query_one(selector, Input).value = value
 
+    @report_service_errors("Host not added")
     def action_add_host(self) -> None:
         repository = self._repository()
         project_id = self._app.current_project_id
@@ -235,6 +237,7 @@ class HostsScreen(Screen[None]):
             return
         self.refresh_hosts("Saved host")
 
+    @report_service_errors("Host not duplicated")
     def action_duplicate_host(self) -> None:
         repository = self._repository()
         if repository is None or self.selected_host_id is None:
@@ -247,6 +250,7 @@ class HostsScreen(Screen[None]):
         self.selected_host_id = duplicate.id
         self.refresh_hosts("Duplicated host")
 
+    @report_service_errors("Host not removed")
     def action_remove_host(self) -> None:
         repository = self._repository()
         project_id = self._app.current_project_id
@@ -260,6 +264,7 @@ class HostsScreen(Screen[None]):
         self._status(f"Remove host {record.display_name}? Confirm Remove or Cancel Remove.")
         self.query_one("#host-cancel-remove", Button).focus()
 
+    @report_service_errors("Host not removed")
     def action_confirm_remove_host(self) -> None:
         project_id = self._app.current_project_id
         target = (
@@ -324,6 +329,7 @@ class HostsScreen(Screen[None]):
             return
         self._status("Saved relationship")
 
+    @report_service_errors("Voice discovery failed")
     def action_discover_tts(self) -> None:
         providers = sorted(self._app.provider_controller.tts_providers)
         if not providers:

@@ -26,6 +26,7 @@ from deeper_dive.diagnostics import redact
 from deeper_dive.host_turn import HostTurn
 from deeper_dive.llm import LLMMessage, LLMProvider, LLMRequest
 from deeper_dive.material_claims import MaterialClaimService
+from deeper_dive.screen_guard import report_service_errors
 from deeper_dive.storage.database import Database
 from deeper_dive.targeted_repair import TargetedRepairService
 from deeper_dive.tts_generation import TTSArtifactRepository
@@ -544,6 +545,7 @@ class TranscriptReviewScreen(Screen[None]):
         self.selected_index = index
         self._render_selected("Selected turn")
 
+    @report_service_errors("Playback failed")
     def action_play_selected(self) -> None:
         turn = self._selected_turn()
         if turn is None:
@@ -552,12 +554,15 @@ class TranscriptReviewScreen(Screen[None]):
         state = self.controller.play_turn(self._app, turn)
         self._render_playback_state(state)
 
+    @report_service_errors("Pause failed")
     def action_pause_playback(self) -> None:
         self._render_playback_state(self.controller.pause_playback())
 
+    @report_service_errors("Resume failed")
     def action_resume_playback(self) -> None:
         self._render_playback_state(self.controller.resume_playback())
 
+    @report_service_errors("Claim inspector unavailable")
     def action_claim_inspector(self) -> None:
         turn = self._selected_turn()
         if turn is None:

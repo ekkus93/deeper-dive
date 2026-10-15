@@ -24,6 +24,7 @@ from deeper_dive.preflight_screen import PreflightController, PreflightScreen
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.providers_screen import ProvidersScreen
 from deeper_dive.research_screen import ResearchController, ResearchScreen
+from deeper_dive.screen_guard import report_service_errors
 from deeper_dive.settings_screen import SettingsScreen
 from deeper_dive.storage.repositories import SourceRecord
 
@@ -119,6 +120,7 @@ class HomeProjectsScreen(NavigationMixin, Screen[None]):
         else:
             super().on_button_pressed(event)
 
+    @report_service_errors("Project not created")
     def action_create_project(self) -> None:
         name_input = self.query_one("#new-project-name", Input)
         name = name_input.value.strip()
@@ -131,6 +133,7 @@ class HomeProjectsScreen(NavigationMixin, Screen[None]):
         self.pending_delete_project_id = None
         self.refresh_projects(f"Created project: {project.name}")
 
+    @report_service_errors("Project not opened")
     def action_open_selected(self) -> None:
         if self.selected_project_id is None:
             self._set_status("No project selected")
@@ -143,6 +146,7 @@ class HomeProjectsScreen(NavigationMixin, Screen[None]):
         self._app.current_project_name = project.name
         self._app.action_navigate("sources")
 
+    @report_service_errors("Project not renamed")
     def action_rename_selected(self) -> None:
         if self.selected_project_id is None:
             self._set_status("No project selected")
@@ -163,6 +167,7 @@ class HomeProjectsScreen(NavigationMixin, Screen[None]):
         self.pending_delete_project_id = self.selected_project_id
         self._set_status("Confirm delete with Y, or cancel with Esc")
 
+    @report_service_errors("Not deleted")
     def action_confirm_delete(self) -> None:
         if self.pending_delete_project_id is None:
             return
@@ -289,6 +294,7 @@ class SourcesScreen(NavigationMixin, Screen[None]):
         else:
             super().on_button_pressed(event)
 
+    @report_service_errors("Source not added")
     def action_add_paste(self) -> None:
         project_id = self._project_id_or_status()
         if project_id is None:
@@ -306,6 +312,7 @@ class SourcesScreen(NavigationMixin, Screen[None]):
         text_input.value = ""
         self.refresh_sources(f"Added source: {source.title}")
 
+    @report_service_errors("Sources not added")
     def action_add_files(self) -> None:
         project_id = self._project_id_or_status()
         if project_id is None:
@@ -321,6 +328,7 @@ class SourcesScreen(NavigationMixin, Screen[None]):
             self.selected_source_id = summary.imported[0].id
         self.refresh_sources(self._summary_status(summary))
 
+    @report_service_errors("Sources not added")
     def action_add_urls(self) -> None:
         project_id = self._project_id_or_status()
         if project_id is None:
@@ -337,6 +345,7 @@ class SourcesScreen(NavigationMixin, Screen[None]):
             self.selected_source_id = summary.imported[0].id
         self.refresh_sources(self._summary_status(summary))
 
+    @report_service_errors("Source not updated")
     def action_toggle_included(self) -> None:
         source = self._selected_source()
         if source is None:
@@ -359,6 +368,7 @@ class SourcesScreen(NavigationMixin, Screen[None]):
         self._set_status(f"Delete source {source.title}? Confirm Delete or Cancel Delete.")
         self.query_one("#action-cancel-source-delete", Button).focus()
 
+    @report_service_errors("Not deleted")
     def action_confirm_delete(self) -> None:
         source = self._selected_source()
         project_id = self._app.current_project_id
