@@ -126,3 +126,8 @@ If a reproducer disproves a finding, keep the task visible and record a justifie
 ## Evidence notes
 
 (Record baseline counts, sweep results, design decisions, deviations, accepted gaps and qualification evidence here.)
+
+- Baseline already verified before edits: docs head `e58907e` over code head `8ad0a60`; cycle baseline CI run `38793385991` was green. The prior local baseline count is 2,713 passed and 5 xfailed.
+- `-p` is intentionally benign because a one-letter option is ambiguous and commonly means a non-secret switch; long credential names such as `--pass` are redacted. The sanitizer docstring and `-p 3` benign row record this choice.
+- Independent 7PR-911 review found and regression-tested two defects: statusless refresh failure overwrote the monitor's completed result, and the empty-plan guard also blocked whole-plan regeneration. Review timing on mixed passes at 262,144 characters: slowest pair assignment + percent-encoded URL, 0.3385 seconds best-of-three (0.3408, 0.3421, 0.3385 samples).
+- Wheel smoke initially used `pip install --no-deps` and failed to import `pypdf`; the corrected smoke installs declared dependencies. A first corrected run exposed that structured nested header-pair objects were not redacted, so `redact([["x-api-key", "CANARY9x"]])` now redacts the value and has a regression test.

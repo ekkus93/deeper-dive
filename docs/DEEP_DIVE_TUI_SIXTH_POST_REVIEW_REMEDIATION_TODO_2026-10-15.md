@@ -15,6 +15,12 @@ This is the only completion checklist for the sixth post-review cycle. No item i
 
 If a reproducer disproves a finding, keep the task visible and record a justified N/A with exact evidence.
 
+## Post-closeout review 2026-10-15 (seventh)
+
+The seventh-cycle follow-up is tracked in
+[`DEEP_DIVE_TUI_SEVENTH_POST_REVIEW_REMEDIATION_TODO_2026-10-15.md`](DEEP_DIVE_TUI_SEVENTH_POST_REVIEW_REMEDIATION_TODO_2026-10-15.md).
+Sixth-cycle checked state remains historical and unchanged.
+
 ## Execution rules
 
 - At every run start and after every `master` push, reload this TODO and the spec, inspect the exact head and its CI, and avoid duplicating landed work.
@@ -187,3 +193,18 @@ If a reproducer disproves a finding, keep the task visible and record a justifie
   - Accepted (not fixed): control flags persist into `completed`/`failed` (a cancel during the last stage leaves `completed` + `cancel_requested`; a failed stage with a cancel request is not resumable, which matches "cancelled runs cannot be resumed"); `request_pause`/`request_cancel` can bump `modified_at` of a finished run; a PEM body shorter than 16 characters directly after a space-separated header; `pwd:`/`pwd=` shell output and `auth: required`, `{"auth": "none"}`, `<auth>none</auth>` are redacted (fail closed); `curl -u user:pass`, a password containing whitespace and `https://tok/en@host` (no colon) are not redacted (pre-existing); `msg='hello password=x'` loses its closing quote.
   - The reviewer found no leak beyond those in the URL, tuple, bytes, escaped-JSON, XML and flag passes, and no defect in the screen guards, `keep_empty`, model overrides, lock or `get_plan_with_segments` changes.
 - **6PR-912 qualification (code head `8ad0a60`, the last `src/` change):** `uv lock --check`, ruff format/lint and strict mypy clean; full local check 2,713 passed, 5 xfailed (the strict-xfail accepted-gap rows), exit 0; `uv build` and a fresh-venv wheel install from that head: `deeper-dive --help`, `episode cancel --help` shows `--run`, `episode configure --help` shows `--clear-model-overrides`, and `redact()` hid `https://user:p@a#ssCANARY9x@host/x`, `https://user:pa/ss?CANARY9x@host/x`, `[('x-api-key', 'CANARY9x')]`, `--api-key CANARY9x` and `{b'Authorization': b'Basic CANARY9x'}`; package imported from site-packages. CI run 38789463854 on `8ad0a60`: quality 116609951228 and fresh-machine 116609951611, both success. Checks and pushes were batched (one full check and one push for the cycle's task commits plus the review-fix commit); the closing docs-only commit has no CI run of its own recorded here.
+
+## Seventh-cycle corrections (2026-10-15)
+
+The seventh-cycle review supersedes these sixth-cycle statements without changing historical checked state:
+
+- 6PR-03's “every non-guided Screen subclass” sweep was incomplete; the seventh-cycle AST sweep tracks framework handlers and follows refresh helpers.
+- 6PR-05.1's refresh sweep statement (“`refresh_claims`/providers/settings call no service after a mutation”) described only post-mutation refresh work; it did not establish that every handler reaching those refreshes was guarded. See 7PR-01/02.
+- 6PR-06's monotonic flags statement applies to stage progress. Completion clears both flags, and stale flags on completed rows are cleared before re-drive.
+- 6PR-06's “one classifier” was not a shared noun set: the seventh cycle centralizes the credential vocabulary and adds list/space tuple canaries. 6PR-02's trailing-slash password behavior is documented in `_credential_shaped` and has benign-neighbor canaries in the seventh-cycle matrix.
+- 6PR-08's guided workflow evidence covered mapping-shaped invalid overrides, not a string-shaped stored `model_overrides`; the seventh-cycle test uses the latter and displays the repair command.
+- The 6PR-09 and 6PR-10 ledger references above do not by themselves provide mutation evidence for every claimed residual/test improvement; the seventh-cycle ledger names the exercising tests and reviewer fixes.
+- The sixth-cycle `episode cancel` record prints the cancelled result; it does not emit a structured diagnostic event.
+- The baseline CI run `38793385991` belongs to docs head `bc11d1e`; code head `8ad0a60` had separate CI run `38789463854`.
+- 6PR-911 did not catch that `status=None` refreshes could overwrite generation results or that empty-plan handling blocked whole-plan regeneration; both are fixed and regression-tested in this cycle.
+- See the seventh-cycle TODO for the remaining post-closeout corrections and qualification evidence.
