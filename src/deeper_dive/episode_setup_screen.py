@@ -27,10 +27,10 @@ if TYPE_CHECKING:
 
 
 class EpisodeSetupScreen(Screen[None]):
+    """Configure episode title, focus, audience, hosts, and planning preflight."""
+
     # Set when a save replaced stored model overrides nothing could use.
     _override_notice = ""
-
-    """Configure episode title, focus, audience, hosts, and planning preflight."""
 
     def __init__(self) -> None:
         super().__init__(id="screen-episode")

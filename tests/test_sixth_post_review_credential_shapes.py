@@ -101,3 +101,32 @@ def test_pem_bodies_are_still_redacted(text: str) -> None:
 def test_credential_shaped_fragment_is_redacted_on_purpose() -> None:
     # ``h:abc#frag@x.com`` has the same shape as ``user:pass#word@host``; it fails closed.
     assert "frag" not in str(redact("http://h:abc#frag@x.com"))
+
+
+def test_a_long_backslash_run_scales_linearly() -> None:
+    from linear_timing import assert_scales_linearly
+
+    from deeper_dive.diagnostics import MAX_REDACTED_TEXT_CHARS
+
+    assert_scales_linearly(
+        redact, lambda size: "\\" * size, large=MAX_REDACTED_TEXT_CHARS, label="backslashes"
+    )
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "--token-count 5",
+        "--pwd-dir /tmp",
+        "<password-policy>8 chars</password-policy>",
+        "<tokens>3</tokens>",
+    ],
+)
+def test_flags_and_elements_that_only_mention_a_credential_word_survive(text: str) -> None:
+    assert redact(text) == text
+
+
+@pytest.mark.parametrize("separator", ["\n", "\r\n", "\x0b", "\x0c", "\\n", "<br>", "%0A", "%0d"])
+def test_pem_header_followed_by_unusual_separators_is_redacted(separator: str) -> None:
+    text = f"-----BEGIN PRIVATE KEY-----{separator}{CANARY}AAAA"
+    assert CANARY not in str(redact(text))

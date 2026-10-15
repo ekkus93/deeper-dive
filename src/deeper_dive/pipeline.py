@@ -115,7 +115,10 @@ class PipelineOrchestrator:
         if record.state not in {"pending", "running", "paused"}:
             raise ValueError(f"cannot cancel generation run in {record.state} state")
         cancelled = self.repository.cancel_now(run_id, self._now())
-        assert cancelled is not None
+        if cancelled is None:
+            raise KeyError(f"unknown generation run: {run_id}")
+        if cancelled.state != "cancelled":
+            raise ValueError(f"cannot cancel generation run in {cancelled.state} state")
         self._emit(cancelled.stage, "cancelled", "cancel requested")
         return cancelled
 
@@ -172,6 +175,9 @@ class PipelineOrchestrator:
                 continue
 
             record = self._update(record, stage=stage, state="running")
+            if record.state == "cancelled":
+                # A cancel landed after the boundary check: run no handler.
+                return PipelineResult(record, tuple(executed), tuple(skipped))
             self._emit(stage, "running")
             context = PipelineContext(run_id=run_id, episode_id=record.episode_id, stage=stage)
             attempts = 0
@@ -204,6 +210,8 @@ class PipelineOrchestrator:
                 return control_result
 
         record = self._update(record, stage=self.stages[-1], state="completed")
+        if record.state == "cancelled":
+            return PipelineResult(record, tuple(executed), tuple(skipped))
         self._emit("pipeline", "completed", completed=len(self.stages), total=len(self.stages))
         return PipelineResult(record, tuple(executed), tuple(skipped))
 

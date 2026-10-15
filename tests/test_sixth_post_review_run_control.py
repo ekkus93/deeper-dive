@@ -118,3 +118,36 @@ def test_cli_cancel_survives_a_worker_write_in_the_race_window(
 
     assert executed == []
     assert _states(service, project_id, episode_id)["r1"][0] == "cancelled"
+
+
+def test_no_stage_runs_when_a_cancel_lands_after_the_boundary_check(tmp_path: Path) -> None:
+    _, _, episode_id, runs = _repository(tmp_path)
+    runs.create(_run("r1", episode_id, "pending", "2026-01-01T00:00:00Z"))
+    executed: list[str] = []
+    pipeline = PipelineOrchestrator(
+        runs,
+        {"a": lambda c: executed.append("a"), "b": lambda c: executed.append("b")},
+        stages=("a", "b"),
+    )
+    original_update = runs.update
+
+    def cancel_before_the_running_write(run, **kwargs):  # type: ignore[no-untyped-def]
+        # Another process cancels between the control check and the stage-start write.
+        if run.state == "running":
+            runs.cancel_now("r1", "2026-01-01T00:00:05Z")
+        return original_update(run, **kwargs)
+
+    runs.update = cancel_before_the_running_write  # type: ignore[method-assign]
+    result = pipeline.run("r1")
+
+    assert executed == []
+    assert result.run.state == "cancelled"
+    assert _flags(runs, "r1")[0] == "cancelled"
+
+
+def test_cancel_now_refuses_a_run_that_already_finished(tmp_path: Path) -> None:
+    _, _, episode_id, runs = _repository(tmp_path)
+    runs.create(_run("r1", episode_id, "completed", "2026-01-01T00:00:00Z"))
+    pipeline = PipelineOrchestrator(runs, {"a": lambda c: None}, stages=("a",))
+    with pytest.raises(ValueError, match="cannot cancel"):
+        pipeline.cancel_now("r1")

@@ -89,14 +89,14 @@ _QUOTED_VALUE_ASSIGNMENT = re.compile(
 # ``\"apiKey\":\"C\"`` inside a JSON string. The value is bounded so a repeated prefix
 # cannot make the scan quadratic.
 _ESCAPED_QUOTE_PAIR = re.compile(
-    r"(?i)(\\+['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*)(\\+['\"])"
+    r"(?i)(?<!\\)(\\{1,8}['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*)(\\{1,8}['\"])"
     r"((?:(?!\4)[^\r\n]){0,2048}+)(\4|(?=\r|\n|\Z))"
 )
 # The opener must be followed by a line break, an escaped ``\\n`` or a base64-looking run, so
 # prose that merely names the header (``use '-----BEGIN PRIVATE KEY-----' header``) survives.
 _PEM_PRIVATE_KEY = re.compile(
     r"(?i)-----BEGIN [A-Z ]{0,40}PRIVATE KEY(?: BLOCK)?-----"
-    r"(?=[ \t]*(?:[\r\n]|\\[nr]|[A-Za-z0-9+/=:]{16}))"
+    r"(?=[ \t]*(?:[\r\n\x0b\x0c\x85\u2028\u2029]|\\[nr]|<br|%0[ad]|[A-Za-z0-9+/=:]{16}))"
     r".*?"
     r"(?:-----END [A-Z ]{0,40}PRIVATE KEY(?: BLOCK)?-----|\Z)",
     re.S,
@@ -434,14 +434,30 @@ def _redact_tuple_pair(match: re.Match[str]) -> str:
     return f"{head}{match.group(5)}[REDACTED]{match.group(5)}"
 
 
+_SECRET_LAST_WORDS = frozenset(
+    {"token", "secret", "password", "passwd", "pwd", "auth", "authorization", "cookie", "key"}
+)
+
+
+def _is_secret_name(name: str) -> bool:
+    """A flag or element name that *is* a credential (``--api-key``, ``<password>``).
+
+    ``--token-count`` and ``<password-policy>`` mention a credential word but name
+    something else, so the last word must be the credential noun.
+    """
+
+    words = _key_words(name)
+    return bool(words) and words[-1] in _SECRET_LAST_WORDS and _is_secret_key(name)
+
+
 def _redact_cli_flag(match: re.Match[str]) -> str:
-    if not _is_secret_key(match.group(1)):
+    if not _is_secret_name(match.group(1)):
         return match.group(0)
     return f"{match.group(1)}{match.group(2)}[REDACTED]"
 
 
 def _redact_xml_element(match: re.Match[str]) -> str:
-    if not _is_secret_key(match.group(2)):
+    if not _is_secret_name(match.group(2)):
         return match.group(0)
     return f"{match.group(1)}{match.group(2)}{match.group(3)}[REDACTED]{match.group(5)}"
 
