@@ -80,20 +80,13 @@ class EpisodeConfiguration:
                 for key, value in self.research_overrides.items()
                 if value is not None and not (isinstance(value, str) and not value.strip())
             },
+            # Whitespace only: a blank override value stays blank so the shared
+            # model-role validation can still reject it visibly.
             model_overrides={
-                role: assignment
-                for role, assignment in (
-                    (
-                        str(role).strip(),
-                        {
-                            str(key).strip(): str(value).strip()
-                            for key, value in raw.items()
-                            if str(value).strip()
-                        },
-                    )
-                    for role, raw in self.model_overrides.items()
-                )
-                if assignment
+                str(role).strip(): {
+                    str(key).strip(): str(value).strip() for key, value in raw.items()
+                }
+                for role, raw in self.model_overrides.items()
             },
         )
 

@@ -20,9 +20,6 @@ NOOP_VARIANTS: dict[str, Variant] = {
     "model override whitespace": lambda c: replace(
         c, model_overrides={" host_generation ": {"model": " m "}}
     ),
-    "model override blank value": lambda c: replace(
-        c, model_overrides={"host_generation": {"model": "  "}}
-    ),
 }
 
 
@@ -38,7 +35,6 @@ def _seed(configurations, episode_id: str, variant: str):  # type: ignore[no-unt
         "model override whitespace": replace(
             current, model_overrides={"host_generation": {"model": "m"}}
         ),
-        "model override blank value": current,
     }[variant]
     configurations.edit(episode_id, canonical)
     return configurations.load_configuration(episode_id)
