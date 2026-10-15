@@ -24,7 +24,7 @@ from deeper_dive.preflight_screen import PreflightController, PreflightScreen
 from deeper_dive.provider_tui import ProviderController
 from deeper_dive.providers_screen import ProvidersScreen
 from deeper_dive.research_screen import ResearchController, ResearchScreen
-from deeper_dive.screen_guard import report_service_errors
+from deeper_dive.screen_guard import report_service_errors, tolerate_refresh_errors
 from deeper_dive.settings_screen import SettingsScreen
 from deeper_dive.storage.repositories import SourceRecord
 
@@ -182,6 +182,7 @@ class HomeProjectsScreen(NavigationMixin, Screen[None]):
             self.pending_delete_project_id = None
             self._set_status("Delete cancelled")
 
+    @tolerate_refresh_errors
     def refresh_projects(self, status: str = "Ready") -> None:
         summaries = self._app.service.list_project_summaries()
         ids = {summary.id for summary in summaries}
@@ -393,6 +394,7 @@ class SourcesScreen(NavigationMixin, Screen[None]):
         self.query_one("#action-confirm-source-delete", Button).disabled = not pending
         self.query_one("#action-cancel-source-delete", Button).disabled = not pending
 
+    @tolerate_refresh_errors
     def refresh_sources(self, status: str = "Ready") -> None:
         project_id = self._app.current_project_id
         if project_id is None:

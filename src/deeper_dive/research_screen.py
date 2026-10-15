@@ -13,6 +13,7 @@ from deeper_dive.diagnostics import redact
 from deeper_dive.research_candidates import CandidateOutcome
 from deeper_dive.research_gaps import ResearchGap
 from deeper_dive.research_policy import ResearchControls, ResearchMode, ResearchPolicy
+from deeper_dive.screen_guard import report_service_errors, tolerate_refresh_errors
 
 
 class ResearchController(Protocol):
@@ -98,6 +99,7 @@ class ResearchScreen(Screen[None]):
         elif action == "sources":
             cast(object, self.app).action_navigate("sources")  # type: ignore[attr-defined]
 
+    @report_service_errors("Research policy not saved")
     def action_save(self) -> None:
         project_id = self._project_id()
         if project_id is None:
@@ -107,6 +109,7 @@ class ResearchScreen(Screen[None]):
         self._controller().save_policy(project_id, policy, focus)
         self._status("Research policy saved")
 
+    @report_service_errors("Analysis failed")
     def action_analyze(self) -> None:
         project_id = self._project_id()
         if project_id is None:
@@ -117,6 +120,7 @@ class ResearchScreen(Screen[None]):
         self.selected_gap_id = gaps[0].id if gaps else None
         self.refresh_research(f"Found {len(gaps)} research gaps")
 
+    @report_service_errors("Research failed")
     def action_search(self) -> None:
         project_id = self._project_id()
         gap_id = self._selected_gap()
@@ -126,6 +130,7 @@ class ResearchScreen(Screen[None]):
         outcomes = self._controller().research(project_id, (gap_id,))
         self.refresh_research(self._outcome_status(outcomes))
 
+    @report_service_errors("Gap not ignored")
     def action_ignore(self) -> None:
         project_id = self._project_id()
         gap_id = self._selected_gap()
@@ -134,6 +139,7 @@ class ResearchScreen(Screen[None]):
         self._controller().set_gap_status(project_id, gap_id, "ignored")
         self.refresh_research(f"Ignored gap {gap_id}")
 
+    @report_service_errors("Research failed")
     def action_research_all(self) -> None:
         project_id = self._project_id()
         if project_id is None:
@@ -147,6 +153,7 @@ class ResearchScreen(Screen[None]):
         outcomes = self._controller().research(project_id, gap_ids) if gap_ids else ()
         self.refresh_research(self._outcome_status(outcomes))
 
+    @tolerate_refresh_errors
     def refresh_research(self, status: str = "Ready") -> None:
         project_id = self._project_id(quiet=True)
         if project_id is None:

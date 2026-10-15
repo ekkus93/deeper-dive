@@ -31,6 +31,7 @@ from deeper_dive.preflight import (
     PreflightService,
 )
 from deeper_dive.provider_tui import ProviderController
+from deeper_dive.screen_guard import report_service_errors
 from deeper_dive.storage.episode_repositories import (
     EpisodeRecord,
     HostEpisodeRepository,
@@ -315,6 +316,7 @@ class PreflightScreen(Screen[None]):
         elif name:
             self._app.action_navigate(name)
 
+    @report_service_errors("Generation blocked")
     def action_generate(self) -> None:
         presentation = self._app.preflight_controller.build(self._app)
         if not presentation.report.ready:

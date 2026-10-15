@@ -22,6 +22,9 @@ if TYPE_CHECKING:
 _SERVICE_ERRORS = (KeyError, IndexError, OSError, RuntimeError, ValueError, sqlite3.Error)
 
 
+_RELOAD_HINT = " Choose Reload Plan to see the stored plan."
+
+
 class EpisodePlanController(Protocol):
     def load_plan(self, episode_id: str) -> EpisodePlan: ...
     def regenerate_plan(self, episode_id: str) -> EpisodePlan: ...
@@ -63,6 +66,7 @@ class EpisodePlanScreen(Screen[None]):
             yield Input(placeholder="Questions, comma separated", id="segment-questions")
             yield Input(placeholder="Evidence IDs, comma separated", id="segment-evidence")
             yield Input(placeholder="Lead host IDs, comma separated", id="segment-hosts")
+            yield Button("Reload Plan", id="action-reload-plan", name="reload-plan")
             yield Button("Select Segment", id="action-select-segment", name="select-segment")
             yield Button("Save Segment", id="action-save-segment", name="save-segment")
             yield Button("Regenerate Segment", id="action-regenerate-segment", name="regen-segment")
@@ -81,6 +85,8 @@ class EpisodePlanScreen(Screen[None]):
         name = event.button.name or ""
         if name == "select-segment":
             self.action_select_segment()
+        elif name == "reload-plan":
+            self.action_reload_plan()
         elif name == "save-segment":
             self.action_save_segment()
         elif name == "regen-segment":
@@ -92,24 +98,31 @@ class EpisodePlanScreen(Screen[None]):
         elif name:
             self._app.action_navigate(name)
 
-    def refresh_plan(self) -> None:
+    def action_reload_plan(self) -> None:
+        """Show the stored plan without regenerating it (e.g. after a conflict)."""
+
+        if self.refresh_plan():
+            self._status("Reloaded the stored plan")
+
+    def refresh_plan(self) -> bool:
         episode_id = self._app.current_episode_id
         controller = self._app.episode_plan_controller
         if episode_id is None or controller is None:
             self._status("Build an episode plan before opening plan review")
-            return
+            return False
         try:
             self.plan = controller.load_plan(episode_id)
         except KeyError:
             self._status("No plan exists for this episode")
-            return
+            return False
         except _SERVICE_ERRORS as exc:
             self._status(f"Plan could not be loaded: {sanitize_exception_message(exc)}")
-            return
+            return False
         if self.selected_ordinal >= len(self.plan.segments):
             self.selected_ordinal = 0
         self._render_plan()
         self._load_selected()
+        return True
 
     def action_select_segment(self) -> None:
         if self.plan is None:
@@ -146,7 +159,7 @@ class EpisodePlanScreen(Screen[None]):
             self._status(sanitize_exception_message(exc))
             return
         except _SERVICE_ERRORS as exc:
-            self._status(f"Segment not saved: {sanitize_exception_message(exc)}")
+            self._status(f"Segment not saved: {sanitize_exception_message(exc)}{_RELOAD_HINT}")
             return
         self._render_plan()
         self._load_selected()
@@ -160,7 +173,9 @@ class EpisodePlanScreen(Screen[None]):
         try:
             plan = controller.regenerate_segment(episode_id, self.selected_ordinal)
         except _SERVICE_ERRORS as exc:
-            self._status(f"Segment not regenerated: {sanitize_exception_message(exc)}")
+            self._status(
+                f"Segment not regenerated: {sanitize_exception_message(exc)}{_RELOAD_HINT}"
+            )
             return
         self.plan = plan
         self._render_plan()
@@ -175,7 +190,7 @@ class EpisodePlanScreen(Screen[None]):
         try:
             plan = controller.regenerate_plan(episode_id)
         except _SERVICE_ERRORS as exc:
-            self._status(f"Plan not regenerated: {sanitize_exception_message(exc)}")
+            self._status(f"Plan not regenerated: {sanitize_exception_message(exc)}{_RELOAD_HINT}")
             return
         self.plan = plan
         self.selected_ordinal = 0
@@ -195,7 +210,7 @@ class EpisodePlanScreen(Screen[None]):
         except _SERVICE_ERRORS as exc:
             # Includes EpisodeConfigurationConflict: the episode changed or the plan
             # was replaced since it was loaded. Nothing was approved.
-            self._status(f"Plan not approved: {sanitize_exception_message(exc)}")
+            self._status(f"Plan not approved: {sanitize_exception_message(exc)}{_RELOAD_HINT}")
             return
         auto = self.query_one("#auto-generate", Checkbox).value
         self._app.plan_approved = True

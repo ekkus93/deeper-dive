@@ -16,7 +16,7 @@ from deeper_dive.destructive_confirmation import PendingRemoval
 from deeper_dive.diagnostics import redact
 from deeper_dive.hosts import HostProfile, HostRelationship, create_host_from_preset, preset_names
 from deeper_dive.kitten_model_manager import KittenModelManager
-from deeper_dive.screen_guard import report_service_errors
+from deeper_dive.screen_guard import report_service_errors, tolerate_refresh_errors
 from deeper_dive.storage.episode_repositories import HostEpisodeRepository
 from deeper_dive.tts_benchmark import TTSBenchmarkService
 from deeper_dive.voice_preview import VoicePreviewService
@@ -135,6 +135,7 @@ class HostsScreen(Screen[None]):
             return None
         return self._app.service.hosts(project_id)
 
+    @tolerate_refresh_errors
     def refresh_hosts(self, status: str = "Ready") -> None:
         repository = self._repository()
         project_id = self._app.current_project_id
@@ -205,6 +206,7 @@ class HostsScreen(Screen[None]):
         self.selected_host_id = host.id
         self.refresh_hosts(f"Added {host.display_name}")
 
+    @report_service_errors("Host not saved")
     def action_save_host(self) -> None:
         repository = self._repository()
         if repository is None or self.selected_host_id is None:
@@ -306,6 +308,7 @@ class HostsScreen(Screen[None]):
         )
         self.refresh_hosts("Reordered host list")
 
+    @report_service_errors("Relationship not saved")
     def action_save_relationship(self) -> None:
         repository = self._repository()
         project_id = self._app.current_project_id
@@ -349,6 +352,7 @@ class HostsScreen(Screen[None]):
             f"TTS providers: {', '.join(providers)} | voices: {', '.join(v.name for v in voices)}"
         )
 
+    @report_service_errors("Voice preview failed")
     def action_preview_voice(self) -> None:
         provider_id = self.query_one("#host-tts-provider", Input).value.strip()
         voice = self.query_one("#host-tts-voice", Input).value.strip()
@@ -371,6 +375,7 @@ class HostsScreen(Screen[None]):
             return
         self._status(f"Voice preview cached: {path.name}")
 
+    @report_service_errors("KittenTTS install failed")
     def action_install_kitten(self) -> None:
         url = self.query_one("#kitten-model-url", Input).value.strip()
         version = self.query_one("#kitten-model-version", Input).value.strip() or "micro"
@@ -390,6 +395,7 @@ class HostsScreen(Screen[None]):
             return
         self._status(f"Kitten model installed: {state.version}")
 
+    @report_service_errors("TTS benchmark failed")
     def action_benchmark_tts(self) -> None:
         provider_id = self.query_one("#host-tts-provider", Input).value.strip()
         voice = self.query_one("#host-tts-voice", Input).value.strip()

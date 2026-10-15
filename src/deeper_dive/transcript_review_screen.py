@@ -570,6 +570,7 @@ class TranscriptReviewScreen(Screen[None]):
             return
         self.app.push_screen(self.controller.claim_inspector(self._app, turn.id))
 
+    @report_service_errors("Regeneration failed")
     def action_regenerate_turn(self) -> None:
         turn = self._selected_turn()
         if turn is None:
@@ -582,6 +583,7 @@ class TranscriptReviewScreen(Screen[None]):
             return
         self.refresh_review("Regenerated selected turn/section")
 
+    @report_service_errors("Export failed")
     def action_export(self) -> None:
         try:
             path = self.controller.export_markdown(self._app)
