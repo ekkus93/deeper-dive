@@ -227,8 +227,8 @@ Each plan records a SHA-256 digest of the episode configuration it was built fro
 no longer matches (plans saved before the digest existed stay usable).
 Run creation is one `BEGIN IMMEDIATE` selection that rechecks the episode revision seen
 at preflight and inspects every run of the episode: it returns the active run, and it
-refuses to create another while any pending/running/paused run has a cancel request
-outstanding (`GenerationRunStillStopping`), because cancellation only takes effect at a
+refuses to create another while any pending or running run has a cancel request
+outstanding (a paused run executes nothing, so its cancel request is exempt) (`GenerationRunStillStopping`), because cancellation only takes effect at a
 stage boundary. See `docs/GENERATION_RUN_SELECTION_POLICY.md`. The readiness
 fingerprint is read without the config lock (`UserConfigStore.load_published`), so the
 fingerprint computation itself never waits on a writer; other UI-thread paths still read

@@ -91,10 +91,14 @@ class GenerationRunRepository:
             # running run with a cancel request keeps executing; a second run would
             # share its episode-keyed state. A paused run executes nothing and can
             # never reach a boundary, so its cancel request does not block a new run.
-            if any(item.cancel_requested and item.state != "paused" for item in active):
+            stopping = [item for item in active if item.cancel_requested and item.state != "paused"]
+            if stopping:
+                oldest = min(stopping, key=lambda item: (item.created_at, item.id))
                 raise GenerationRunStillStopping(
-                    "the previous run is still stopping; wait for it to finish, or run "
-                    "`deeper-dive episode cancel` to finish stopping it, then start again"
+                    f"the previous run {oldest.id} is still stopping; wait for it to finish, "
+                    "or if its worker is gone run `deeper-dive episode cancel "
+                    f"<project_id> {run.episode_id} --run {oldest.id}` to finish stopping it, "
+                    "then start again"
                 )
             reusable = [item for item in active if not item.cancel_requested]
             if reusable:
@@ -117,6 +121,18 @@ class GenerationRunRepository:
         with self.database.connection() as db:
             row = db.execute("SELECT * FROM generation_runs WHERE id=?", (run_id,)).fetchone()
         return None if row is None else self._from_row(dict(row))
+
+    def blocking_cancel_run(self, episode_id: str) -> GenerationRunRecord | None:
+        """Oldest pending/running run with a cancel request: the run that blocks a new start."""
+
+        with self.database.connection() as db:
+            row = db.execute(
+                """SELECT * FROM generation_runs
+                WHERE episode_id=? AND state IN ('pending','running') AND cancel_requested=1
+                ORDER BY created_at ASC,id ASC LIMIT 1""",
+                (episode_id,),
+            ).fetchone()
+        return self._from_row(dict(row)) if row is not None else None
 
     def latest_for_episode(self, episode_id: str) -> GenerationRunRecord | None:
         with self.database.connection() as db:

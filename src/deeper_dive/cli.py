@@ -148,6 +148,12 @@ def _add_episode_parser(commands: argparse._SubParsersAction[argparse.ArgumentPa
         command.add_argument("episode_id")
         if action == "export":
             command.add_argument("--output-dir", type=Path)
+        if action == "cancel":
+            command.add_argument(
+                "--run",
+                dest="run_id",
+                help="cancel this run instead of the one blocking or latest for the episode",
+            )
 
 
 def _add_episode_config_args(parser: argparse.ArgumentParser, *, require_title: bool) -> None:
@@ -371,12 +377,39 @@ def _episode_command(composition: ProductionComposition, args: argparse.Namespac
     return 2
 
 
+def _episode_cancel_command(
+    composition: ProductionComposition,
+    episode: EpisodeRecord,
+    args: argparse.Namespace,
+) -> int:
+    """Cancel the run named by ``--run``, else the run that blocks a new start, else the latest.
+
+    The cancel is finalized with ``pipeline.run``, which applies the requested control
+    before any stage handler, so no stage is executed by this command.
+    """
+
+    runs = composition.generation_run_repository(episode.project_id)
+    if args.run_id is not None:
+        run = runs.get(args.run_id)
+        if run is None or run.episode_id != episode.id:
+            raise KeyError(f"no generation run {args.run_id} for this episode")
+    else:
+        run = runs.blocking_cancel_run(episode.id) or runs.latest_for_episode(episode.id)
+    if run is None:
+        raise KeyError("no generation run for episode")
+    pipeline = composition.generation_pipeline(episode.project_id)
+    pipeline.request_cancel(run.id)
+    return _output(asdict(pipeline.run(run.id).run), args.json_output)
+
+
 def _episode_run_command(
     composition: ProductionComposition,
     episode: EpisodeRecord,
     args: argparse.Namespace,
 ) -> int:
     runs = composition.generation_run_repository(episode.project_id)
+    if args.episode_command == "cancel":
+        return _episode_cancel_command(composition, episode, args)
     run = runs.latest_for_episode(episode.id)
     if args.episode_command == "status":
         return _output(_status_payload(episode, run), args.json_output)
@@ -385,9 +418,6 @@ def _episode_run_command(
     pipeline = composition.generation_pipeline(episode.project_id)
     if args.episode_command == "pause":
         pipeline.request_pause(run.id)
-        updated = composition.run_generation(episode.project_id, run.id).run
-    elif args.episode_command == "cancel":
-        pipeline.request_cancel(run.id)
         updated = composition.run_generation(episode.project_id, run.id).run
     else:
         resumed = pipeline.resume(run.id)
