@@ -18,6 +18,7 @@ from deeper_dive.application.service import DeeperDiveService
 from deeper_dive.conversation_state import ConversationStateRepository
 from deeper_dive.diagnostics import redact
 from deeper_dive.pipeline import DEFAULT_STAGES, generation_stage_label
+from deeper_dive.screen_guard import report_service_errors
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.run_repositories import GenerationRunRecord
 from deeper_dive.transcript_review_screen import TranscriptReviewScreen
@@ -195,6 +196,7 @@ class GenerationMonitorScreen(Screen[None]):
             yield Static("Status: Ready", id="screen-status", markup=False)
         yield Footer()
 
+    @report_service_errors("Monitor unavailable")
     def on_mount(self) -> None:
         self.refresh_monitor()
 

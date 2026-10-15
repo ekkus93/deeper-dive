@@ -492,6 +492,7 @@ class TranscriptReviewScreen(Screen[None]):
             yield Static("Status: Ready", id="screen-status")
         yield Footer()
 
+    @report_service_errors("Transcript unavailable")
     def on_mount(self) -> None:
         self.refresh_review()
         self.query_one("#playback-status", Static).update(self._playback_strategy_text())
@@ -533,6 +534,7 @@ class TranscriptReviewScreen(Screen[None]):
         self.query_one("#chapter-list", Static).update(self._chapter_text())
         self._render_selected(status)
 
+    @report_service_errors("Turn not selected")
     def action_select_turn(self) -> None:
         try:
             index = int(self.query_one("#turn-number", Input).value) - 1

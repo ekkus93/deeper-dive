@@ -90,9 +90,7 @@ _HOST_CHAR = re.compile(r"[\w.\[\]$-]")
 # followed by such a separator. A password may therefore contain ``,``, ``)`` and
 # quotes (``pa,ss``, ``pa'ss``), while JSON or code that merely follows a URL
 # (``"https://h/x", "e": "a@b"``) still ends the token.
-_TOKEN_END = re.compile(
-    r"""\s|[,)](?=[\s"'}\],;:)]|\Z)|["'](?=[\s,)}\];:]|\Z)"""
-)
+_TOKEN_END = re.compile(r"""\s|[,)](?=[\s"'}\],;:)]|\Z)|["'](?=[\s,)}\];:]|\Z)""")
 _UNTIL_WHITESPACE = re.compile(r"\S*")
 _USERINFO_TERMINATORS = "/?#"
 # ``host:port`` followed by a terminator: a port is 1-5 digits (at most 65535).
@@ -152,9 +150,11 @@ def _userinfo_end(text: str, start: int) -> int | None:
     end_match = _TOKEN_END.search(window)
     token = window if end_match is None else window[: end_match.start()]
     at = token.rfind("@")
-    if at != -1 and _HOST_CHAR.match(token, at + 1) is not None and _credential_shaped(token[:at]):
-        if authority_at == -1 or start + at > authority_at:
-            return start + at
+    credential = (
+        at != -1 and _HOST_CHAR.match(token, at + 1) is not None and _credential_shaped(token[:at])
+    )
+    if credential and (authority_at == -1 or start + at > authority_at):
+        return start + at
     if authority_at != -1:
         return authority_at
     if end_match is None and len(window) == _USERINFO_WINDOW and _credential_shaped(token):

@@ -131,6 +131,7 @@ class ClaimInspectorScreen(Screen[None]):
         yield Static("Status: Ready", id="screen-status")
         yield Footer()
 
+    @report_service_errors("Could not load claims")
     def on_mount(self) -> None:
         self.refresh_claims()
 
@@ -150,6 +151,7 @@ class ClaimInspectorScreen(Screen[None]):
         self.selected_index = min(self.selected_index, len(self.claims) - 1)
         self._render_selected()
 
+    @report_service_errors("Claim not selected")
     def action_select_claim(self) -> None:
         try:
             index = int(self.query_one("#claim-number", Input).value) - 1

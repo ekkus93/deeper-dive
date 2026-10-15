@@ -17,6 +17,7 @@ from deeper_dive.diagnostics import redact
 from deeper_dive.episode_config import EpisodeConfigurationService
 from deeper_dive.episode_library_export import EpisodeExportResult, EpisodeLibraryExportService
 from deeper_dive.generation_monitor import GenerationMonitorScreen
+from deeper_dive.screen_guard import report_service_errors, tolerate_refresh_errors
 from deeper_dive.storage.database import Database
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
@@ -186,6 +187,7 @@ class EpisodeLibraryScreen(Screen[None]):
             yield Static("Status: Ready", id="screen-status", markup=False)
         yield Footer()
 
+    @report_service_errors("Library unavailable")
     def on_mount(self) -> None:
         self.refresh_library()
 
@@ -208,6 +210,7 @@ class EpisodeLibraryScreen(Screen[None]):
         elif name:
             self._app.action_navigate(name)
 
+    @report_service_errors("Playback failed")
     def action_play_selected(self) -> None:
         item = self._selected()
         if item is None:
@@ -223,6 +226,7 @@ class EpisodeLibraryScreen(Screen[None]):
             return
         self._status(state.message)
 
+    @report_service_errors("Not opened")
     def action_open_selected(self) -> None:
         item = self._selected()
         if item is None:
@@ -232,6 +236,7 @@ class EpisodeLibraryScreen(Screen[None]):
         self._app.current_run_id = None if item.run is None else item.run.id
         self.app.push_screen(TranscriptReviewScreen())
 
+    @report_service_errors("Resume failed")
     def action_resume_selected(self) -> None:
         item = self._selected()
         if item is None:
@@ -254,6 +259,7 @@ class EpisodeLibraryScreen(Screen[None]):
         if isinstance(screen, GenerationMonitorScreen):
             screen.start_background_generation()
 
+    @report_service_errors("Not duplicated")
     def action_duplicate_selected(self) -> None:
         item = self._selected()
         if item is None:
@@ -263,6 +269,7 @@ class EpisodeLibraryScreen(Screen[None]):
         self.selected_episode_id = duplicate.id
         self.refresh_library(f"Duplicated configuration as {duplicate.title}")
 
+    @report_service_errors("Export failed")
     def action_export_selected(self) -> None:
         item = self._selected()
         if item is None:
@@ -278,6 +285,7 @@ class EpisodeLibraryScreen(Screen[None]):
             return
         self._status("Exported: " + ", ".join(str(path) for path in result.paths))
 
+    @report_service_errors("Delete not requested")
     def action_request_delete(self) -> None:
         if self._selected() is None:
             self._status("No episode selected")
@@ -286,6 +294,7 @@ class EpisodeLibraryScreen(Screen[None]):
         self.pending_delete_project_id = self._app.current_project_id
         self._status("Confirm episode deletion with Y, or cancel with Esc")
 
+    @report_service_errors("Not deleted")
     def action_confirm_delete(self) -> None:
         episode_id = self.pending_delete_episode_id
         if episode_id is None:
@@ -324,6 +333,7 @@ class EpisodeLibraryScreen(Screen[None]):
         self._app.current_run_id = None
         self._app.action_navigate("episode")
 
+    @tolerate_refresh_errors
     def refresh_library(self, status: str = "Ready") -> None:
         items = EpisodeLibraryController.items(self._app)
         ids = {item.episode.id for item in items}

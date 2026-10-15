@@ -12,6 +12,7 @@ from textual.widgets import Button, Footer, Header, Input, Label, Static
 from deeper_dive.destructive_confirmation import PendingRemoval
 from deeper_dive.diagnostics import redact, sanitize_exception_message
 from deeper_dive.provider_tui import ProviderController
+from deeper_dive.screen_guard import report_service_errors
 from deeper_dive.user_errors import user_status
 
 _DEFAULT_TIMEOUT_SECONDS = 60.0
@@ -121,6 +122,7 @@ class ProvidersScreen(Screen[None]):
             yield Static("Status: Ready", id="screen-status", markup=False)
         yield Footer()
 
+    @report_service_errors("Providers unavailable")
     def on_mount(self) -> None:
         self.refresh_providers()
         self._sync_removal_controls()

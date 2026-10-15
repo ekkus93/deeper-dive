@@ -17,6 +17,7 @@ from deeper_dive.diagnostics import redact, sanitize_exception_message
 from deeper_dive.kitten_tts import MICRO_MODEL_ID
 from deeper_dive.model_roles import ModelRole
 from deeper_dive.provider_tui import ProviderController
+from deeper_dive.screen_guard import report_service_errors
 
 
 class SettingsApp(Protocol):
@@ -208,6 +209,7 @@ class SettingsScreen(Screen[None]):
             yield Static("Status: Ready", id="screen-status", markup=False)
         yield Footer()
 
+    @report_service_errors("Settings unavailable")
     def on_mount(self) -> None:
         self.refresh_settings()
 

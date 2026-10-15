@@ -357,6 +357,7 @@ class SourcesScreen(NavigationMixin, Screen[None]):
         self._app.service.set_source_included(project_id, source.id, not source.included)
         self.refresh_sources("Updated source inclusion")
 
+    @report_service_errors("Delete not requested")
     def action_delete_selected(self) -> None:
         source = self._selected_source()
         if source is None:

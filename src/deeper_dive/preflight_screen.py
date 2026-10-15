@@ -304,6 +304,7 @@ class PreflightScreen(Screen[None]):
             yield Static("Status: Ready", id="screen-status")
         yield Footer()
 
+    @report_service_errors("Preflight unavailable")
     def on_mount(self) -> None:
         self.refresh_preflight()
 

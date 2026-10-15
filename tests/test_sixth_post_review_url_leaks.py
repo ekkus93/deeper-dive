@@ -1,4 +1,4 @@
-"""6PR-02: credential URLs whose password mixes terminators with ``@``, ``/``, ``,``, ``)``, quotes."""
+"""6PR-02: credential URLs whose password mixes terminators with @, slashes, commas, quotes."""
 
 from __future__ import annotations
 
