@@ -19,6 +19,7 @@ from deeper_dive.guided_episode_form import (
     EpisodeFormHelpers,
 )
 from deeper_dive.guided_generation import GuidedGenerationMonitorScreen
+from deeper_dive.storage.episode_errors import InvalidModelOverrides
 from deeper_dive.wizard_transitions import (
     Transition,
     TransitionKind,
@@ -383,7 +384,11 @@ class GuidedEpisodeWizard(EpisodeFormHelpers):
                 episode_id, config, expected_revision=self._loaded_episode_revision
             )
         except (KeyError, OSError, RuntimeError, ValueError, sqlite3.Error) as exc:
-            safe = sanitize_exception_message(exc)
+            safe = (
+                sanitize_exception_message(ValueError(exc.describe(project_id, episode_id)))
+                if isinstance(exc, InvalidModelOverrides)
+                else sanitize_exception_message(exc)
+            )
             self.query_one("#guided-episode-validation", Static).update(
                 f"Fix episode settings: {safe}"
             )

@@ -23,6 +23,7 @@ from deeper_dive.hosts import HostProfile, create_host_from_preset, preset_names
 from deeper_dive.pipeline import generation_stage_label
 from deeper_dive.research_controller import PersistentResearchController
 from deeper_dive.research_gaps import ResearchGap, ResearchGapPlanner
+from deeper_dive.storage.episode_errors import InvalidModelOverrides
 from deeper_dive.storage.episode_repositories import EpisodeRecord
 from deeper_dive.storage.repositories import SourceRecord
 from deeper_dive.storage.run_repositories import GenerationRunRecord
@@ -168,6 +169,12 @@ def _add_episode_config_args(parser: argparse.ArgumentParser, *, require_title: 
     parser.add_argument("--avoid", dest="avoid_topics", help="comma-separated avoided topics")
     parser.add_argument("--research-policy", default=None)
     parser.add_argument("--citation-behavior", default=None)
+    if not require_title:
+        parser.add_argument(
+            "--clear-model-overrides",
+            action="store_true",
+            help="remove this episode's per-role model overrides (repairs unusable stored ones)",
+        )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -352,9 +359,15 @@ def _episode_command(composition: ProductionComposition, args: argparse.Namespac
 
     episode = _episode_record(repository.get_episode(args.episode_id), project_id, args.episode_id)
     if args.episode_command == "configure":
-        existing = config_service.load_configuration(episode.id)
-        config = _episode_config_from_args(service, project_id, args, existing=existing)
-        return _output(asdict(config_service.edit(episode.id, config)), args.json_output)
+        clear = bool(args.clear_model_overrides)
+        try:
+            existing = config_service.load_configuration(
+                episode.id, drop_invalid_model_overrides=clear
+            )
+            config = _episode_config_from_args(service, project_id, args, existing=existing)
+            return _output(asdict(config_service.edit(episode.id, config)), args.json_output)
+        except InvalidModelOverrides as exc:
+            raise ValueError(exc.describe(project_id, episode.id)) from None
     if args.episode_command == "show":
         return _output(_episode_payload(config_service, repository, episode), args.json_output)
     if args.episode_command == "plan":
@@ -464,7 +477,13 @@ def _episode_config_from_args(
         or (existing.avoid_topics if existing is not None else ()),
         research_overrides=research_overrides,
         source_overrides=dict(existing.source_overrides) if existing is not None else {},
-        model_overrides=dict(existing.model_overrides) if existing is not None else {},
+        model_overrides=(
+            {}
+            if getattr(args, "clear_model_overrides", False)
+            else dict(existing.model_overrides)
+            if existing is not None
+            else {}
+        ),
     )
 
 

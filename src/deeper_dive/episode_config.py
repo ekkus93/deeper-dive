@@ -14,6 +14,7 @@ from deeper_dive.storage.episode_errors import (
     EpisodeConfigurationConflict,
     EpisodeConfigurationError,
     EpisodeFrozenError,
+    InvalidModelOverrides,
 )
 from deeper_dive.storage.episode_plan_repository import EpisodePlanRepository
 from deeper_dive.storage.episode_repositories import EpisodeRecord, HostEpisodeRepository
@@ -47,27 +48,27 @@ def _normalized_model_overrides(value: object) -> dict[str, dict[str, str]]:
     """
 
     if not isinstance(value, dict):
-        raise ValueError("model overrides must be a mapping")
+        raise InvalidModelOverrides("model overrides must be a mapping")
     result: dict[str, dict[str, str]] = {}
     for role, assignment in value.items():
         if not isinstance(role, str):
-            raise ValueError("model override roles must be text")
+            raise InvalidModelOverrides("model override roles must be text")
         if isinstance(assignment, str):
             provider, separator, model = assignment.partition(":")
             if not separator:
-                raise ValueError(
+                raise InvalidModelOverrides(
                     f"model override {role} must be provider:model or provider/model settings"
                 )
             result[role.strip()] = {"provider": provider.strip(), "model": model.strip()}
             continue
         if not isinstance(assignment, dict):
-            raise ValueError(
+            raise InvalidModelOverrides(
                 f"model override {role} must be provider:model or provider/model settings"
             )
         cleaned: dict[str, str] = {}
         for key, item in assignment.items():
             if not isinstance(key, str) or not isinstance(item, str):
-                raise ValueError(f"model override {role} settings must be text")
+                raise InvalidModelOverrides(f"model override {role} settings must be text")
             cleaned[key.strip()] = item.strip()
         result[role.strip()] = cleaned
     return result
@@ -217,14 +218,24 @@ class EpisodeConfigurationService:
             raise KeyError("episode not found")
         return self.configuration_from_record(record), record.config_json
 
-    def load_configuration(self, episode_id: str) -> EpisodeConfiguration:
+    def load_configuration(
+        self, episode_id: str, *, drop_invalid_model_overrides: bool = False
+    ) -> EpisodeConfiguration:
         record = self.episodes.get_episode(episode_id)
         if record is None:
             raise KeyError("episode not found")
-        return self.configuration_from_record(record)
+        return self.configuration_from_record(
+            record, drop_invalid_model_overrides=drop_invalid_model_overrides
+        )
 
-    def configuration_from_record(self, record: EpisodeRecord) -> EpisodeConfiguration:
+    def configuration_from_record(
+        self, record: EpisodeRecord, *, drop_invalid_model_overrides: bool = False
+    ) -> EpisodeConfiguration:
         """Derive the configuration from one episode row (its revision is ``config_json``).
+
+        A stored ``null`` for ``model_overrides`` means "none". Any other non-mapping
+        value raises ``InvalidModelOverrides`` unless ``drop_invalid_model_overrides``
+        is set (the repair path: ``episode configure --clear-model-overrides``).
 
         Host order comes from the same snapshot, so config and revision cannot
         disagree even if an edit lands after the row was read.
@@ -247,8 +258,20 @@ class EpisodeConfigurationService:
             avoid_topics=tuple(payload.get("avoid_topics", ())),
             source_overrides=dict(payload.get("source_overrides", {})),
             research_overrides=dict(payload.get("research_overrides", {})),
-            model_overrides=dict(payload.get("model_overrides", {})),
+            model_overrides=self._stored_model_overrides(
+                payload.get("model_overrides"), drop_invalid_model_overrides
+            ),
         )
+
+    @staticmethod
+    def _stored_model_overrides(value: object, drop_invalid: bool) -> dict[str, Any]:
+        if value is None:
+            return {}
+        if isinstance(value, dict):
+            return dict(value)
+        if drop_invalid:
+            return {}
+        raise InvalidModelOverrides("stored model overrides must be a mapping")
 
     def _validate_hosts(self, project_id: str, config: EpisodeConfiguration) -> None:
         config.validate()

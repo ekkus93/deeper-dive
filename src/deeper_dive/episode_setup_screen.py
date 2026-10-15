@@ -12,16 +12,24 @@ from textual.widgets import Button, Footer, Header, Input, Label, Static
 
 from deeper_dive.composition import ProductionComposition
 from deeper_dive.diagnostics import redact, sanitize_exception_message, sanitize_provider_error
-from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
+from deeper_dive.episode_config import (
+    EpisodeConfiguration,
+    EpisodeConfigurationService,
+    _normalized_model_overrides,
+)
 from deeper_dive.model_roles import ModelAssignment, ModelRole, preflight_model_roles
 from deeper_dive.screen_guard import SERVICE_ERRORS, report_service_errors
 from deeper_dive.storage.database import Database
+from deeper_dive.storage.episode_errors import InvalidModelOverrides
 
 if TYPE_CHECKING:
     from deeper_dive.tui import DeeperDiveApp
 
 
 class EpisodeSetupScreen(Screen[None]):
+    # Set when a save replaced stored model overrides nothing could use.
+    _override_notice = ""
+
     """Configure episode title, focus, audience, hosts, and planning preflight."""
 
     def __init__(self) -> None:
@@ -120,6 +128,7 @@ class EpisodeSetupScreen(Screen[None]):
 
     @report_service_errors("Episode not planned")
     def action_build_plan(self) -> None:
+        self._override_notice = ""
         project_id = self._app.current_project_id
         if project_id is None:
             self._status("Open a project before configuring an episode")
@@ -162,7 +171,8 @@ class EpisodeSetupScreen(Screen[None]):
             return
         self._app.episode_plan_controller = planner
         self.refresh_summary()
-        self._status(f"Plan built: {len(plan.segments)} segments")
+        notice = f"; {self._override_notice}" if self._override_notice else ""
+        self._status(f"Plan built: {len(plan.segments)} segments{notice}")
         self._app.action_navigate("plan")
 
     @report_service_errors("Host summary unavailable")
@@ -251,10 +261,13 @@ class EpisodeSetupScreen(Screen[None]):
         except KeyError:
             return {}
         try:
-            # Normalized, so a stored "provider:model" string becomes a mapping.
-            return existing.normalized().model_overrides
-        except ValueError:
-            # A stored value nothing can use: saving replaces it instead of failing.
+            # Only the overrides are normalized (a stored "provider:model" string becomes
+            # a mapping): an invalid field elsewhere must not drop valid overrides.
+            return _normalized_model_overrides(existing.model_overrides)
+        except InvalidModelOverrides as exc:
+            # A stored value nothing can use: saving replaces it instead of failing,
+            # and the user is told what was dropped.
+            self._override_notice = f"Stored model overrides were replaced ({exc.detail})"
             return {}
 
     def _configuration_service(self, project_id: str) -> EpisodeConfigurationService:
