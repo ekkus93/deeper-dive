@@ -286,6 +286,51 @@ class HostEpisodeRepository:
             ).fetchone()
         return None if row is None else EpisodePlanRecord(**dict(row))
 
+    def get_plan_with_segments(
+        self, episode_id: str
+    ) -> tuple[EpisodePlanRecord, list[SegmentPlanRecord]] | None:
+        """The plan and its segments from ONE statement, so they cannot belong to two plans."""
+
+        with self.database.connection() as db:
+            rows = db.execute(
+                """SELECT p.id AS p_id,p.episode_id AS p_episode_id,p.status AS p_status,
+                p.plan_json AS p_plan_json,p.created_at AS p_created_at,
+                p.modified_at AS p_modified_at,
+                s.id AS s_id,s.episode_plan_id AS s_episode_plan_id,s.ordinal AS s_ordinal,
+                s.title AS s_title,s.purpose AS s_purpose,
+                s.target_duration_seconds AS s_target_duration_seconds,
+                s.segment_json AS s_segment_json
+                FROM episode_plans p
+                LEFT JOIN segment_plans s ON s.episode_plan_id=p.id
+                WHERE p.episode_id=? ORDER BY s.ordinal""",
+                (episode_id,),
+            ).fetchall()
+        if not rows:
+            return None
+        first = dict(rows[0])
+        plan = EpisodePlanRecord(
+            id=first["p_id"],
+            episode_id=first["p_episode_id"],
+            status=first["p_status"],
+            plan_json=first["p_plan_json"],
+            created_at=first["p_created_at"],
+            modified_at=first["p_modified_at"],
+        )
+        segments = [
+            SegmentPlanRecord(
+                id=row["s_id"],
+                episode_plan_id=row["s_episode_plan_id"],
+                ordinal=row["s_ordinal"],
+                title=row["s_title"],
+                purpose=row["s_purpose"],
+                target_duration_seconds=row["s_target_duration_seconds"],
+                segment_json=row["s_segment_json"],
+            )
+            for row in rows
+            if row["s_id"] is not None
+        ]
+        return plan, segments
+
     def list_segments(self, episode_plan_id: str) -> list[SegmentPlanRecord]:
         with self.database.connection() as db:
             rows = db.execute(

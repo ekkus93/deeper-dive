@@ -538,7 +538,7 @@ class WizardShell(Screen[None]):
                         # voice that vanished during rediscovery). Durable config
                         # is untouched; the control shows blank and the user must
                         # reselect before continuing.
-                        widget.value = Select.BLANK
+                        self._reset_select(widget)
                         self._discard_unavailable = (*self._discard_unavailable, key)
         self._remember_current_form()
 

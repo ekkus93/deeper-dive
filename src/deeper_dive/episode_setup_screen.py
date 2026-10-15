@@ -14,6 +14,7 @@ from deeper_dive.composition import ProductionComposition
 from deeper_dive.diagnostics import redact, sanitize_exception_message, sanitize_provider_error
 from deeper_dive.episode_config import EpisodeConfiguration, EpisodeConfigurationService
 from deeper_dive.model_roles import ModelAssignment, ModelRole, preflight_model_roles
+from deeper_dive.screen_guard import report_service_errors
 from deeper_dive.storage.database import Database
 
 if TYPE_CHECKING:
@@ -80,6 +81,7 @@ class EpisodeSetupScreen(Screen[None]):
         elif name:
             self._app.action_navigate(name)
 
+    @report_service_errors("Quick Deep Dive failed")
     def action_quick_deep_dive(self) -> None:
         project_id = self._app.current_project_id
         if project_id is None:
@@ -109,6 +111,7 @@ class EpisodeSetupScreen(Screen[None]):
         self._status(f"Quick Deep Dive planned: {len(plan.segments)} segments")
         self._app.action_navigate("generate")
 
+    @report_service_errors("Episode not planned")
     def action_build_plan(self) -> None:
         project_id = self._app.current_project_id
         if project_id is None:
@@ -155,6 +158,7 @@ class EpisodeSetupScreen(Screen[None]):
         self._status(f"Plan built: {len(plan.segments)} segments")
         self._app.action_navigate("plan")
 
+    @report_service_errors("Host summary unavailable")
     def refresh_summary(self) -> None:
         project_id = self._app.current_project_id
         if project_id is None:

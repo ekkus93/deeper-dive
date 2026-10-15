@@ -127,6 +127,8 @@ class GuidedHostWizard(HostWizardSupport):
             original = self._loaded_host_id
             if original is not None and event.select.value != original:
                 self._assign_select(event.select, original)
+            elif original is None and event.select.value != Select.BLANK:
+                self._assign_select(event.select, Select.BLANK)
             return
         # A queued event for the already-loaded target must never rehydrate its
         # durable record over current edits. The direct refresh/load path already

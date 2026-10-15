@@ -135,7 +135,12 @@ class EpisodePlannerService:
         return plan
 
     def edit_segment(self, episode_id: str, ordinal: int, segment: PlannedSegment) -> EpisodePlan:
-        """Persist a user-edited segment while retaining plan identity and safety bounds."""
+        """Replace one segment with a user edit within the safety bounds.
+
+        The edited plan is persisted as a NEW plan (new id), so an approval of the
+        plan a reviewer saw (``approve_plan(reviewed_plan_id=...)``) is rejected
+        until they review the edited one.
+        """
 
         self.plan_repository.require_editable(episode_id)
         # Snapshot first: any edit after this point either removes the plan (the
@@ -189,12 +194,13 @@ class EpisodePlannerService:
         return plan
 
     def load_plan(self, episode_id: str) -> EpisodePlan:
-        record = self.repository.get_plan(episode_id)
-        if record is None:
+        # One read: two reads could see a plan and the segments of its replacement.
+        stored = self.repository.get_plan_with_segments(episode_id)
+        if stored is None:
             raise KeyError(episode_id)
+        record, items = stored
         segments = tuple(
-            self._segment_from_payload(json.loads(item.segment_json))
-            for item in self.repository.list_segments(record.id)
+            self._segment_from_payload(json.loads(item.segment_json)) for item in items
         )
         return EpisodePlan(record.id, episode_id, segments)
 

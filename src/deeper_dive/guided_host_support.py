@@ -34,6 +34,8 @@ class HostWizardSupport(GuidedSourceWizard):
     def _load_episode_host_order(self) -> bool:
         """Load the saved order; ``False`` means the current in-memory order was kept."""
 
+        # A notice describes the last load only; never republish an older failure.
+        self.host_order_notice = ""
         project_id = self.context.project_id
         episode_id = self.context.episode_id
         if project_id is None or episode_id is None:
@@ -108,6 +110,10 @@ class HostWizardSupport(GuidedSourceWizard):
 
     def _load_selected_host(self) -> None:
         record = self._selected_host_record()
+        if record is None or record.id != self._last_created_host_id:
+            # Loading any other host ends the double-submit window of the last Create.
+            self._last_created_host_signature = None
+            self._last_created_host_id = None
         details = self.query_one("#guided-host-details", Static)
         if record is None:
             self._loaded_host_id = None
