@@ -407,6 +407,14 @@ class GuidedFirstRunWizard(FirstRunSpeechActions):
         ):
             self.set_status("Provider settings must contain only single-line identifiers.")
             return False
+        choice = self._select_value("#setup-ai-choice")
+        typed_adapter = self.query_one("#setup-provider-adapter", Input).value.strip().lower()
+        if choice != "manual" and typed_adapter and typed_adapter.replace("_", "-") != adapter:
+            self.set_status(
+                "The AI provider choice and the adapter field disagree; go back to the AI "
+                "provider step or edit the adapter before saving."
+            )
+            return False
         name = raw_name.strip()
         model = raw_model.strip()
         if not name or not adapter or not model:

@@ -305,7 +305,10 @@ class FirstRunFormControls(FirstRunWizardShell):
         current = self._editable_snapshot(step)
         stored = self._form_baselines.get(step)
         if stored is not None and stored != current:
-            return  # The user already edited this step; keep that baseline.
+            # The user already edited this step; keep that baseline, and make sure
+            # arriving at the step never re-baselines the preset as clean.
+            self._preset_baseline_steps.add(step)
+            return
         self._form_baselines[step] = current
         self._form_baseline_targets[step] = (
             self.context.project_id,
@@ -317,6 +320,28 @@ class FirstRunFormControls(FirstRunWizardShell):
     def _remember_current_form(self) -> None:
         self._preset_baseline_steps.discard(self.context.state.current_step)
         super()._remember_current_form()
+
+    def _restore_discarded_form(self) -> None:
+        super()._restore_discarded_form()
+        if self.context.state.current_step == "provider-config":
+            self._resync_ai_choice_from_fields()
+
+    def _resync_ai_choice_from_fields(self) -> None:
+        """Make ``#setup-ai-choice`` describe the provider fields again.
+
+        The choice lives on the ``ai-provider`` step while the fields it pre-fills
+        live on ``provider-config``; restoring only the fields would leave a stale
+        choice whose adapter Save Provider would then persist.
+        """
+
+        choice = self._choice_for_adapter(
+            self.query_one("#setup-provider-adapter", Input).value,
+            self.query_one("#setup-provider-base-url", Input).value or None,
+        )
+        select = self.query_one("#setup-ai-choice", Select)
+        with select.prevent(Select.Changed):
+            self._assign_select(select, choice)
+        self._last_llm_choice = self._select_value("#setup-ai-choice")
 
     def _apply_llm_choice_defaults(self, *, force: bool) -> None:
         choice = self._select_value("#setup-ai-choice") or "ollama"
