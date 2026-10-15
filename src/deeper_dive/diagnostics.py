@@ -396,7 +396,10 @@ _WORD_SPLIT = re.compile(r"[^A-Za-z0-9]+")
 
 
 def _key_words(key: object) -> tuple[str, ...]:
-    separated = _CAMEL_BOUNDARY.sub("_", str(key))
+    raw = str(key)
+    # Normalize case before detecting camel boundaries so irregular casing such
+    # as ``SeCrEt`` cannot split a credential noun into unrelated fragments.
+    separated = _CAMEL_BOUNDARY.sub("_", raw.lower())
     return tuple(part.lower() for part in _WORD_SPLIT.split(separated) if part)
 
 
