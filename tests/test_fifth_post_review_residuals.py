@@ -131,17 +131,13 @@ def test_create_host_double_submit_window_ends_when_another_host_is_loaded(
             # Select a different host with real keys, then come back to the created one.
             await choose_option(pilot, "#guided-host-picker", steps_down=1)
             assert wizard._loaded_host_id != created
-            # Return to the created host by keyboard: the number of steps is the distance
-            # between the two options in the picker.
-            picker = wizard.query_one("#guided-host-picker", Select)
-            values = [value for _label, value in picker._options if isinstance(value, str)]
-            distance = values.index(created) - values.index(str(picker.value))
-            await choose_option(
-                pilot,
-                "#guided-host-picker",
-                steps_down=max(distance, 0),
-                steps_up=max(-distance, 0),
-            )
+            # Select exposes its current value but not a public option list. Use the
+            # repository's host count as a bound and navigate by keyboard until the
+            # wizard's loaded identity reaches the created host.
+            for _ in range(len(repo.list_hosts(project_id))):
+                if wizard._loaded_host_id == created:
+                    break
+                await choose_option(pilot, "#guided-host-picker", steps_down=0, steps_up=1)
             await pilot.pause()
             assert wizard._loaded_host_id == created
             await click(pilot, "#guided-host-create")
@@ -158,12 +154,15 @@ def test_picker_change_under_a_prompt_is_reverted_when_no_host_was_loaded(
         async with app.run_test(size=(100, 45)) as pilot:
             await reach_hosts(pilot)
             wizard = app.screen
+            project_id = wizard.context.project_id
+            assert project_id is not None
+            repo = app.composition.service.hosts(project_id)
             await click(pilot, "#guided-host-recommended")
             picker = wizard.query_one("#guided-host-picker", Select)
             # Seeded: a prompt pending while no host profile is loaded.
             wizard._loaded_host_id = None
             wizard._exit_confirmation_pending = True
-            host_id = next(value for _label, value in picker._options if value != Select.BLANK)
+            host_id = repo.list_hosts(project_id)[0].id
             with picker.prevent(Select.Changed):
                 picker.value = Select.BLANK
             picker.value = host_id

@@ -28,8 +28,16 @@ def assert_scales_linearly(
     fixed allowance so a very fast small run cannot make the ratio meaningless.
     """
 
-    small_time = _best_of(function, make_text(large // 4))
-    large_time = _best_of(function, make_text(large))
-    assert large_time <= max(8 * small_time, 0.5) + 1.0, (
-        f"{label}: {small_time:.3f}s at {large // 4} chars, {large_time:.3f}s at {large}"
-    )
+    small_size = large // 4
+    middle_size = large // 2
+    small_time = _best_of(function, make_text(small_size), repeats=3)
+    middle_time = _best_of(function, make_text(middle_size), repeats=3)
+    large_time = _best_of(function, make_text(large), repeats=3)
+    assert large_time < 10.0, f"{label}: absolute hang guard exceeded at {large} chars"
+    if small_time >= 0.002:
+        assert middle_time <= 3.5 * small_time + 0.01, (
+            f"{label}: {small_time:.3f}s at {small_size}, {middle_time:.3f}s at {middle_size}"
+        )
+        assert large_time <= 6 * small_time + 0.02, (
+            f"{label}: {small_time:.3f}s at {small_size}, {large_time:.3f}s at {large}"
+        )
