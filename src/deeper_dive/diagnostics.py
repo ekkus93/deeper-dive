@@ -92,8 +92,12 @@ _ESCAPED_QUOTE_PAIR = re.compile(
     r"(?i)(\\+['\"])([A-Za-z0-9_.+/\[\]-]{1,128})\1(\s*:\s*)(\\+['\"])"
     r"((?:(?!\4)[^\r\n]){0,2048}+)(\4|(?=\r|\n|\Z))"
 )
+# The opener must be followed by a line break, an escaped ``\\n`` or a base64-looking run, so
+# prose that merely names the header (``use '-----BEGIN PRIVATE KEY-----' header``) survives.
 _PEM_PRIVATE_KEY = re.compile(
-    r"(?i)-----BEGIN [A-Z ]{0,40}PRIVATE KEY(?: BLOCK)?-----.*?"
+    r"(?i)-----BEGIN [A-Z ]{0,40}PRIVATE KEY(?: BLOCK)?-----"
+    r"(?=[ \t]*(?:[\r\n]|\\[nr]|[A-Za-z0-9+/=:]{16}))"
+    r".*?"
     r"(?:-----END [A-Z ]{0,40}PRIVATE KEY(?: BLOCK)?-----|\Z)",
     re.S,
 )

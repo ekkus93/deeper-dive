@@ -71,3 +71,33 @@ def test_redacted_text_keeps_the_surrounding_shape() -> None:
     assert redact("<user>bob</user><password>C</password>") == (
         "<user>bob</user><password>[REDACTED]</password>"
     )
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "use '-----BEGIN PRIVATE KEY-----' header",
+        "see -----BEGIN PRIVATE KEY----- header for the format",
+    ],
+)
+def test_prose_naming_a_pem_header_survives(text: str) -> None:
+    assert redact(text) == text
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        f"-----BEGIN PRIVATE KEY-----\n{CANARY}AAAAAAAAAAAAAAAA\n-----END PRIVATE KEY-----",
+        f"-----BEGIN PRIVATE KEY----- {CANARY}AAAAAAAAAAAAAAAA -----END PRIVATE KEY-----",
+        f"x\\n-----BEGIN RSA PRIVATE KEY-----\\n{CANARY}AAAA",
+        f"-----BEGIN PGP PRIVATE KEY BLOCK-----\nVersion: 1\n\n{CANARY}",
+        f"-----BEGIN PRIVATE KEY-----\n{CANARY}",
+    ],
+)
+def test_pem_bodies_are_still_redacted(text: str) -> None:
+    assert CANARY not in str(redact(text))
+
+
+def test_credential_shaped_fragment_is_redacted_on_purpose() -> None:
+    # ``h:abc#frag@x.com`` has the same shape as ``user:pass#word@host``; it fails closed.
+    assert "frag" not in str(redact("http://h:abc#frag@x.com"))
