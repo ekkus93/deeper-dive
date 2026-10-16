@@ -107,7 +107,7 @@ If a reproducer disproves a finding, keep the task visible and record a justifie
 ### 7PR-912 — Final qualification (after the last `src/` change)
 - [ ] `uv lock --check`; ruff format and lint; strict mypy; full pytest count recorded at the exact head.
 - [ ] `uv build`; fresh-venv wheel smoke at the exact head, including one 7PR-03 redaction check (`--apikey C`, `[['x-api-key','C']]`) and `deeper-dive episode cancel --help`.
-- [x] Green exact-head CI on both jobs, with run and job IDs for source head `5c3f677`: run `38823465614`; `quality` job `116725302629`; `fresh-machine` job `116725302341`. The later documentation evidence commit is awaiting its own exact-head CI.
+- [x] Green exact-head CI on both jobs, with run and job IDs for source head `5c3f677`: run `38823465614`; `quality` job `116725302629`; `fresh-machine` job `116725302341`. The documentation evidence head `14a5bc2` also passed run `38826145885`; `quality` job `116733953637`; `fresh-machine` job `116733953411`.
 - [ ] Evidence ledger below complete. Every row's test fails with its fix reverted (Mutation column) and names the test that exercises the fix, including review fixes.
 
 ## Evidence ledger
@@ -134,5 +134,5 @@ If a reproducer disproves a finding, keep the task visible and record a justifie
 - Wheel smoke initially used `pip install --no-deps` and failed to import `pypdf`; the corrected smoke installs declared dependencies. A first corrected run exposed that structured nested header-pair objects were not redacted, so `redact([["x-api-key", "CANARY9x"]])` now redacts the value and has a regression test.
 - Exact-head local qualification on `5c3f677`: `./scripts/check.sh` passed, 2,777 passed and 5 xfailed in 1,493.41 seconds; `uv lock --check`; `uv build`; fresh venv wheel install/import; `--apikey CANARY9x`, nested `[["x-api-key", "CANARY9x"]]`, and `deeper-dive episode cancel --help` smoke checks passed.
 - The full mixed-pass sanitizer timing test passed at the 262,144-character cap; recorded worst pair remains assignment + percent-encoded URL at 0.3385 seconds best-of-three. `tests/test_linear_timing.py` verifies rejection of quadratic work.
-- Push `5c3f677192bb90df8543e8a0d24fde24d3d221d0` triggered green CI run `38823465614`; `quality` job `116725302629` and `fresh-machine` job `116725302341` both passed. Documentation changes require a later exact-head run.
+- Push `5c3f677192bb90df8543e8a0d24fde24d3d221d0` triggered green CI run `38823465614`; `quality` job `116725302629` and `fresh-machine` job `116725302341` both passed. Documentation evidence head `14a5bc22cd7292ac272c1d9a04aa64724d2e337b` also passed run `38826145885`; `quality` job `116733953637` and `fresh-machine` job `116733953411` both passed. The checklist's required source reversion mutations and exhaustive independent review remain open as recorded above.
 - Mutation/reversion checks required by the checklist were not performed systematically. The corresponding boxes remain unchecked. The 7PR-911 requirement for an independent exhaustive trace of every changed source path also remains open; the earlier independent review was narrower and found the two defects recorded above.
